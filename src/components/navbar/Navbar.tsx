@@ -10,11 +10,11 @@ export const Navbar = () => {
     }
 
     return (
-        <nav className='flex'>
+        <nav className=''>
             {/*Left side*/}
-            <div><Link to="/">Home</Link></div>
+            <div className='flex'><Link to="/">Home</Link></div>
             {/*Right side*/}
-            <div><button onClick={() => handleLogout()}>Logout</button></div>
+            <div className=''><button onClick={() => handleLogout()}>Logout</button></div>
         </nav>
     )
 }
