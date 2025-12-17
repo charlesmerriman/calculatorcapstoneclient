@@ -1,6 +1,6 @@
 import './App.css'
 import { Route, Routes } from 'react-router-dom'
-import { ApplicationViews } from './views/ApplicationViews.jsx'
+import { ApplicationViews } from './views/ApplicationViews.js'
 
 function App() {
   return (

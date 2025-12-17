@@ -10,14 +10,13 @@ export const Navbar = () => {
     }
 
     return (
-        <nav className=''>
+        <nav className='flex justify-between'>
             {/*Left side*/}
-            <div className='flex'><Link to="/">Home</Link></div>
+            <div className='btn btn-ghost'><Link to="/">Home</Link></div>
             {/*Right side*/}
-            <div className=''><button onClick={() => handleLogout()}>Logout</button></div>
+            <div className='btn btn-ghost'><button onClick={() => handleLogout()}>Logout</button></div>
         </nav>
     )
 }
 
-//TODO: Add styles
 //TODO: Income user info dropdown menu
