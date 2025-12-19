@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form"
 import { userRegister } from "../../services/userServices"
-import { useNavigate, Navigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import type React from "react"
 
 interface RegisterFormData {
