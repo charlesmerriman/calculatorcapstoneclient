@@ -1,5 +1,3 @@
-import type React from "react";
-
 interface LoginCredentials {
     username: string;
     password: string;
@@ -121,28 +119,3 @@ export const userLogout = async (): Promise<LogoutResponse> => {
         throw error
     }    
 }
-
-export const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-        const result = await userLogin({ username: 'username', password: 'password'})
-        console.log('Login successful:', result)    
-    }
-
-    catch (error) {
-        console.error('Login failed:', error);
-    }
-}
-
-export const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-        const result = await userRegister({ username: 'username', password: 'password', email: 'email', first_name: 'first_name', last_name: 'last_name' });
-        console.log('Registration successful:', result);
-    }
-
-    catch (error) {
-        console.error('Registration failed:', error);
-    }}

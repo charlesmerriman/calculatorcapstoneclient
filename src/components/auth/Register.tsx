@@ -1,91 +1,136 @@
-export const Register = () => {
-  return (
-    <>
-      <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+import { useForm } from "react-hook-form"
+import { userRegister } from "../../services/userServices"
+import { useNavigate, Navigate } from "react-router-dom"
+import type React from "react"
 
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          <form action="#" method="POST" className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm/6 font-medium text-gray-100">
-                Email address
-              </label>
-              <div className="mt-2">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
-                />
-              </div>
-            </div>
+interface RegisterFormData {
+	email: string
+	username: string
+	first_name: string
+	last_name: string
+	password: string
+	confirmPassword: string
+}
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm/6 font-medium text-gray-100">
-                  Password
-                </label>
-              </div>
-              <div className="mt-2">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
-                />
-              </div>
-            </div>
+export const Register: React.FC = () => {
+	const {
+		register,
+		handleSubmit,
+		watch,
+		setError,
+		formState: { errors, isSubmitting }
+	} = useForm<RegisterFormData>()
+	const navigate = useNavigate()
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="first-name" className="block text-sm/6 font-medium text-gray-100">
-                  First Name
-                </label>
-              </div>
-              <div className="mt-2">
-                <input
-                  id="first-name"
-                  name="first-name"
-                  type="first-name"
-                  required
-                  autoComplete="first-name"
-                  className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
-                />
-              </div>
-            </div>
+	const password = watch("password")
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="last-name" className="block text-sm/6 font-medium text-gray-100">
-                  Last Name
-                </label>
-              </div>
-              <div className="mt-2">
-                <input
-                  id="last-name"
-                  name="last-name"
-                  type="last-name"
-                  required
-                  autoComplete="last-name"
-                  className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
-                />
-              </div>
-            </div>
+	const handleRegisterSubmit = async (data: RegisterFormData) => {
+		try {
+			const { confirmPassword, ...registerData } = data
 
-            <div>
-              <button
-                type="submit"
-                className="flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold text-white hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-              >
-                Register
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
-  )
+			const response = await userRegister(registerData)
+			console.log("Registration successful:", response)
+			navigate("/")
+		} catch {
+			setError("root", { message: "Registration failed. Please try again." })
+		}
+	}
+
+	return (
+		<div>
+			<form onSubmit={handleSubmit(handleRegisterSubmit)}>
+				<div>
+					<label htmlFor="username">Username:</label>
+					<input
+						type="text"
+						id="username"
+						{...register("username", { required: "Username is required" })}
+						autoComplete="username"
+					/>
+					{errors.username && (
+						<span className="text-red-500">{errors.username.message}</span>
+					)}
+				</div>
+
+				<div>
+					<label htmlFor="email">Email:</label>
+					<input
+						type="text"
+						id="email"
+						{...register("email", { required: "Email is required" })}
+						autoComplete="email"
+					/>
+					{errors.email && (
+						<span className="text-red-500">{errors.email.message}</span>
+					)}
+				</div>
+
+				<div>
+					<label htmlFor="first_name">First Name:</label>
+					<input
+						type="text"
+						id="first_name"
+						{...register("first_name", { required: "First name is required" })}
+						autoComplete="given-name"
+					/>
+					{errors.first_name && (
+						<span className="text-red-500">{errors.first_name.message}</span>
+					)}
+				</div>
+
+				<div>
+					<label htmlFor="last_name">Last Name:</label>
+					<input
+						type="text"
+						id="last_name"
+						{...register("last_name", { required: "Last name is required" })}
+						autoComplete="last_name"
+					/>
+					{errors.last_name && (
+						<span className="text-red-500">{errors.last_name.message}</span>
+					)}
+				</div>
+
+				<div>
+					<label htmlFor="password">Password:</label>
+					<input
+						type="password"
+						id="password"
+						{...register("password", { required: "Password is required" })}
+						autoComplete="new-password"
+					/>
+					{errors.password && (
+						<span className="text-red-500">{errors.password.message}</span>
+					)}
+				</div>
+
+				<div>
+					<label htmlFor="confirmPassword">Confirm Password:</label>
+					<input
+						type="password"
+						id="confirmPassword"
+						{...register("confirmPassword", {
+							required: "Please confirm your password",
+							validate: (value) =>
+								value === password || "Passwords do not match"
+						})}
+						autoComplete="new-password"
+					/>
+					{errors.confirmPassword && (
+						<span className="text-red-500">
+							{errors.confirmPassword.message}
+						</span>
+					)}
+				</div>
+
+				{errors.root && (
+					<div className="text-red-500">{errors.root.message}</div>
+				)}
+
+				<button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? "Registering..." : "Register"}
+				</button>
+			</form>
+		</div>
+	)
 }
