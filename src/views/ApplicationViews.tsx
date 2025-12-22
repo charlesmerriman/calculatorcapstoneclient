@@ -1,5 +1,6 @@
 import { Outlet, Route, Routes } from "react-router-dom"
 import { Navbar } from "../components/navbar/Navbar.tsx"
+import { CaratCalculator } from "../components/carat-calculator/CaratCalculator"
 
 export const ApplicationViews = () => {
 	return (
@@ -13,7 +14,7 @@ export const ApplicationViews = () => {
 					</>
 				}
 			>
-				<Route index element={<>Home</>} />
+				<Route index element={<CaratCalculator />} />
 			</Route>
 		</Routes>
 	)

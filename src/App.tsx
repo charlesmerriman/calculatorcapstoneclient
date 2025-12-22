@@ -4,7 +4,7 @@ import { ApplicationViews } from "./views/ApplicationViews.js"
 import { Login } from "./components/auth/Login.js"
 import { Register } from "./components/auth/Register.js"
 import { Authorized } from "./views/Authorized.js"
-import { BannerProvider } from "./services/BannerProvider.js"
+import { CalculatorProvider } from "./services/CalculatorProvider.js"
 
 function App() {
 	return (
@@ -15,9 +15,9 @@ function App() {
 				path="*"
 				element={
 					<Authorized>
-						<BannerProvider>
+						<CalculatorProvider>
 							<ApplicationViews />
-						</BannerProvider>
+						</CalculatorProvider>
 					</Authorized>
 				}
 			/>
