@@ -1,0 +1,15 @@
+I need:
+
+How many carats the user will earn between now and the banner end date (and how many pulls)
+    Daily carat pack: Just count the number of days between current date and end date
+    Club Rank: How many times does the 1st of the month occur between current date and end date
+    Team Trials: How many mondays fall between current date and end date
+    Champion's Meeting: (Dished out whenevre a champion's meeting finals occurs)
+
+    Need:
+        Total income by banner end date (above, plus paid carats, plus related support ticket pulls, plus starting carats)
+        Max pulls (Total income / 150)
+
+
+
+May require a timeline for champion's meeting income to work

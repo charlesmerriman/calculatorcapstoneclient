@@ -9,7 +9,7 @@ export const useCalculatorData = () => {
 	const context = useContext(CalculatorContext)
 
 	if (context === undefined) {
-		throw new Error("useBannerData must be used within a BannerProvider")
+		throw new Error("calculatorData must be used within a CalculatorProvider")
 	}
 
 	return context

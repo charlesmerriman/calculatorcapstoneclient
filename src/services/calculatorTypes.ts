@@ -1,3 +1,5 @@
+import type React from "react"
+
 export type BannerType = {
 	id: number
 	name: string
@@ -73,4 +75,6 @@ export type CalculatorContextType = {
 	umaBannerData: Banner[] | null
 	supportBannerData: Banner[] | null
 	userPlannedBannerData: UserPlannedBanner[] | null
+	currentCarats: number
+	setCurrentCarats: React.Dispatch<React.SetStateAction<number>>
 }

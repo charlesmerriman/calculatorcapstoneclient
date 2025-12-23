@@ -31,6 +31,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<
 		UserPlannedBanner[] | null
 	>(null)
+	const [currentCarats, setCurrentCarats] = useState<number>(0)
 
 	useEffect(() => {
 		fetch("http://localhost:8000/calculator-data", {
@@ -54,6 +55,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					data.banner_data.filter((banner) => banner.banner_type.id === 2)
 				)
 				setUserPlannedBannerData(data.user_planned_banner_data)
+				setCurrentCarats(data.user_stats_data.current_carat)
 			})
 			.catch((error) => console.error("Error fetching calculator data:", error))
 	}, [])
@@ -66,7 +68,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		championsMeetingRankData,
 		umaBannerData,
 		supportBannerData,
-		userPlannedBannerData
+		userPlannedBannerData,
+		currentCarats,
+		setCurrentCarats
 	}
 
 	return (
@@ -76,4 +80,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	)
 }
 
-// TODO: Add a loading state, error state, check if token is not null first before call, remove data state, add token as dependency in useEffect, create functions that update backend shortly after user has not made changes for a while
+// TODO: Add a loading state, error state, check if token is not null first before call, add token as dependency in useEffect, create functions that update backend shortly after user has not made changes for a while
+
+// TODO: Add a plan to spend state as to affect different components, tracked by end date
