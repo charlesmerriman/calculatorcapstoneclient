@@ -78,7 +78,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		bannerTagData,
 		bannerTypeData,
 		setCurrentCarats,
-		setUserPlannedBannerData
+		setUserPlannedBannerData,
+		setUserStatsData
 	}
 
 	return (

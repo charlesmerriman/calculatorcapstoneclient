@@ -54,7 +54,6 @@ export type UserPlannedBanner = {
 	user: number
 	banner: number
 	number_of_pulls: number
-
 }
 
 export type CalculatorData = {
@@ -82,4 +81,5 @@ export type CalculatorContextType = {
 	currentCarats: number
 	setCurrentCarats: React.Dispatch<React.SetStateAction<number>>
 	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[] | null>>
+	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats | null>>
 }

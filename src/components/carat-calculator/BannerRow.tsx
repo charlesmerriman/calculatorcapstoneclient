@@ -14,7 +14,7 @@ import type {
 	UserPlannedBanner,
 	UserStats
 } from "../../services/calculatorTypes"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Select from "react-select"
 
 type BannerRowProps = {
@@ -30,7 +30,6 @@ type BannerRowProps = {
 	umaBannerData: Banner[]
 	supportBannerData: Banner[]
 	caratsAvailableForThisBanner: number
-	setCurrentCarats: React.Dispatch<React.SetStateAction<number>>
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[] | null>
 	>
@@ -43,23 +42,19 @@ export const BannerRow = ({
 	clubRankData,
 	teamTrialsRankData,
 	championsMeetingRankData,
-	currentCarats,
 	bannerTypeData,
 	userPlannedBannerData,
 	umaBannerData,
 	supportBannerData,
 	caratsAvailableForThisBanner,
-	setCurrentCarats,
 	setUserPlannedBannerData
 }: BannerRowProps) => {
 	const [bannerType, setBannerType] = useState<BannerType | null>(
 		bannerDetails.banner_type || null
 	)
-	const [targetBannerData, setTargetBannerData] = useState<Banner | null>(null)
-	// const [bannerTypeDropDownOptions, setBannerTypeDropDownOptions] =
-	// 	useState(null)
-	// const [targetBannerDropDownOptions, setTargetBannerDropDownOptions] =
-	// 	useState(null)
+	const [targetBannerData, setTargetBannerData] = useState<Banner[] | null>(
+		null
+	)
 
 	useEffect(() => {
 		if (bannerType.id === 1) {
@@ -101,18 +96,28 @@ export const BannerRow = ({
 		endDate
 	)
 
-	const totalIncome =
-		dailyCaratPack * numberOfDays +
-		(userClubRank?.income_amount || 0) * numberOfMonthlyOccurrences +
-		(userTeamTrialsRank?.income_amount || 0) * numberOfMondays +
-		(userChampionsMeetingRank?.income_amount || 0) * numberOfMonthlyOccurrences
+	const totalIncome = useMemo(() => {
+		return (
+			dailyCaratPack * numberOfDays +
+			(userClubRank?.income_amount || 0) * numberOfMonthlyOccurrences +
+			(userTeamTrialsRank?.income_amount || 0) * numberOfMondays +
+			(userChampionsMeetingRank?.income_amount || 0) *
+				numberOfMonthlyOccurrences
+		)
+	}, [
+		dailyCaratPack,
+		numberOfDays,
+		userClubRank,
+		userTeamTrialsRank,
+		userChampionsMeetingRank,
+		numberOfMondays,
+		numberOfMonthlyOccurrences
+	])
 	const totalCarats = caratsAvailableForThisBanner + totalIncome
-	const caratsSpent = plannedBanner.number_of_pulls * 150
-	const remainingCarats = totalCarats - caratsSpent
 	const maxPossiblePulls = Math.floor(totalCarats / 150)
 
 	return (
-		<div>
+		<div className="m-4">
 			<div>
 				<h1>Type:</h1>
 				<Select
@@ -167,7 +172,7 @@ export const BannerRow = ({
 			</div>
 			{
 				<div>
-					Start Date:{" "}
+					Start Date:
 					{format(new Date(bannerDetails.start_date), "MMMM d, yyyy")}
 				</div>
 			}
