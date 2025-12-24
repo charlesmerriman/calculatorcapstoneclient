@@ -63,6 +63,8 @@ export type CalculatorData = {
 	team_trials_rank_data: TeamTrailsRank[]
 	champions_meeting_rank_data: ChampionsMeetingRank[]
 	banner_data: Banner[]
+	banner_type_data: BannerType[]
+	banner_tag_data: BannerTag[]
 	user_planned_banner_data: UserPlannedBanner[]
 }
 
@@ -75,6 +77,9 @@ export type CalculatorContextType = {
 	umaBannerData: Banner[] | null
 	supportBannerData: Banner[] | null
 	userPlannedBannerData: UserPlannedBanner[] | null
+	bannerTypeData: BannerType[] | null
+	bannerTagData: BannerTag[] | null
 	currentCarats: number
 	setCurrentCarats: React.Dispatch<React.SetStateAction<number>>
+	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[] | null>>
 }

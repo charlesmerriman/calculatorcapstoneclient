@@ -7,7 +7,8 @@ import type {
 	ClubRank,
 	TeamTrailsRank,
 	ChampionsMeetingRank,
-	UserPlannedBanner
+	UserPlannedBanner,
+	BannerTag
 } from "./calculatorTypes"
 
 type CalculatorProviderProps = {
@@ -31,6 +32,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<
 		UserPlannedBanner[] | null
 	>(null)
+	const [bannerTagData, setBannerTagData] = useState<BannerTag[] | null>(null)
+	const [bannerTypeData, setBannerTypeData] = useState<BannerTag[] | null>(null)
 	const [currentCarats, setCurrentCarats] = useState<number>(0)
 
 	useEffect(() => {
@@ -56,6 +59,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				)
 				setUserPlannedBannerData(data.user_planned_banner_data)
 				setCurrentCarats(data.user_stats_data.current_carat)
+				setBannerTagData(data.banner_tag_data)
+				setBannerTypeData(data.banner_type_data)
 			})
 			.catch((error) => console.error("Error fetching calculator data:", error))
 	}, [])
@@ -70,7 +75,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		supportBannerData,
 		userPlannedBannerData,
 		currentCarats,
-		setCurrentCarats
+		bannerTagData,
+		bannerTypeData,
+		setCurrentCarats,
+		setUserPlannedBannerData
 	}
 
 	return (
