@@ -32,11 +32,13 @@ export const IncomeForm = () => {
 				Current Carats:
 				<input
 					type="number"
-					value={currentCarats}
+					value={userStatsData.current_carat}
 					min={0}
 					onChange={(e) => {
 						const newCaratCount = Number(e.target.value)
-						setCurrentCarats(newCaratCount)
+						const userStatsDataCopy = { ...userStatsData }
+						userStatsDataCopy.current_carat = newCaratCount
+						setUserStatsData(userStatsDataCopy)
 					}}
 				/>
 			</div>

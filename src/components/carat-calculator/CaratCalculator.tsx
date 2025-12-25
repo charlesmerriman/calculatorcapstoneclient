@@ -12,7 +12,6 @@ export const CaratCalculator: React.FC = () => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
-		currentCarats,
 		bannerTypeData,
 		setUserPlannedBannerData
 	} = useCalculatorData()
@@ -48,7 +47,8 @@ export const CaratCalculator: React.FC = () => {
 							.reduce((total, banner) => total + banner.number_of_pulls, 0) *
 						150
 
-					const caratsAvailableForThisBanner = currentCarats - spentOnPrevious
+					const caratsAvailableForThisBanner =
+						userStatsData.current_carat - spentOnPrevious
 
 					if (!bannerDetails) {
 						return null
@@ -64,7 +64,6 @@ export const CaratCalculator: React.FC = () => {
 							teamTrialsRankData={teamTrialsRankData || []}
 							championsMeetingRankData={championsMeetingRankData || []}
 							userStatsData={userStatsData}
-							currentCarats={currentCarats}
 							bannerTypeData={bannerTypeData || []}
 							umaBannerData={umaBannerData || []}
 							supportBannerData={supportBannerData || []}

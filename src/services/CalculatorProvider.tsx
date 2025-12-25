@@ -34,7 +34,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	>(null)
 	const [bannerTagData, setBannerTagData] = useState<BannerTag[] | null>(null)
 	const [bannerTypeData, setBannerTypeData] = useState<BannerTag[] | null>(null)
-	const [currentCarats, setCurrentCarats] = useState<number>(0)
 
 	useEffect(() => {
 		fetch("http://localhost:8000/calculator-data", {
@@ -58,12 +57,29 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					data.banner_data.filter((banner) => banner.banner_type.id === 2)
 				)
 				setUserPlannedBannerData(data.user_planned_banner_data)
-				setCurrentCarats(data.user_stats_data.current_carat)
 				setBannerTagData(data.banner_tag_data)
 				setBannerTypeData(data.banner_type_data)
 			})
 			.catch((error) => console.error("Error fetching calculator data:", error))
 	}, [])
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			fetch("http://localhost:8000/calculator-data", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Token ${localStorage.getItem("authToken")}`
+				},
+				body: JSON.stringify({
+					user_stats_data: userStatsData,
+					user_planned_banner_data: userPlannedBannerData
+				})
+			})
+		}, 5000)
+
+		return () => clearTimeout(timer)
+	}, [userStatsData, userPlannedBannerData])
 
 	const value = {
 		data,
@@ -74,10 +90,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
-		currentCarats,
 		bannerTagData,
 		bannerTypeData,
-		setCurrentCarats,
 		setUserPlannedBannerData,
 		setUserStatsData
 	}
