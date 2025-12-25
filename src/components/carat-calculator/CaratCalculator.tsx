@@ -31,10 +31,23 @@ export const CaratCalculator: React.FC = () => {
 		return new Date(bannerA.start_date) - new Date(bannerB.start_date)
 	})
 
+	const handleAddBanner = () => {
+		const newPlannedBanner = {
+			banner: 1,
+			number_of_pulls: 0
+		}
+		const plannedBannersArrayCopy = [...userPlannedBannerData]
+		plannedBannersArrayCopy.push(newPlannedBanner)
+		setUserPlannedBannerData(plannedBannersArrayCopy)
+	}
+
 	return (
 		<>
 			<IncomeForm />
-			<div className="flex border m-4">
+			<button className="btn w-full" onClick={handleAddBanner}>
+				Add Additional Banner
+			</button>
+			<div className="flex border m-4 flex-wrap">
 				{sortedBanners.map((plannedBanner, index) => {
 					const bannerDetails = [
 						...(umaBannerData || []),

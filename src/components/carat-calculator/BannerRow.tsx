@@ -116,8 +116,15 @@ export const BannerRow = ({
 	const totalCarats = caratsAvailableForThisBanner + totalIncome
 	const maxPossiblePulls = Math.floor(totalCarats / 150)
 
+	const handleDeleteBannerClick = () => {
+		const updatedUserPlannedBannerData = userPlannedBannerData?.filter(
+			(mappedBannerData) => mappedBannerData.id !== plannedBanner.id
+		)
+		setUserPlannedBannerData(updatedUserPlannedBannerData)
+	}
+
 	return (
-		<div className="m-4">
+		<div className="m-4 w-full">
 			<div>
 				<h1>Type:</h1>
 				<Select
@@ -211,8 +218,9 @@ export const BannerRow = ({
 				</div>
 			}
 			{/*All the percentage chances of getting the MLBs*/}
+			<button onClick={handleDeleteBannerClick} className="btn">
+				Delete Banner
+			</button>
 		</div>
 	)
 }
-
-//TODO: Send remainingCarats back to parent component, add index

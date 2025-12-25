@@ -122,11 +122,10 @@ export const IncomeForm = () => {
 				<Select
 					defaultValue={
 						userStatsData
-							? {
-									value: userStatsData,
-									label: userStatsData.daily_carat
-							  }
-							: "Are you poor?"
+							? userStatsData.daily_carat
+								? { value: { daily_carat: true }, label: "Yes" }
+								: { value: { daily_carat: false }, label: "No" }
+							: null
 					}
 					onChange={(selectedOption) => {
 						const userStatsDataCopy = { ...userStatsData }
