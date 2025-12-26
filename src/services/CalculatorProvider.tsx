@@ -65,6 +65,15 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
+			const userPlannedBannerDataCopy = userPlannedBannerData?.map(
+				(plannedBanner) => {
+					if (plannedBanner.tempId) {
+						const { tempId, ...rest } = plannedBanner
+						return { ...rest }
+					} else return plannedBanner
+				}
+			)
+
 			fetch("http://localhost:8000/calculator-data", {
 				method: "PATCH",
 				headers: {
@@ -73,7 +82,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				},
 				body: JSON.stringify({
 					user_stats_data: userStatsData,
-					user_planned_banner_data: userPlannedBannerData
+					user_planned_banner_data: userPlannedBannerDataCopy
 				})
 			})
 		}, 5000)

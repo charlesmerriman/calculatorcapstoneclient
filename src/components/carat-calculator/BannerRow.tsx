@@ -118,7 +118,10 @@ export const BannerRow = ({
 
 	const handleDeleteBannerClick = () => {
 		const updatedUserPlannedBannerData = userPlannedBannerData?.filter(
-			(mappedBannerData) => mappedBannerData.id !== plannedBanner.id
+			(mappedBannerData) =>
+				mappedBannerData.tempId
+					? mappedBannerData.tempId !== plannedBanner.tempId
+					: mappedBannerData.id !== plannedBanner.id
 		)
 		setUserPlannedBannerData(updatedUserPlannedBannerData)
 	}

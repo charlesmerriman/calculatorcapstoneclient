@@ -50,7 +50,8 @@ export type ChampionsMeetingRank = {
 }
 
 export type UserPlannedBanner = {
-	id: number
+	id?: number
+	tempId?: number
 	user: number
 	banner: number
 	number_of_pulls: number

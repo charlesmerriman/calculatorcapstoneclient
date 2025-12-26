@@ -32,7 +32,15 @@ export const CaratCalculator: React.FC = () => {
 	})
 
 	const handleAddBanner = () => {
+		const arrayOfBannerIds = userPlannedBannerData?.map((banner) => {
+			const id = banner.tempId ? banner.tempId : banner.id
+			return id
+		})
+
+		const highestId = arrayOfBannerIds ? Math.max(...arrayOfBannerIds) : 0
+
 		const newPlannedBanner = {
+			tempId: highestId + 1,
 			banner: 1,
 			number_of_pulls: 0
 		}
@@ -69,7 +77,7 @@ export const CaratCalculator: React.FC = () => {
 
 					return (
 						<BannerRow
-							key={plannedBanner.id}
+							key={plannedBanner.id || plannedBanner.tempId}
 							plannedBanner={plannedBanner}
 							bannerDetails={bannerDetails}
 							userPlannedBannerData={userPlannedBannerData || []}
