@@ -27,17 +27,22 @@ export const CaratCalculator: React.FC = () => {
 		const bannerB = [...umaBannerData, ...supportBannerData].find(
 			(banner) => banner.id === b.banner
 		)
+		if (!bannerA || !bannerB) {
+			return 0
+		}
 
-		return new Date(bannerA.start_date) - new Date(bannerB.start_date)
+		return (
+			new Date(bannerA.start_date).getTime() -
+			new Date(bannerB.start_date).getTime()
+		)
 	})
 
 	const handleAddBanner = () => {
-		const arrayOfBannerIds = userPlannedBannerData?.map((banner) => {
-			const id = banner.tempId ? banner.tempId : banner.id
-			return id
-		})
-
-		const highestId = arrayOfBannerIds ? Math.max(...arrayOfBannerIds) : 0
+		const arrayOfBannerIds = userPlannedBannerData.map(
+			(banner) => (banner.tempId || banner.id)!
+		)
+		const highestId =
+			arrayOfBannerIds.length > 0 ? Math.max(...arrayOfBannerIds) : 0
 
 		const newPlannedBanner = {
 			tempId: highestId + 1,

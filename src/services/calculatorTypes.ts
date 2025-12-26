@@ -49,10 +49,15 @@ export type ChampionsMeetingRank = {
 	income_amount: number
 }
 
-export type UserPlannedBanner = {
-	id?: number
-	tempId?: number
+export type UserPlannedBanner = | {
+	id: number
+	tempId?: never
 	user: number
+	banner: number
+	number_of_pulls: number
+} | {
+	id?: never
+	tempId: number
 	banner: number
 	number_of_pulls: number
 }
@@ -65,22 +70,19 @@ export type CalculatorData = {
 	banner_data: Banner[]
 	banner_type_data: BannerType[]
 	banner_tag_data: BannerTag[]
-	user_planned_banner_data: UserPlannedBanner[]
+	user_planned_banner_data: UserPlannedBanner[] | []
 }
 
 export type CalculatorContextType = {
-	data: CalculatorData | null
-	userStatsData: UserStats | null
-	clubRankData: ClubRank[] | null
-	teamTrialsRankData: TeamTrailsRank[] | null
-	championsMeetingRankData: ChampionsMeetingRank[] | null
-	umaBannerData: Banner[] | null
-	supportBannerData: Banner[] | null
-	userPlannedBannerData: UserPlannedBanner[] | null
-	bannerTypeData: BannerType[] | null
-	bannerTagData: BannerTag[] | null
-	currentCarats: number
-	setCurrentCarats: React.Dispatch<React.SetStateAction<number>>
-	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[] | null>>
-	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats | null>>
+	userStatsData: UserStats
+	clubRankData: ClubRank[]
+	teamTrialsRankData: TeamTrailsRank[]
+	championsMeetingRankData: ChampionsMeetingRank[]
+	umaBannerData: Banner[]
+	supportBannerData: Banner[]
+	userPlannedBannerData: UserPlannedBanner[] | []
+	bannerTypeData: BannerType[]
+	bannerTagData: BannerTag[]
+	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[] | []>>
+	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats>>
 }
