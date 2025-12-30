@@ -126,11 +126,19 @@ export const BannerRow = ({
 		setUserPlannedBannerData(updatedUserPlannedBannerData)
 	}
 
+	const customStyles = {
+		option: (provided) => ({
+			...provided,
+			color: "#000"
+		})
+	}
+
 	return (
 		<div className="m-4 w-full">
 			<div>
 				<h1>Type:</h1>
 				<Select
+					styles={customStyles}
 					defaultValue={{
 						value: bannerType,
 						label: bannerType.name,
@@ -150,6 +158,7 @@ export const BannerRow = ({
 			<div>
 				<h1>Target Banner:</h1>
 				<Select
+					styles={customStyles}
 					defaultValue={
 						bannerDetails
 							? {

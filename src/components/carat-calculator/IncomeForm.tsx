@@ -7,9 +7,7 @@ export const IncomeForm = () => {
 		clubRankData,
 		teamTrialsRankData,
 		championsMeetingRankData,
-		currentCarats,
-		setUserStatsData,
-		setCurrentCarats
+		setUserStatsData
 	} = useCalculatorData()
 
 	if (!userStatsData) {
@@ -25,6 +23,13 @@ export const IncomeForm = () => {
 	const championsMeetingRank = championsMeetingRankData?.find(
 		(rank) => rank.id === userStatsData.champions_meeting_rank
 	)
+
+	const customStyles = {
+		option: (provided) => ({
+			...provided,
+			color: "#000"
+		})
+	}
 
 	return (
 		<div className="border m-4">
@@ -46,6 +51,7 @@ export const IncomeForm = () => {
 				<div>
 					Club Rank:
 					<Select
+						styles={customStyles}
 						defaultValue={
 							clubRank
 								? {
@@ -71,6 +77,7 @@ export const IncomeForm = () => {
 				<div>
 					Team Trials Rank:
 					<Select
+						styles={customStyles}
 						defaultValue={
 							teamTrialsRank
 								? {
@@ -96,6 +103,7 @@ export const IncomeForm = () => {
 				<div>
 					Champion's Meeting:
 					<Select
+						styles={customStyles}
 						defaultValue={
 							championsMeetingRank
 								? {
@@ -121,6 +129,7 @@ export const IncomeForm = () => {
 				<div>
 					Daily Carat Pack?:
 					<Select
+						styles={customStyles}
 						defaultValue={
 							userStatsData
 								? userStatsData.daily_carat

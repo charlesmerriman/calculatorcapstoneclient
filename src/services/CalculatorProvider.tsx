@@ -16,15 +16,7 @@ type CalculatorProviderProps = {
 }
 
 export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
-	const [userStatsData, setUserStatsData] = useState<UserStats>({
-		current_carat: 0,
-		uma_ticket: 0,
-		support_ticket: 0,
-		daily_carat: false,
-		club_rank: 0,
-		team_trials_rank: 0,
-		champions_meeting_rank: 0
-	})
+	const [userStatsData, setUserStatsData] = useState<UserStats | null>(null)
 	const [clubRankData, setClubRankData] = useState<ClubRank[] | []>([])
 	const [teamTrialsRankData, setTeamTrialsRankData] = useState<
 		TeamTrailsRank[] | []
