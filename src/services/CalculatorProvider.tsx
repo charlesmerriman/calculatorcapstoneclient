@@ -16,24 +16,21 @@ type CalculatorProviderProps = {
 }
 
 export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
-	const [data, setData] = useState<CalculatorData | null>(null)
 	const [userStatsData, setUserStatsData] = useState<UserStats | null>(null)
-	const [clubRankData, setClubRankData] = useState<ClubRank[] | null>(null)
+	const [clubRankData, setClubRankData] = useState<ClubRank[] | []>([])
 	const [teamTrialsRankData, setTeamTrialsRankData] = useState<
-		TeamTrailsRank[] | null
-	>(null)
+		TeamTrailsRank[] | []
+	>([])
 	const [championsMeetingRankData, setChampionsMeetingRankData] = useState<
-		ChampionsMeetingRank[] | null
-	>(null)
-	const [umaBannerData, setUmaBannerData] = useState<Banner[] | null>(null)
-	const [supportBannerData, setSupportBannerData] = useState<Banner[] | null>(
-		null
-	)
+		ChampionsMeetingRank[] | []
+	>([])
+	const [umaBannerData, setUmaBannerData] = useState<Banner[] | []>([])
+	const [supportBannerData, setSupportBannerData] = useState<Banner[] | []>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<
-		UserPlannedBanner[] | null
-	>(null)
-	const [bannerTagData, setBannerTagData] = useState<BannerTag[] | null>(null)
-	const [bannerTypeData, setBannerTypeData] = useState<BannerTag[] | null>(null)
+		UserPlannedBanner[] | []
+	>([])
+	const [bannerTagData, setBannerTagData] = useState<BannerTag[] | []>([])
+	const [bannerTypeData, setBannerTypeData] = useState<BannerTag[] | []>([])
 
 	useEffect(() => {
 		fetch("http://localhost:8000/calculator-data", {
@@ -45,7 +42,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		})
 			.then((response) => response.json())
 			.then((data: CalculatorData) => {
-				setData(data)
 				setUserStatsData(data.user_stats_data)
 				setClubRankData(data.club_rank_data)
 				setTeamTrialsRankData(data.team_trials_rank_data)
@@ -65,6 +61,16 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
+			const userPlannedBannerDataCopy = userPlannedBannerData?.map(
+				(plannedBanner) => {
+					if (plannedBanner.tempId) {
+						// eslint-disable-next-line @typescript-eslint/no-unused-vars
+						const { tempId, ...rest } = plannedBanner
+						return { ...rest }
+					} else return plannedBanner
+				}
+			)
+
 			fetch("http://localhost:8000/calculator-data", {
 				method: "PATCH",
 				headers: {
@@ -73,7 +79,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				},
 				body: JSON.stringify({
 					user_stats_data: userStatsData,
-					user_planned_banner_data: userPlannedBannerData
+					user_planned_banner_data: userPlannedBannerDataCopy
 				})
 			})
 		}, 5000)
@@ -82,7 +88,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	}, [userStatsData, userPlannedBannerData])
 
 	const value = {
-		data,
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,
@@ -104,5 +109,3 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 }
 
 // TODO: Add a loading state, error state, check if token is not null first before call, add token as dependency in useEffect, create functions that update backend shortly after user has not made changes for a while
-
-// TODO: Add a plan to spend state as to affect different components, tracked by end date

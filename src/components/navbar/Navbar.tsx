@@ -42,7 +42,7 @@ export const Navbar = () => {
 	}
 
 	return (
-		<nav className="flex justify-between">
+		<nav className="flex justify-between border">
 			{/*Left side*/}
 			<div className="btn btn-ghost">
 				<Link to="/">Home</Link>

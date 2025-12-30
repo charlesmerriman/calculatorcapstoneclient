@@ -24,14 +24,13 @@ type BannerRowProps = {
 	clubRankData: ClubRank[]
 	teamTrialsRankData: TeamTrailsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
-	currentCarats: number
 	bannerTypeData: BannerType[]
-	userPlannedBannerData: UserPlannedBanner[] | null
+	userPlannedBannerData: UserPlannedBanner[] | []
 	umaBannerData: Banner[]
 	supportBannerData: Banner[]
 	caratsAvailableForThisBanner: number
 	setUserPlannedBannerData: React.Dispatch<
-		React.SetStateAction<UserPlannedBanner[] | null>
+		React.SetStateAction<UserPlannedBanner[] | []>
 	>
 }
 
@@ -49,8 +48,8 @@ export const BannerRow = ({
 	caratsAvailableForThisBanner,
 	setUserPlannedBannerData
 }: BannerRowProps) => {
-	const [bannerType, setBannerType] = useState<BannerType | null>(
-		bannerDetails.banner_type || null
+	const [bannerType, setBannerType] = useState<BannerType>(
+		bannerDetails.banner_type
 	)
 	const [targetBannerData, setTargetBannerData] = useState<Banner[] | null>(
 		null
@@ -58,6 +57,7 @@ export const BannerRow = ({
 
 	useEffect(() => {
 		if (bannerType.id === 1) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setTargetBannerData(umaBannerData)
 		} else if (bannerType.id === 2) {
 			setTargetBannerData(supportBannerData)
@@ -118,9 +118,19 @@ export const BannerRow = ({
 
 	const handleDeleteBannerClick = () => {
 		const updatedUserPlannedBannerData = userPlannedBannerData?.filter(
-			(mappedBannerData) => mappedBannerData.id !== plannedBanner.id
+			(mappedBannerData) =>
+				mappedBannerData.tempId
+					? mappedBannerData.tempId !== plannedBanner.tempId
+					: mappedBannerData.id !== plannedBanner.id
 		)
 		setUserPlannedBannerData(updatedUserPlannedBannerData)
+	}
+
+	const customStyles = {
+		option: (provided) => ({
+			...provided,
+			color: "#000"
+		})
 	}
 
 	return (
@@ -128,17 +138,16 @@ export const BannerRow = ({
 			<div>
 				<h1>Type:</h1>
 				<Select
-					defaultValue={
-						bannerType
-							? {
-									value: bannerType,
-									label: bannerType.name,
-									key: bannerType.id
-							  }
-							: null
-					}
+					styles={customStyles}
+					defaultValue={{
+						value: bannerType,
+						label: bannerType.name,
+						key: bannerType.id
+					}}
 					onChange={(selectedOption) => {
-						setBannerType(selectedOption ? selectedOption.value : null)
+						if (selectedOption) {
+							setBannerType(selectedOption.value)
+						}
 					}}
 					options={bannerTypeData.map((type) => {
 						return { value: type, label: type.name, key: type.id }
@@ -149,6 +158,7 @@ export const BannerRow = ({
 			<div>
 				<h1>Target Banner:</h1>
 				<Select
+					styles={customStyles}
 					defaultValue={
 						bannerDetails
 							? {
@@ -159,9 +169,12 @@ export const BannerRow = ({
 							: null
 					}
 					onChange={(selectedOption) => {
-						const updatedUserPlannedBannerData = userPlannedBannerData?.map(
+						const updatedUserPlannedBannerData = userPlannedBannerData.map(
 							(mappedBannerData) => {
-								if (mappedBannerData.id === plannedBanner.id) {
+								if (
+									mappedBannerData.id === plannedBanner.id &&
+									selectedOption
+								) {
 									return {
 										...mappedBannerData,
 										banner: selectedOption.value.id
