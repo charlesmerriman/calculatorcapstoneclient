@@ -135,103 +135,124 @@ export const BannerRow = ({
 
 	return (
 		<div className="m-4 w-full">
-			<div>
-				<h1>Type:</h1>
-				<Select
-					styles={customStyles}
-					defaultValue={{
-						value: bannerType,
-						label: bannerType.name,
-						key: bannerType.id
-					}}
-					onChange={(selectedOption) => {
-						if (selectedOption) {
-							setBannerType(selectedOption.value)
-						}
-					}}
-					options={bannerTypeData.map((type) => {
-						return { value: type, label: type.name, key: type.id }
-					})}
-				/>
-			</div>
-			{/*Banner Image*/}
-			<div>
-				<h1>Target Banner:</h1>
-				<Select
-					styles={customStyles}
-					defaultValue={
-						bannerDetails
-							? {
-									value: bannerDetails,
-									label: bannerDetails.name,
-									key: bannerDetails.id
-							  }
-							: null
-					}
-					onChange={(selectedOption) => {
-						const updatedUserPlannedBannerData = userPlannedBannerData.map(
-							(mappedBannerData) => {
-								if (
-									mappedBannerData.id === plannedBanner.id &&
-									selectedOption
-								) {
-									return {
-										...mappedBannerData,
-										banner: selectedOption.value.id
+			<div className="w-full border flex flex-wrap p-4">
+				<div className="w-full lg:w-1/3 flex flex-wrap">
+					<div className="flex w-full">
+						<div className="flex flex-col w-1/2 text-center justify-evenly">
+							<h1>Banner Type:</h1>
+							<Select
+								styles={customStyles}
+								defaultValue={{
+									value: bannerType,
+									label: bannerType.name,
+									key: bannerType.id
+								}}
+								onChange={(selectedOption) => {
+									if (selectedOption) {
+										setBannerType(selectedOption.value)
 									}
-								}
-								return mappedBannerData
-							}
-						)
-						setUserPlannedBannerData(updatedUserPlannedBannerData)
-					}}
-					options={targetBannerData?.map((banner) => {
-						return { value: banner, label: banner.name, key: banner.id }
-					})}
-				/>
-			</div>
-			{
-				<div>
-					Start Date:
-					{format(new Date(bannerDetails.start_date), "MMMM d, yyyy")}
-				</div>
-			}
-			{
-				<div>
-					End Date: {format(new Date(bannerDetails.end_date), "MMMM d, yyyy")}
-				</div>
-			}
-			{<div>Carat Estimation: {totalCarats}</div>}
-			{<div>Max Pulls: {maxPossiblePulls}</div>}
-			{
-				<div>
-					Pulls:
-					<input
-						type="number"
-						value={plannedBanner.number_of_pulls}
-						max={maxPossiblePulls}
-						min={0}
-						onChange={(e) => {
-							const newPullCount = Number(e.target.value)
+								}}
+								options={bannerTypeData.map((type) => {
+									return { value: type, label: type.name, key: type.id }
+								})}
+							/>
+						</div>
+						<div className="flex flex-col w-1/2 text-center justify-evenly">
+							Pulls:
+							<input
+								type="number"
+								value={plannedBanner.number_of_pulls}
+								className="w-full text-center border border-[#cccccc] rounded h-9.5 bg-white"
+								max={maxPossiblePulls}
+								min={0}
+								onChange={(e) => {
+									const newPullCount = Number(e.target.value)
 
-							const updatedUserPlannedBannerData = userPlannedBannerData?.map(
-								(mappedBannerData) => {
-									if (mappedBannerData.id === plannedBanner.id) {
-										return {
-											...mappedBannerData,
-											number_of_pulls: newPullCount
+									const updatedUserPlannedBannerData =
+										userPlannedBannerData?.map((mappedBannerData) => {
+											if (mappedBannerData.id === plannedBanner.id) {
+												return {
+													...mappedBannerData,
+													number_of_pulls: newPullCount
+												}
+											}
+											return mappedBannerData
+										})
+									setUserPlannedBannerData(updatedUserPlannedBannerData)
+								}}
+							/>
+						</div>
+					</div>
+					<div className="text-center w-full">
+						<h1>Target Banner:</h1>
+						<Select
+							styles={customStyles}
+							defaultValue={
+								bannerDetails
+									? {
+											value: bannerDetails,
+											label: bannerDetails.name,
+											key: bannerDetails.id
+									  }
+									: null
+							}
+							onChange={(selectedOption) => {
+								const updatedUserPlannedBannerData = userPlannedBannerData.map(
+									(mappedBannerData) => {
+										if (
+											mappedBannerData.id === plannedBanner.id &&
+											selectedOption
+										) {
+											return {
+												...mappedBannerData,
+												banner: selectedOption.value.id
+											}
 										}
+										return mappedBannerData
 									}
-									return mappedBannerData
-								}
-							)
-							setUserPlannedBannerData(updatedUserPlannedBannerData)
-						}}
-					/>
+								)
+								setUserPlannedBannerData(updatedUserPlannedBannerData)
+							}}
+							options={targetBannerData?.map((banner) => {
+								return { value: banner, label: banner.name, key: banner.id }
+							})}
+						/>
+					</div>
 				</div>
-			}
-			{/*All the percentage chances of getting the MLBs*/}
-			<button onClick={handleDeleteBannerClick} className="btn">
+
+				<div className="w-full lg:w-1/3 flex flex-wrap">
+					<div className="flex w-full justify-center">
+						<div className="flex flex-wrap">
+							<div className="text-center w-full">Start Date:</div>
+							<div className="text-center w-full">
+								{format(new Date(bannerDetails.start_date), "MMMM d, yyyy")}
+							</div>
+						</div>
+						<div className="flex flex-wrap">
+							<div className="text-center w-full">End Date: </div>
+							<div className="text-center w-full">
+								{format(new Date(bannerDetails.end_date), "MMMM d, yyyy")}
+							</div>
+						</div>
+					</div>
+					<div className="flex w-full justify-center">
+						<img src={bannerDetails.image} alt={bannerDetails.name} />
+					</div>
+					<div className="flex w-full">
+						<div className="w-1/2 text-center">
+							Carat Estimation: {totalCarats}
+						</div>
+						<div className="w-1/2 text-center">
+							Max Pulls: {maxPossiblePulls}
+						</div>
+					</div>
+				</div>
+
+				<div className="lg:w-1/3">
+					{/*All the percentage chances of getting the MLBs*/}
+				</div>
+			</div>
+			<button onClick={handleDeleteBannerClick} className="btn w-full">
 				Delete Banner
 			</button>
 		</div>

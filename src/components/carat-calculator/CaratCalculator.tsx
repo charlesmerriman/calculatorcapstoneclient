@@ -55,12 +55,12 @@ export const CaratCalculator: React.FC = () => {
 	}
 
 	return (
-		<>
+		<div className="w-full h-screen lg:max-w-7xl mx-auto border p-4 bg-neutral-100">
 			<IncomeForm />
 			<button className="btn w-full" onClick={handleAddBanner}>
 				Add Additional Banner
 			</button>
-			<div className="flex border m-4 flex-wrap">
+			<div className="flex m-4 flex-wrap">
 				{sortedBanners.map((plannedBanner, index) => {
 					const bannerDetails = [
 						...(umaBannerData || []),
@@ -99,6 +99,6 @@ export const CaratCalculator: React.FC = () => {
 					)
 				})}
 			</div>
-		</>
+		</div>
 	)
 }

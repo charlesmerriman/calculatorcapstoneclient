@@ -74,15 +74,15 @@ export type CalculatorData = {
 }
 
 export type CalculatorContextType = {
-	userStatsData: UserStats
-	clubRankData: ClubRank[]
-	teamTrialsRankData: TeamTrailsRank[]
-	championsMeetingRankData: ChampionsMeetingRank[]
-	umaBannerData: Banner[]
-	supportBannerData: Banner[]
+	userStatsData: UserStats | null
+	clubRankData: ClubRank[] | []
+	teamTrialsRankData: TeamTrailsRank[] | []
+	championsMeetingRankData: ChampionsMeetingRank[] | []
+	umaBannerData: Banner[] | []
+	supportBannerData: Banner[] | []
 	userPlannedBannerData: UserPlannedBanner[] | []
-	bannerTypeData: BannerType[]
-	bannerTagData: BannerTag[]
+	bannerTypeData: BannerType[] | []
+	bannerTagData: BannerTag[] | []
 	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[] | []>>
-	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats>>
+	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats | null>>
 }
