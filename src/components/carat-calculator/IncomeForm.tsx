@@ -156,8 +156,7 @@ export const IncomeForm = () => {
 						placeholder="Select a rank"
 						onChange={(selectedOption) => {
 							const userStatsDataCopy = { ...userStatsData }
-							userStatsDataCopy.champions5_meeting_rank =
-								selectedOption.value.id
+							userStatsDataCopy.champions_meeting_rank = selectedOption.value.id
 							setUserStatsData(userStatsDataCopy)
 						}}
 						options={championsMeetingRankData?.map((rank) => {
@@ -206,7 +205,7 @@ export const IncomeForm = () => {
 							}
 						]}
 					/>
-					<div className="border px-2 py-1 min-w-[100px] text-center">
+					<div className="border px-2 py-1 min-w-25 text-center">
 						Income Display
 					</div>
 				</div>
