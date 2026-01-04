@@ -61,11 +61,14 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 						plannedBanner.banner_uma || plannedBanner.banner_support
 				)
 				.map((plannedBanner) => {
-					if (plannedBanner.tempId) {
-						// eslint-disable-next-line @typescript-eslint/no-unused-vars
-						const { tempId, ...rest } = plannedBanner
-						return { ...rest }
-					} else return plannedBanner
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars
+					const { tempId, ...rest } = plannedBanner
+
+					return {
+						...rest,
+						banner_uma: plannedBanner.banner_uma?.id || null,
+						banner_support: plannedBanner.banner_support?.id || null
+					}
 				})
 
 			fetch("http://localhost:8000/calculator-data", {
