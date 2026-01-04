@@ -12,30 +12,12 @@ export const CaratCalculator: React.FC = () => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
-		bannerTypeData,
 		setUserPlannedBannerData
 	} = useCalculatorData()
 
 	if (!userStatsData) {
 		return <div>Loading...</div>
 	}
-
-	const sortedBanners = (userPlannedBannerData || []).sort((a, b) => {
-		const bannerA = [...umaBannerData, ...supportBannerData].find(
-			(banner) => banner.id === a.banner
-		)
-		const bannerB = [...umaBannerData, ...supportBannerData].find(
-			(banner) => banner.id === b.banner
-		)
-		if (!bannerA || !bannerB) {
-			return 0
-		}
-
-		return (
-			new Date(bannerA.start_date).getTime() -
-			new Date(bannerB.start_date).getTime()
-		)
-	})
 
 	const handleAddBanner = () => {
 		const arrayOfBannerIds = userPlannedBannerData.map(
@@ -46,7 +28,7 @@ export const CaratCalculator: React.FC = () => {
 
 		const newPlannedBanner = {
 			tempId: highestId + 1,
-			banner: 1,
+			name: "Pick a banner",
 			number_of_pulls: 0
 		}
 		const plannedBannersArrayCopy = [...userPlannedBannerData]
@@ -55,20 +37,15 @@ export const CaratCalculator: React.FC = () => {
 	}
 
 	return (
-		<div className="w-full h-screen lg:max-w-7xl mx-auto border p-4 bg-neutral-100">
+		<div className="w-full lg:max-w-7xl mx-auto border p-4 bg-neutral-100">
 			<IncomeForm />
 			<button className="btn w-full" onClick={handleAddBanner}>
 				Add Additional Banner
 			</button>
 			<div className="flex m-4 flex-wrap">
-				{sortedBanners.map((plannedBanner, index) => {
-					const bannerDetails = [
-						...(umaBannerData || []),
-						...(supportBannerData || [])
-					].find((banner) => banner.id === plannedBanner.banner)
-
+				{userPlannedBannerData.map((plannedBanner, index) => {
 					const spentOnPrevious =
-						sortedBanners
+						userPlannedBannerData
 							.slice(0, index)
 							.reduce((total, banner) => total + banner.number_of_pulls, 0) *
 						150
@@ -76,7 +53,7 @@ export const CaratCalculator: React.FC = () => {
 					const caratsAvailableForThisBanner =
 						userStatsData.current_carat - spentOnPrevious
 
-					if (!bannerDetails) {
+					if (!plannedBanner) {
 						return null
 					}
 
@@ -84,13 +61,11 @@ export const CaratCalculator: React.FC = () => {
 						<BannerRow
 							key={plannedBanner.id || plannedBanner.tempId}
 							plannedBanner={plannedBanner}
-							bannerDetails={bannerDetails}
 							userPlannedBannerData={userPlannedBannerData || []}
 							clubRankData={clubRankData || []}
 							teamTrialsRankData={teamTrialsRankData || []}
 							championsMeetingRankData={championsMeetingRankData || []}
 							userStatsData={userStatsData}
-							bannerTypeData={bannerTypeData || []}
 							umaBannerData={umaBannerData || []}
 							supportBannerData={supportBannerData || []}
 							setUserPlannedBannerData={setUserPlannedBannerData}

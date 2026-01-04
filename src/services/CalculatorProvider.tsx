@@ -3,12 +3,12 @@ import { CalculatorContext } from "./CalculatorContext"
 import type {
 	CalculatorData,
 	UserStats,
-	Banner,
 	ClubRank,
 	TeamTrailsRank,
 	ChampionsMeetingRank,
 	UserPlannedBanner,
-	BannerTag
+	BannerUma,
+	BannerSupport
 } from "./calculatorTypes"
 
 type CalculatorProviderProps = {
@@ -24,13 +24,13 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [championsMeetingRankData, setChampionsMeetingRankData] = useState<
 		ChampionsMeetingRank[] | []
 	>([])
-	const [umaBannerData, setUmaBannerData] = useState<Banner[] | []>([])
-	const [supportBannerData, setSupportBannerData] = useState<Banner[] | []>([])
+	const [umaBannerData, setUmaBannerData] = useState<BannerUma[] | []>([])
+	const [supportBannerData, setSupportBannerData] = useState<
+		BannerSupport[] | []
+	>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<
 		UserPlannedBanner[] | []
 	>([])
-	const [bannerTagData, setBannerTagData] = useState<BannerTag[] | []>([])
-	const [bannerTypeData, setBannerTypeData] = useState<BannerTag[] | []>([])
 
 	useEffect(() => {
 		fetch("http://localhost:8000/calculator-data", {
@@ -46,30 +46,27 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setClubRankData(data.club_rank_data)
 				setTeamTrialsRankData(data.team_trials_rank_data)
 				setChampionsMeetingRankData(data.champions_meeting_rank_data)
-				setUmaBannerData(
-					data.banner_data.filter((banner) => banner.banner_type.id === 1)
-				)
-				setSupportBannerData(
-					data.banner_data.filter((banner) => banner.banner_type.id === 2)
-				)
+				setUmaBannerData(data.banner_uma_data)
+				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
-				setBannerTagData(data.banner_tag_data)
-				setBannerTypeData(data.banner_type_data)
 			})
 			.catch((error) => console.error("Error fetching calculator data:", error))
 	}, [])
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			const userPlannedBannerDataCopy = userPlannedBannerData?.map(
-				(plannedBanner) => {
+			const userPlannedBannerDataCopy = userPlannedBannerData
+				?.filter(
+					(plannedBanner) =>
+						plannedBanner.banner_uma || plannedBanner.banner_support
+				)
+				.map((plannedBanner) => {
 					if (plannedBanner.tempId) {
 						// eslint-disable-next-line @typescript-eslint/no-unused-vars
 						const { tempId, ...rest } = plannedBanner
 						return { ...rest }
 					} else return plannedBanner
-				}
-			)
+				})
 
 			fetch("http://localhost:8000/calculator-data", {
 				method: "PATCH",
@@ -95,8 +92,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
-		bannerTagData,
-		bannerTypeData,
 		setUserPlannedBannerData,
 		setUserStatsData
 	}

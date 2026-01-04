@@ -6,28 +6,26 @@ import {
 	getDay
 } from "date-fns"
 import type {
-	Banner,
-	BannerType,
 	ChampionsMeetingRank,
 	ClubRank,
 	TeamTrailsRank,
 	UserPlannedBanner,
-	UserStats
+	UserStats,
+	BannerUma,
+	BannerSupport
 } from "../../services/calculatorTypes"
 import { useEffect, useMemo, useState } from "react"
 import Select from "react-select"
 
 type BannerRowProps = {
 	plannedBanner: UserPlannedBanner
-	bannerDetails: Banner
 	userStatsData: UserStats
 	clubRankData: ClubRank[]
 	teamTrialsRankData: TeamTrailsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
-	bannerTypeData: BannerType[]
 	userPlannedBannerData: UserPlannedBanner[] | []
-	umaBannerData: Banner[]
-	supportBannerData: Banner[]
+	umaBannerData: BannerUma[]
+	supportBannerData: BannerSupport[]
 	caratsAvailableForThisBanner: number
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[] | []>
@@ -36,34 +34,38 @@ type BannerRowProps = {
 
 export const BannerRow = ({
 	plannedBanner,
-	bannerDetails,
 	userStatsData,
 	clubRankData,
 	teamTrialsRankData,
 	championsMeetingRankData,
-	bannerTypeData,
 	userPlannedBannerData,
 	umaBannerData,
 	supportBannerData,
 	caratsAvailableForThisBanner,
 	setUserPlannedBannerData
 }: BannerRowProps) => {
-	const [bannerType, setBannerType] = useState<BannerType>(
-		bannerDetails.banner_type
+	const [bannerType, setBannerType] = useState(
+		plannedBanner.banner_support ? "Support" : "Uma"
 	)
-	const [targetBannerData, setTargetBannerData] = useState<Banner[] | null>(
-		null
-	)
+	const [targetBannerData, setTargetBannerData] = useState<
+		BannerUma[] | BannerSupport[]
+	>(plannedBanner.banner_support ? supportBannerData : umaBannerData)
 
 	useEffect(() => {
-		if (bannerType.id === 1) {
+		if (bannerType === "Uma") {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setTargetBannerData(umaBannerData)
-		} else if (bannerType.id === 2) {
+		} else if (bannerType === "Support") {
 			setTargetBannerData(supportBannerData)
 		}
 	}, [bannerType, supportBannerData, umaBannerData])
 
+	const currentBanner = targetBannerData.find(
+		(banner) =>
+			banner.id === plannedBanner.banner_uma?.id ||
+			banner.id === plannedBanner.banner_support?.id ||
+			""
+	)
 	const userClubRank = clubRankData.find(
 		(rank) => rank.id === userStatsData.club_rank
 	)
@@ -75,7 +77,13 @@ export const BannerRow = ({
 	)
 	const dailyCaratPack = userStatsData.daily_carat ? 50 : 0
 	const currentDate = new Date()
-	const endDate = new Date(bannerDetails?.end_date || currentDate)
+	const endDate = new Date(
+		plannedBanner.banner_uma
+			? plannedBanner.banner_uma.banner_timeline.end_date
+			: plannedBanner.banner_support
+			? plannedBanner.banner_support.banner_timeline.end_date
+			: currentDate
+	)
 
 	const calculateDaysBetween = (start: Date, end: Date): number => {
 		return differenceInDays(end, start)
@@ -144,17 +152,17 @@ export const BannerRow = ({
 								styles={customStyles}
 								defaultValue={{
 									value: bannerType,
-									label: bannerType.name,
-									key: bannerType.id
+									label: bannerType
 								}}
 								onChange={(selectedOption) => {
 									if (selectedOption) {
 										setBannerType(selectedOption.value)
 									}
 								}}
-								options={bannerTypeData.map((type) => {
-									return { value: type, label: type.name, key: type.id }
-								})}
+								options={[
+									{ value: "Uma", label: "Uma" },
+									{ value: "Support", label: "Support" }
+								]}
 							/>
 						</div>
 						<div className="flex flex-col w-1/2 text-center justify-evenly">
@@ -187,65 +195,132 @@ export const BannerRow = ({
 						<h1>Target Banner:</h1>
 						<Select
 							styles={customStyles}
-							defaultValue={
-								bannerDetails
-									? {
-											value: bannerDetails,
-											label: bannerDetails.name,
-											key: bannerDetails.id
-									  }
-									: null
-							}
+							defaultValue={{
+								value: currentBanner,
+								label: currentBanner ? currentBanner.name : "Add a banner"
+							}}
 							onChange={(selectedOption) => {
 								const updatedUserPlannedBannerData = userPlannedBannerData.map(
 									(mappedBannerData) => {
 										if (
-											mappedBannerData.id === plannedBanner.id &&
-											selectedOption
+											(mappedBannerData.id &&
+												mappedBannerData.id === plannedBanner.id) ||
+											(mappedBannerData.tempId &&
+												mappedBannerData.tempId === plannedBanner.tempId)
 										) {
-											return {
-												...mappedBannerData,
-												banner: selectedOption.value.id
+											if (selectedOption && bannerType === "Uma") {
+												return {
+													...mappedBannerData,
+													banner_uma: selectedOption.value,
+													banner_support: undefined
+												}
+											} else if (selectedOption && bannerType === "Support") {
+												return {
+													...mappedBannerData,
+													banner_uma: undefined,
+													banner_support: selectedOption.value
+												}
 											}
 										}
 										return mappedBannerData
 									}
-								)
-								setUserPlannedBannerData(updatedUserPlannedBannerData)
+								) as UserPlannedBanner[]
+								const sorted = updatedUserPlannedBannerData.sort((a, b) => {
+									const aDate = new Date(
+										a.banner_uma
+											? a.banner_uma.banner_timeline.start_date
+											: a.banner_support!.banner_timeline.start_date
+									)
+									const bDate = new Date(
+										b.banner_uma
+											? b.banner_uma.banner_timeline.start_date
+											: b.banner_support!.banner_timeline.start_date
+									)
+									return aDate.getTime() - bDate.getTime()
+								})
+								setUserPlannedBannerData(sorted)
 							}}
-							options={targetBannerData?.map((banner) => {
-								return { value: banner, label: banner.name, key: banner.id }
-							})}
+							options={targetBannerData
+								.filter((banner) =>
+									bannerType === "Uma"
+										? "umas" in banner
+										: "support_cards" in banner
+								)
+								.map((banner) => ({
+									value: banner,
+									label: banner.name,
+									key: banner.id
+								}))}
 						/>
 					</div>
 				</div>
 
 				<div className="w-full lg:w-1/3 flex flex-wrap">
-					<div className="flex w-full justify-center">
-						<div className="flex flex-wrap">
-							<div className="text-center w-full">Start Date:</div>
-							<div className="text-center w-full">
-								{format(new Date(bannerDetails.start_date), "MMMM d, yyyy")}
+					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
+						<>
+							<div className="flex w-full justify-center">
+								<div className="flex flex-wrap">
+									<div className="text-center w-full">Start Date:</div>
+									<div className="text-center w-full">
+										{plannedBanner.banner_uma || plannedBanner.banner_support
+											? format(
+													new Date(
+														plannedBanner.banner_uma
+															? plannedBanner.banner_uma.banner_timeline
+																	.start_date
+															: plannedBanner.banner_support.banner_timeline
+																	.start_date
+													),
+													"MMMM d, yyyy"
+											  )
+											: ""}
+									</div>
+								</div>
+								<div className="flex flex-wrap">
+									<div className="text-center w-full">End Date: </div>
+									<div className="text-center w-full">
+										{plannedBanner.banner_uma || plannedBanner.banner_support
+											? format(
+													new Date(
+														plannedBanner.banner_uma
+															? plannedBanner.banner_uma.banner_timeline
+																	.end_date
+															: plannedBanner.banner_support.banner_timeline
+																	.end_date
+													),
+													"MMMM d, yyyy"
+											  )
+											: ""}
+									</div>
+								</div>
 							</div>
-						</div>
-						<div className="flex flex-wrap">
-							<div className="text-center w-full">End Date: </div>
-							<div className="text-center w-full">
-								{format(new Date(bannerDetails.end_date), "MMMM d, yyyy")}
+							<div className="flex w-full justify-center">
+								{plannedBanner.banner_uma
+									? plannedBanner.banner_uma.umas.map((umas) => (
+											<img key={umas.name} src={umas.image} alt={umas.name} />
+									  ))
+									: plannedBanner.banner_support
+									? plannedBanner.banner_support.support_cards.map(
+											(support_cards) => (
+												<img
+													key={support_cards.name}
+													src={support_cards.image}
+													alt={support_cards.name}
+												/>
+											)
+									  )
+									: ""}
 							</div>
-						</div>
-					</div>
-					<div className="flex w-full justify-center">
-						<img src={bannerDetails.image} alt={bannerDetails.name} />
-					</div>
-					<div className="flex w-full">
-						<div className="w-1/2 text-center">
-							Carat Estimation: {totalCarats}
-						</div>
-						<div className="w-1/2 text-center">
-							Max Pulls: {maxPossiblePulls}
-						</div>
-					</div>
+							<div className="flex w-full">
+								<div className="w-1/2 text-center">
+									Carat Estimation: {totalCarats}
+								</div>
+								<div className="w-1/2 text-center">
+									Max Pulls: {maxPossiblePulls}
+								</div>
+							</div>
+						</>
+					)}
 				</div>
 
 				<div className="lg:w-1/3">
