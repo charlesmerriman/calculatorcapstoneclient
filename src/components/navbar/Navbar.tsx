@@ -49,6 +49,11 @@ export const Navbar = () => {
 					Home
 				</Link>
 			</div>
+			<div className="btn btn-ghost">
+				<Link to="/timeline" className="">
+					Timeline
+				</Link>
+			</div>
 			{/*Right side*/}
 			<div className="btn btn-ghost">
 				<button onClick={handleLogout}>Logout</button>

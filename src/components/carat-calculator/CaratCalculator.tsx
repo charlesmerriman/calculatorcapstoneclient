@@ -37,9 +37,12 @@ export const CaratCalculator: React.FC = () => {
 	}
 
 	return (
-		<div className="w-full lg:max-w-7xl mx-auto border p-4 bg-neutral-100">
+		<div className="w-full bg-white lg:max-w-7xl mx-auto border p-4">
 			<IncomeForm />
-			<button className="btn w-full" onClick={handleAddBanner}>
+			<button
+				className="w-full px-4 py-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition"
+				onClick={handleAddBanner}
+			>
 				Add Additional Banner
 			</button>
 			<div className="flex m-4 flex-wrap">

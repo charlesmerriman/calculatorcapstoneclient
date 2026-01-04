@@ -16,6 +16,7 @@ import type {
 } from "../../services/calculatorTypes"
 import { useEffect, useMemo, useState } from "react"
 import Select from "react-select"
+import { MLBChanceDisplay } from "./MLBChanceDisplay"
 
 type BannerRowProps = {
 	plannedBanner: UserPlannedBanner
@@ -142,8 +143,8 @@ export const BannerRow = ({
 	}
 
 	return (
-		<div className="m-4 w-full">
-			<div className="w-full border flex flex-wrap p-4">
+		<div className="m-4 w-full bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-4">
+			<div className="w-full flex flex-wrap p-4">
 				<div className="w-full lg:w-1/3 flex flex-wrap">
 					<div className="flex w-full">
 						<div className="flex flex-col w-1/2 text-center justify-evenly">
@@ -178,7 +179,12 @@ export const BannerRow = ({
 
 									const updatedUserPlannedBannerData =
 										userPlannedBannerData?.map((mappedBannerData) => {
-											if (mappedBannerData.id === plannedBanner.id) {
+											if (
+												(mappedBannerData.id &&
+													mappedBannerData.id === plannedBanner.id) ||
+												(mappedBannerData.tempId &&
+													mappedBannerData.tempId === plannedBanner.tempId)
+											) {
 												return {
 													...mappedBannerData,
 													number_of_pulls: newPullCount
@@ -259,7 +265,7 @@ export const BannerRow = ({
 					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
 						<>
 							<div className="flex w-full justify-center">
-								<div className="flex flex-wrap">
+								<div className="flex flex-wrap p-1">
 									<div className="text-center w-full">Start Date:</div>
 									<div className="text-center w-full">
 										{plannedBanner.banner_uma || plannedBanner.banner_support
@@ -276,7 +282,7 @@ export const BannerRow = ({
 											: ""}
 									</div>
 								</div>
-								<div className="flex flex-wrap">
+								<div className="flex flex-wrap p-1">
 									<div className="text-center w-full">End Date: </div>
 									<div className="text-center w-full">
 										{plannedBanner.banner_uma || plannedBanner.banner_support
@@ -312,10 +318,10 @@ export const BannerRow = ({
 									: ""}
 							</div>
 							<div className="flex w-full">
-								<div className="w-1/2 text-center">
+								<div className="w-1/2 text-center p-1">
 									Carat Estimation: {totalCarats}
 								</div>
-								<div className="w-1/2 text-center">
+								<div className="w-1/2 text-center p-1">
 									Max Pulls: {maxPossiblePulls}
 								</div>
 							</div>
@@ -323,11 +329,17 @@ export const BannerRow = ({
 					)}
 				</div>
 
-				<div className="lg:w-1/3">
+				<div className="w-full lg:w-1/3">
 					{/*All the percentage chances of getting the MLBs*/}
+					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
+						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} />
+					)}
 				</div>
 			</div>
-			<button onClick={handleDeleteBannerClick} className="btn w-full">
+			<button
+				onClick={handleDeleteBannerClick}
+				className="w-full px-4 py-2 rounded-2xl bg-red-50 text-red-700 font-medium border border-red-200 hover:bg-red-100 hover:border-red-300 transition shadow-sm"
+			>
 				Delete Banner
 			</button>
 		</div>
