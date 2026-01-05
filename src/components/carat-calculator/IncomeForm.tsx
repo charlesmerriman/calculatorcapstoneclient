@@ -32,7 +32,7 @@ export const IncomeForm = () => {
 	}
 
 	return (
-		<div className="bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-4">
+		<div className="bg-neutral-200 rounded-t-xl border border-gray-200 shadow-sm p-4">
 			<div className="grid grid-cols-[auto_1fr_auto_1fr] gap-4 items-center ">
 				{/* Left Column - Current Carats */}
 				<div className="text-right text-sm font-medium text-gray-700">
@@ -83,8 +83,8 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
-					<div className="border border-[#cccccc] rounded px-2 py-1 min-w-25 text-center">
-						Income Display
+					<div className="w-full lg:w-1/3 border border-[#cccccc] rounded px-2 py-1 min-w-25 text-center">
+						{teamTrialsRank?.income_amount}
 					</div>
 				</div>
 
@@ -137,8 +137,8 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
-					<div className="border border-[#cccccc] px-2 py-1 min-w-2 text-center">
-						Income Display
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-2 text-center">
+						{clubRank?.income_amount}
 					</div>
 				</div>
 
@@ -191,8 +191,8 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
-					<div className="border border-[#cccccc] px-2 py-1 min-w-25 text-center">
-						Income Display
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center">
+						{championsMeetingRank?.income_amount}
 					</div>
 				</div>
 
@@ -231,8 +231,8 @@ export const IncomeForm = () => {
 							}
 						]}
 					/>
-					<div className="border border-[#cccccc] px-2 py-1 min-w-25 text-center">
-						Income Display
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center">
+						{userStatsData.daily_carat === true ? 50 : 0}
 					</div>
 				</div>
 			</div>

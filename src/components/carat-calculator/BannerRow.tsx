@@ -148,7 +148,9 @@ export const BannerRow = ({
 				<div className="w-full lg:w-1/3 flex flex-wrap">
 					<div className="flex w-full">
 						<div className="flex flex-col w-1/2 text-center justify-evenly">
-							<h1>Banner Type:</h1>
+							<h1 className="text-sm font-medium text-gray-700">
+								Banner Type:
+							</h1>
 							<Select
 								styles={customStyles}
 								defaultValue={{
@@ -167,7 +169,7 @@ export const BannerRow = ({
 							/>
 						</div>
 						<div className="flex flex-col w-1/2 text-center justify-evenly">
-							Pulls:
+							<h1 className="text-sm font-medium text-gray-700">Pulls:</h1>
 							<input
 								type="number"
 								value={plannedBanner.number_of_pulls}
@@ -197,10 +199,13 @@ export const BannerRow = ({
 							/>
 						</div>
 					</div>
-					<div className="text-center w-full">
-						<h1>Target Banner:</h1>
+					<div className="text-center w-full flex flex-wrap justify-evenly">
+						<h1 className="text-sm w-full font-medium text-gray-700">
+							Target Banner:
+						</h1>
 						<Select
 							styles={customStyles}
+							className="w-full"
 							defaultValue={{
 								value: currentBanner,
 								label: currentBanner ? currentBanner.name : "Add a banner"
@@ -266,7 +271,9 @@ export const BannerRow = ({
 						<>
 							<div className="flex w-full justify-center">
 								<div className="flex flex-wrap p-1">
-									<div className="text-center w-full">Start Date:</div>
+									<div className="text-center w-full text-sm font-medium text-gray-700">
+										Start Date:
+									</div>
 									<div className="text-center w-full">
 										{plannedBanner.banner_uma || plannedBanner.banner_support
 											? format(
@@ -283,7 +290,9 @@ export const BannerRow = ({
 									</div>
 								</div>
 								<div className="flex flex-wrap p-1">
-									<div className="text-center w-full">End Date: </div>
+									<div className="text-center w-full text-sm font-medium text-gray-700">
+										End Date:{" "}
+									</div>
 									<div className="text-center w-full">
 										{plannedBanner.banner_uma || plannedBanner.banner_support
 											? format(
@@ -312,16 +321,17 @@ export const BannerRow = ({
 													key={support_cards.name}
 													src={support_cards.image}
 													alt={support_cards.name}
+													className="p-1"
 												/>
 											)
 									  )
 									: ""}
 							</div>
 							<div className="flex w-full">
-								<div className="w-1/2 text-center p-1">
+								<div className="w-1/2 text-center p-1 text-sm font-medium text-gray-700">
 									Carat Estimation: {totalCarats}
 								</div>
-								<div className="w-1/2 text-center p-1">
+								<div className="w-1/2 text-center p-1 text-sm font-medium text-gray-700">
 									Max Pulls: {maxPossiblePulls}
 								</div>
 							</div>
