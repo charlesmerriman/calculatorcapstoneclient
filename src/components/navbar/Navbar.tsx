@@ -42,10 +42,17 @@ export const Navbar = () => {
 	}
 
 	return (
-		<nav className="flex justify-between border">
+		<nav className="flex justify-evenly sticky top-0 z-50 bg-[#7aa6a5]">
 			{/*Left side*/}
 			<div className="btn btn-ghost">
-				<Link to="/">Home</Link>
+				<Link to="/" className="">
+					Home
+				</Link>
+			</div>
+			<div className="btn btn-ghost">
+				<Link to="/timeline" className="">
+					Timeline
+				</Link>
 			</div>
 			{/*Right side*/}
 			<div className="btn btn-ghost">

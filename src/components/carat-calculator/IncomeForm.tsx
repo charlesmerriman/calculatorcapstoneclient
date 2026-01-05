@@ -32,51 +32,34 @@ export const IncomeForm = () => {
 	}
 
 	return (
-		<div className="border m-4">
-			<div className="m-4">
-				Current Carats:
-				<input
-					type="number"
-					value={userStatsData.current_carat}
-					min={0}
-					onChange={(e) => {
-						const newCaratCount = Number(e.target.value)
-						const userStatsDataCopy = { ...userStatsData }
-						userStatsDataCopy.current_carat = newCaratCount
-						setUserStatsData(userStatsDataCopy)
-					}}
-				/>
-			</div>
-			<div className="m-4">
-				<div>
-					Club Rank:
-					<Select
-						styles={customStyles}
-						defaultValue={
-							clubRank
-								? {
-										value: clubRank,
-										label: clubRank.name
-								  }
-								: "Select a rank"
-						}
-						onChange={(selectedOption) => {
-							const userStatsDataCopy = { ...userStatsData }
-							userStatsDataCopy.club_rank = selectedOption.value.id
-							setUserStatsData(userStatsDataCopy)
-						}}
-						options={clubRankData?.map((rank) => {
-							return {
-								value: rank,
-								label: rank.name,
-								key: rank.id
-							}
-						})}
-					/>
+		<div className="bg-neutral-200 rounded-t-xl border border-gray-200 shadow-sm p-4">
+			<div className="grid grid-cols-[auto_1fr_auto_1fr] gap-4 items-center ">
+				{/* Left Column - Current Carats */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Current Carats:
 				</div>
 				<div>
-					Team Trials Rank:
+					<input
+						className="px-2 py-1 w-full border border-[#cccccc] rounded h-9.5 bg-white"
+						type="number"
+						value={userStatsData.current_carat}
+						min={0}
+						onChange={(e) => {
+							const newCaratCount = Number(e.target.value)
+							const userStatsDataCopy = { ...userStatsData }
+							userStatsDataCopy.current_carat = newCaratCount
+							setUserStatsData(userStatsDataCopy)
+						}}
+					/>
+				</div>
+
+				{/* Right Column - Team Trials */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Team Trials:
+				</div>
+				<div className="flex gap-2">
 					<Select
+						className="flex-1"
 						styles={customStyles}
 						defaultValue={
 							teamTrialsRank
@@ -84,8 +67,9 @@ export const IncomeForm = () => {
 										value: teamTrialsRank,
 										label: teamTrialsRank.name
 								  }
-								: "Select a rank"
+								: null
 						}
+						placeholder="Select a rank"
 						onChange={(selectedOption) => {
 							const userStatsDataCopy = { ...userStatsData }
 							userStatsDataCopy.team_trials_rank = selectedOption.value.id
@@ -99,10 +83,91 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
+					<div className="w-full lg:w-1/3 border border-[#cccccc] rounded px-2 py-1 min-w-25 text-center">
+						{teamTrialsRank?.income_amount}
+					</div>
+				</div>
+
+				{/* Left Column - Uma Tickets */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Uma Tickets:
 				</div>
 				<div>
-					Champion's Meeting:
+					<input
+						className="px-2 py-1 w-full border border-[#cccccc] rounded h-9.5 bg-white"
+						type="number"
+						value={userStatsData.uma_ticket}
+						min={0}
+						onChange={(e) => {
+							const newUmaTicketCount = Number(e.target.value)
+							const userStatsDataCopy = { ...userStatsData }
+							userStatsDataCopy.uma_ticket = newUmaTicketCount
+							setUserStatsData(userStatsDataCopy)
+						}}
+					/>
+				</div>
+
+				{/* Right Column - Club Rank */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Club Rank:
+				</div>
+				<div className="flex gap-2">
 					<Select
+						className="flex-1"
+						styles={customStyles}
+						defaultValue={
+							clubRank
+								? {
+										value: clubRank,
+										label: clubRank.name
+								  }
+								: null
+						}
+						placeholder="Select a rank"
+						onChange={(selectedOption) => {
+							const userStatsDataCopy = { ...userStatsData }
+							userStatsDataCopy.club_rank = selectedOption.value.id
+							setUserStatsData(userStatsDataCopy)
+						}}
+						options={clubRankData?.map((rank) => {
+							return {
+								value: rank,
+								label: rank.name,
+								key: rank.id
+							}
+						})}
+					/>
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-2 text-center">
+						{clubRank?.income_amount}
+					</div>
+				</div>
+
+				{/* Left Column - Support Tickets */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Support Tickets:
+				</div>
+				<div>
+					<input
+						className="px-2 py-1 w-full border border-[#cccccc] rounded h-9.5 bg-white"
+						type="number"
+						value={userStatsData.support_ticket}
+						min={0}
+						onChange={(e) => {
+							const newSupportTicketCount = Number(e.target.value)
+							const userStatsDataCopy = { ...userStatsData }
+							userStatsDataCopy.uma_ticket = newSupportTicketCount
+							setUserStatsData(userStatsDataCopy)
+						}}
+					/>
+				</div>
+
+				{/* Right Column - Champion's Meeting */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Champion's Meeting:
+				</div>
+				<div className="flex gap-2">
+					<Select
+						className="flex-1"
 						styles={customStyles}
 						defaultValue={
 							championsMeetingRank
@@ -110,8 +175,9 @@ export const IncomeForm = () => {
 										value: championsMeetingRank,
 										label: championsMeetingRank.name
 								  }
-								: "Select a rank"
+								: null
 						}
+						placeholder="Select a rank"
 						onChange={(selectedOption) => {
 							const userStatsDataCopy = { ...userStatsData }
 							userStatsDataCopy.champions_meeting_rank = selectedOption.value.id
@@ -125,10 +191,22 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center">
+						{championsMeetingRank?.income_amount}
+					</div>
 				</div>
-				<div>
-					Daily Carat Pack?:
+
+				{/* Empty cell for alignment */}
+				<div></div>
+				<div></div>
+
+				{/* Right Column - Daily Carat Pack */}
+				<div className="text-right text-sm font-medium text-gray-700">
+					Daily Carat Pack:
+				</div>
+				<div className="flex gap-2">
 					<Select
+						className="flex-1"
 						styles={customStyles}
 						defaultValue={
 							userStatsData
@@ -153,6 +231,9 @@ export const IncomeForm = () => {
 							}
 						]}
 					/>
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center">
+						{userStatsData.daily_carat === true ? 50 : 0}
+					</div>
 				</div>
 			</div>
 		</div>
