@@ -35,12 +35,12 @@ export const IncomeForm = () => {
 		<div className="bg-neutral-200 rounded-t-xl border border-gray-200 shadow-sm p-4">
 			<div className="grid grid-cols-[auto_1fr_auto_1fr] gap-4 items-center ">
 				{/* Left Column - Current Carats */}
-				<div className="text-right text-sm font-medium text-gray-700">
+				<div className="text-right text-sm font-medium text-gray-700 ">
 					Current Carats:
 				</div>
 				<div>
 					<input
-						className="px-2 py-1 w-full border border-[#cccccc] rounded h-9.5 bg-white"
+						className="px-2 py-1 w-full border border-[#cccccc] rounded-lg h-9.5 bg-white focus:border-indigo-400 focus:ring-indigo-300 shadow-sm text-base font-medium"
 						type="number"
 						value={userStatsData.current_carat}
 						min={0}
@@ -83,7 +83,7 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
-					<div className="w-full lg:w-1/3 border border-[#cccccc] rounded px-2 py-1 min-w-25 text-center">
+					<div className="w-full lg:w-1/3 border border-[#cccccc] rounded px-2 py-1 min-w-25 text-center text-base font-medium">
 						{teamTrialsRank?.income_amount}
 					</div>
 				</div>
@@ -94,7 +94,7 @@ export const IncomeForm = () => {
 				</div>
 				<div>
 					<input
-						className="px-2 py-1 w-full border border-[#cccccc] rounded h-9.5 bg-white"
+						className="px-2 py-1 w-full border border-[#cccccc] rounded-lg h-9.5 bg-white focus:border-indigo-400 focus:ring-indigo-300 shadow-sm text-base font-medium"
 						type="number"
 						value={userStatsData.uma_ticket}
 						min={0}
@@ -137,7 +137,7 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
-					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-2 text-center">
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-2 text-center text-base font-medium">
 						{clubRank?.income_amount}
 					</div>
 				</div>
@@ -148,21 +148,21 @@ export const IncomeForm = () => {
 				</div>
 				<div>
 					<input
-						className="px-2 py-1 w-full border border-[#cccccc] rounded h-9.5 bg-white"
+						className="px-2 py-1 w-full border border-[#cccccc] rounded-lg h-9.5 bg-white focus:border-indigo-400 focus:ring-indigo-300 shadow-sm text-base font-medium"
 						type="number"
 						value={userStatsData.support_ticket}
 						min={0}
 						onChange={(e) => {
 							const newSupportTicketCount = Number(e.target.value)
 							const userStatsDataCopy = { ...userStatsData }
-							userStatsDataCopy.uma_ticket = newSupportTicketCount
+							userStatsDataCopy.support_ticket = newSupportTicketCount
 							setUserStatsData(userStatsDataCopy)
 						}}
 					/>
 				</div>
 
 				{/* Right Column - Champion's Meeting */}
-				<div className="text-right text-sm font-medium text-gray-700">
+				<div className="text-right text-sm font-medium text-gray-700 ">
 					Champion's Meeting:
 				</div>
 				<div className="flex gap-2">
@@ -191,7 +191,7 @@ export const IncomeForm = () => {
 							}
 						})}
 					/>
-					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center">
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center text-base font-medium">
 						{championsMeetingRank?.income_amount}
 					</div>
 				</div>
@@ -231,8 +231,8 @@ export const IncomeForm = () => {
 							}
 						]}
 					/>
-					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center">
-						{userStatsData.daily_carat === true ? 50 : 0}
+					<div className="w-full lg:w-1/3 border border-[#cccccc] px-2 py-1 min-w-25 text-center text-base font-medium">
+						{userStatsData.daily_carat === true ? 2000 : 0}
 					</div>
 				</div>
 			</div>

@@ -32,7 +32,13 @@ export const CaratCalculator: React.FC = () => {
 			number_of_pulls: 0
 		}
 		const plannedBannersArrayCopy = [...userPlannedBannerData]
-		plannedBannersArrayCopy.push(newPlannedBanner)
+		if (
+			plannedBannersArrayCopy.every(
+				(banner) => banner["name"] != "Pick a banner"
+			)
+		) {
+			plannedBannersArrayCopy.push(newPlannedBanner)
+		}
 		setUserPlannedBannerData(plannedBannersArrayCopy)
 	}
 

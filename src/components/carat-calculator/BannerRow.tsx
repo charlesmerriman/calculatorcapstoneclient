@@ -123,7 +123,15 @@ export const BannerRow = ({
 		numberOfMonthlyOccurrences
 	])
 	const totalCarats = caratsAvailableForThisBanner + totalIncome
-	const maxPossiblePulls = Math.floor(totalCarats / 150)
+	const calculateMaxPossiblePulls = () => {
+		if (plannedBanner.banner_uma) {
+			return Math.floor(totalCarats / 150 + userStatsData.uma_ticket)
+		} else if (plannedBanner.banner_support) {
+			return Math.floor(totalCarats / 150 + userStatsData.support_ticket)
+		}
+	}
+
+	const maxPossiblePulls = calculateMaxPossiblePulls()
 
 	const handleDeleteBannerClick = () => {
 		const updatedUserPlannedBannerData = userPlannedBannerData?.filter(
@@ -143,9 +151,9 @@ export const BannerRow = ({
 	}
 
 	return (
-		<div className="m-4 w-full bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-4">
-			<div className="w-full flex flex-wrap p-4">
-				<div className="w-full lg:w-1/3 flex flex-wrap">
+		<div className="m-4 w-full">
+			<div className="w-full flex flex-wrap p-4 bg-neutral-200 rounded-t-xl border border-gray-200 shadow-sm">
+				<div className="w-full lg:w-1/3 flex flex-wrap pr-1">
 					<div className="flex w-full">
 						<div className="flex flex-col w-1/2 text-center justify-evenly">
 							<h1 className="text-sm font-medium text-gray-700">
@@ -266,7 +274,7 @@ export const BannerRow = ({
 					</div>
 				</div>
 
-				<div className="w-full lg:w-1/3 flex flex-wrap">
+				<div className="w-full lg:w-1/3 flex flex-wrap border-0 rounded-2xl bg-white">
 					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
 						<>
 							<div className="flex w-full justify-center">
@@ -274,7 +282,7 @@ export const BannerRow = ({
 									<div className="text-center w-full text-sm font-medium text-gray-700">
 										Start Date:
 									</div>
-									<div className="text-center w-full">
+									<div className="text-center w-full text-base font-medium">
 										{plannedBanner.banner_uma || plannedBanner.banner_support
 											? format(
 													new Date(
@@ -293,7 +301,7 @@ export const BannerRow = ({
 									<div className="text-center w-full text-sm font-medium text-gray-700">
 										End Date:{" "}
 									</div>
-									<div className="text-center w-full">
+									<div className="text-center w-full text-base font-medium">
 										{plannedBanner.banner_uma || plannedBanner.banner_support
 											? format(
 													new Date(
@@ -328,18 +336,26 @@ export const BannerRow = ({
 									: ""}
 							</div>
 							<div className="flex w-full">
-								<div className="w-1/2 text-center p-1 text-sm font-medium text-gray-700">
-									Carat Estimation: {totalCarats}
+								<div className="w-1/2 text-center p-1">
+									<div className="text-center w-full text-sm font-medium text-gray-700">
+										Carat Estimation:
+									</div>{" "}
+									<div className="text-base font-medium">{totalCarats}</div>
 								</div>
-								<div className="w-1/2 text-center p-1 text-sm font-medium text-gray-700">
-									Max Pulls: {maxPossiblePulls}
+								<div className="w-1/2 text-center p-1">
+									<div className="text-center w-full text-sm font-medium text-gray-700">
+										Max Pulls:
+									</div>{" "}
+									<div className="text-base font-medium">
+										{maxPossiblePulls}
+									</div>
 								</div>
 							</div>
 						</>
 					)}
 				</div>
 
-				<div className="w-full lg:w-1/3">
+				<div className="w-full lg:w-1/3 pl-1">
 					{/*All the percentage chances of getting the MLBs*/}
 					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
 						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} />
@@ -348,7 +364,7 @@ export const BannerRow = ({
 			</div>
 			<button
 				onClick={handleDeleteBannerClick}
-				className="w-full px-4 py-2 rounded-2xl bg-red-50 text-red-700 font-medium border border-red-200 hover:bg-red-100 hover:border-red-300 transition shadow-sm"
+				className="w-full px-4 py-2 rounded-b-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition"
 			>
 				Delete Banner
 			</button>
