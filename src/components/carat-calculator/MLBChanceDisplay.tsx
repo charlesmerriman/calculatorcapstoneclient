@@ -1,4 +1,4 @@
-export const MLBChanceDisplay = ({ pulls }) => {
+export const MLBChanceDisplay = ({ pulls, plannedBanner }) => {
 	const calculateSuccessProbability = (successNeeded) => {
 		const getExactProbability = (k) => {
 			// Combinations formula
@@ -68,39 +68,51 @@ export const MLBChanceDisplay = ({ pulls }) => {
 	}
 
 	return (
-		<div className="border rounded-2xl h-full grid grid-cols-2 bg-white border-gray-200">
-			<div className="border-r border-b border-gray-200 flex items-center justify-center">
-				<div className="text-sm font-medium text-gray-700 pr-1">Zero:</div>{" "}
+		<div className="border rounded-2xl h-full grid grid-cols-1 bg-white border-gray-200 mx-4">
+			<div className="border-r border-b border-gray-200 grid grid-cols-2 items-center">
+				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
+					Zero:
+				</div>{" "}
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(1) - 100).toFixed(2)}%
 				</div>
 			</div>
-			<div className="border-b border-gray-200 flex items-center justify-center">
-				<div className="text-sm font-medium text-gray-700 pr-1">LB 0:</div>{" "}
+			<div className="border-b border-r border-gray-200 grid grid-cols-2 items-center">
+				<div className="text-lg font-medium text-gray-700 pr-4 text-right">
+					{plannedBanner.banner_support ? "LB 0:" : "1x:"}
+				</div>{" "}
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(1).toFixed(2))}%
 				</div>
 			</div>
-			<div className="border-r border-b border-gray-200 flex items-center justify-center">
-				<div className="text-sm font-medium text-gray-700 pr-1">LB 1:</div>
+			<div className="border-r border-b border-gray-200 grid grid-cols-2 items-center">
+				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
+					{plannedBanner.banner_support ? "LB 0:" : "2x:"}
+				</div>
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(2).toFixed(2))}%
 				</div>
 			</div>
-			<div className="border-b border-gray-200 flex items-center justify-center">
-				<div className="text-sm font-medium text-gray-700 pr-1">LB 2:</div>{" "}
+			<div className="border-r border-b border-gray-200 grid grid-cols-2 items-center">
+				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
+					{plannedBanner.banner_support ? "LB 0:" : "3x:"}
+				</div>{" "}
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(3).toFixed(2))}%
 				</div>
 			</div>
-			<div className="border-r border-gray-200 flex items-center justify-center">
-				<div className="text-sm font-medium text-gray-700 pr-1">LB 3:</div>{" "}
+			<div className="border-r border-b border-gray-200 grid grid-cols-2 items-center">
+				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
+					{plannedBanner.banner_support ? "LB 0:" : "4x:"}
+				</div>{" "}
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(4).toFixed(2))}%
 				</div>
 			</div>
-			<div className="flex items-center justify-center">
-				<div className="pr-1">MLB:</div>{" "}
+			<div className="border-r rounded grid border-gray-200 grid-cols-2 items-center">
+				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
+					{plannedBanner.banner_support ? "LB 0:" : "5x:"}
+				</div>{" "}
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(5).toFixed(2))}%
 				</div>
