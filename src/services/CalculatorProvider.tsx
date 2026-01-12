@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { CalculatorContext } from "./CalculatorContext"
 import type {
 	CalculatorData,
@@ -8,8 +8,14 @@ import type {
 	ChampionsMeetingRank,
 	UserPlannedBanner,
 	BannerUma,
-	BannerSupport
+	BannerSupport,
+	EventRewards,
+	ChampionsMeeting
 } from "./calculatorTypes"
+import {
+	initialCalculatorDataFetch,
+	userCalculatorDataPatch
+} from "./calculatorFetchCalls"
 
 type CalculatorProviderProps = {
 	children: React.ReactNode
@@ -31,17 +37,90 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<
 		UserPlannedBanner[] | []
 	>([])
+	const [eventRewardsData, setEventRewardsData] = useState<EventRewards[] | []>(
+		[]
+	)
+	const [championsMeetingData, setChampionsMeetingData] = useState<
+		ChampionsMeeting[] | []
+	>([])
+	const [organizedTimelineData, setOrganizedTimelineData] = useState([])
+	
 
-	useEffect(() => {
-		fetch("http://localhost:8000/calculator-data", {
-			method: "GET",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Token ${localStorage.getItem("authToken")}`
+	const [timerIsGoing, setTimerIsGoing] = useState(false)
+	const timer = useRef<number| null>(null)
+	
+	const [isDropdown, setIsDropdown] = useState(true)
+
+	const handleDropDownToggle = () => {
+		if (isDropdown) {
+			setIsDropdown(false)
+		} else {
+			setIsDropdown(true)
+		}
+	}
+
+	const prepareBannerData = useCallback(() => {
+	return userPlannedBannerData
+		?.filter(
+			(plannedBanner) =>
+				plannedBanner.banner_uma || plannedBanner.banner_support
+		)
+		.map((plannedBanner) => {
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			const { tempId, ...rest } = plannedBanner
+			return {
+				...rest,
+				banner_uma: plannedBanner.banner_uma?.id || null,
+				banner_support: plannedBanner.banner_support?.id || null
 			}
 		})
+}, [userPlannedBannerData])
+
+const startTimer = useCallback(() => {
+	if (timer.current) {
+		clearTimeout(timer.current)
+	}
+
+	setTimerIsGoing(true)
+
+	timer.current = setTimeout(() => {
+		userCalculatorDataPatch(userStatsData, prepareBannerData())
+		setTimerIsGoing(false)
+	}, 5000)
+}, [userStatsData, prepareBannerData])
+
+const saveNow = useCallback(() => {
+	if (timer.current) {
+		clearTimeout(timer.current)
+	}
+
+	userCalculatorDataPatch(userStatsData, prepareBannerData())
+	setTimerIsGoing(false)
+}, [userStatsData, prepareBannerData])
+
+	useEffect(() => {
+		initialCalculatorDataFetch()
 			.then((response) => response.json())
 			.then((data: CalculatorData) => {
+				const mergedEvents = [
+  ...data.banner_timeline_data.map(event => ({ ...event, _source: 'banner' })),
+  ...data.champions_meeting_data.map(event => ({ ...event, _source: 'champions' }))
+];
+
+const sortedMergedEvents = mergedEvents.sort((a, b) => {
+  const timeDiff = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+  
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  // Same date → champions comes before banner
+  if (a._source === 'champions' && b._source === 'banner') return -1;
+  if (a._source === 'banner' && b._source === 'champions') return 1;
+  
+  return 0; // same source, keep original order
+})
+				
 				setUserStatsData(data.user_stats_data)
 				setClubRankData(data.club_rank_data)
 				setTeamTrialsRankData(data.team_trials_rank_data)
@@ -49,43 +128,22 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
+				setEventRewardsData(data.event_rewards_data)
+				setChampionsMeetingData(data.champions_meeting_data)
+				setOrganizedTimelineData(sortedMergedEvents)
 			})
 			.catch((error) => console.error("Error fetching calculator data:", error))
 	}, [])
 
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			const userPlannedBannerDataCopy = userPlannedBannerData
-				?.filter(
-					(plannedBanner) =>
-						plannedBanner.banner_uma || plannedBanner.banner_support
-				)
-				.map((plannedBanner) => {
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars
-					const { tempId, ...rest } = plannedBanner
+		startTimer()
 
-					return {
-						...rest,
-						banner_uma: plannedBanner.banner_uma?.id || null,
-						banner_support: plannedBanner.banner_support?.id || null
-					}
-				})
-
-			fetch("http://localhost:8000/calculator-data", {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Token ${localStorage.getItem("authToken")}`
-				},
-				body: JSON.stringify({
-					user_stats_data: userStatsData,
-					user_planned_banner_data: userPlannedBannerDataCopy
-				})
-			})
-		}, 5000)
-
-		return () => clearTimeout(timer)
-	}, [userStatsData, userPlannedBannerData])
+		return () => {
+			if (timer.current) {
+				clearTimeout(timer.current)
+			}
+		}
+	}, [startTimer])
 
 	const value = {
 		userStatsData,
@@ -95,6 +153,14 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
+		eventRewardsData,
+		championsMeetingData,
+		timerIsGoing,
+		isDropdown,
+		organizedTimelineData,
+		handleDropDownToggle,
+		saveNow,
+		setIsDropdown,
 		setUserPlannedBannerData,
 		setUserStatsData
 	}
@@ -105,5 +171,3 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		</CalculatorContext.Provider>
 	)
 }
-
-// TODO: Add a loading state, error state, check if token is not null first before call, add token as dependency in useEffect, create functions that update backend shortly after user has not made changes for a while

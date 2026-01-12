@@ -40,7 +40,6 @@ export type UserPlannedBanner = | {
 	id: number
 	tempId?: never
 	user: number
-	name: string
 	number_of_pulls: number
 	banner_support: BannerSupport
 	banner_uma?: never
@@ -48,7 +47,6 @@ export type UserPlannedBanner = | {
 	id?: never
 	tempId: number
 	user?: never
-	name: string
 	number_of_pulls: number
 	banner_support?: BannerSupport | null
 	banner_uma?: never 
@@ -56,7 +54,6 @@ export type UserPlannedBanner = | {
 	id?: never
 	tempId: number
 	user?: never
-	name: string
 	number_of_pulls: number
 	banner_support?: never
 	banner_uma?: BannerUma | null
@@ -64,7 +61,6 @@ export type UserPlannedBanner = | {
 	id: number
 	tempId?: never
 	user: number
-	name: string
 	number_of_pulls: number
 	banner_support?: never
 	banner_uma: BannerUma
@@ -76,6 +72,7 @@ export type BannerSupport = {
 	name: string,
 	admin_comments: string
 	support_cards: SupportCard[]
+	free_pulls: number
 }
 
 export type BannerUma = {
@@ -84,6 +81,7 @@ export type BannerUma = {
 	name: string,
 	admin_comments: string
 	umas: Uma[]
+	free_pulls: number
 }
 
 export type SupportCard = {
@@ -122,6 +120,15 @@ export type ChampionsMeeting = {
 	wit_recommendation: string
 }
 
+export type EventRewards = {
+	id: number,
+	name: string,
+	carat_amount: number,
+	support_ticket_amount: number,
+	uma_ticket_amount: number,
+	date: string
+}
+
 export type CalculatorData = {
 	user_stats_data: UserStats
 	club_rank_data: ClubRank[]
@@ -130,6 +137,8 @@ export type CalculatorData = {
 	banner_uma_data: BannerUma[]
 	banner_support_data: BannerSupport[]
 	user_planned_banner_data: UserPlannedBanner[] | []
+	event_rewards_data: EventRewards[]
+	champions_meeting_data: ChampionsMeeting[]
 }
 
 export type CalculatorContextType = {
@@ -139,7 +148,14 @@ export type CalculatorContextType = {
 	championsMeetingRankData: ChampionsMeetingRank[] | []
 	umaBannerData: BannerUma[] | []
 	supportBannerData: BannerSupport[] | []
+	eventRewardsData: EventRewards[] | []
+	championsMeetingData: ChampionsMeeting[] | []
 	userPlannedBannerData: UserPlannedBanner[] | []
+	timerIsGoing: boolean
+	isDropdown: boolean
+	handleDropDownToggle: () => void
+	saveNow: () => void
+	setIsDropdown: React.Dispatch<React.SetStateAction<boolean>>
 	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[]>>
 	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats | null>>
 }
