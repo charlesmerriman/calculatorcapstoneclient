@@ -10,7 +10,8 @@ import type {
 	BannerUma,
 	BannerSupport,
 	EventRewards,
-	ChampionsMeeting
+	ChampionsMeeting,
+	OrganizedTimelineData
 } from "./calculatorTypes"
 import {
 	initialCalculatorDataFetch,
@@ -43,13 +44,26 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [championsMeetingData, setChampionsMeetingData] = useState<
 		ChampionsMeeting[] | []
 	>([])
-	const [organizedTimelineData, setOrganizedTimelineData] = useState([])
-	
+	const [organizedTimelineData, setOrganizedTimelineData] =
+		useState<OrganizedTimelineData>([])
 
 	const [timerIsGoing, setTimerIsGoing] = useState(false)
-	const timer = useRef<number| null>(null)
-	
-	const [isDropdown, setIsDropdown] = useState(true)
+	const timer = useRef<number | null>(null)
+
+	const [isDropdown, setIsDropdown] = useState<boolean>(true)
+
+	useEffect(() => {
+		const handleBeforeUnload = (e) => {
+			if (timerIsGoing) {e.preventDefault()
+			e.returnValue = ""
+		}
+		}
+		window.addEventListener('beforeunload', handleBeforeUnload)
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload)
+		}
+		
+	}, [timerIsGoing])
 
 	const handleDropDownToggle = () => {
 		if (isDropdown) {
@@ -60,67 +74,74 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	}
 
 	const prepareBannerData = useCallback(() => {
-	return userPlannedBannerData
-		?.filter(
-			(plannedBanner) =>
-				plannedBanner.banner_uma || plannedBanner.banner_support
-		)
-		.map((plannedBanner) => {
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			const { tempId, ...rest } = plannedBanner
-			return {
-				...rest,
-				banner_uma: plannedBanner.banner_uma?.id || null,
-				banner_support: plannedBanner.banner_support?.id || null
-			}
-		})
-}, [userPlannedBannerData])
+		return userPlannedBannerData
+			?.filter(
+				(plannedBanner) =>
+					plannedBanner.banner_uma || plannedBanner.banner_support
+			)
+			.map((plannedBanner) => {
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				const { tempId, ...rest } = plannedBanner
+				return {
+					...rest,
+					banner_uma: plannedBanner.banner_uma?.id || null,
+					banner_support: plannedBanner.banner_support?.id || null
+				}
+			})
+	}, [userPlannedBannerData])
 
-const startTimer = useCallback(() => {
-	if (timer.current) {
-		clearTimeout(timer.current)
-	}
+	const startTimer = useCallback(() => {
+		if (timer.current) {
+			clearTimeout(timer.current)
+		}
 
-	setTimerIsGoing(true)
+		setTimerIsGoing(true)
 
-	timer.current = setTimeout(() => {
+		timer.current = setTimeout(() => {
+			userCalculatorDataPatch(userStatsData, prepareBannerData())
+			setTimerIsGoing(false)
+		}, 5000)
+	}, [userStatsData, prepareBannerData])
+
+	const saveNow = useCallback(() => {
+		if (timer.current) {
+			clearTimeout(timer.current)
+		}
+
 		userCalculatorDataPatch(userStatsData, prepareBannerData())
 		setTimerIsGoing(false)
-	}, 5000)
-}, [userStatsData, prepareBannerData])
-
-const saveNow = useCallback(() => {
-	if (timer.current) {
-		clearTimeout(timer.current)
-	}
-
-	userCalculatorDataPatch(userStatsData, prepareBannerData())
-	setTimerIsGoing(false)
-}, [userStatsData, prepareBannerData])
+	}, [userStatsData, prepareBannerData])
 
 	useEffect(() => {
 		initialCalculatorDataFetch()
 			.then((response) => response.json())
 			.then((data: CalculatorData) => {
 				const mergedEvents = [
-  ...data.banner_timeline_data.map(event => ({ ...event, _source: 'banner' })),
-  ...data.champions_meeting_data.map(event => ({ ...event, _source: 'champions' }))
-];
+					...data.banner_timeline_data.map((event) => ({
+						...event,
+						_source: "banner"
+					})),
+					...data.champions_meeting_data.map((event) => ({
+						...event,
+						_source: "champions"
+					}))
+				]
 
-const sortedMergedEvents = mergedEvents.sort((a, b) => {
-  const timeDiff = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
-  
-  if (timeDiff !== 0) {
-    return timeDiff;
-  }
+				const sortedMergedEvents = mergedEvents.sort((a, b) => {
+					const timeDiff =
+						new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
 
-  // Same date → champions comes before banner
-  if (a._source === 'champions' && b._source === 'banner') return -1;
-  if (a._source === 'banner' && b._source === 'champions') return 1;
-  
-  return 0; // same source, keep original order
-})
-				
+					if (timeDiff !== 0) {
+						return timeDiff
+					}
+
+					// Same date → champions comes before banner
+					if (a._source === "champions" && b._source === "banner") return -1
+					if (a._source === "banner" && b._source === "champions") return 1
+
+					return 0 // same source, keep original order
+				})
+
 				setUserStatsData(data.user_stats_data)
 				setClubRankData(data.club_rank_data)
 				setTeamTrialsRankData(data.team_trials_rank_data)

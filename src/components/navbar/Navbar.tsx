@@ -1,35 +1,6 @@
 import { Link, useNavigate } from "react-router-dom"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import { useState } from "react"
-import { IncomeForm } from "../carat-calculator/IncomeForm"
-
-interface LogoutResponse {
-	message: string
-}
-
-const userLogout = async (): Promise<LogoutResponse> => {
-	const token = localStorage.getItem("authToken")
-
-	try {
-		const response = await fetch("http://localhost:8000/logout", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Token ${token}`
-			}
-		})
-
-		const data = await response.json()
-
-		if (!response.ok) {
-			throw new Error(data.error || "Logout failed")
-		}
-		return data
-	} catch (error) {
-		console.error("Logout error:", error)
-		throw error
-	}
-}
+import { userLogout } from "../../services/userServices"
 
 export const Navbar = () => {
 	const navigate = useNavigate()
@@ -68,21 +39,21 @@ export const Navbar = () => {
 
 				{/*Middle*/}
 				<div className="flex justify-evenly items-center">
-					<div className="btn btn-ghost p-7">
+					<div className="btn btn-ghost md:p-7">
 						<Link to="/" className="text-base">
 							Calculator
 						</Link>
 					</div>
-					<div className="btn btn-ghost p-7">
+					<div className="btn btn-ghost md:p-7">
 						<Link to="/timeline" className="text-base">
 							Timeline
 						</Link>
 					</div>
-					<div className="btn btn-ghost p-7 text-base" onClick={handleDropDownToggle}>Income ▼</div>
+					<div className="btn btn-ghost text-base" onClick={handleDropDownToggle}>Income ▼</div>
 				</div>
 
 				{/*Right side*/}
-				<div className="btn btn-ghost p-7 text-base">
+				<div className="btn btn-ghost text-base md:p-7">
 					<button onClick={handleLogout}>Logout</button>
 				</div>
 			</nav>

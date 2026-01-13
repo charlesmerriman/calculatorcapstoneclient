@@ -65,21 +65,31 @@ export const BannerRow = ({
 			""
 	)
 
+	const currentDate = new Date()
+
 	const calculateMaxPossiblePulls = () => {
 	if (plannedBanner.banner_uma) {
+		if (new Date(plannedBanner.banner_uma.banner_timeline.end_date).getTime() < currentDate.getTime()) {
+			caratsAvailableForThisBanner = 0
+			return "Passed"
+		} else {
 		return (
 			plannedBanner.banner_uma.free_pulls +
 			umaTicketsAvailableForThisBanner +
 			Math.floor(caratsAvailableForThisBanner / 150)
-		)
+		)}
 	}
 
 	if (plannedBanner.banner_support) {
+		if (new Date(plannedBanner.banner_support.banner_timeline.end_date).getTime() < currentDate.getTime()) {
+			caratsAvailableForThisBanner = 0
+			return 0
+		} else {
 		return (
 			plannedBanner.banner_support.free_pulls +
 			supportTicketsAvailableForThisBanner +
 			Math.floor(caratsAvailableForThisBanner / 150)
-		)
+		)}
 	}
 
 	return 0
