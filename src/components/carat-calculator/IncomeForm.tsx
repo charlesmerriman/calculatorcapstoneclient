@@ -32,8 +32,8 @@ export const IncomeForm = () => {
 	}
 
 	return (
-		<div className="flex justify-center"><div className="bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-4 w-full lg:w-7/10 self-center">
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+		<div className="flex justify-center sticky top-16 z-100"><div className="bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-2 w-full lg:w-7/10 self-center">
+			<div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] items-center">
 				<div className="grid grid-cols-1 content-evenly h-full">
 					<div className="grid grid-cols-[30%_40%] lg:grid-cols-[40%_40%] items-center justify-center">
 						<div className="text-right text-sm font-medium text-gray-700 pr-3">
@@ -94,7 +94,7 @@ export const IncomeForm = () => {
 					</div>
 				</div>
 				<div className="grid grid-cols-1 content-evenly h-full">
-					<div className="grid grid-cols-[2fr_2fr_1fr] sm:grid-cols-[2fr_3fr_1fr] items-center justify-between">
+					<div className="grid grid-cols-[1fr_2fr_1fr] md:grid-cols-[1fr_3fr_1fr] items-center justify-between">
 						<div className="text-right text-sm font-medium text-gray-700 pr-3">
 							Team Trials:
 						</div>
@@ -129,7 +129,7 @@ export const IncomeForm = () => {
 							{teamTrialsRank?.income_amount}
 						</div>
 					</div>
-					<div className="grid grid-cols-[2fr_2fr_1fr] sm:grid-cols-[2fr_3fr_1fr] items-center justify-between">
+					<div className="grid grid-cols-[1fr_2fr_1fr] md:grid-cols-[1fr_3fr_1fr] items-center justify-between">
 						<div className="text-right text-sm font-medium text-gray-700 pr-3">
 							Club Rank:
 						</div>
@@ -165,7 +165,7 @@ export const IncomeForm = () => {
 						</div>
 					</div>
 
-					<div className="grid grid-cols-[2fr_2fr_1fr] sm:grid-cols-[2fr_3fr_1fr] items-center justify-between">
+					<div className="grid grid-cols-[1fr_2fr_1fr] md:grid-cols-[1fr_3fr_1fr] items-center justify-between">
 						<div className="text-right text-sm font-medium text-gray-700 pr-3">
 							Champion's Meeting:
 						</div>
@@ -202,7 +202,7 @@ export const IncomeForm = () => {
 						</div>
 					</div>
 
-					<div className="grid grid-cols-[2fr_2fr_1fr] sm:grid-cols-[2fr_3fr_1fr] items-center justify-between">
+					<div className="grid grid-cols-[1fr_2fr_1fr] md:grid-cols-[1fr_3fr_1fr] items-center justify-between">
 						<div className="text-right text-sm font-medium text-gray-700 pr-3">
 							Daily Carat Pack:
 						</div>

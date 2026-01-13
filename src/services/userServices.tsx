@@ -31,6 +31,11 @@ interface RegisterResponse {
 	error?: string
 }
 
+interface LogoutResponse {
+	message: string
+}
+
+
 export const userLogin = async (
 	credentials: LoginCredentials
 ): Promise<LoginResponse> => {
@@ -85,6 +90,31 @@ export const userRegister = async (
 		return data
 	} catch (error) {
 		console.error("Registration error:", error)
+		throw error
+	}
+}
+
+
+export const userLogout = async (): Promise<LogoutResponse> => {
+	const token = localStorage.getItem("authToken")
+
+	try {
+		const response = await fetch("http://localhost:8000/logout", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Token ${token}`
+			}
+		})
+
+		const data = await response.json()
+
+		if (!response.ok) {
+			throw new Error(data.error || "Logout failed")
+		}
+		return data
+	} catch (error) {
+		console.error("Logout error:", error)
 		throw error
 	}
 }

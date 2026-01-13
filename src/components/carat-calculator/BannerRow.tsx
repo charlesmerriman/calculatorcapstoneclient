@@ -1,9 +1,5 @@
 import {
-	differenceInDays,
-	eachDayOfInterval,
-	eachMonthOfInterval,
-	format,
-	getDay
+	format
 } from "date-fns"
 import type {
 	ChampionsMeetingRank,
@@ -14,7 +10,7 @@ import type {
 	BannerUma,
 	BannerSupport
 } from "../../services/calculatorTypes"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import Select from "react-select"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 
@@ -31,19 +27,20 @@ type BannerRowProps = {
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[] | []>
 	>
+	umaTicketsAvailableForThisBanner: number
+	supportTicketsAvailableForThisBanner: number
 }
 
 export const BannerRow = ({
 	plannedBanner,
-	userStatsData,
-	clubRankData,
-	teamTrialsRankData,
-	championsMeetingRankData,
 	userPlannedBannerData,
 	umaBannerData,
 	supportBannerData,
 	caratsAvailableForThisBanner,
-	setUserPlannedBannerData
+	setUserPlannedBannerData,
+	umaTicketsAvailableForThisBanner,
+	supportTicketsAvailableForThisBanner
+
 }: BannerRowProps) => {
 	const [bannerType, setBannerType] = useState(
 		plannedBanner.banner_support ? "Support" : "Uma"
@@ -67,69 +64,36 @@ export const BannerRow = ({
 			banner.id === plannedBanner.banner_support?.id ||
 			""
 	)
-	const userClubRank = clubRankData.find(
-		(rank) => rank.id === userStatsData.club_rank
-	)
-	const userTeamTrialsRank = teamTrialsRankData.find(
-		(rank) => rank.id === userStatsData.team_trials_rank
-	)
-	const userChampionsMeetingRank = championsMeetingRankData.find(
-		(rank) => rank.id === userStatsData.champions_meeting_rank
-	)
-	const dailyCaratPack = userStatsData.daily_carat ? 50 : 0
+
 	const currentDate = new Date()
-	const endDate = new Date(
-		plannedBanner.banner_uma
-			? plannedBanner.banner_uma.banner_timeline.end_date
-			: plannedBanner.banner_support
-			? plannedBanner.banner_support.banner_timeline.end_date
-			: currentDate
-	)
 
-	const calculateDaysBetween = (start: Date, end: Date): number => {
-		return differenceInDays(end, start)
-	}
-	const calculateMondaysBetween = (start: Date, end: Date): number => {
-		const allDays = eachDayOfInterval({ start, end })
-		return allDays.filter((day) => getDay(day) === 1).length
-	}
-	const calculateMonthlyOccurrences = (start: Date, end: Date): number => {
-		const months = eachMonthOfInterval({ start, end })
-		return months.length
-	}
-
-	const numberOfDays = calculateDaysBetween(currentDate, endDate)
-	const numberOfMondays = calculateMondaysBetween(currentDate, endDate)
-	const numberOfMonthlyOccurrences = calculateMonthlyOccurrences(
-		currentDate,
-		endDate
-	)
-
-	const totalIncome = useMemo(() => {
-		return (
-			dailyCaratPack * numberOfDays +
-			(userClubRank?.income_amount || 0) * numberOfMonthlyOccurrences +
-			(userTeamTrialsRank?.income_amount || 0) * numberOfMondays +
-			(userChampionsMeetingRank?.income_amount || 0) *
-				numberOfMonthlyOccurrences
-		)
-	}, [
-		dailyCaratPack,
-		numberOfDays,
-		userClubRank,
-		userTeamTrialsRank,
-		userChampionsMeetingRank,
-		numberOfMondays,
-		numberOfMonthlyOccurrences
-	])
-	const totalCarats = caratsAvailableForThisBanner + totalIncome
 	const calculateMaxPossiblePulls = () => {
-		if (plannedBanner.banner_uma) {
-			return Math.floor(totalCarats / 150 + userStatsData.uma_ticket)
-		} else if (plannedBanner.banner_support) {
-			return Math.floor(totalCarats / 150 + userStatsData.support_ticket)
-		}
+	if (plannedBanner.banner_uma) {
+		if (new Date(plannedBanner.banner_uma.banner_timeline.end_date).getTime() < currentDate.getTime()) {
+			caratsAvailableForThisBanner = 0
+			return "Passed"
+		} else {
+		return (
+			plannedBanner.banner_uma.free_pulls +
+			umaTicketsAvailableForThisBanner +
+			Math.floor(caratsAvailableForThisBanner / 150)
+		)}
 	}
+
+	if (plannedBanner.banner_support) {
+		if (new Date(plannedBanner.banner_support.banner_timeline.end_date).getTime() < currentDate.getTime()) {
+			caratsAvailableForThisBanner = 0
+			return 0
+		} else {
+		return (
+			plannedBanner.banner_support.free_pulls +
+			supportTicketsAvailableForThisBanner +
+			Math.floor(caratsAvailableForThisBanner / 150)
+		)}
+	}
+
+	return 0
+}
 
 	const maxPossiblePulls = calculateMaxPossiblePulls()
 
@@ -157,8 +121,8 @@ export const BannerRow = ({
 	}
 
 	return (
-		<div className="m-4 w-full flex flex-wrap lg:flex-nowrap">
-			<div className="w-full flex flex-wrap bg-neutral-200 rounded-l-xl p-4 border border-gray-200 shadow-sm">
+		<div className="m-2 w-full flex flex-wrap lg:flex-nowrap">
+			<div className="w-full flex flex-wrap bg-neutral-200 rounded-l-xl p-2 border border-gray-200 shadow-sm">
 				<div className="w-full lg:w-1/3 flex flex-wrap border-0 rounded-2xl bg-white p-3 justify-center items-center">
 					<div className="flex flex-col w-full text-center justify-evenly">
 						<h1 className="text-sm font-medium text-gray-700">Banner Type:</h1>
@@ -249,13 +213,13 @@ export const BannerRow = ({
 							<div className="text-center w-full text-sm font-medium text-gray-700">
 								Carat Estimation:
 							</div>{" "}
-							<div className="text-base font-medium">{totalCarats}</div>
+							<div className="text-base font-medium">{caratsAvailableForThisBanner}</div>
 						</div>
 						<div className="w-1/3 text-center p-1">
 							<div className="text-center w-full text-sm font-medium text-gray-700 ">
 								Free Pulls:
 							</div>{" "}
-							<div className="text-base font-medium">0</div>
+							<div className="text-base font-medium">{plannedBanner.banner_support ? plannedBanner.banner_support.free_pulls : plannedBanner.banner_uma ? plannedBanner.banner_uma.free_pulls : ""}</div>
 						</div>
 						<div className="w-1/3 text-center p-1">
 							<div className="text-center w-full text-sm font-medium text-gray-700">
