@@ -8,6 +8,7 @@ export type BannerTimeline = {
 	image: string
 }
 
+
 export type UserStats = {
 	current_carat: number
 	uma_ticket: number
@@ -89,6 +90,7 @@ export type SupportCard = {
 	name: string,
 	image: string,
 	admin_comments: string
+	recommendation: string
 }
 
 export type Uma = {
@@ -96,6 +98,17 @@ export type Uma = {
 	name: string,
 	image: string,
 	admin_comments: string
+	recommendation: string
+}
+
+export type BannerTimelineForViewing = {
+	id: number
+	name: string
+	start_date: string
+	end_date: string
+	image: string
+	banner_umas: BannerUma[]
+	banner_supports: BannerSupport[]
 }
 
 export type ChampionsMeeting = {
@@ -139,7 +152,9 @@ export type CalculatorData = {
 	user_planned_banner_data: UserPlannedBanner[] | []
 	event_rewards_data: EventRewards[]
 	champions_meeting_data: ChampionsMeeting[]
+	banner_timeline_data: BannerTimelineForViewing[]
 }
+export type OrganizedTimelineData = (ChampionsMeeting | BannerTimelineForViewing)[]
 
 export type CalculatorContextType = {
 	userStatsData: UserStats | null
@@ -153,9 +168,11 @@ export type CalculatorContextType = {
 	userPlannedBannerData: UserPlannedBanner[] | []
 	timerIsGoing: boolean
 	isDropdown: boolean
+	organizedTimelineData: OrganizedTimelineData
 	handleDropDownToggle: () => void
 	saveNow: () => void
 	setIsDropdown: React.Dispatch<React.SetStateAction<boolean>>
 	setUserPlannedBannerData: React.Dispatch<React.SetStateAction<UserPlannedBanner[]>>
 	setUserStatsData: React.Dispatch<React.SetStateAction<UserStats | null>>
 }
+

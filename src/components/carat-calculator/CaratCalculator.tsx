@@ -24,6 +24,29 @@ export const CaratCalculator: React.FC = () => {
 	useEffect(() => {
 		setIsDropdown(true)
 	}, [setIsDropdown])
+
+	const calculateDailyIncome = (start: Date, end: Date, referenceDate: Date): number => {
+	let totalIncome = 0;
+	const allDays = eachDayOfInterval({ start, end });
+	
+	allDays.forEach((day) => {
+		totalIncome += 75
+		
+		const daysSinceReference = differenceInDays(day, referenceDate);
+		
+		if (daysSinceReference === 0) {
+			totalIncome += 25
+		} else if (daysSinceReference === 3) {
+			totalIncome += 25
+		} else if (daysSinceReference === 5) {
+			totalIncome += 25
+		} else if (daysSinceReference === 7) {
+			totalIncome += 75
+		}
+	});
+	
+	return totalIncome;
+};
 	
 	const calculateMondaysBetween = (start: Date, end: Date): number => {
 			const allDays = eachDayOfInterval({ start, end })
@@ -92,10 +115,12 @@ export const CaratCalculator: React.FC = () => {
 			const days = differenceInDays(endDate, lastEndDate)
 			const mondays = calculateMondaysBetween(lastEndDate, endDate);
     		const months = calculateMonthlyOccurrences(lastEndDate, endDate);
+			const referenceDate = new Date()
 
 			carats += userStatsData.daily_carat ? 50 * days : 0
 			carats += (userClubRank?.income_amount ?? 0) * months
 			carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
+			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
 			// Record available BEFORE spend
 			results.push({ carats, umaTickets: umaTickets, supportTickets: supportTickets })
@@ -173,7 +198,7 @@ export const CaratCalculator: React.FC = () => {
 				{isDropdown ? <IncomeForm /> : ""}
 
 			<div className="flex m-4 flex-wrap">
-				{" "}
+				<div className="flex h-64 text-center justify-center items-center w-full">Extra Space</div>
 				<button
 					className="w-full px-4 py-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition "
 					onClick={handleAddBanner}
