@@ -37,10 +37,11 @@ export const Register: React.FC = () => {
 	}
 
 	return (
-		<div className="min-h-screen flex flex-wrap justify-center items-center bg-gray-700 p-4 rounded-lg max-w-150 mx-auto">
+		<div>
+		<div className="min-h-screen flex flex-wrap justify-center items-center bg-gray-700 p-4 max-w-150 mx-auto">
 			<form
 				onSubmit={handleSubmit(handleRegisterSubmit)}
-				className="shadow rounded-lg p-6 md:p-8 w-full max-w-md items-center justify-center bg-gray-500"
+				className="shadow rounded-lg p-6 md:p-8 w-full max-w-md items-center justify-center bg-white"
 			>
 				<h2 className="text-2xl font-semibold mb-6 w-full text-center">
 					Register
@@ -173,6 +174,6 @@ export const Register: React.FC = () => {
 					{isSubmitting ? "Registering..." : "Register"}
 				</button>
 			</form>
-		</div>
+		</div></div>
 	)
 }

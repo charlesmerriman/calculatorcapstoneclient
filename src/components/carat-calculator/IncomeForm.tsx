@@ -32,7 +32,7 @@ export const IncomeForm = () => {
 	}
 
 	return (
-		<div className="flex justify-center sticky top-16 z-100"><div className="bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-2 w-full lg:w-7/10 self-center">
+		<div className="flex justify-center sticky top-15.5 z-100"><div className="bg-neutral-200 rounded-xl border border-gray-200 shadow-sm p-2 w-full lg:w-7/10 self-center">
 			<div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] items-center">
 				<div className="grid grid-cols-1 content-evenly h-full">
 					<div className="grid grid-cols-[30%_40%] lg:grid-cols-[40%_40%] items-center justify-center">

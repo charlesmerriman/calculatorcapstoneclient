@@ -68,7 +68,7 @@ export const MLBChanceDisplay = ({ pulls, plannedBanner }) => {
 	}
 
 	return (
-		<div className="border rounded-2xl h-full grid grid-cols-1 bg-white border-gray-200 mx-4">
+		<div className="border rounded-2xl h-full grid grid-cols-1 bg-gray-100 border-gray-200 lg:mx-4">
 			<div className="border-r border-b border-gray-200 grid grid-cols-2 items-center">
 				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
 					Zero:

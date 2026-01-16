@@ -51,7 +51,6 @@ export const BannerRow = ({
 
 	useEffect(() => {
 		if (bannerType === "Uma") {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setTargetBannerData(umaBannerData)
 		} else if (bannerType === "Support") {
 			setTargetBannerData(supportBannerData)
@@ -123,7 +122,7 @@ export const BannerRow = ({
 	return (
 		<div className="m-2 w-full flex flex-wrap lg:flex-nowrap">
 			<div className="w-full flex flex-wrap bg-neutral-200 rounded-l-xl p-2 border border-gray-200 shadow-sm">
-				<div className="w-full lg:w-1/3 flex flex-wrap border-0 rounded-2xl bg-white p-3 justify-center items-center">
+				<div className="w-full lg:w-1/3 flex flex-wrap border-0 rounded-2xl bg-gray-100 p-3 justify-center items-center">
 					<div className="flex flex-col w-full text-center justify-evenly">
 						<h1 className="text-sm font-medium text-gray-700">Banner Type:</h1>
 						<Select
@@ -233,7 +232,7 @@ export const BannerRow = ({
 						<input
 							type="number"
 							value={plannedBanner.number_of_pulls}
-							className="w-full text-center border border-green-200 rounded h-9.5 bg-emerald-50 focus:border-green-400 focus:outline-none pl-4"
+							className="w-full text-center border border-green-200 rounded h-9.5 bg-emerald-50 focus:border-green-400 focus:outline-none md:pl-4"
 							max={maxPossiblePulls}
 							min={0}
 							onChange={(e) => {
@@ -261,10 +260,10 @@ export const BannerRow = ({
 					</div>
 				</div>
 
-				<div className="w-full lg:w-1/3 flex justify-center items-center">
+				<div className="w-full lg:w-1/3 flex flex-col justify-center items-center">
 
 					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
-						<div className="flex flex-wrap border-0 rounded-2xl bg-white ml-4 p-3 justify-center items-center">
+						<div className="flex flex-wrap border-0 rounded-2xl bg-gray-100 lg:ml-4 p-3 justify-center items-center ">
 							<div className="flex w-full justify-center">
 								<div className="flex flex-wrap p-1">
 									<div className="text-center w-full text-sm font-medium text-gray-700">
@@ -328,7 +327,7 @@ export const BannerRow = ({
 					)}
 				</div>
 
-				<div className="w-full lg:w-1/3 pl-1">
+				<div className="w-full lg:w-1/3 lg:pl-1">
 					{/*All the percentage chances of getting the MLBs*/}
 					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
 						<MLBChanceDisplay

@@ -3,7 +3,12 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
 import { IncomeForm } from "./IncomeForm"
 import { useEffect, useMemo } from "react"
-import { differenceInDays, eachDayOfInterval, eachMonthOfInterval, getDay } from "date-fns"
+import {
+	differenceInDays,
+	eachDayOfInterval,
+	eachMonthOfInterval,
+	getDay
+} from "date-fns"
 
 export const CaratCalculator: React.FC = () => {
 	const {
@@ -18,44 +23,48 @@ export const CaratCalculator: React.FC = () => {
 		userPlannedBannerData,
 		isDropdown,
 		setUserPlannedBannerData,
-		setIsDropdown,
+		setIsDropdown
 	} = useCalculatorData()
 
 	useEffect(() => {
 		setIsDropdown(true)
 	}, [setIsDropdown])
 
-	const calculateDailyIncome = (start: Date, end: Date, referenceDate: Date): number => {
-	let totalIncome = 0;
-	const allDays = eachDayOfInterval({ start, end });
-	
-	allDays.forEach((day) => {
-		totalIncome += 75
-		
-		const daysSinceReference = differenceInDays(day, referenceDate);
-		
-		if (daysSinceReference === 0) {
-			totalIncome += 25
-		} else if (daysSinceReference === 3) {
-			totalIncome += 25
-		} else if (daysSinceReference === 5) {
-			totalIncome += 25
-		} else if (daysSinceReference === 7) {
+	const calculateDailyIncome = (
+		start: Date,
+		end: Date,
+		referenceDate: Date
+	): number => {
+		let totalIncome = 0
+		const allDays = eachDayOfInterval({ start, end })
+
+		allDays.forEach((day) => {
 			totalIncome += 75
-		}
-	});
-	
-	return totalIncome;
-};
-	
+
+			const daysSinceReference = differenceInDays(day, referenceDate)
+
+			if (daysSinceReference === 0) {
+				totalIncome += 25
+			} else if (daysSinceReference === 3) {
+				totalIncome += 25
+			} else if (daysSinceReference === 5) {
+				totalIncome += 25
+			} else if (daysSinceReference === 7) {
+				totalIncome += 75
+			}
+		})
+
+		return totalIncome
+	}
+
 	const calculateMondaysBetween = (start: Date, end: Date): number => {
-			const allDays = eachDayOfInterval({ start, end })
-			return allDays.filter((day) => getDay(day) === 1).length
-		}
-		const calculateMonthlyOccurrences = (start: Date, end: Date): number => {
-			const months = eachMonthOfInterval({ start, end })
-			return months.length
-		}
+		const allDays = eachDayOfInterval({ start, end })
+		return allDays.filter((day) => getDay(day) === 1).length
+	}
+	const calculateMonthlyOccurrences = (start: Date, end: Date): number => {
+		const months = eachMonthOfInterval({ start, end })
+		return months.length
+	}
 	const bannerResources = useMemo(() => {
 		// User's starting resources
 		let carats = userStatsData?.current_carat || 0
@@ -69,8 +78,8 @@ export const CaratCalculator: React.FC = () => {
 			supportTickets: number
 		}[] = []
 
-		const plannedBanner = [...userPlannedBannerData];
-		
+		const plannedBanner = [...userPlannedBannerData]
+
 		// Current date
 		let lastEndDate = new Date()
 
@@ -113,8 +122,8 @@ export const CaratCalculator: React.FC = () => {
 
 			// Add regular: daily, club, trials (use date-fns to calc precisely since last)
 			const days = differenceInDays(endDate, lastEndDate)
-			const mondays = calculateMondaysBetween(lastEndDate, endDate);
-    		const months = calculateMonthlyOccurrences(lastEndDate, endDate);
+			const mondays = calculateMondaysBetween(lastEndDate, endDate)
+			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
 			const referenceDate = new Date()
 
 			carats += userStatsData.daily_carat ? 50 * days : 0
@@ -123,15 +132,17 @@ export const CaratCalculator: React.FC = () => {
 			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
 			// Record available BEFORE spend
-			results.push({ carats, umaTickets: umaTickets, supportTickets: supportTickets })
+			results.push({
+				carats,
+				umaTickets: umaTickets,
+				supportTickets: supportTickets
+			})
 
 			// Spend for this banner (subtract for next)
 			const isUmaBanner = !!banner.banner_uma
 			const freePulls =
-				banner.banner_uma?.free_pulls ??
-				banner.banner_support?.free_pulls ??
-				0
-			let normalPullsNeeded = Math.max(0, banner.number_of_pulls - freePulls);
+				banner.banner_uma?.free_pulls ?? banner.banner_support?.free_pulls ?? 0
+			let normalPullsNeeded = Math.max(0, banner.number_of_pulls - freePulls)
 
 			if (isUmaBanner) {
 				const use = Math.min(normalPullsNeeded, umaTickets)
@@ -148,10 +159,9 @@ export const CaratCalculator: React.FC = () => {
 				const caratsToSpend = normalPullsNeeded * 150
 				carats -= caratsToSpend
 			}
-			
 
 			if (endDate > lastEndDate) {
-			lastEndDate = endDate
+				lastEndDate = endDate
 			}
 		}
 		return results
@@ -190,17 +200,16 @@ export const CaratCalculator: React.FC = () => {
 		setUserPlannedBannerData(plannedBannersArrayCopy)
 	}
 
-
-
-
 	return (
 		<div className="justify-center w-full min-h-screen bg-white lg:max-w-7xl mx-auto p-4">
-				{isDropdown ? <IncomeForm /> : ""}
+			{isDropdown ? <IncomeForm /> : ""}
 
-			<div className="flex m-4 flex-wrap">
-				<div className="flex h-64 text-center justify-center items-center w-full">Extra Space</div>
+			<div className="flex m-4 flex-col items-center gap-2">
+				<div className="flex text-center justify-center items-center">
+					<img className="rounded-2xl" src="/public/s-blob-v1-IMAGE-yMquOVcOLns.png" />
+				</div>
 				<button
-					className="w-full px-4 py-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition "
+					className="w-full py-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition mt-2"
 					onClick={handleAddBanner}
 				>
 					Add Additional Banner
@@ -209,8 +218,8 @@ export const CaratCalculator: React.FC = () => {
 					const resources = bannerResources[index] ?? {
 						carats: 0,
 						umaTickets: 0,
-						supportTickets: 0,
-					};
+						supportTickets: 0
+					}
 
 					return (
 						<BannerRow
