@@ -78,9 +78,9 @@ export const MLBChanceDisplay = ({ pulls, plannedBanner }) => {
 				</div>
 			</div>
 			<div className="border-b border-r border-gray-200 grid grid-cols-2 items-center">
-				<div className="text-lg font-medium text-gray-700 pr-4 text-right">
+				<div className="text-lg font-medium text-gray-700 pr-1 text-right">
 					{plannedBanner.banner_support ? "LB 0:" : "1x:"}
-				</div>{" "}
+				</div>
 				<div className="text-base font-medium">
 					{Math.abs(calculateSuccessProbability(1).toFixed(2))}%
 				</div>

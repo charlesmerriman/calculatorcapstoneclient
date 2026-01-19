@@ -66,12 +66,10 @@ export const CaratCalculator: React.FC = () => {
 		return months.length
 	}
 	const bannerResources = useMemo(() => {
-		// User's starting resources
 		let carats = userStatsData?.current_carat || 0
 		let umaTickets = userStatsData?.uma_ticket || 0
 		let supportTickets = userStatsData?.support_ticket || 0
 
-		// Storage for resources
 		const results: {
 			carats: number
 			umaTickets: number
@@ -80,7 +78,6 @@ export const CaratCalculator: React.FC = () => {
 
 		const plannedBanner = [...userPlannedBannerData]
 
-		// Current date
 		let lastEndDate = new Date()
 
 		for (const banner of plannedBanner) {
@@ -101,8 +98,6 @@ export const CaratCalculator: React.FC = () => {
 				(rank) => rank.id === userStatsData.team_trials_rank
 			)
 
-			// Add ALL income types between lastEndDate and endDate (precise)
-			// Events: filter last < date < end
 			for (const ev of eventRewardsData) {
 				const evDate = new Date(ev.date)
 				if (evDate > lastEndDate && evDate <= endDate) {
@@ -112,7 +107,6 @@ export const CaratCalculator: React.FC = () => {
 				}
 			}
 
-			// Meetings: similar
 			for (const meet of championsMeetingData) {
 				const meetDate = new Date(meet.end_date)
 				if (meetDate > lastEndDate && meetDate <= endDate) {
@@ -120,7 +114,6 @@ export const CaratCalculator: React.FC = () => {
 				}
 			}
 
-			// Add regular: daily, club, trials (use date-fns to calc precisely since last)
 			const days = differenceInDays(endDate, lastEndDate)
 			const mondays = calculateMondaysBetween(lastEndDate, endDate)
 			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
@@ -131,14 +124,12 @@ export const CaratCalculator: React.FC = () => {
 			carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
-			// Record available BEFORE spend
 			results.push({
 				carats,
 				umaTickets: umaTickets,
 				supportTickets: supportTickets
 			})
 
-			// Spend for this banner (subtract for next)
 			const isUmaBanner = !!banner.banner_uma
 			const freePulls =
 				banner.banner_uma?.free_pulls ?? banner.banner_support?.free_pulls ?? 0
