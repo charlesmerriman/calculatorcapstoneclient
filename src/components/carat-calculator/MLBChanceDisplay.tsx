@@ -25,6 +25,8 @@ export const MLBChanceDisplay = ({ pulls, plannedBanner }) => {
 			successNeeded = successNeeded - 1
 		}
 
+		//random green text
+
 		const singleAttemptSuccessRate = 0.75
 		const successRateDecimal = singleAttemptSuccessRate / 100
 		const singleAttemptFailureRate = 1 - successRateDecimal
