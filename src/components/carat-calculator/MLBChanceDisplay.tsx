@@ -31,7 +31,7 @@ export const MLBChanceDisplay = ({ pulls, plannedBanner }) => {
 		const successRateDecimal = singleAttemptSuccessRate / 100
 		const singleAttemptFailureRate = 1 - successRateDecimal
 
-		const probabilityOfZeroSuccesses = Math.pow(singleAttemptFailureRate, pulls)
+		// const probabilityOfZeroSuccesses = Math.pow(singleAttemptFailureRate, pulls)
 		const probabilityOfOneSuccess = 1 - getExactProbability(0)
 		const probabilityOfTwoSuccesses =
 			1 - getExactProbability(0) - getExactProbability(1)

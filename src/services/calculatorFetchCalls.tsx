@@ -1,5 +1,7 @@
+const API_URL = import.meta.env.VITE_API_URL
+
 export const userCalculatorDataPatch = (userStatsData, userPlannedBannerData) => {
-    return fetch("http://localhost:8000/calculator-data", {
+    return fetch(`${API_URL}/calculator-data`, {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",
@@ -13,7 +15,7 @@ export const userCalculatorDataPatch = (userStatsData, userPlannedBannerData) =>
 }
 
 export const initialCalculatorDataFetch = () => {
-    return fetch("http://localhost:8000/calculator-data", {
+    return fetch(`${API_URL}/calculator-data`, {
 			method: "GET",
 			headers: {
 				"Content-Type": "application/json",

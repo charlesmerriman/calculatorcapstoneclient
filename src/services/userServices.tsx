@@ -1,3 +1,5 @@
+const API_URL = import.meta.env.VITE_API_URL
+
 interface LoginCredentials {
 	username: string
 	password: string
@@ -40,7 +42,7 @@ export const userLogin = async (
 	credentials: LoginCredentials
 ): Promise<LoginResponse> => {
 	try {
-		const response = await fetch("http://localhost:8000/login", {
+		const response = await fetch(`${API_URL}/login`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json"
@@ -69,7 +71,7 @@ export const userRegister = async (
 	credentials: RegisterCredentials
 ): Promise<RegisterResponse> => {
 	try {
-		const response = await fetch("http://localhost:8000/register", {
+		const response = await fetch(`${API_URL}/register`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json"
@@ -99,7 +101,7 @@ export const userLogout = async (): Promise<LogoutResponse> => {
 	const token = localStorage.getItem("authToken")
 
 	try {
-		const response = await fetch("http://localhost:8000/logout", {
+		const response = await fetch(`${API_URL}/logout`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
