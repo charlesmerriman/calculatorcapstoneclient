@@ -197,7 +197,7 @@ export const CaratCalculator: React.FC = () => {
 
 			<div className="flex m-4 flex-col items-center gap-2">
 				<div className="flex text-center justify-center items-center">
-					<img className="rounded-2xl" src="/public/s-blob-v1-IMAGE-yMquOVcOLns.png" />
+					<img className="rounded-2xl" src="/s-blob-v1-IMAGE-yMquOVcOLns.png" />
 				</div>
 				<button
 					className="w-full py-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition mt-2"

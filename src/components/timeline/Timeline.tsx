@@ -43,23 +43,23 @@ export const Timeline = () => {
 									</div>
 									<div className="flex text-center p-1 gap-4 md:gap-16">
 										<div className="flex flex-col">
-											<img src="/public/00_CMSPEED1.png" />
+											<img src="/00_CMSPEED1.png" />
 											{event.speed_recommendation}
 										</div>
 										<div className="flex flex-col">
-											<img src="/public/01_CMStamina1.png" />
+											<img src="/01_CMStamina1.png" />
 											{event.stamina_recommendation}
 										</div>
 										<div className="flex flex-col">
-											<img src="/public/02_CMPOWER1.png" />
+											<img src="/02_CMPOWER1.png" />
 											{event.power_recommendation}
 										</div>
 										<div className="flex flex-col">
-											<img src="/public/03_CMGUTS1.png" />
+											<img src="/03_CMGUTS1.png" />
 											{event.guts_recommendation}
 										</div>
 										<div className="flex flex-col">
-											<img src="/public/04_CMWits1.png" />
+											<img src="/04_CMWits1.png" />
 											{event.wit_recommendation}
 										</div>
 									</div>
