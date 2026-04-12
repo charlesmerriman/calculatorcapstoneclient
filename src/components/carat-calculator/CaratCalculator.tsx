@@ -6,7 +6,6 @@ import { useEffect, useMemo } from "react"
 import {
 	differenceInDays,
 	eachDayOfInterval,
-	eachMonthOfInterval,
 	getDay
 } from "date-fns"
 
@@ -45,11 +44,11 @@ export const CaratCalculator: React.FC = () => {
 
 			if (daysSinceReference === 0) {
 				totalIncome += 25
-			} else if (daysSinceReference === 3) {
+			} else if (daysSinceReference % 7 === 3) {
 				totalIncome += 25
-			} else if (daysSinceReference === 5) {
+			} else if (daysSinceReference % 7 === 5) {
 				totalIncome += 25
-			} else if (daysSinceReference === 7) {
+			} else if (daysSinceReference % 7 === 7) {
 				totalIncome += 75
 			}
 		})
@@ -62,9 +61,20 @@ export const CaratCalculator: React.FC = () => {
 		return allDays.filter((day) => getDay(day) === 1).length
 	}
 	const calculateMonthlyOccurrences = (start: Date, end: Date): number => {
-		const months = eachMonthOfInterval({ start, end })
-		return months.length
+		// Count how many 1st-of-month dates fall strictly after `start` and on/before `end`.
+		let count = 0
+		const cursor = new Date(start)
+		// Advance to the 1st of the next month after start
+		cursor.setDate(1)
+		cursor.setMonth(cursor.getMonth() + 1)
+		cursor.setHours(0, 0, 0, 0)
+		while (cursor <= end) {
+			count++
+			cursor.setMonth(cursor.getMonth() + 1)
+		}
+		return count
 	}
+
 	const bannerResources = useMemo(() => {
 		let carats = userStatsData?.current_carat || 0
 		let umaTickets = userStatsData?.uma_ticket || 0
@@ -197,7 +207,7 @@ export const CaratCalculator: React.FC = () => {
 
 			<div className="flex m-4 flex-col items-center gap-2">
 				<div className="flex text-center justify-center items-center">
-					<img className="rounded-2xl" src="/s-blob-v1-IMAGE-yMquOVcOLns.png" />
+					{/* <img className="rounded-2xl" src="/s-blob-v1-IMAGE-yMquOVcOLns.png" /> */}
 				</div>
 				<button
 					className="w-full py-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-medium hover:bg-gray-200 transition mt-2"

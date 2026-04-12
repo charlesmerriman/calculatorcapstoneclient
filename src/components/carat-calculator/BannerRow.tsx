@@ -194,17 +194,18 @@ export const BannerRow = ({
 								})
 								setUserPlannedBannerData(sorted)
 							}}
-							options={targetBannerData
-								.filter((banner) =>
-									bannerType === "Uma"
-										? "umas" in banner
-										: "support_cards" in banner
-								)
-								.map((banner) => ({
-									value: banner,
-									label: banner.name,
-									key: banner.id
-								}))}
+								options={targetBannerData
+									.filter((banner) =>
+										(bannerType === "Uma"
+											? "umas" in banner
+											: "support_cards" in banner) &&
+										new Date(banner.banner_timeline.end_date) > currentDate
+									)
+									.map((banner) => ({
+										value: banner,
+										label: banner.name,
+										key: banner.id
+									}))}
 						/>
 					</div>{" "}
 					<div className="flex w-full">
