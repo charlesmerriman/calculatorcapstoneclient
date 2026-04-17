@@ -6,7 +6,7 @@ export const Navbar = () => {
 	const navigate = useNavigate()
 	const { timerIsGoing, saveNow, handleDropDownToggle } = useCalculatorData()
 
-	const handleLogout = async () => {
+	const handleLogout = async (): Promise<void> => {
 		try {
 			await userLogout()
 			localStorage.removeItem("authToken")
@@ -21,7 +21,6 @@ export const Navbar = () => {
 			<div>{/*Header Section*/}</div>
 
 			<nav className="grid grid-cols-[1fr_5fr_1fr] sticky top-0 z-50 bg-[#7aa6a5]">
-
 				{/*Left*/}
 				<div className="flex justify-center items-center">
 					{timerIsGoing ? (
@@ -32,9 +31,7 @@ export const Navbar = () => {
 						>
 							<div className="h-8 w-8 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
 						</button>
-					) : (
-						""
-					)}
+					) : null}
 				</div>
 
 				{/*Middle*/}
@@ -49,7 +46,12 @@ export const Navbar = () => {
 							Timeline
 						</Link>
 					</div>
-					<div className="btn btn-ghost text-base" onClick={handleDropDownToggle}>Income ▼</div>
+					<div
+						className="btn btn-ghost text-base"
+						onClick={handleDropDownToggle}
+					>
+						Income ▼
+					</div>
 				</div>
 
 				{/*Right side*/}

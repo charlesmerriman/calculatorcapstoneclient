@@ -1,34 +1,63 @@
-import {
-	format
-} from "date-fns"
+import { format } from "date-fns"
 import type {
 	ChampionsMeetingRank,
 	ClubRank,
-	TeamTrailsRank,
+	TeamTrialsRank,
 	UserPlannedBanner,
 	UserStats,
 	BannerUma,
 	BannerSupport
-} from "../../services/calculatorTypes"
+} from "../../types"
 import { useEffect, useState } from "react"
 import Select from "react-select"
+import type { SingleValue } from "react-select"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
+import { calculateMaxPossiblePulls, getFreePulls } from "../../utils/bannerHelpers"
+import { darkTextStyles } from "../../utils/reactSelectStyles"
 
-type BannerRowProps = {
+/**
+ * TYPESCRIPT CONCEPT: Props Interfaces
+ *
+ * Always define a named interface for component props rather than inlining
+ * the type in the function signature. This makes the props reusable,
+ * documentable, and easier to read.
+ *
+ * Note: We import Dispatch and SetStateAction through React's namespace
+ * below, but you could also import them directly from "react".
+ */
+interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
 	userStatsData: UserStats
 	clubRankData: ClubRank[]
-	teamTrialsRankData: TeamTrailsRank[]
+	teamTrialsRankData: TeamTrialsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
-	userPlannedBannerData: UserPlannedBanner[] | []
+	userPlannedBannerData: UserPlannedBanner[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
 	caratsAvailableForThisBanner: number
 	setUserPlannedBannerData: React.Dispatch<
-		React.SetStateAction<UserPlannedBanner[] | []>
+		React.SetStateAction<UserPlannedBanner[]>
 	>
 	umaTicketsAvailableForThisBanner: number
 	supportTicketsAvailableForThisBanner: number
+}
+
+/**
+ * TYPESCRIPT CONCEPT: Typing react-select Options
+ *
+ * react-select is generic over its option type. When you define what an
+ * "option" looks like, the onChange callback gets properly typed.
+ * Without these, `selectedOption.value` would be `unknown` under strict mode.
+ */
+interface BannerTypeOption {
+	value: string
+	label: string
+}
+
+interface BannerOption {
+	value: BannerUma | BannerSupport
+	label: string
+	key: number
 }
 
 export const BannerRow = ({
@@ -40,7 +69,6 @@ export const BannerRow = ({
 	setUserPlannedBannerData,
 	umaTicketsAvailableForThisBanner,
 	supportTicketsAvailableForThisBanner
-
 }: BannerRowProps) => {
 	const [bannerType, setBannerType] = useState(
 		plannedBanner.banner_support ? "Support" : "Uma"
@@ -60,64 +88,137 @@ export const BannerRow = ({
 	const currentBanner = targetBannerData.find(
 		(banner) =>
 			banner.id === plannedBanner.banner_uma?.id ||
-			banner.id === plannedBanner.banner_support?.id ||
-			""
+			banner.id === plannedBanner.banner_support?.id
 	)
 
 	const currentDate = new Date()
 
-	const calculateMaxPossiblePulls = () => {
-	if (plannedBanner.banner_uma) {
-		if (new Date(plannedBanner.banner_uma.banner_timeline.end_date).getTime() < currentDate.getTime()) {
-			caratsAvailableForThisBanner = 0
-			return "Passed"
-		} else {
-		return (
-			plannedBanner.banner_uma.free_pulls +
-			umaTicketsAvailableForThisBanner +
-			Math.floor(caratsAvailableForThisBanner / 150)
-		)}
+	const maxPossiblePulls = calculateMaxPossiblePulls({
+		plannedBanner,
+		caratsAvailable: caratsAvailableForThisBanner,
+		umaTicketsAvailable: umaTicketsAvailableForThisBanner,
+		supportTicketsAvailable: supportTicketsAvailableForThisBanner
+	})
+
+	const displayCarats =
+		maxPossiblePulls === "Passed" ? 0 : caratsAvailableForThisBanner
+
+	/**
+	 * TYPESCRIPT CONCEPT: Helper to Find and Update a Banner in the Array
+	 *
+	 * This helper centralizes the "find the matching banner" logic that was
+	 * duplicated across multiple handlers. The `updater` callback receives
+	 * the matched banner and returns a new one.
+	 *
+	 * The return type uses `UserPlannedBanner[]` explicitly — without it,
+	 * TypeScript might infer a wider type from the .map() call.
+	 */
+	const updateBannerInList = (
+		updater: (banner: UserPlannedBanner) => UserPlannedBanner
+	): UserPlannedBanner[] => {
+		return userPlannedBannerData.map((mappedBannerData) => {
+			const isMatch =
+				(mappedBannerData.id !== undefined &&
+					mappedBannerData.id === plannedBanner.id) ||
+				(mappedBannerData.tempId !== undefined &&
+					mappedBannerData.tempId === plannedBanner.tempId)
+
+			return isMatch ? updater(mappedBannerData) : mappedBannerData
+		})
 	}
 
-	if (plannedBanner.banner_support) {
-		if (new Date(plannedBanner.banner_support.banner_timeline.end_date).getTime() < currentDate.getTime()) {
-			caratsAvailableForThisBanner = 0
-			return 0
-		} else {
-		return (
-			plannedBanner.banner_support.free_pulls +
-			supportTicketsAvailableForThisBanner +
-			Math.floor(caratsAvailableForThisBanner / 150)
-		)}
-	}
+	const handleDeleteBannerClick = (): void => {
+		const confirmed = window.confirm(
+			"Are you sure you want to delete this banner?"
+		)
+		if (!confirmed) return
 
-	return 0
-}
-
-	const maxPossiblePulls = calculateMaxPossiblePulls()
-
-	const handleDeleteBannerClick = () => {
-		const confirmed = window.confirm("Are you sure you want to delete this banner?")
-
-		if (!confirmed) {
-			return 
-		}
-
-		const updatedUserPlannedBannerData = userPlannedBannerData?.filter(
+		const updated = userPlannedBannerData.filter(
 			(mappedBannerData) =>
 				mappedBannerData.tempId
 					? mappedBannerData.tempId !== plannedBanner.tempId
 					: mappedBannerData.id !== plannedBanner.id
 		)
-		setUserPlannedBannerData(updatedUserPlannedBannerData)
+		setUserPlannedBannerData(updated)
 	}
 
-	const customStyles = {
-		option: (provided) => ({
-			...provided,
-			color: "#000"
-		})
+	const handleBannerTypeChange = (option: SingleValue<BannerTypeOption>): void => {
+		if (option) {
+			setBannerType(option.value)
+		}
 	}
+
+	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
+		if (!option) return
+
+		const updated = updateBannerInList((banner) => {
+			if (bannerType === "Uma") {
+				return {
+					...banner,
+					banner_uma: option.value as BannerUma,
+					banner_support: undefined
+				}
+			}
+			return {
+				...banner,
+				banner_uma: undefined,
+				banner_support: option.value as BannerSupport
+			}
+		})
+
+		/**
+		 * TYPESCRIPT CONCEPT: Non-null Assertion Operator (!)
+		 *
+		 * The `!` after banner_support below tells TypeScript "I know this
+		 * isn't null/undefined." Use sparingly — it bypasses null checking.
+		 * Here it's safe because the sort only runs on banners that have
+		 * either banner_uma or banner_support set (guaranteed by the UI flow).
+		 *
+		 * A safer alternative would be to provide a fallback:
+		 *   a.banner_support?.banner_timeline.start_date ?? ""
+		 */
+		const sorted = updated.sort((a, b) => {
+			const aDate = new Date(
+				a.banner_uma
+					? a.banner_uma.banner_timeline.start_date
+					: a.banner_support!.banner_timeline.start_date
+			)
+			const bDate = new Date(
+				b.banner_uma
+					? b.banner_uma.banner_timeline.start_date
+					: b.banner_support!.banner_timeline.start_date
+			)
+			return aDate.getTime() - bDate.getTime()
+		})
+		setUserPlannedBannerData(sorted)
+	}
+
+	/**
+	 * TYPESCRIPT CONCEPT: React Event Types
+	 *
+	 * React provides generic event types like ChangeEvent<HTMLInputElement>.
+	 * Under strict mode, the `e` parameter MUST be typed — implicit `any`
+	 * is not allowed. The generic parameter tells TypeScript that
+	 * `e.target` is specifically an HTMLInputElement (so `.value` exists).
+	 */
+	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+		const newPullCount = Number(e.target.value)
+		const updated = updateBannerInList((banner) => ({
+			...banner,
+			number_of_pulls: newPullCount
+		}))
+		setUserPlannedBannerData(updated)
+	}
+
+	const hasBanner = plannedBanner.banner_uma || plannedBanner.banner_support
+
+	const bannerStartDate = plannedBanner.banner_uma
+		? plannedBanner.banner_uma.banner_timeline.start_date
+		: plannedBanner.banner_support?.banner_timeline.start_date
+
+	const bannerEndDate = plannedBanner.banner_uma
+		? plannedBanner.banner_uma.banner_timeline.end_date
+		: plannedBanner.banner_support?.banner_timeline.end_date
 
 	return (
 		<div className="m-2 w-full flex flex-wrap lg:flex-nowrap">
@@ -125,17 +226,13 @@ export const BannerRow = ({
 				<div className="w-full lg:w-1/3 flex flex-wrap border-0 rounded-2xl bg-gray-100 p-3 justify-center items-center">
 					<div className="flex flex-col w-full text-center justify-evenly">
 						<h1 className="text-sm font-medium text-gray-700">Banner Type:</h1>
-						<Select
-							styles={customStyles}
+						<Select<BannerTypeOption>
+							styles={darkTextStyles}
 							defaultValue={{
 								value: bannerType,
 								label: bannerType
 							}}
-							onChange={(selectedOption) => {
-								if (selectedOption) {
-									setBannerType(selectedOption.value)
-								}
-							}}
+							onChange={handleBannerTypeChange}
 							options={[
 								{ value: "Uma", label: "Uma" },
 								{ value: "Support", label: "Support" }
@@ -146,66 +243,27 @@ export const BannerRow = ({
 						<h1 className="text-sm w-full font-medium text-gray-700">
 							Target Banner:
 						</h1>
-						<Select
-							styles={customStyles}
+						<Select<BannerOption>
+							styles={darkTextStyles}
 							className="w-full"
 							defaultValue={{
-								value: currentBanner,
+								value: currentBanner as BannerUma | BannerSupport,
 								label: currentBanner ? currentBanner.name : "Add a banner"
 							}}
-							onChange={(selectedOption) => {
-								const updatedUserPlannedBannerData = userPlannedBannerData.map(
-									(mappedBannerData) => {
-										if (
-											(mappedBannerData.id &&
-												mappedBannerData.id === plannedBanner.id) ||
-											(mappedBannerData.tempId &&
-												mappedBannerData.tempId === plannedBanner.tempId)
-										) {
-											if (selectedOption && bannerType === "Uma") {
-												return {
-													...mappedBannerData,
-													banner_uma: selectedOption.value,
-													banner_support: undefined
-												}
-											} else if (selectedOption && bannerType === "Support") {
-												return {
-													...mappedBannerData,
-													banner_uma: undefined,
-													banner_support: selectedOption.value
-												}
-											}
-										}
-										return mappedBannerData
-									}
-								) as UserPlannedBanner[]
-								const sorted = updatedUserPlannedBannerData.sort((a, b) => {
-									const aDate = new Date(
-										a.banner_uma
-											? a.banner_uma.banner_timeline.start_date
-											: a.banner_support!.banner_timeline.start_date
-									)
-									const bDate = new Date(
-										b.banner_uma
-											? b.banner_uma.banner_timeline.start_date
-											: b.banner_support!.banner_timeline.start_date
-									)
-									return aDate.getTime() - bDate.getTime()
-								})
-								setUserPlannedBannerData(sorted)
-							}}
-								options={targetBannerData
-									.filter((banner) =>
+							onChange={handleBannerSelect}
+							options={targetBannerData
+								.filter(
+									(banner) =>
 										(bannerType === "Uma"
 											? "umas" in banner
 											: "support_cards" in banner) &&
 										new Date(banner.banner_timeline.end_date) > currentDate
-									)
-									.map((banner) => ({
-										value: banner,
-										label: banner.name,
-										key: banner.id
-									}))}
+								)
+								.map((banner) => ({
+									value: banner,
+									label: banner.name,
+									key: banner.id
+								}))}
 						/>
 					</div>{" "}
 					<div className="flex w-full">
@@ -213,13 +271,15 @@ export const BannerRow = ({
 							<div className="text-center w-full text-sm font-medium text-gray-700">
 								Carat Estimation:
 							</div>{" "}
-							<div className="text-base font-medium">{caratsAvailableForThisBanner}</div>
+							<div className="text-base font-medium">{displayCarats}</div>
 						</div>
 						<div className="w-1/3 text-center p-1">
 							<div className="text-center w-full text-sm font-medium text-gray-700 ">
 								Free Pulls:
 							</div>{" "}
-							<div className="text-base font-medium">{plannedBanner.banner_support ? plannedBanner.banner_support.free_pulls : plannedBanner.banner_uma ? plannedBanner.banner_uma.free_pulls : ""}</div>
+							<div className="text-base font-medium">
+								{getFreePulls(plannedBanner)}
+							</div>
 						</div>
 						<div className="w-1/3 text-center p-1">
 							<div className="text-center w-full text-sm font-medium text-gray-700">
@@ -229,41 +289,22 @@ export const BannerRow = ({
 						</div>
 					</div>
 					<div className="flex flex-col w-full text-center justify-evenly">
-						<h1 className="text-sm font-medium text-gray-700 text-center">Pulls:</h1>
+						<h1 className="text-sm font-medium text-gray-700 text-center">
+							Pulls:
+						</h1>
 						<input
 							type="number"
 							value={plannedBanner.number_of_pulls}
 							className="w-full text-center border border-green-200 rounded h-9.5 bg-emerald-50 focus:border-green-400 focus:outline-none md:pl-4"
-							max={maxPossiblePulls}
+							max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
 							min={0}
-							onChange={(e) => {
-								const newPullCount = Number(e.target.value)
-
-								const updatedUserPlannedBannerData = userPlannedBannerData?.map(
-									(mappedBannerData) => {
-										if (
-											(mappedBannerData.id &&
-												mappedBannerData.id === plannedBanner.id) ||
-											(mappedBannerData.tempId &&
-												mappedBannerData.tempId === plannedBanner.tempId)
-										) {
-											return {
-												...mappedBannerData,
-												number_of_pulls: newPullCount
-											}
-										}
-										return mappedBannerData
-									}
-								)
-								setUserPlannedBannerData(updatedUserPlannedBannerData)
-							}}
+							onChange={handlePullCountChange}
 						/>
 					</div>
 				</div>
 
 				<div className="w-full lg:w-1/3 flex flex-col justify-center items-center">
-
-					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
+					{hasBanner && (
 						<div className="flex flex-wrap border-0 rounded-2xl bg-gray-100 lg:ml-4 p-3 justify-center items-center ">
 							<div className="flex w-full justify-center">
 								<div className="flex flex-wrap p-1">
@@ -271,17 +312,8 @@ export const BannerRow = ({
 										Start Date:
 									</div>
 									<div className="text-center w-full text-base font-medium">
-										{plannedBanner.banner_uma || plannedBanner.banner_support
-											? format(
-													new Date(
-														plannedBanner.banner_uma
-															? plannedBanner.banner_uma.banner_timeline
-																	.start_date
-															: plannedBanner.banner_support.banner_timeline
-																	.start_date
-													),
-													"MMMM d, yyyy"
-											  )
+										{bannerStartDate
+											? format(new Date(bannerStartDate), "MMMM d, yyyy")
 											: ""}
 									</div>
 								</div>
@@ -290,47 +322,41 @@ export const BannerRow = ({
 										End Date:{" "}
 									</div>
 									<div className="text-center w-full text-base font-medium">
-										{plannedBanner.banner_uma || plannedBanner.banner_support
-											? format(
-													new Date(
-														plannedBanner.banner_uma
-															? plannedBanner.banner_uma.banner_timeline
-																	.end_date
-															: plannedBanner.banner_support.banner_timeline
-																	.end_date
-													),
-													"MMMM d, yyyy"
-											  )
+										{bannerEndDate
+											? format(new Date(bannerEndDate), "MMMM d, yyyy")
 											: ""}
 									</div>
 								</div>
 							</div>
 							<div className="flex flex-wrap">
 								{plannedBanner.banner_uma
-									? plannedBanner.banner_uma.umas.map((umas) => (
-											<img key={umas.name} src={umas.image} alt={umas.name} className="h-auto w-auto max-h-40 object-contain flex-none"/>
+									? plannedBanner.banner_uma.umas.map((uma) => (
+											<img
+												key={uma.name}
+												src={uma.image}
+												alt={uma.name}
+												className="h-auto w-auto max-h-40 object-contain flex-none"
+											/>
 									  ))
 									: plannedBanner.banner_support
 									? plannedBanner.banner_support.support_cards.map(
-											(support_cards) => (
+											(support_card) => (
 												<img
-													key={support_cards.name}
-													src={support_cards.image}
-													alt={support_cards.name}
+													key={support_card.name}
+													src={support_card.image}
+													alt={support_card.name}
 													className="h-auto w-auto max-h-40 object-contain flex-none"
-												
 												/>
 											)
 									  )
-									: ""}
+									: null}
 							</div>
 						</div>
 					)}
 				</div>
 
 				<div className="w-full lg:w-1/3 lg:pl-1">
-					{/*All the percentage chances of getting the MLBs*/}
-					{(plannedBanner.banner_uma || plannedBanner.banner_support) && (
+					{hasBanner && (
 						<MLBChanceDisplay
 							pulls={plannedBanner.number_of_pulls}
 							plannedBanner={plannedBanner}

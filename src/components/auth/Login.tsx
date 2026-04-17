@@ -17,7 +17,7 @@ export const Login: React.FC = () => {
 	} = useForm<LoginFormData>()
 	const navigate = useNavigate()
 
-	const handleLoginSubmit = async (data: LoginFormData) => {
+	const handleLoginSubmit = async (data: LoginFormData): Promise<void> => {
 		try {
 			const response = await userLogin(data)
 			console.log("Login successful:", response)
