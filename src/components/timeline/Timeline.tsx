@@ -4,17 +4,6 @@ import { IncomeForm } from "../carat-calculator/IncomeForm"
 import { useEffect } from "react"
 import type { ChampionsMeeting, BannerTimelineForViewing } from "../../types"
 
-/**
- * TYPESCRIPT CONCEPT: Type Guards with `in` Operator
- *
- * When you have a union type (ChampionsMeeting | BannerTimelineForViewing),
- * you need to "narrow" it to know which variant you have before accessing
- * variant-specific fields. The `in` operator checks if a property exists
- * on an object, and TypeScript uses this to narrow the type.
- *
- * `"track" in event` narrows to ChampionsMeeting because only that type has `track`.
- * This is cleaner and more maintainable than using type assertions (`as ChampionsMeeting`).
- */
 function isChampionsMeeting(
 	event: ChampionsMeeting | BannerTimelineForViewing
 ): event is ChampionsMeeting {
@@ -30,24 +19,21 @@ export const Timeline = () => {
 	}, [setIsDropdown])
 
 	return (
-		<div className="justify-center w-full min-h-screen bg-white lg:max-w-7xl mx-auto p-4">
+		<div className="page-container">
 			{isDropdown ? <IncomeForm /> : null}
 			<div className="flex flex-col items-center">
 				{organizedTimelineData.map((event, index) => {
 					if (isChampionsMeeting(event)) {
 						return (
-							<div
-								key={index}
-								className="m-2 w-full flex flex-wrap lg:flex-nowrap font-medium text-lg"
-							>
-								<div className="w-full flex flex-col bg-neutral-200 rounded-xl p-2 border border-gray-200 shadow-sm justify-center items-center gap-2">
-									<div className="w-full flex justify-center text-lg bg-gray-100 border-white rounded-xl font-medium">
+							<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap font-medium text-lg">
+								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
+									<div className="w-full flex justify-center text-lg card-section rounded-xl font-medium">
 										{format(event.start_date, "MMMM d, yyyy")} through{" "}
 										{format(event.end_date, "MMMM d, yyyy")}
 									</div>
 									<div>Images are placeholders</div>
 									<img src={event.image} alt={event.name} />
-									<div className="flex flex-col items-center border-white p-2 bg-gray-100 shadow-sm rounded-xl w-full">
+									<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
 										<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
 											<div>{event.track}</div>
 											<div>{event.surface_type}</div>
@@ -86,21 +72,10 @@ export const Timeline = () => {
 						)
 					}
 
-					/**
-					 * TYPESCRIPT CONCEPT: Narrowing by Elimination
-					 *
-					 * After the `if (isChampionsMeeting(event))` block above,
-					 * TypeScript knows that `event` must be BannerTimelineForViewing
-					 * in this branch — no additional check needed. This is called
-					 * "narrowing by elimination" or "exhaustive narrowing."
-					 */
 					return (
-						<div
-							key={index}
-							className="m-2 w-full flex flex-wrap lg:flex-nowrap"
-						>
-							<div className="w-full flex flex-col bg-neutral-200 p-2 border rounded-xl border-gray-200 shadow-sm">
-								<div className="w-full flex justify-center text-lg bg-gray-100 border-white rounded-xl mb-2 font-medium">
+						<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap">
+							<div className="w-full flex flex-col card-panel p-2 rounded-xl">
+								<div className="w-full flex justify-center text-lg card-section rounded-xl mb-2 font-medium">
 									{format(event.start_date, "MMMM d, yyyy")} through{" "}
 									{format(event.end_date, "MMMM d, yyyy")}
 								</div>
@@ -117,7 +92,7 @@ export const Timeline = () => {
 												className="flex flex-col items-center justify-between p-1 mx-1 border bg-white border-gray-200 rounded-xl min-w-1/2"
 											>
 												{uma.recommendation ? (
-													<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-200 rounded-xl bg-blue-400 text-base font-medium">
+													<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-200 rounded-xl bg-blue-400 value-bold">
 														{uma.recommendation}
 													</div>
 												) : (
@@ -138,7 +113,7 @@ export const Timeline = () => {
 													className="flex flex-col items-center justify-between p-1 mx-1 border bg-white border-gray-200 rounded-xl min-w-1/2"
 												>
 													{card.recommendation ? (
-														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-200 rounded-xl bg-blue-400 text-base font-medium">
+														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-200 rounded-xl bg-blue-400 value-bold">
 															{card.recommendation}
 														</div>
 													) : (

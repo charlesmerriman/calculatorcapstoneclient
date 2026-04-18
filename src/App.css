@@ -1,3 +1,5 @@
+@reference "tailwindcss"
+
 /*
  * CSS CONCEPT: Extracting Repeated Tailwind Patterns with @apply
  *
@@ -113,7 +115,9 @@
 /* The colored type indicator strip on the left side of a banner row */
 .banner-type-tab {
 	@apply flex items-center justify-center text-xs font-bold text-white
-		writing-mode-vertical px-1.5 rounded-l-lg shrink-0 select-none;
+		px-1.5 rounded-l-lg shrink-0 select-none;
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
 }
 
 .banner-type-tab--uma {
@@ -170,11 +174,6 @@
 
 /* ===== UTILITIES ===== */
 
-/* Vertical writing mode for the banner type tab */
-.writing-mode-vertical {
-	writing-mode: vertical-rl;
-	text-orientation: mixed;
-}
 
 /* Auth page heading */
 .heading-auth {

@@ -19,8 +19,7 @@ export const Login: React.FC = () => {
 
 	const handleLoginSubmit = async (data: LoginFormData): Promise<void> => {
 		try {
-			const response = await userLogin(data)
-			console.log("Login successful:", response)
+			await userLogin(data)
 			navigate("/")
 		} catch {
 			setError("root", { message: "Invalid username or password" })
@@ -28,50 +27,38 @@ export const Login: React.FC = () => {
 	}
 
 	return (
-		<div className="min-h-screen flex flex-wrap justify-center items-center bg-gray-700 p-4 rounded-lg max-w-150 mx-auto">
-			<form
-				onSubmit={handleSubmit(handleLoginSubmit)}
-				className="shadow rounded-lg p-6 md:p-8 w-full max-w-md items-center justify-center bg-white"
-			>
-				<h2 className="text-2xl font-semibold mb-6 w-full text-center">
-					Login
-				</h2>
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="username"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Username:
-					</label>
+		<div className="page-auth rounded-lg">
+			<form onSubmit={handleSubmit(handleLoginSubmit)} className="card-auth">
+				<h2 className="heading-auth">Login</h2>
+
+				<div className="form-row-auth">
+					<label htmlFor="username" className="label-auth">Username:</label>
 					<input
 						type="text"
 						id="username"
 						{...register("username", { required: "Username is required" })}
 						autoComplete="username"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
+						className="input-auth"
 					/>
 				</div>
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="password"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Password:
-					</label>
+
+				<div className="form-row-auth">
+					<label htmlFor="password" className="label-auth">Password:</label>
 					<input
 						type="password"
 						id="password"
 						{...register("password", { required: "Password is required" })}
 						autoComplete="current-password"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
+						className="input-auth"
 					/>
 				</div>
-				{errors.root && (
-					<div className="text-red-500">{errors.root.message}</div>
-				)}
+
+				{errors.root && <div className="text-error">{errors.root.message}</div>}
+
 				<button type="submit" disabled={isSubmitting} className="btn w-full">
 					{isSubmitting ? "Loading..." : "Login"}
-				</button>{" "}
+				</button>
+
 				<section className="register-link text-center m-4">
 					<Link to="/register">Not a member yet?</Link>
 				</section>
