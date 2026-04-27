@@ -18,7 +18,20 @@ export interface EventReward {
 	carat_amount: number
 	support_ticket_amount: number
 	uma_ticket_amount: number
+	sr_shard_amount: number
+	sr_crystal_amount: number
+	ssr_shard_amount: number
+	ssr_crystal_amount: number
 	date: string
+}
+
+export interface GameEvent {
+	id: number
+	name: string
+	image: string
+	start_date: string
+	end_date: string
+	rewards: EventReward[]
 }
 
 /** @deprecated Use EventReward (singular) instead */

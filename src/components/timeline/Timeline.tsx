@@ -1,7 +1,5 @@
 import { format } from "date-fns"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import { IncomeForm } from "../carat-calculator/IncomeForm"
-import { useEffect } from "react"
 import type { ChampionsMeeting, BannerTimelineForViewing } from "../../types"
 
 function isChampionsMeeting(
@@ -11,16 +9,10 @@ function isChampionsMeeting(
 }
 
 export const Timeline = () => {
-	const { organizedTimelineData, isDropdown, setIsDropdown } =
-		useCalculatorData()
-
-	useEffect(() => {
-		setIsDropdown(false)
-	}, [setIsDropdown])
+	const { organizedTimelineData } = useCalculatorData()
 
 	return (
 		<div className="page-container">
-			{isDropdown ? <IncomeForm /> : null}
 			<div className="flex flex-col items-center">
 				{organizedTimelineData.map((event, index) => {
 					if (isChampionsMeeting(event)) {
@@ -85,42 +77,42 @@ export const Timeline = () => {
 										alt={event.name}
 										className="border-0 rounded-2xl"
 									/>
-									<div className="flex justify-center p-4 bg-gray-100 rounded-xl md:rounded-none md:rounded-l-xl m-1 h-full w-full">
+									<div className="flex justify-center p-4 bg-gray-800 rounded-xl md:rounded-none md:rounded-l-xl m-1 h-full w-full">
 										{event.banner_umas[0]?.umas.map((uma, umaIndex) => (
 											<div
 												key={umaIndex}
-												className="flex flex-col items-center justify-between p-1 mx-1 border bg-white border-gray-200 rounded-xl min-w-1/2"
+												className="flex flex-col items-center justify-between p-1 mx-1 border bg-gray-700 border-gray-600 rounded-xl min-w-1/2"
 											>
 												{uma.recommendation ? (
-													<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-200 rounded-xl bg-blue-400 value-bold">
+													<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
 														{uma.recommendation}
 													</div>
 												) : (
 													<div className="h-1/6"></div>
 												)}
 												<img src={uma.image} alt={uma.name} />
-												<div className="flex p-1 border border-white rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium">
+												<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
 													{uma.name}
 												</div>
 											</div>
 										))}
 									</div>
-									<div className="flex justify-center p-4 bg-gray-100 rounded-xl md:rounded-none md:rounded-r-xl m-1 h-full w-full">
+									<div className="flex justify-center p-4 bg-gray-800 rounded-xl md:rounded-none md:rounded-r-xl m-1 h-full w-full">
 										{event.banner_supports[0]?.support_cards.map(
 											(card, cardIndex) => (
 												<div
 													key={cardIndex}
-													className="flex flex-col items-center justify-between p-1 mx-1 border bg-white border-gray-200 rounded-xl min-w-1/2"
+													className="flex flex-col items-center justify-between p-1 mx-1 border bg-gray-700 border-gray-600 rounded-xl min-w-1/2"
 												>
 													{card.recommendation ? (
-														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-200 rounded-xl bg-blue-400 value-bold">
+														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
 															{card.recommendation}
 														</div>
 													) : (
 														<div className="h-1/6 p-1 mb-1"></div>
 													)}
 													<img src={card.image} alt={card.name} />
-													<div className="flex p-1 border border-white rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium">
+													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
 														{card.name}
 													</div>
 												</div>

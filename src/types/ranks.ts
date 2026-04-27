@@ -50,3 +50,9 @@ export interface ChampionsMeetingRank {
 	name: string
 	income_amount: number
 }
+
+export interface LeagueOfHeroesRank {
+	id: number
+	name: string
+	income_amount: number
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { CalculatorContext } from "./CalculatorContext"
 import type {
 	CalculatorData,
@@ -6,6 +6,7 @@ import type {
 	ClubRank,
 	TeamTrialsRank,
 	ChampionsMeetingRank,
+	LeagueOfHeroesRank,
 	UserPlannedBanner,
 	BannerUma,
 	BannerSupport,
@@ -42,6 +43,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [clubRankData, setClubRankData] = useState<ClubRank[]>([])
 	const [teamTrialsRankData, setTeamTrialsRankData] = useState<TeamTrialsRank[]>([])
 	const [championsMeetingRankData, setChampionsMeetingRankData] = useState<ChampionsMeetingRank[]>([])
+	const [leagueOfHeroesRankData, setLeagueOfHeroesRankData] = useState<LeagueOfHeroesRank[]>([])
 	const [umaBannerData, setUmaBannerData] = useState<BannerUma[]>([])
 	const [supportBannerData, setSupportBannerData] = useState<BannerSupport[]>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
@@ -128,10 +130,11 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setClubRankData(data.club_rank_data)
 				setTeamTrialsRankData(data.team_trials_rank_data)
 				setChampionsMeetingRankData(data.champions_meeting_rank_data)
+				setLeagueOfHeroesRankData(data.league_of_heroes_rank_data)
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
-				setEventRewardsData(data.event_rewards_data)
+				setEventRewardsData(data.events_data.flatMap((event) => event.rewards))
 				setChampionsMeetingData(data.champions_meeting_data)
 				setOrganizedTimelineData(sortedMergedEvents)
 			})
@@ -140,15 +143,21 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			})
 	}, [])
 
+	const isInitialMount = useRef(true)
 	useEffect(() => {
+		if (isInitialMount.current) {
+			isInitialMount.current = false
+			return
+		}
 		startTimer()
-	}, [startTimer])
+	}, [startTimer, userStatsData, userPlannedBannerData])
 
 	const value = {
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,
 		championsMeetingRankData,
+		leagueOfHeroesRankData,
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,

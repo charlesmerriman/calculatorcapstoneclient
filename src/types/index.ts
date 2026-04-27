@@ -26,7 +26,8 @@ export type {
 	ClubRank,
 	TeamTrialsRank,
 	TeamTrailsRank,
-	ChampionsMeetingRank
+	ChampionsMeetingRank,
+	LeagueOfHeroesRank
 } from "./ranks"
 
 export type {
@@ -41,6 +42,7 @@ export { isSavedBanner, isLocalBanner } from "./user"
 export type {
 	EventReward,
 	EventRewards,
+	GameEvent,
 	ChampionsMeeting
 } from "./events"
 

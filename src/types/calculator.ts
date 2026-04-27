@@ -19,10 +19,11 @@ import type {
 import type {
 	ClubRank,
 	TeamTrialsRank,
-	ChampionsMeetingRank
+	ChampionsMeetingRank,
+	LeagueOfHeroesRank
 } from "./ranks"
 import type { UserStats, UserPlannedBanner } from "./user"
-import type { EventReward, ChampionsMeeting } from "./events"
+import type { EventReward, GameEvent, ChampionsMeeting } from "./events"
 
 /** The full payload returned by GET /calculator-data */
 export interface CalculatorData {
@@ -30,10 +31,11 @@ export interface CalculatorData {
 	club_rank_data: ClubRank[]
 	team_trials_rank_data: TeamTrialsRank[]
 	champions_meeting_rank_data: ChampionsMeetingRank[]
+	league_of_heroes_rank_data: LeagueOfHeroesRank[]
 	banner_uma_data: BannerUma[]
 	banner_support_data: BannerSupport[]
 	user_planned_banner_data: UserPlannedBanner[]
-	event_rewards_data: EventReward[]
+	events_data: GameEvent[]
 	champions_meeting_data: ChampionsMeeting[]
 	banner_timeline_data: BannerTimelineForViewing[]
 }
@@ -67,6 +69,7 @@ export interface CalculatorContextType {
 	clubRankData: ClubRank[]
 	teamTrialsRankData: TeamTrialsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
+	leagueOfHeroesRankData: LeagueOfHeroesRank[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
 	eventRewardsData: EventReward[]

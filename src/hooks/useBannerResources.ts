@@ -85,6 +85,25 @@ function calculateMonthlyOccurrences(start: Date, end: Date): number {
 	return count
 }
 
+function calculateDayOfMonthOccurrences(
+	start: Date,
+	end: Date,
+	dayOfMonth: number
+): number {
+	let count = 0
+	const cursor = new Date(start)
+	cursor.setDate(dayOfMonth)
+	cursor.setHours(0, 0, 0, 0)
+	if (cursor <= start) {
+		cursor.setMonth(cursor.getMonth() + 1)
+	}
+	while (cursor <= end) {
+		count++
+		cursor.setMonth(cursor.getMonth() + 1)
+	}
+	return count
+}
+
 export function useBannerResources({
 	userStatsData,
 	clubRankData,
@@ -106,7 +125,7 @@ export function useBannerResources({
 		 */
 		if (!userStatsData) return []
 
-		let carats = userStatsData.current_carat || 0
+		let carats = (userStatsData.current_carat || 0) + (userStatsData.current_paid_carat || 0)
 		let umaTickets = userStatsData.uma_ticket || 0
 		let supportTickets = userStatsData.support_ticket || 0
 
@@ -157,6 +176,12 @@ export function useBannerResources({
 			carats += (userClubRank?.income_amount ?? 0) * months
 			carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
+
+			if (userStatsData.training_pass) {
+				carats += calculateDayOfMonthOccurrences(lastEndDate, endDate, 24) * 2200
+			} else {
+				carats += months * 500
+			}
 
 			results.push({ carats, umaTickets, supportTickets })
 

@@ -27,21 +27,22 @@ export const MLBChanceDisplay = ({
 	]
 
 	return (
-		<div className="w-full border border-gray-200 rounded-lg overflow-hidden">
-			<div className="text-[9px] font-semibold text-gray-600 text-center bg-gray-100 py-0.5 border-b border-gray-200">
-				% Chance to MLB (5x Copies)
-			</div>
-			<div className="grid grid-cols-6">
-				{labels.map((label, i) => (
-					<div
-						key={label}
-						className={`mlb-cell ${i < labels.length - 1 ? "border-r border-gray-200" : ""}`}
-					>
-						<div className="mlb-label">{label}</div>
-						<div className="mlb-value">{values[i].toFixed(1)}%</div>
+		<div className="w-full grid grid-cols-6 rounded-lg bg-gray-700 border border-gray-600 overflow-hidden">
+			{labels.map((label, i) => (
+				<div
+					key={label}
+					className={`flex flex-col items-center justify-center px-1 py-1.5 text-[10px] leading-tight text-center${i < labels.length - 1 ? " border-r border-gray-600" : ""}`}
+				>
+					<div className="mlb-label">{label}</div>
+					<div className="mlb-value">{values[i].toFixed(1)}%</div>
+					<div className="h-1 bg-gray-500 rounded-full overflow-hidden mt-0.5 w-full">
+						<div
+							className="h-full bg-blue-400 rounded-full"
+							style={{ width: `${Math.min(values[i], 100)}%` }}
+						/>
 					</div>
-				))}
-			</div>
+				</div>
+			))}
 		</div>
 	)
 }

@@ -1,4 +1,3 @@
-import { format } from "date-fns"
 import type {
 	ChampionsMeetingRank,
 	ClubRank,
@@ -30,6 +29,7 @@ interface BannerRowProps {
 	>
 	umaTicketsAvailableForThisBanner: number
 	supportTicketsAvailableForThisBanner: number
+	initialBannerType?: "Uma" | "Support"
 }
 
 interface BannerTypeOption {
@@ -51,10 +51,11 @@ export const BannerRow = ({
 	caratsAvailableForThisBanner,
 	setUserPlannedBannerData,
 	umaTicketsAvailableForThisBanner,
-	supportTicketsAvailableForThisBanner
+	supportTicketsAvailableForThisBanner,
+	initialBannerType
 }: BannerRowProps) => {
-	const [bannerType, setBannerType] = useState(
-		plannedBanner.banner_support ? "Support" : "Uma"
+	const [bannerType, setBannerType] = useState<"Uma" | "Support">(
+		plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
 	)
 	const [targetBannerData, setTargetBannerData] = useState<
 		BannerUma[] | BannerSupport[]
@@ -109,10 +110,6 @@ export const BannerRow = ({
 		setUserPlannedBannerData(updated)
 	}
 
-	const handleBannerTypeChange = (option: SingleValue<BannerTypeOption>): void => {
-		if (option) setBannerType(option.value)
-	}
-
 	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
 		if (!option) return
 		const updated = updateBannerInList((banner) => {
@@ -143,14 +140,6 @@ export const BannerRow = ({
 
 	const hasBanner = plannedBanner.banner_uma || plannedBanner.banner_support
 
-	const bannerStartDate = plannedBanner.banner_uma
-		? plannedBanner.banner_uma.banner_timeline.start_date
-		: plannedBanner.banner_support?.banner_timeline.start_date
-
-	const bannerEndDate = plannedBanner.banner_uma
-		? plannedBanner.banner_uma.banner_timeline.end_date
-		: plannedBanner.banner_support?.banner_timeline.end_date
-
 	const freePulls = getFreePulls(plannedBanner)
 
 	const images = plannedBanner.banner_uma
@@ -159,128 +148,152 @@ export const BannerRow = ({
 		? plannedBanner.banner_support.support_cards
 		: []
 
+	const bannerTimeline =
+		plannedBanner.banner_uma?.banner_timeline ??
+		plannedBanner.banner_support?.banner_timeline
+
+	const formatDate = (dateStr: string): string => {
+		const date = new Date(dateStr)
+		return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+	}
+
 	return (
-		<div className="w-full flex border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-			{/* === Type Tab (vertical text on left edge) === */}
+		<div className="w-full flex items-stretch bg-gray-800 h-[64px]">
+			{/* === Type badge (square block on left) === */}
 			<div
 				className={`banner-type-tab ${
 					bannerType === "Uma" ? "banner-type-tab--uma" : "banner-type-tab--support"
 				}`}
 			>
-				{bannerType}
+				<span className="text-xs font-bold tracking-wide">
+					{bannerType === "Uma" ? "UMA" : "SUPPORT"}
+				</span>
+				{bannerType === "Uma" ? (
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 opacity-90">
+						<path d="M5 3v9a7 7 0 0 0 14 0V3" />
+						<line x1="5" y1="3" x2="5" y2="6" />
+						<line x1="19" y1="3" x2="19" y2="6" />
+					</svg>
+				) : (
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 opacity-90">
+						<circle cx="9" cy="7" r="3" />
+						<circle cx="15" cy="7" r="3" />
+						<path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
+						<path d="M12 21v-1a6 6 0 0 1 9-5.4" />
+					</svg>
+				)}
 			</div>
 
-			{/* === Left section: stats + selector === */}
-			<div className="flex flex-col justify-center gap-1 p-2 min-w-0 flex-1">
-				{/* Stats row */}
-				<div className="flex items-end gap-3 flex-wrap">
-					{hasBanner && bannerStartDate && (
-						<div>
-							<div className="banner-stat-label">Start Date</div>
-							<div className="banner-stat-value">
-								{format(new Date(bannerStartDate), "MMM d, yyyy")}
-							</div>
-						</div>
-					)}
-					{hasBanner && bannerEndDate && (
-						<div>
-							<div className="banner-stat-label">End Date</div>
-							<div className="banner-stat-value">
-								{format(new Date(bannerEndDate), "MMM d, yyyy")}
-							</div>
-						</div>
-					)}
-					<div>
-						<div className="banner-stat-label">Carat Est.</div>
-						<div className="banner-stat-value">{displayCarats.toLocaleString()}</div>
-					</div>
-					<div>
-						<div className="banner-stat-label">Free Pulls</div>
-						<div className="banner-stat-value">{freePulls}</div>
-					</div>
-					<div>
-						<div className="banner-stat-label">Max Pulls</div>
-						<div className="banner-stat-value">{maxPossiblePulls}</div>
-					</div>
-				</div>
+			{/* === Images section === */}
+			<div className="w-36 shrink-0 flex items-center justify-center gap-1.5 py-1 px-1">
+				{images.slice(0, 2).map((img) => (
+					<img
+						key={img.name}
+						src={img.image}
+						alt={img.name}
+						className="thumb-banner"
+					/>
+				))}
+			</div>
 
-				{/* Selector row */}
-				<div className="flex items-center gap-2">
-					<div className="w-24 shrink-0">
-						<Select<BannerTypeOption>
-							styles={compactSelectStyles}
-							value={{ value: bannerType, label: bannerType }}
-							onChange={handleBannerTypeChange}
-							options={[
-								{ value: "Uma", label: "Uma" },
-								{ value: "Support", label: "Support" }
-							]}
-						/>
+			{/* === Banner select === */}
+			<div className="w-44 shrink-0 flex items-center justify-center py-2 px-2">
+				<Select<BannerOption>
+					className="w-full"
+					styles={{
+						...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
+						menuPortal: (base) => ({ ...base, zIndex: 9999 })
+					}}
+					menuPortalTarget={document.body}
+					placeholder={`Target ${bannerType} Banner`}
+					value={
+						currentBanner
+							? { value: currentBanner as BannerUma | BannerSupport, label: currentBanner.name, key: currentBanner.id }
+							: null
+					}
+					onChange={handleBannerSelect}
+					options={targetBannerData
+						.filter(
+							(banner) =>
+								(bannerType === "Uma" ? "umas" in banner : "support_cards" in banner) &&
+								new Date(banner.banner_timeline.end_date) > currentDate
+						)
+						.map((banner) => ({
+							value: banner,
+							label: banner.name,
+							key: banner.id
+						}))}
+				/>
+			</div>
+
+			{/* === Start / End Date === */}
+			<div className="w-32 shrink-0 flex flex-col items-start justify-center gap-0.5 py-2 px-2 text-xs text-gray-400 relative">
+				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
+				{bannerTimeline ? (
+					<>
+						<span>Start: <span className="text-white">{formatDate(bannerTimeline.start_date)}</span></span>
+						<span>End: <span className="text-white">{formatDate(bannerTimeline.end_date)}</span></span>
+					</>
+				) : (
+					<span className="text-gray-600">—</span>
+				)}
+			</div>
+
+			{/* === Derived Stats section === */}
+			<div className="w-65 shrink-0 flex items-center justify-center px-3 py-2">
+				<div className="flex items-stretch rounded-lg bg-gray-700 border border-gray-600 overflow-hidden w-full">
+					<div className="flex flex-col items-center justify-center px-3 py-1.5 flex-1">
+						<span className="banner-stat-box-label">Free Pulls</span>
+						<span className="banner-stat-box-value">{freePulls}</span>
 					</div>
-					<div className="flex-1 min-w-40 max-w-60">
-						<Select<BannerOption>
-							styles={compactSelectStyles}
-							placeholder={`Target ${bannerType} Banner`}
-							value={
-								currentBanner
-									? { value: currentBanner as BannerUma | BannerSupport, label: currentBanner.name, key: currentBanner.id }
-									: null
-							}
-							onChange={handleBannerSelect}
-							options={targetBannerData
-								.filter(
-									(banner) =>
-										(bannerType === "Uma" ? "umas" in banner : "support_cards" in banner) &&
-										new Date(banner.banner_timeline.end_date) > currentDate
-								)
-								.map((banner) => ({
-									value: banner,
-									label: banner.name,
-									key: banner.id
-								}))}
-						/>
+					<div className="w-px bg-gray-600 self-stretch" />
+					<div className="flex flex-col items-center justify-center px-3 py-1.5 flex-1">
+						<span className="banner-stat-box-label">Carats (Est.)</span>
+						<span className="banner-stat-box-value text-brand">{displayCarats.toLocaleString()}</span>
 					</div>
-					<div className="flex items-center gap-1 shrink-0">
-						<span className="text-[10px] font-medium text-gray-500"># Pulls</span>
-						<input
-							type="number"
-							value={plannedBanner.number_of_pulls}
-							className="w-16 h-7 text-center text-xs border border-green-200 rounded bg-emerald-50 focus:border-green-400 focus:outline-none"
-							max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
-							min={0}
-							onChange={handlePullCountChange}
-						/>
+					<div className="w-px bg-gray-600 self-stretch" />
+					<div className="flex flex-col items-center justify-center px-3 py-1.5 flex-1">
+						<span className="banner-stat-box-label">Max Pulls</span>
+						<span className="banner-stat-box-value">{maxPossiblePulls}</span>
 					</div>
 				</div>
 			</div>
 
-			{/* === Middle section: thumbnails === */}
-			{images.length > 0 && (
-				<div className="flex items-center gap-1 px-2 shrink-0">
-					{images.map((img) => (
-						<img
-							key={img.name}
-							src={img.image}
-							alt={img.name}
-							className="thumb-banner rounded"
-						/>
-					))}
-				</div>
-			)}
+			{/* === # Pulls section === */}
+			<div className="w-22.5 shrink-0 flex items-center justify-center py-2 px-2 relative">
+				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
+				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
+				<input
+					type="number"
+					value={plannedBanner.number_of_pulls}
+					className="w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none [appearance:textfield]"
+					max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
+					min={0}
+					onChange={handlePullCountChange}
+				/>
+			</div>
 
-			{/* === Right section: MLB chance grid (fixed width) === */}
-			{hasBanner && (
-				<div className="w-72 shrink-0 flex items-center p-2">
+			{/* === MLB chance grid === */}
+			<div className="flex-1 flex items-center justify-center py-2 px-2 min-w-0">
+				{hasBanner ? (
 					<MLBChanceDisplay
 						pulls={plannedBanner.number_of_pulls}
 						plannedBanner={plannedBanner}
 					/>
-				</div>
-			)}
+				) : (
+					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>
+				)}
+			</div>
 
-			{/* === Delete button (right edge) === */}
+			{/* === Delete button === */}
 			<button onClick={handleDeleteBannerClick} className="banner-delete-btn">
-				Delete
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+					<polyline points="3 6 5 6 21 6" />
+					<path d="M19 6l-1 14H6L5 6" />
+					<path d="M10 11v6" />
+					<path d="M14 11v6" />
+					<path d="M9 6V4h6v2" />
+				</svg>
 			</button>
 		</div>
 	)

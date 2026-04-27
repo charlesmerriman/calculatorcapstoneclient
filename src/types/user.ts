@@ -6,12 +6,19 @@ import type { BannerUma, BannerSupport } from "./banner"
  */
 export interface UserStats {
 	current_carat: number
+	current_paid_carat: number
 	uma_ticket: number
 	support_ticket: number
 	daily_carat: boolean
+	training_pass: boolean
 	club_rank: number
 	team_trials_rank: number
 	champions_meeting_rank: number
+	league_of_heroes_rank: number
+	ssr_crystals: number
+	sr_crystals: number
+	ssr_shards: number
+	sr_shards: number
 }
 
 /**
@@ -45,6 +52,7 @@ interface BasePlannedBanner {
 	number_of_pulls: number
 	banner_uma?: BannerUma | null
 	banner_support?: BannerSupport | null
+	initialBannerType?: "Uma" | "Support"
 }
 
 export interface SavedPlannedBanner extends BasePlannedBanner {
