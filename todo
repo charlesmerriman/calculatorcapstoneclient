@@ -1,7 +1,5 @@
-Reduce height of income field
 Add third row for crystal calculations, maybe add two buttons that make average monthly income and shard prediction optional
 Create fixtures for CM events and champions meeting with images
-Hardcode images (crystals, tickets) into incomeform
 Fix prediction logic for daily carat pack and training pass
 Adjust timeline so that it's limited to how many it has on the page and also allow it to show past banners or not
 Add a background that encircles all of the retractable income field
