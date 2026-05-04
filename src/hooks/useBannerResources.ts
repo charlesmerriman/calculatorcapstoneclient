@@ -53,13 +53,13 @@ function calculateDailyIncome(
 
 		const daysSinceReference = differenceInDays(day, referenceDate)
 
-		if (daysSinceReference === 0) {
+		if (daysSinceReference % 7 === 0) {
 			totalIncome += 25
 		} else if (daysSinceReference % 7 === 3) {
 			totalIncome += 25
 		} else if (daysSinceReference % 7 === 5) {
 			totalIncome += 25
-		} else if (daysSinceReference % 7 === 7) {
+		} else if (daysSinceReference % 7 === 6) {
 			totalIncome += 75
 		}
 	})
