@@ -12,6 +12,15 @@ interface RegisterFormData {
 	confirmPassword: string
 }
 
+/** Config for each form field — drives the rendering loop below */
+const FIELDS = [
+	{ id: "username", label: "Username:", type: "text", autoComplete: "username", required: "Username is required" },
+	{ id: "email", label: "Email:", type: "text", autoComplete: "email", required: "Email is required" },
+	{ id: "first_name", label: "First Name:", type: "text", autoComplete: "given-name", required: "First name is required" },
+	{ id: "last_name", label: "Last Name:", type: "text", autoComplete: "family-name", required: "Last name is required" },
+	{ id: "password", label: "Password:", type: "password", autoComplete: "new-password", required: "Password is required" },
+] as const
+
 export const Register: React.FC = () => {
 	const {
 		register,
@@ -21,15 +30,12 @@ export const Register: React.FC = () => {
 		formState: { errors, isSubmitting }
 	} = useForm<RegisterFormData>()
 	const navigate = useNavigate()
-
 	const password = watch("password")
 
-	const handleRegisterSubmit = async (data: RegisterFormData) => {
+	const handleRegisterSubmit = async (data: RegisterFormData): Promise<void> => {
 		try {
-			const { confirmPassword, ...registerData } = data
-
-			const response = await userRegister(registerData)
-			console.log("Registration successful:", response)
+			const { confirmPassword: _confirmPassword, ...registerData } = data
+			await userRegister(registerData)
 			navigate("/")
 		} catch {
 			setError("root", { message: "Registration failed. Please try again." })
@@ -38,142 +44,52 @@ export const Register: React.FC = () => {
 
 	return (
 		<div>
-		<div className="min-h-screen flex flex-wrap justify-center items-center bg-gray-700 p-4 max-w-150 mx-auto">
-			<form
-				onSubmit={handleSubmit(handleRegisterSubmit)}
-				className="shadow rounded-lg p-6 md:p-8 w-full max-w-md items-center justify-center bg-white"
-			>
-				<h2 className="text-2xl font-semibold mb-6 w-full text-center">
-					Register
-				</h2>
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="username"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Username:
-					</label>
-					<input
-						type="text"
-						id="username"
-						{...register("username", { required: "Username is required" })}
-						autoComplete="username"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
-					/>
-					{errors.username && (
-						<span className="text-red-500">{errors.username.message}</span>
-					)}
-				</div>
+			<div className="page-auth">
+				<form onSubmit={handleSubmit(handleRegisterSubmit)} className="card-auth">
+					<h2 className="heading-auth">Register</h2>
 
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="email"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Email:
-					</label>
-					<input
-						type="text"
-						id="email"
-						{...register("email", { required: "Email is required" })}
-						autoComplete="email"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
-					/>
-					{errors.email && (
-						<span className="text-red-500">{errors.email.message}</span>
-					)}
-				</div>
+					{FIELDS.map((field) => (
+						<div key={field.id} className="form-row-auth">
+							<label htmlFor={field.id} className="label-auth">{field.label}</label>
+							<input
+								type={field.type}
+								id={field.id}
+								{...register(field.id as keyof RegisterFormData, { required: field.required })}
+								autoComplete={field.autoComplete}
+								className="input-auth"
+							/>
+							{errors[field.id as keyof RegisterFormData] && (
+								<span className="text-error">
+									{errors[field.id as keyof RegisterFormData]?.message}
+								</span>
+							)}
+						</div>
+					))}
 
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="first_name"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						First Name:
-					</label>
-					<input
-						type="text"
-						id="first_name"
-						{...register("first_name", { required: "First name is required" })}
-						autoComplete="given-name"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
-					/>
-					{errors.first_name && (
-						<span className="text-red-500">{errors.first_name.message}</span>
-					)}
-				</div>
+					<div className="form-row-auth">
+						<label htmlFor="confirmPassword" className="label-auth">Confirm Password:</label>
+						<input
+							type="password"
+							id="confirmPassword"
+							{...register("confirmPassword", {
+								required: "Please confirm your password",
+								validate: (value) => value === password || "Passwords do not match"
+							})}
+							autoComplete="new-password"
+							className="input-auth"
+						/>
+						{errors.confirmPassword && (
+							<span className="text-error">{errors.confirmPassword.message}</span>
+						)}
+					</div>
 
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="last_name"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Last Name:
-					</label>
-					<input
-						type="text"
-						id="last_name"
-						{...register("last_name", { required: "Last name is required" })}
-						autoComplete="last_name"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
-					/>
-					{errors.last_name && (
-						<span className="text-red-500">{errors.last_name.message}</span>
-					)}
-				</div>
+					{errors.root && <div className="text-error">{errors.root.message}</div>}
 
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="password"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Password:
-					</label>
-					<input
-						type="password"
-						id="password"
-						{...register("password", { required: "Password is required" })}
-						autoComplete="new-password"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
-					/>
-					{errors.password && (
-						<span className="text-red-500">{errors.password.message}</span>
-					)}
-				</div>
-
-				<div className="mb-4 flex justify-center items-center">
-					<label
-						htmlFor="confirmPassword"
-						className="block text-sm font-medium mb-1 mr-1 w-25"
-					>
-						Confirm Password:
-					</label>
-					<input
-						type="password"
-						id="confirmPassword"
-						{...register("confirmPassword", {
-							required: "Please confirm your password",
-							validate: (value) =>
-								value === password || "Passwords do not match"
-						})}
-						autoComplete="new-password"
-						className="w-full border border-gray-300 rounded-md px-3 py-2"
-					/>
-					{errors.confirmPassword && (
-						<span className="text-red-500">
-							{errors.confirmPassword.message}
-						</span>
-					)}
-				</div>
-
-				{errors.root && (
-					<div className="text-red-500">{errors.root.message}</div>
-				)}
-
-				<button type="submit" disabled={isSubmitting} className="btn w-full">
-					{isSubmitting ? "Registering..." : "Register"}
-				</button>
-			</form>
-		</div></div>
+					<button type="submit" disabled={isSubmitting} className="btn w-full">
+						{isSubmitting ? "Registering..." : "Register"}
+					</button>
+				</form>
+			</div>
+		</div>
 	)
 }

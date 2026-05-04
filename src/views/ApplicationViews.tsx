@@ -11,7 +11,6 @@ export const ApplicationViews = () => {
 				path="/"
 				element={
 					<>
-						<Header />
 						<Navbar />
 						<Outlet />
 					</>
