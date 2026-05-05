@@ -23,7 +23,7 @@ import type {
 	LeagueOfHeroesRank
 } from "./ranks"
 import type { UserStats, UserPlannedBanner } from "./user"
-import type { EventReward, GameEvent, ChampionsMeeting } from "./events"
+import type { EventReward, GameEvent, ChampionsMeeting, LeagueOfHeroes } from "./events"
 
 /** The full payload returned by GET /calculator-data */
 export interface CalculatorData {
@@ -37,6 +37,7 @@ export interface CalculatorData {
 	user_planned_banner_data: UserPlannedBanner[]
 	events_data: GameEvent[]
 	champions_meeting_data: ChampionsMeeting[]
+	league_of_heroes_event_data: LeagueOfHeroes[]
 	banner_timeline_data: BannerTimelineForViewing[]
 }
 
@@ -52,6 +53,7 @@ export interface CalculatorData {
  */
 export type OrganizedTimelineData = (
 	| ChampionsMeeting
+	| LeagueOfHeroes
 	| BannerTimelineForViewing
 )[]
 
@@ -74,6 +76,7 @@ export interface CalculatorContextType {
 	supportBannerData: BannerSupport[]
 	eventRewardsData: EventReward[]
 	championsMeetingData: ChampionsMeeting[]
+	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]
 	timerIsGoing: boolean
 	isDropdown: boolean

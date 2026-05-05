@@ -12,6 +12,7 @@ import type {
 	BannerSupport,
 	EventReward,
 	ChampionsMeeting,
+	LeagueOfHeroes,
 	OrganizedTimelineData
 } from "../types"
 import {
@@ -49,6 +50,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
 	const [eventRewardsData, setEventRewardsData] = useState<EventReward[]>([])
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])
+	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
 	const [isDropdown, setIsDropdown] = useState(true)
 
@@ -110,6 +112,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					...data.champions_meeting_data.map((event) => ({
 						...event,
 						_source: "champions" as const
+					})),
+					...data.league_of_heroes_event_data.map((event) => ({
+						...event,
+						_source: "leagueofheroes" as const
 					}))
 				]
 
@@ -136,6 +142,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setUserPlannedBannerData(data.user_planned_banner_data)
 				setEventRewardsData(data.events_data.flatMap((event) => event.rewards))
 				setChampionsMeetingData(data.champions_meeting_data)
+				setLeagueOfHeroesData(data.league_of_heroes_event_data)
 				setOrganizedTimelineData(sortedMergedEvents)
 			})
 			.catch((error: unknown) => {
@@ -163,6 +170,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		userPlannedBannerData,
 		eventRewardsData,
 		championsMeetingData,
+		leagueOfHeroesData,
 		timerIsGoing,
 		isDropdown,
 		organizedTimelineData,

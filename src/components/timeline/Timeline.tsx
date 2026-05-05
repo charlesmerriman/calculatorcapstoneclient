@@ -1,11 +1,17 @@
 import { format } from "date-fns"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import type { ChampionsMeeting, BannerTimelineForViewing } from "../../types"
+import type { ChampionsMeeting, LeagueOfHeroes, BannerTimelineForViewing } from "../../types"
 
 function isChampionsMeeting(
-	event: ChampionsMeeting | BannerTimelineForViewing
+	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
 ): event is ChampionsMeeting {
 	return "track" in event
+}
+
+function isLeagueOfHeroes(
+	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
+): event is LeagueOfHeroes {
+	return !("track" in event) && !("banner_umas" in event)
 }
 
 export const Timeline = () => {
@@ -59,6 +65,21 @@ export const Timeline = () => {
 											{event.wit_recommendation}
 										</div>
 									</div>
+								</div>
+							</div>
+						)
+					}
+
+					if (isLeagueOfHeroes(event)) {
+						return (
+							<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap font-medium text-lg">
+								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
+									<div className="w-full flex justify-center text-lg card-section rounded-xl font-medium">
+										{format(event.start_date, "MMMM d, yyyy")} through{" "}
+										{format(event.end_date, "MMMM d, yyyy")}
+									</div>
+									<div>{event.name}</div>
+									{event.image && <img src={event.image} alt={event.name} />}
 								</div>
 							</div>
 						)

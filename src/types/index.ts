@@ -43,7 +43,8 @@ export type {
 	EventReward,
 	EventRewards,
 	GameEvent,
-	ChampionsMeeting
+	ChampionsMeeting,
+	LeagueOfHeroes
 } from "./events"
 
 export type {
