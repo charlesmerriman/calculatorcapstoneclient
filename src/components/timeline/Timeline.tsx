@@ -1,6 +1,9 @@
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import type { ChampionsMeeting, LeagueOfHeroes, BannerTimelineForViewing } from "../../types"
+
+const PAGE_SIZE = 10
 
 function isChampionsMeeting(
 	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
@@ -14,13 +17,80 @@ function isLeagueOfHeroes(
 	return !("track" in event) && !("banner_umas" in event)
 }
 
+function eventMatchesSearch(
+	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing,
+	query: string
+): boolean {
+	const q = query.toLowerCase()
+	if (isChampionsMeeting(event)) {
+		return event.name.toLowerCase().includes(q) || event.track.toLowerCase().includes(q)
+	}
+	if (isLeagueOfHeroes(event)) {
+		return event.name.toLowerCase().includes(q)
+	}
+	if (event.name.toLowerCase().includes(q)) return true
+	for (const banner of event.banner_umas) {
+		for (const uma of banner.umas) {
+			if (uma.name.toLowerCase().includes(q)) return true
+		}
+	}
+	for (const banner of event.banner_supports) {
+		for (const card of banner.support_cards) {
+			if (card.name.toLowerCase().includes(q)) return true
+		}
+	}
+	return false
+}
+
 export const Timeline = () => {
 	const { organizedTimelineData } = useCalculatorData()
+	const [showPast, setShowPast] = useState(false)
+	const [searchQuery, setSearchQuery] = useState("")
+	const [currentPage, setCurrentPage] = useState(1)
+
+	const today = new Date()
+
+	useEffect(() => {
+		setCurrentPage(1)
+	}, [showPast, searchQuery])
+
+	const filteredEvents = organizedTimelineData
+		.filter((event) =>
+			showPast
+				? new Date(event.end_date) < today
+				: new Date(event.end_date) >= today
+		)
+		.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
+
+	const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE))
+	const pagedEvents = filteredEvents.slice(
+		(currentPage - 1) * PAGE_SIZE,
+		currentPage * PAGE_SIZE
+	)
 
 	return (
-		<div className="page-container">
+		<div className="page-container pb-6">
+			<div className="flex justify-between items-center mt-6 mb-2 px-2 gap-4">
+				<button
+					className="btn btn-sm"
+					onClick={() => setShowPast((prev) => !prev)}
+				>
+					{showPast ? "Show current/future events" : "Show past events"}
+				</button>
+				<input
+					type="text"
+					className="input input-bordered input-sm w-64"
+					placeholder="Search characters or events..."
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+				/>
+			</div>
+
 			<div className="flex flex-col items-center">
-				{organizedTimelineData.map((event, index) => {
+				{pagedEvents.length === 0 && (
+					<div className="text-base-content/50 mt-8">No events found.</div>
+				)}
+				{pagedEvents.map((event, index) => {
 					if (isChampionsMeeting(event)) {
 						return (
 							<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap font-medium text-lg">
@@ -146,6 +216,28 @@ export const Timeline = () => {
 					)
 				})}
 			</div>
+
+			{totalPages > 1 && (
+				<div className="flex justify-center items-center gap-4 mt-2">
+					<button
+						className="btn btn-sm"
+						disabled={currentPage === 1}
+						onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+					>
+						Previous
+					</button>
+					<span className="text-sm font-medium">
+						Page {currentPage} of {totalPages}
+					</span>
+					<button
+						className="btn btn-sm"
+						disabled={currentPage === totalPages}
+						onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+					>
+						Next
+					</button>
+				</div>
+			)}
 		</div>
 	)
 }
