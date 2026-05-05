@@ -19,9 +19,11 @@ import type {
 	ClubRank,
 	TeamTrialsRank,
 	ChampionsMeetingRank,
+	LeagueOfHeroesRank,
 	UserPlannedBanner,
 	EventReward,
-	ChampionsMeeting
+	ChampionsMeeting,
+	LeagueOfHeroes
 } from "../types"
 
 export interface BannerResources {
@@ -35,8 +37,10 @@ interface BannerResourcesParams {
 	clubRankData: ClubRank[]
 	teamTrialsRankData: TeamTrialsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
+	leagueOfHeroesRankData: LeagueOfHeroesRank[]
 	eventRewardsData: EventReward[]
 	championsMeetingData: ChampionsMeeting[]
+	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]
 }
 
@@ -109,8 +113,10 @@ export function useBannerResources({
 	clubRankData,
 	teamTrialsRankData,
 	championsMeetingRankData,
+	leagueOfHeroesRankData,
 	eventRewardsData,
 	championsMeetingData,
+	leagueOfHeroesData,
 	userPlannedBannerData
 }: BannerResourcesParams): BannerResources[] {
 	return useMemo(() => {
@@ -167,6 +173,16 @@ export function useBannerResources({
 				}
 			}
 
+			const userLeagueOfHeroesRank = leagueOfHeroesRankData.find(
+				(rank) => rank.id === userStatsData.league_of_heroes_rank
+			)
+			for (const loh of leagueOfHeroesData) {
+				const lohDate = new Date(loh.end_date)
+				if (lohDate > lastEndDate && lohDate <= endDate) {
+					carats += userLeagueOfHeroesRank?.income_amount ?? 0
+				}
+			}
+
 			const days = differenceInDays(endDate, lastEndDate)
 			const mondays = calculateMondaysBetween(lastEndDate, endDate)
 			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
@@ -212,6 +228,8 @@ export function useBannerResources({
 		championsMeetingRankData,
 		clubRankData,
 		eventRewardsData,
+		leagueOfHeroesData,
+		leagueOfHeroesRankData,
 		teamTrialsRankData,
 		userPlannedBannerData,
 		userStatsData

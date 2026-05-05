@@ -53,6 +53,13 @@ For every `ChampionsMeeting` whose `end_date` falls in the same window:
 carats += user's ChampionsMeetingRank.income_amount
 ```
 
+**3b. Add League of Heroes payouts**
+
+For every `LeagueOfHeroes` whose `end_date` falls in the same window:
+```
+carats += user's LeagueOfHeroesRank.income_amount
+```
+
 **4. Calculate the time span**
 
 ```

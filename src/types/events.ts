@@ -58,3 +58,11 @@ export interface ChampionsMeeting {
 	guts_recommendation: string
 	wit_recommendation: string
 }
+
+export interface LeagueOfHeroes {
+	id: number
+	name: string
+	start_date: string
+	end_date: string
+	image: string | null
+}
