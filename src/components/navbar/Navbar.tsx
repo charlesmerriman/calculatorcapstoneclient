@@ -32,10 +32,11 @@ export const Navbar = () => {
 	const handleLogout = async (): Promise<void> => {
 		try {
 			await userLogout()
-			localStorage.removeItem("authToken")
-			navigate("/login")
 		} catch {
 			console.error("Logout failed")
+		} finally {
+			localStorage.removeItem("authToken")
+			navigate("/login")
 		}
 	}
 
