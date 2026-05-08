@@ -1,21 +1,5 @@
 @reference "tailwindcss"
 
-/*
- * CSS CONCEPT: Extracting Repeated Tailwind Patterns with @apply
- *
- * When you see the same chain of Tailwind classes repeated 5+ times
- * across components, it's a sign to extract them into a named class.
- * @apply lets you compose Tailwind utilities into semantic class names.
- *
- * Benefits:
- *   1. DRY — change the style in one place, it updates everywhere
- *   2. Readability — `class="form-input"` is clearer than a 12-class chain
- *   3. Consistency — prevents slight variations between instances
- *
- * Only extract patterns that are truly REPEATED and SEMANTIC.
- * Don't extract every Tailwind chain — one-off compositions are fine inline.
- */
-
 /* ===== FORM INPUTS ===== */
 
 /* Green-bordered input used for carat/ticket/crystal number fields */
@@ -39,7 +23,7 @@
 
 /* Left-aligned label used in auth forms */
 .label-auth {
-	@apply block text-sm font-medium mb-1 mr-1 w-25;
+	@apply block text-sm font-medium mb-1 mr-1;
 }
 
 /* Small centered label above a value */

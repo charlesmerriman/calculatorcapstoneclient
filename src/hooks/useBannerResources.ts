@@ -14,6 +14,16 @@ import {
 	eachDayOfInterval,
 	getDay
 } from "date-fns"
+import {
+	DAILY_BASE_CARATS,
+	WEEKDAY_BONUS_CARATS,
+	WEEKEND_BONUS_CARATS,
+	DAILY_CARAT_PACK_PER_DAY,
+	PULL_COST_CARATS,
+	TRAINING_PASS_MONTHLY_REWARD,
+	TRAINING_PASS_REWARD_DAY,
+	MONTHLY_BASE_REWARD,
+} from "../constants/gameConstants"
 import type {
 	UserStats,
 	ClubRank,
@@ -53,18 +63,18 @@ function calculateDailyIncome(
 	const allDays = eachDayOfInterval({ start, end })
 
 	allDays.forEach((day) => {
-		totalIncome += 75
+		totalIncome += DAILY_BASE_CARATS
 
 		const daysSinceReference = differenceInDays(day, referenceDate)
 
 		if (daysSinceReference % 7 === 0) {
-			totalIncome += 25
+			totalIncome += WEEKDAY_BONUS_CARATS
 		} else if (daysSinceReference % 7 === 3) {
-			totalIncome += 25
+			totalIncome += WEEKDAY_BONUS_CARATS
 		} else if (daysSinceReference % 7 === 5) {
-			totalIncome += 25
+			totalIncome += WEEKDAY_BONUS_CARATS
 		} else if (daysSinceReference % 7 === 6) {
-			totalIncome += 75
+			totalIncome += WEEKEND_BONUS_CARATS
 		}
 	})
 
@@ -139,6 +149,37 @@ export function useBannerResources({
 		const plannedBanners = [...userPlannedBannerData]
 		let lastEndDate = new Date()
 
+		// Pre-parse all event/meeting/LoH dates once so we don't reconstruct
+		// Date objects on every iteration of the inner loops.
+		const parsedEventRewards = eventRewardsData.map((ev) => ({
+			...ev,
+			parsedDate: new Date(ev.date),
+		}))
+		const parsedMeetings = championsMeetingData.map((m) => ({
+			...m,
+			parsedDate: new Date(m.end_date),
+		}))
+		const parsedLoH = leagueOfHeroesData.map((l) => ({
+			...l,
+			parsedDate: new Date(l.end_date),
+		}))
+
+		// Hoisted outside the loop — same "now" used for all banners.
+		const referenceDate = new Date()
+
+		const userChampionsMeetingRank = championsMeetingRankData.find(
+			(rank) => rank.id === userStatsData.champions_meeting_rank
+		)
+		const userClubRank = clubRankData.find(
+			(rank) => rank.id === userStatsData.club_rank
+		)
+		const userTeamTrialsRank = teamTrialsRankData.find(
+			(rank) => rank.id === userStatsData.team_trials_rank
+		)
+		const userLeagueOfHeroesRank = leagueOfHeroesRankData.find(
+			(rank) => rank.id === userStatsData.league_of_heroes_rank
+		)
+
 		for (const banner of plannedBanners) {
 			const endDateStr =
 				banner.banner_uma?.banner_timeline.end_date ??
@@ -147,38 +188,22 @@ export function useBannerResources({
 
 			const endDate = new Date(endDateStr)
 
-			const userChampionsMeetingRank = championsMeetingRankData.find(
-				(rank) => rank.id === userStatsData.champions_meeting_rank
-			)
-			const userClubRank = clubRankData.find(
-				(rank) => rank.id === userStatsData.club_rank
-			)
-			const userTeamTrialsRank = teamTrialsRankData.find(
-				(rank) => rank.id === userStatsData.team_trials_rank
-			)
-
-			for (const ev of eventRewardsData) {
-				const evDate = new Date(ev.date)
-				if (evDate > lastEndDate && evDate <= endDate) {
+			for (const ev of parsedEventRewards) {
+				if (ev.parsedDate > lastEndDate && ev.parsedDate <= endDate) {
 					carats += ev.carat_amount
 					umaTickets += ev.uma_ticket_amount
 					supportTickets += ev.support_ticket_amount
 				}
 			}
 
-			for (const meet of championsMeetingData) {
-				const meetDate = new Date(meet.end_date)
-				if (meetDate > lastEndDate && meetDate <= endDate) {
+			for (const meet of parsedMeetings) {
+				if (meet.parsedDate > lastEndDate && meet.parsedDate <= endDate) {
 					carats += userChampionsMeetingRank?.income_amount ?? 0
 				}
 			}
 
-			const userLeagueOfHeroesRank = leagueOfHeroesRankData.find(
-				(rank) => rank.id === userStatsData.league_of_heroes_rank
-			)
-			for (const loh of leagueOfHeroesData) {
-				const lohDate = new Date(loh.end_date)
-				if (lohDate > lastEndDate && lohDate <= endDate) {
+			for (const loh of parsedLoH) {
+				if (loh.parsedDate > lastEndDate && loh.parsedDate <= endDate) {
 					carats += userLeagueOfHeroesRank?.income_amount ?? 0
 				}
 			}
@@ -186,17 +211,16 @@ export function useBannerResources({
 			const days = differenceInDays(endDate, lastEndDate)
 			const mondays = calculateMondaysBetween(lastEndDate, endDate)
 			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
-			const referenceDate = new Date()
 
-			carats += userStatsData.daily_carat ? 50 * days : 0
+			carats += userStatsData.daily_carat ? DAILY_CARAT_PACK_PER_DAY * days : 0
 			carats += (userClubRank?.income_amount ?? 0) * months
 			carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
 			if (userStatsData.training_pass) {
-				carats += calculateDayOfMonthOccurrences(lastEndDate, endDate, 24) * 2200
+				carats += calculateDayOfMonthOccurrences(lastEndDate, endDate, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
 			} else {
-				carats += months * 500
+				carats += months * MONTHLY_BASE_REWARD
 			}
 
 			results.push({ carats, umaTickets, supportTickets })
@@ -210,12 +234,12 @@ export function useBannerResources({
 				const use = Math.min(normalPullsNeeded, umaTickets)
 				umaTickets -= use
 				normalPullsNeeded -= use
-				carats -= normalPullsNeeded * 150
+				carats -= normalPullsNeeded * PULL_COST_CARATS
 			} else {
 				const use = Math.min(normalPullsNeeded, supportTickets)
 				supportTickets -= use
 				normalPullsNeeded -= use
-				carats -= normalPullsNeeded * 150
+				carats -= normalPullsNeeded * PULL_COST_CARATS
 			}
 
 			if (endDate > lastEndDate) {
