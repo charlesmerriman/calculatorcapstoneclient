@@ -15,6 +15,3 @@
 	--color-gray-950: #08080c;
 }
 
-@plugin "daisyui" {
-	themes: false;
-}

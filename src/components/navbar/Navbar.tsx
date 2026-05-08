@@ -7,7 +7,7 @@ import { IncomeForm } from "../carat-calculator/IncomeForm"
 export const Navbar = () => {
 	const navigate = useNavigate()
 	const location = useLocation()
-	const { timerIsGoing, saveNow, handleDropDownToggle, isDropdown } = useCalculatorData()
+	const { timerIsGoing, saveNow, handleDropDownToggle, isDropdown, setIsDropdown } = useCalculatorData()
 
 	const incomeButtonRef = useRef<HTMLButtonElement>(null)
 	const [caretLeft, setCaretLeft] = useState<number>(0)
@@ -23,6 +23,11 @@ export const Navbar = () => {
 		if (isDropdown) updateCaretPosition()
 	}, [isDropdown])
 
+	// Auto-open on calculator, auto-close on timeline
+	useEffect(() => {
+		setIsDropdown(location.pathname === "/")
+	}, [location.pathname])
+
 	useEffect(() => {
 		if (!isDropdown) return
 		window.addEventListener("resize", updateCaretPosition)
@@ -32,10 +37,11 @@ export const Navbar = () => {
 	const handleLogout = async (): Promise<void> => {
 		try {
 			await userLogout()
-			localStorage.removeItem("authToken")
-			navigate("/login")
 		} catch {
 			console.error("Logout failed")
+		} finally {
+			localStorage.removeItem("authToken")
+			navigate("/login")
 		}
 	}
 

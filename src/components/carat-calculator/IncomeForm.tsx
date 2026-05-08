@@ -262,28 +262,34 @@ export const IncomeForm = () => {
 									<div className="grid grid-cols-[auto_auto_auto_auto] items-center gap-x-4 gap-y-4">
 										<Gem className="w-8 h-8 shrink-0 text-brand" />
 										<span className="text-sm text-gray-400 text-right leading-tight whitespace-nowrap">Daily Carat Pack:</span>
-										<input
-											type="checkbox"
-											className="toggle toggle-yellow"
-											checked={userStatsData.daily_carat}
-											onChange={(e) =>
-												setUserStatsData({ ...userStatsData, daily_carat: e.target.checked })
-											}
-										/>
+										<label className="relative inline-flex items-center cursor-pointer">
+											<input
+												type="checkbox"
+												className="sr-only peer"
+												checked={userStatsData.daily_carat}
+												onChange={(e) =>
+													setUserStatsData({ ...userStatsData, daily_carat: e.target.checked })
+												}
+											/>
+											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+										</label>
 										<div className="w-20 h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
 											{userStatsData.daily_carat ? "+2,500/mo" : "+0/mo"}
 										</div>
 
 										<Dumbbell className="w-8 h-8 shrink-0 text-brand" />
 										<span className="text-sm text-gray-400 text-right leading-tight whitespace-nowrap">Training Pass:</span>
-										<input
-											type="checkbox"
-											className="toggle toggle-yellow"
-											checked={userStatsData.training_pass}
-											onChange={(e) =>
-												setUserStatsData({ ...userStatsData, training_pass: e.target.checked })
-											}
-										/>
+										<label className="relative inline-flex items-center cursor-pointer">
+											<input
+												type="checkbox"
+												className="sr-only peer"
+												checked={userStatsData.training_pass}
+												onChange={(e) =>
+													setUserStatsData({ ...userStatsData, training_pass: e.target.checked })
+												}
+											/>
+											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+										</label>
 										<div className="w-20 h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
 											{userStatsData.training_pass ? "+2,500/mo" : "+500/mo"}
 										</div>
