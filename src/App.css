@@ -176,33 +176,6 @@
 	@apply text-2xl font-semibold mb-6 w-full text-center;
 }
 
-/* ===== TOGGLE OVERRIDES ===== */
-
-/*
- * DaisyUI v5 with themes:false never sets these base variables on :root.
- * Without them the toggle has no border, no knob, and no track color.
- */
-:root {
-	--border: 1px;
-	--radius-selector: 9999px;
-	--size-selector: .25rem;
-	--depth: 1;
-	--noise: 0;
-	--color-base-100: #27272f;
-	--color-base-content: #f9fafb;
-}
-
-/* Unchecked track color */
-.toggle {
-	--input-color: #3c3c46;
-}
-
-/* Yellow variant: checked knob and border turn brand yellow */
-.toggle-yellow:checked,
-.toggle-yellow[aria-checked="true"] {
-	--input-color: #E6D28A;
-}
-
 /* ===== GLOBAL DARK BASE ===== */
 
 body {

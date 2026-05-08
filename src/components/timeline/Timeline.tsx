@@ -72,14 +72,14 @@ export const Timeline = () => {
 		<div className="page-container pb-6">
 			<div className="flex justify-between items-center mt-6 mb-2 px-2 gap-4">
 				<button
-					className="btn btn-sm"
+					className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 					onClick={() => setShowPast((prev) => !prev)}
 				>
 					{showPast ? "Show current/future events" : "Show past events"}
 				</button>
 				<input
 					type="text"
-					className="input input-bordered input-sm w-64"
+					className="w-64 px-2 py-1 text-sm rounded border border-gray-600 bg-gray-700 text-gray-100 focus:outline-none focus:border-gray-500"
 					placeholder="Search characters or events..."
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
@@ -88,7 +88,7 @@ export const Timeline = () => {
 
 			<div className="flex flex-col items-center">
 				{pagedEvents.length === 0 && (
-					<div className="text-base-content/50 mt-8">No events found.</div>
+					<div className="text-gray-500 mt-8">No events found.</div>
 				)}
 				{pagedEvents.map((event, index) => {
 					if (isChampionsMeeting(event)) {
@@ -220,7 +220,7 @@ export const Timeline = () => {
 			{totalPages > 1 && (
 				<div className="flex justify-center items-center gap-4 mt-2">
 					<button
-						className="btn btn-sm"
+						className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 						disabled={currentPage === 1}
 						onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
 					>
@@ -230,7 +230,7 @@ export const Timeline = () => {
 						Page {currentPage} of {totalPages}
 					</span>
 					<button
-						className="btn btn-sm"
+						className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 						disabled={currentPage === totalPages}
 						onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
 					>

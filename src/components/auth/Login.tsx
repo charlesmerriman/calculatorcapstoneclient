@@ -55,7 +55,7 @@ export const Login: React.FC = () => {
 
 				{errors.root && <div className="text-error">{errors.root.message}</div>}
 
-				<button type="submit" disabled={isSubmitting} className="btn w-full">
+				<button type="submit" disabled={isSubmitting} className="w-full px-4 py-2 rounded font-semibold bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
 					{isSubmitting ? "Loading..." : "Login"}
 				</button>
 
