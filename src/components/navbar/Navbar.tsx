@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { motion } from "framer-motion"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { userLogout } from "../../services/userServices"
@@ -11,6 +12,8 @@ export const Navbar = () => {
 
 	const incomeButtonRef = useRef<HTMLButtonElement>(null)
 	const [caretLeft, setCaretLeft] = useState<number>(0)
+	// True only when the panel open/close was triggered by a user click — not by navigation
+	const [animatePanel, setAnimatePanel] = useState(false)
 
 	const updateCaretPosition = () => {
 		if (incomeButtonRef.current) {
@@ -23,8 +26,10 @@ export const Navbar = () => {
 		if (isDropdown) updateCaretPosition()
 	}, [isDropdown])
 
-	// Auto-open on calculator, auto-close on timeline
-	useEffect(() => {
+	// useLayoutEffect (not useEffect) so this runs before the browser paints —
+	// prevents a visible frame where the income form is missing on navigation to "/"
+	useLayoutEffect(() => {
+		setAnimatePanel(false)
 		setIsDropdown(location.pathname === "/")
 	}, [location.pathname])
 
@@ -99,7 +104,7 @@ export const Navbar = () => {
 
 					<button
 						ref={incomeButtonRef}
-						onClick={handleDropDownToggle}
+						onClick={() => { setAnimatePanel(true); handleDropDownToggle() }}
 						className={`flex items-center gap-1.5 px-5 text-sm transition border-b-2 cursor-pointer ${
 							isDropdown
 								? "text-brand border-brand"
@@ -147,8 +152,13 @@ export const Navbar = () => {
 				</div>
 			</nav>
 
-			{/* Orange pointer caret anchored under the Income button */}
-			{isDropdown && (
+			<motion.div
+				initial={false}
+				animate={{ height: isDropdown ? "auto" : 0, opacity: isDropdown ? 1 : 0 }}
+				transition={animatePanel ? { duration: 0.2, ease: "easeInOut" } : { duration: 0 }}
+				style={{ overflow: "hidden" }}
+			>
+				{/* Orange pointer caret anchored under the Income button */}
 				<div className="relative h-0 bg-gray-900">
 					<div
 						className="absolute z-10"
@@ -164,9 +174,8 @@ export const Navbar = () => {
 						}}
 					/>
 				</div>
-			)}
-
-			{isDropdown ? <IncomeForm /> : null}
+				<IncomeForm />
+			</motion.div>
 		</div>
 	)
 }

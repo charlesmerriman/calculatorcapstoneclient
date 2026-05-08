@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import { CalculatorContext } from "./CalculatorContext"
 import type {
 	CalculatorData,
@@ -83,8 +84,17 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			})
 	}, [userPlannedBannerData])
 
-	const performSave = useCallback((): void => {
-		userCalculatorDataPatch(userStatsData, prepareBannerData())
+	const performSave = useCallback(async (): Promise<void> => {
+		try {
+			const response = await userCalculatorDataPatch(userStatsData, prepareBannerData())
+			if (!response.ok) {
+				toast.error("Save failed. Your changes may not have been saved.")
+			} else {
+				toast.success("Saved")
+			}
+		} catch {
+			toast.error("Save failed. Check your connection.")
+		}
 	}, [userStatsData, prepareBannerData])
 
 	const { timerIsGoing, startTimer, saveNow } = useAutoSave({
@@ -147,6 +157,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			})
 			.catch((error: unknown) => {
 				console.error("Error fetching calculator data:", error)
+				toast.error("Failed to load data. Please refresh.")
 			})
 	}, [])
 

@@ -1,5 +1,6 @@
 import "./App.css"
 import { Route, Routes } from "react-router-dom"
+import { Toaster } from "sonner"
 import { ApplicationViews } from "./views/ApplicationViews.js"
 import { Login } from "./components/auth/Login.js"
 import { Register } from "./components/auth/Register.js"
@@ -8,6 +9,8 @@ import { CalculatorProvider } from "./services/CalculatorProvider.js"
 
 function App() {
 	return (
+		<>
+		<Toaster theme="dark" position="bottom-right" richColors />
 		<Routes>
 			<Route path="/login" element={<Login />} />
 			<Route path="/register" element={<Register />} />
@@ -22,6 +25,7 @@ function App() {
 				}
 			/>
 		</Routes>
+		</>
 	)
 }
 

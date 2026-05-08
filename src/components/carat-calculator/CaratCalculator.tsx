@@ -1,4 +1,5 @@
 import type React from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
 import { useBannerResources } from "../../hooks/useBannerResources"
@@ -93,32 +94,42 @@ export const CaratCalculator: React.FC = () => {
 								<div className="w-10 shrink-0 text-center"></div>
 							</div>
 							<div className="divide-y divide-gray-700">
-								{userPlannedBannerData.map((plannedBanner, index) => {
-									const resources = bannerResources[index] ?? {
-										carats: 0,
-										umaTickets: 0,
-										supportTickets: 0
-									}
+								<AnimatePresence initial={false}>
+									{userPlannedBannerData.map((plannedBanner, index) => {
+										const resources = bannerResources[index] ?? {
+											carats: 0,
+											umaTickets: 0,
+											supportTickets: 0
+										}
 
-									return (
-										<BannerRow
-											key={plannedBanner.id ?? plannedBanner.tempId}
-											plannedBanner={plannedBanner}
-											userPlannedBannerData={userPlannedBannerData}
-											clubRankData={clubRankData}
-											teamTrialsRankData={teamTrialsRankData}
-											championsMeetingRankData={championsMeetingRankData}
-											userStatsData={userStatsData}
-											umaBannerData={umaBannerData}
-											supportBannerData={supportBannerData}
-											setUserPlannedBannerData={setUserPlannedBannerData}
-											caratsAvailableForThisBanner={resources.carats}
-											umaTicketsAvailableForThisBanner={resources.umaTickets}
-											supportTicketsAvailableForThisBanner={resources.supportTickets}
-											initialBannerType={plannedBanner.initialBannerType}
-										/>
-									)
-								})}
+										return (
+											<motion.div
+												key={plannedBanner.id ?? plannedBanner.tempId}
+												layout
+												initial={{ opacity: 0, y: -6 }}
+												animate={{ opacity: 1, y: 0 }}
+												exit={{ opacity: 0, y: -6 }}
+												transition={{ duration: 0.18 }}
+											>
+												<BannerRow
+													plannedBanner={plannedBanner}
+													userPlannedBannerData={userPlannedBannerData}
+													clubRankData={clubRankData}
+													teamTrialsRankData={teamTrialsRankData}
+													championsMeetingRankData={championsMeetingRankData}
+													userStatsData={userStatsData}
+													umaBannerData={umaBannerData}
+													supportBannerData={supportBannerData}
+													setUserPlannedBannerData={setUserPlannedBannerData}
+													caratsAvailableForThisBanner={resources.carats}
+													umaTicketsAvailableForThisBanner={resources.umaTickets}
+													supportTicketsAvailableForThisBanner={resources.supportTickets}
+													initialBannerType={plannedBanner.initialBannerType}
+												/>
+											</motion.div>
+										)
+									})}
+								</AnimatePresence>
 							</div>
 						</div>
 					)}
