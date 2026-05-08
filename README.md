@@ -8,11 +8,21 @@ A React SPA where players plan which Uma Musume Pretty Derby gacha banners to pu
 |---|---|
 | React 19 + TypeScript | UI and type safety |
 | Vite 7 | Dev server and production bundler |
-| Tailwind CSS 4 + DaisyUI | Utility-first styling with a component library |
+| Tailwind CSS 4 | Utility-first styling |
+| Framer Motion | Animations and transitions |
+| Sonner | Toast notifications (save feedback, auth errors) |
 | react-router-dom v7 | Client-side routing |
 | react-hook-form | Form state and validation |
 | react-select | Searchable dropdown components |
 | date-fns | Date arithmetic for the resource projection engine |
+
+### Dev tooling
+
+| Tool | Purpose |
+|---|---|
+| Vitest | Unit test runner (shares Vite config, runs instantly) |
+| React Testing Library | Hook and component testing utilities |
+| @vitest/coverage-v8 | V8-based coverage reports |
 
 ## Architecture
 
@@ -72,7 +82,9 @@ npm run dev
 Other useful commands:
 
 ```bash
-npx tsc --noEmit   # Type check
-npm run lint       # ESLint
-npm run build      # Production build → dist/
+npx tsc --noEmit    # Type check
+npm run lint        # ESLint
+npm run build       # Production build → dist/
+npm test            # Vitest in watch mode
+npm run coverage    # Single-pass test run with V8 coverage report
 ```
