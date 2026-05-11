@@ -13,6 +13,22 @@
 const API_URL = import.meta.env.VITE_API_URL
 
 /**
+ * Custom error that carries field-level validation errors from the API.
+ * Used so components can call setError(fieldName, ...) on specific form fields
+ * rather than always falling back to a generic root error.
+ *
+ * Example: { username: "A user with that username already exists." }
+ */
+export class ApiError extends Error {
+	fieldErrors: Partial<Record<string, string>>
+
+	constructor(message: string, fieldErrors: Partial<Record<string, string>> = {}) {
+		super(message)
+		this.fieldErrors = fieldErrors
+	}
+}
+
+/**
  * TYPESCRIPT CONCEPT: Modeling API Contracts
  *
  * These interfaces document what the API expects (request) and returns
@@ -110,7 +126,21 @@ export async function userRegister(
 	const data: RegisterResponse = await response.json()
 
 	if (!response.ok) {
-		throw new Error(data.error ?? "Registration failed")
+		// DRF returns field validation errors as { fieldName: ["message", ...], ... }
+		// Parse them so the form can show errors inline on the right fields.
+		const raw = data as unknown as Record<string, unknown>
+		const fieldErrors: Partial<Record<string, string>> = {}
+		let firstMessage = ""
+
+		for (const [key, val] of Object.entries(raw)) {
+			const msg = Array.isArray(val) && typeof val[0] === "string" ? val[0] : null
+			if (msg) {
+				fieldErrors[key] = msg
+				if (!firstMessage) firstMessage = msg
+			}
+		}
+
+		throw new ApiError(firstMessage || "Registration failed. Please try again.", fieldErrors)
 	}
 
 	if (data.token) {
