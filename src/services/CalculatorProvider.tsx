@@ -68,15 +68,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					plannedBanner.banner_uma || plannedBanner.banner_support
 			)
 			.map((plannedBanner) => {
-				/**
-				 * TYPESCRIPT CONCEPT: Destructuring with Unused Variables
-				 *
-				 * We destructure tempId out because we don't want to send it to the server.
-				 * The underscore prefix (_tempId) is a common convention to signal "intentionally
-				 * unused." We also need the eslint disable because the linter would otherwise
-				 * flag it. An alternative is to use a utility function like omit(obj, 'tempId').
-				 */
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
 				const { tempId: _tempId, ...rest } = plannedBanner
 				return {
 					...rest,
