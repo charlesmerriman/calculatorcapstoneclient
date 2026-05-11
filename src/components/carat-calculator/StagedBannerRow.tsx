@@ -6,6 +6,7 @@ import type {
 import React from "react"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
+import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 
@@ -16,6 +17,7 @@ interface StagedBannerRowProps {
 	onDiscard: () => void
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
+	userPlannedBannerData: UserPlannedBanner[]
 }
 
 interface BannerOption {
@@ -30,7 +32,8 @@ export const StagedBannerRow = ({
 	onConfirm,
 	onDiscard,
 	umaBannerData,
-	supportBannerData
+	supportBannerData,
+	userPlannedBannerData
 }: StagedBannerRowProps) => {
 	const bannerType: "Uma" | "Support" = stagedBanner.banner_support
 		? "Support"
@@ -47,8 +50,19 @@ export const StagedBannerRow = ({
 			banner.id === stagedBanner.banner_support?.id
 	)
 
+	// IDs of banners already confirmed on the sheet — the staged banner can't duplicate any of them.
+	const alreadyPlannedBannerIds = new Set(
+		userPlannedBannerData
+			.map((b) => b.banner_uma?.id ?? b.banner_support?.id)
+			.filter((id): id is number => id !== undefined)
+	)
+
 	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
 		if (!option) return
+		if (alreadyPlannedBannerIds.has(option.value.id)) {
+			toast.error("This banner is already on your sheet.")
+			return
+		}
 		if (bannerType === "Uma") {
 			setStagedBanner({ ...stagedBanner, banner_uma: option.value as BannerUma, banner_support: undefined })
 		} else {
@@ -132,6 +146,14 @@ export const StagedBannerRow = ({
 							: null
 					}
 					onChange={handleBannerSelect}
+					formatOptionLabel={(option) => (
+						<span className={alreadyPlannedBannerIds.has(option.value.id) ? "text-gray-500" : ""}>
+							{option.label}
+							{alreadyPlannedBannerIds.has(option.value.id) && (
+								<span className="ml-1 text-xs">(on sheet)</span>
+							)}
+						</span>
+					)}
 					options={targetBannerData
 						.filter(
 							(banner) =>

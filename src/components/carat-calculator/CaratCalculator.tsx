@@ -74,6 +74,14 @@ export const CaratCalculator: React.FC = () => {
 			toast.error("Please select a banner before adding it to the sheet.")
 			return
 		}
+		const stagedId = stagedBanner.banner_uma?.id ?? stagedBanner.banner_support?.id
+		const isDuplicate = userPlannedBannerData.some(
+			(b) => (b.banner_uma?.id ?? b.banner_support?.id) === stagedId
+		)
+		if (isDuplicate) {
+			toast.error("This banner is already on your sheet.")
+			return
+		}
 
 		const updated = [...userPlannedBannerData, stagedBanner].sort((a, b) => {
 			const aDate = new Date(
@@ -148,6 +156,7 @@ export const CaratCalculator: React.FC = () => {
 									onDiscard={() => setStagedBanner(null)}
 									umaBannerData={umaBannerData}
 									supportBannerData={supportBannerData}
+									userPlannedBannerData={userPlannedBannerData}
 								/>
 							</motion.div>
 						)}

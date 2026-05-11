@@ -10,6 +10,7 @@ import type {
 import React from "react"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
+import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { calculateMaxPossiblePulls, getFreePulls } from "../../utils/bannerHelpers"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
@@ -93,8 +94,25 @@ export const BannerRow = ({
 		setUserPlannedBannerData(updated)
 	}
 
+	// IDs of banners already on the sheet, excluding this row's own current selection.
+	const alreadyPlannedBannerIds = new Set(
+		userPlannedBannerData
+			.filter((b) => {
+				const isCurrentRow =
+					(b.id !== undefined && b.id === plannedBanner.id) ||
+					(b.tempId !== undefined && b.tempId === plannedBanner.tempId)
+				return !isCurrentRow
+			})
+			.map((b) => b.banner_uma?.id ?? b.banner_support?.id)
+			.filter((id): id is number => id !== undefined)
+	)
+
 	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
 		if (!option) return
+		if (alreadyPlannedBannerIds.has(option.value.id)) {
+			toast.error("This banner is already on your sheet.")
+			return
+		}
 		const updated = updateBannerInList((banner) => {
 			if (bannerType === "Uma") {
 				return { ...banner, banner_uma: option.value as BannerUma, banner_support: undefined }
@@ -195,6 +213,14 @@ export const BannerRow = ({
 							: null
 					}
 					onChange={handleBannerSelect}
+					formatOptionLabel={(option) => (
+						<span className={alreadyPlannedBannerIds.has(option.value.id) ? "text-gray-500" : ""}>
+							{option.label}
+							{alreadyPlannedBannerIds.has(option.value.id) && (
+								<span className="ml-1 text-xs">(on sheet)</span>
+							)}
+						</span>
+					)}
 					options={targetBannerData
 						.filter(
 							(banner) =>
