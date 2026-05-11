@@ -66,12 +66,13 @@ export function userCalculatorDataPatch(
  *      something different, the type annotation flags the error immediately)
  *   3. Speed up type checking (the compiler doesn't have to trace through the body)
  */
-export function initialCalculatorDataFetch(): Promise<Response> {
+export function initialCalculatorDataFetch(signal?: AbortSignal): Promise<Response> {
 	return fetch(`${API_URL}/calculator-data`, {
 		method: "GET",
 		headers: {
 			"Content-Type": "application/json",
 			Authorization: `Token ${localStorage.getItem("authToken")}`
-		}
+		},
+		signal
 	})
 }
