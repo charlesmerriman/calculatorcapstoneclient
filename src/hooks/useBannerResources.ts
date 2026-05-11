@@ -20,6 +20,7 @@ import {
 	WEEKEND_BONUS_CARATS,
 	DAILY_CARAT_PACK_PER_DAY,
 	PULL_COST_CARATS,
+	TRAINING_PASS_START_DATE,
 	TRAINING_PASS_MONTHLY_REWARD,
 	TRAINING_PASS_REWARD_DAY,
 	MONTHLY_BASE_REWARD,
@@ -217,10 +218,19 @@ export function useBannerResources({
 			carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
-			if (userStatsData.training_pass) {
-				carats += calculateDayOfMonthOccurrences(lastEndDate, endDate, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
-			} else {
-				carats += months * MONTHLY_BASE_REWARD
+			// Training Pass (paid and free tiers) only exists from August 15, 2027.
+			if (endDate > TRAINING_PASS_START_DATE) {
+				// Clamp the start to the feature launch date so pre-launch months
+				// don't generate any training pass income.
+				const passStart = lastEndDate > TRAINING_PASS_START_DATE
+					? lastEndDate
+					: TRAINING_PASS_START_DATE
+
+				if (userStatsData.training_pass) {
+					carats += calculateDayOfMonthOccurrences(passStart, endDate, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
+				} else {
+					carats += calculateMonthlyOccurrences(passStart, endDate) * MONTHLY_BASE_REWARD
+				}
 			}
 
 			results.push({ carats, umaTickets, supportTickets })

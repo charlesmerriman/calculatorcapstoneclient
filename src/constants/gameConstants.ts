@@ -33,6 +33,12 @@ export const PULL_COST_CARATS = 150
 
 // ── Training Pass monthly reward ──────────────────────────────────────────────
 
+/**
+ * The Training Pass feature (both paid and free tiers) does not exist until
+ * this date. No training pass income should be calculated before it.
+ */
+export const TRAINING_PASS_START_DATE = new Date(2027, 7, 15) // August 15, 2027
+
 /** Carats awarded on the 24th of each month when the Training Pass is active. */
 export const TRAINING_PASS_MONTHLY_REWARD = 2200
 
@@ -40,7 +46,7 @@ export const TRAINING_PASS_MONTHLY_REWARD = 2200
 export const TRAINING_PASS_REWARD_DAY = 24
 
 /**
- * Monthly carat reward for accounts without a Training Pass.
- * Awarded once per calendar month.
+ * Monthly carat reward for the free tier of the Training Pass.
+ * Awarded once per calendar month, but only after TRAINING_PASS_START_DATE.
  */
 export const MONTHLY_BASE_REWARD = 500
