@@ -1,5 +1,6 @@
 import type React from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
 import { useBannerResources } from "../../hooks/useBannerResources"
@@ -38,6 +39,19 @@ export const CaratCalculator: React.FC = () => {
 	}
 
 	const handleAddBanner = (bannerType: "Uma" | "Support"): void => {
+		// Block adding a second blank of the same type. A blank of the opposite type
+		// is fine — the replace logic below will swap it out.
+		const duplicateBlankExists = userPlannedBannerData.some(
+			(banner) =>
+				!banner.banner_uma &&
+				!banner.banner_support &&
+				banner.initialBannerType === bannerType
+		)
+		if (duplicateBlankExists) {
+			toast.error(`An empty ${bannerType} banner already exists. Select a banner for it first.`)
+			return
+		}
+
 		const arrayOfBannerIds = userPlannedBannerData.map(
 			(banner) => banner.tempId ?? banner.id ?? 0
 		)
