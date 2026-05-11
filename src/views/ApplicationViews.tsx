@@ -9,10 +9,12 @@ export const ApplicationViews = () => {
 			<Route
 				path="/"
 				element={
-					<>
+					<div className="flex flex-col h-screen overflow-hidden">
 						<Navbar />
-						<Outlet />
-					</>
+						<div className="flex-1 overflow-y-auto">
+							<Outlet />
+						</div>
+					</div>
 				}
 			>
 				<Route index element={<CaratCalculator />} />
