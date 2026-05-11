@@ -249,7 +249,7 @@ export const BannerRow = ({
 				<input
 					type="number"
 					value={plannedBanner.number_of_pulls}
-					className="w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none [appearance:textfield]"
+					className="spin-arrows w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none pl-4.5"
 					max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
 					min={0}
 					onChange={handlePullCountChange}

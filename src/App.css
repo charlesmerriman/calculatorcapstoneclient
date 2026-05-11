@@ -156,3 +156,13 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
 	-moz-appearance: textfield;
 }
+
+/* Opt-in class to re-enable spinners and keep the number visually centered */
+input[type="number"].spin-arrows::-webkit-outer-spin-button,
+input[type="number"].spin-arrows::-webkit-inner-spin-button {
+	-webkit-appearance: auto;
+}
+input[type="number"].spin-arrows {
+	-moz-appearance: auto;
+	color-scheme: dark;
+}
