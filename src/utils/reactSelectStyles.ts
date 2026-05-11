@@ -15,19 +15,24 @@ export const darkTextStyles: StylesConfig<unknown, false> = {
 export const compactSelectStyles: StylesConfig<unknown, false> = {
 	control: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		minHeight: "28px",
+		// Fixed height (not minHeight) so all dropdowns are identical regardless of content
+		height: "32px",
+		minHeight: "32px",
 		fontSize: "12px",
 		width: "100%",
 		backgroundColor: "#27272f",
 		borderColor: "#3c3c46",
+		flexWrap: "nowrap",
 		"&:hover": { borderColor: "#606068" }
 	}),
 	valueContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		minHeight: "28px",
-		padding: "2px 4px",
+		height: "32px",
+		padding: "0 6px",
 		display: "flex",
-		alignItems: "center"
+		alignItems: "center",
+		justifyContent: "center",
+		flexWrap: "nowrap"
 	}),
 	input: (provided: CSSObjectWithLabel) => ({
 		...provided,
@@ -37,12 +42,12 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 	}),
 	indicatorsContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		minHeight: "28px",
-		alignSelf: "flex-start"
+		height: "32px",
+		alignItems: "center"
 	}),
 	dropdownIndicator: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		padding: "2px",
+		padding: "2px 4px",
 		color: "#8e8e9a"
 	}),
 	option: (provided: CSSObjectWithLabel, state: { isSelected: boolean; isFocused: boolean }) => ({
@@ -55,7 +60,9 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 	singleValue: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		fontSize: "12px",
-		color: "#f9fafb"
+		color: "#f9fafb",
+		textAlign: "center",
+		width: "100%"
 	}),
 	menu: (provided: CSSObjectWithLabel) => ({
 		...provided,
@@ -65,6 +72,8 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 	}),
 	placeholder: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		color: "#8e8e9a"
+		color: "#8e8e9a",
+		textAlign: "center",
+		width: "100%"
 	})
 }

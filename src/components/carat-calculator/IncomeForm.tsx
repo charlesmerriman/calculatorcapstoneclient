@@ -43,7 +43,7 @@ const selectStyles: StylesConfig<any, false> = {
 }
 
 const numInputClass =
-	"w-20 border border-gray-600 rounded px-2 py-1 text-sm text-right bg-gray-700 text-gray-100 outline-none focus:border-gray-500"
+	"spin-arrows w-20 border border-gray-600 rounded py-1 pl-4.5 pr-2 text-sm text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500"
 
 // ── ResourceRow ───────────────────────────────────────────────────────
 

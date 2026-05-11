@@ -10,7 +10,6 @@ export const Navbar = () => {
 	const location = useLocation()
 	const { timerIsGoing, saveNow, handleDropDownToggle, isDropdown, setIsDropdown } = useCalculatorData()
 
-	const navRef = useRef<HTMLDivElement>(null)
 	const incomeButtonRef = useRef<HTMLButtonElement>(null)
 	const [caretLeft, setCaretLeft] = useState<number>(0)
 	// True only when the panel open/close was triggered by a user click — not by navigation
@@ -40,29 +39,7 @@ export const Navbar = () => {
 		return () => window.removeEventListener("resize", updateCaretPosition)
 	}, [isDropdown])
 
-	// Compensate scroll position when the sticky nav changes height (e.g. income form open/close).
-	// Without this, opening the income form while scrolled causes it to overlap page content.
-	useEffect(() => {
-		if (!navRef.current) return
-		let lastHeight: number | null = null
-
-		const observer = new ResizeObserver(([entry]) => {
-			const newHeight = entry.contentRect.height
-			if (lastHeight !== null) {
-				const diff = newHeight - lastHeight
-				// Only compensate when already scrolled — at scrollY=0 content reflows naturally
-				if (diff !== 0 && window.scrollY > 0) {
-					window.scrollBy({ top: -diff, behavior: "instant" })
-				}
-			}
-			lastHeight = newHeight
-		})
-
-		observer.observe(navRef.current)
-		return () => observer.disconnect()
-	}, [])
-
-	const handleLogout = async (): Promise<void> => {
+const handleLogout = async (): Promise<void> => {
 		try {
 			await userLogout()
 		} catch {
@@ -77,7 +54,7 @@ export const Navbar = () => {
 	const isTimeline = location.pathname === "/timeline"
 
 	return (
-		<div ref={navRef} className="sticky top-0 z-50">
+		<div className="z-50">
 			<nav className="grid grid-cols-[auto_1fr_auto] items-center px-5 bg-gray-900 border-b border-gray-700 h-14">
 				{/* Left: Branding */}
 				<div className="flex flex-col justify-center leading-tight select-none">

@@ -54,7 +54,7 @@
 
 /* Page-level container used by Calculator and Timeline */
 .page-container {
-	@apply justify-center w-full min-h-screen bg-gray-900 lg:max-w-7xl mx-auto;
+	@apply justify-center w-full bg-gray-900 lg:max-w-7xl mx-auto;
 }
 
 /* Neutral card panel (used in IncomeForm, BannerRow, Timeline) */
@@ -155,4 +155,14 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 input[type="number"] {
 	-moz-appearance: textfield;
+}
+
+/* Opt-in class to re-enable spinners and keep the number visually centered */
+input[type="number"].spin-arrows::-webkit-outer-spin-button,
+input[type="number"].spin-arrows::-webkit-inner-spin-button {
+	-webkit-appearance: auto;
+}
+input[type="number"].spin-arrows {
+	-moz-appearance: auto;
+	color-scheme: dark;
 }
