@@ -1,12 +1,8 @@
 import { renderHook } from '@testing-library/react'
 import { useBannerResources } from '../hooks/useBannerResources'
 import {
-  DAILY_BASE_CARATS,
   DAILY_CARAT_PACK_PER_DAY,
   PULL_COST_CARATS,
-  TRAINING_PASS_START_DATE,
-  TRAINING_PASS_MONTHLY_REWARD,
-  MONTHLY_BASE_REWARD,
 } from '../constants/gameConstants'
 import type {
   UserStats,

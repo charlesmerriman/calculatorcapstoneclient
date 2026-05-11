@@ -7,7 +7,7 @@ import type {
 	BannerUma,
 	BannerSupport
 } from "../../types"
-import { useEffect, useState } from "react"
+import React from "react"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
@@ -32,11 +32,6 @@ interface BannerRowProps {
 	initialBannerType?: "Uma" | "Support"
 }
 
-interface BannerTypeOption {
-	value: string
-	label: string
-}
-
 interface BannerOption {
 	value: BannerUma | BannerSupport
 	label: string
@@ -54,20 +49,8 @@ export const BannerRow = ({
 	supportTicketsAvailableForThisBanner,
 	initialBannerType
 }: BannerRowProps) => {
-	const [bannerType, setBannerType] = useState<"Uma" | "Support">(
-		plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
-	)
-	const [targetBannerData, setTargetBannerData] = useState<
-		BannerUma[] | BannerSupport[]
-	>(plannedBanner.banner_support ? supportBannerData : umaBannerData)
-
-	useEffect(() => {
-		if (bannerType === "Uma") {
-			setTargetBannerData(umaBannerData)
-		} else {
-			setTargetBannerData(supportBannerData)
-		}
-	}, [bannerType, supportBannerData, umaBannerData])
+	const bannerType: "Uma" | "Support" = plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
+	const targetBannerData: BannerUma[] | BannerSupport[] = bannerType === "Uma" ? umaBannerData : supportBannerData
 
 	const currentBanner = targetBannerData.find(
 		(banner) =>

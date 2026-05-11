@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { format } from "date-fns"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import type { ChampionsMeeting, LeagueOfHeroes, BannerTimelineForViewing } from "../../types"
@@ -50,10 +50,6 @@ export const Timeline = () => {
 
 	const today = new Date()
 
-	useEffect(() => {
-		setCurrentPage(1)
-	}, [showPast, searchQuery])
-
 	const filteredEvents = organizedTimelineData
 		.filter((event) =>
 			showPast
@@ -73,7 +69,7 @@ export const Timeline = () => {
 			<div className="grid grid-cols-3 items-center mt-6 mb-2 px-2 gap-4">
 				<button
 					className="justify-self-start px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-					onClick={() => setShowPast((prev) => !prev)}
+					onClick={() => { setShowPast((prev) => !prev); setCurrentPage(1) }}
 				>
 					{showPast ? "Show current/future events" : "Show past events"}
 				</button>
@@ -104,7 +100,7 @@ export const Timeline = () => {
 						className="w-64 px-2 py-1 text-sm rounded border border-gray-600 bg-gray-700 text-gray-100 focus:outline-none focus:border-gray-500"
 						placeholder="Search characters or events..."
 						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
+						onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
 					/>
 				</div>
 			</div>
