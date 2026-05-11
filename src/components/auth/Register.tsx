@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form"
-import { userRegister } from "../../services/userServices"
-import { useNavigate } from "react-router-dom"
+import { userRegister, ApiError } from "../../services/userServices"
+import { Link, useNavigate } from "react-router-dom"
 import type React from "react"
 
 interface RegisterFormData {
@@ -12,14 +12,11 @@ interface RegisterFormData {
 	confirmPassword: string
 }
 
-/** Config for each form field — drives the rendering loop below */
-const FIELDS = [
-	{ id: "username", label: "Username:", type: "text", autoComplete: "username", required: "Username is required" },
-	{ id: "email", label: "Email:", type: "text", autoComplete: "email", required: "Email is required" },
-	{ id: "first_name", label: "First Name:", type: "text", autoComplete: "given-name", required: "First name is required" },
-	{ id: "last_name", label: "Last Name:", type: "text", autoComplete: "family-name", required: "Last name is required" },
-	{ id: "password", label: "Password:", type: "password", autoComplete: "new-password", required: "Password is required" },
-] as const
+const inputCls =
+	"w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2.5 " +
+	"text-sm text-gray-100 focus:border-brand focus:outline-none transition"
+
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5"
 
 export const Register: React.FC = () => {
 	const {
@@ -37,58 +34,151 @@ export const Register: React.FC = () => {
 			const { confirmPassword: _confirmPassword, ...registerData } = data
 			await userRegister(registerData)
 			navigate("/")
-		} catch {
-			setError("root", { message: "Registration failed. Please try again." })
+		} catch (e) {
+			if (e instanceof ApiError && Object.keys(e.fieldErrors).length > 0) {
+				// Map server field errors (e.g. "username already exists") to the correct field
+				for (const [field, message] of Object.entries(e.fieldErrors)) {
+					setError(field as keyof RegisterFormData, { message })
+				}
+			} else {
+				setError("root", {
+					message: e instanceof Error ? e.message : "Registration failed. Please try again.",
+				})
+			}
 		}
 	}
 
 	return (
-		<div>
-			<div className="page-auth">
-				<form onSubmit={handleSubmit(handleRegisterSubmit)} className="card-auth">
-					<h2 className="heading-auth">Register</h2>
+		<div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+			<div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+				{/* Brand header strip */}
+				<div className="border-b border-gray-700 px-8 py-6 text-center">
+					<div className="font-bold text-brand text-lg leading-tight select-none tracking-wide">
+						UMA PLANNER
+					</div>
+					<div className="text-brand/50 text-[11px] mt-0.5 select-none">Resource Calculator</div>
+				</div>
 
-					{FIELDS.map((field) => (
-						<div key={field.id} className="form-row-auth">
-							<label htmlFor={field.id} className="label-auth">{field.label}</label>
+				<div className="px-8 py-7">
+					<h2 className="text-xl font-semibold text-gray-100 mb-6">Create Account</h2>
+
+					<form onSubmit={handleSubmit(handleRegisterSubmit)} noValidate>
+						<div className="mb-4">
+							<label htmlFor="username" className={labelCls}>Username</label>
 							<input
-								type={field.type}
-								id={field.id}
-								{...register(field.id as keyof RegisterFormData, { required: field.required })}
-								autoComplete={field.autoComplete}
-								className="input-auth"
+								type="text"
+								id="username"
+								{...register("username", { required: "Username is required." })}
+								autoComplete="username"
+								className={inputCls}
 							/>
-							{errors[field.id as keyof RegisterFormData] && (
-								<span className="text-error">
-									{errors[field.id as keyof RegisterFormData]?.message}
-								</span>
+							{errors.username && (
+								<p className="text-red-400 text-xs mt-1.5">{errors.username.message}</p>
 							)}
 						</div>
-					))}
 
-					<div className="form-row-auth">
-						<label htmlFor="confirmPassword" className="label-auth">Confirm Password:</label>
-						<input
-							type="password"
-							id="confirmPassword"
-							{...register("confirmPassword", {
-								required: "Please confirm your password",
-								validate: (value) => value === password || "Passwords do not match"
-							})}
-							autoComplete="new-password"
-							className="input-auth"
-						/>
-						{errors.confirmPassword && (
-							<span className="text-error">{errors.confirmPassword.message}</span>
+						<div className="mb-4">
+							<label htmlFor="email" className={labelCls}>Email</label>
+							<input
+								type="email"
+								id="email"
+								{...register("email", { required: "Email is required." })}
+								autoComplete="email"
+								className={inputCls}
+							/>
+							{errors.email && (
+								<p className="text-red-400 text-xs mt-1.5">{errors.email.message}</p>
+							)}
+						</div>
+
+						{/* First and last name side by side */}
+						<div className="grid grid-cols-2 gap-3 mb-4">
+							<div>
+								<label htmlFor="first_name" className={labelCls}>First Name</label>
+								<input
+									type="text"
+									id="first_name"
+									{...register("first_name", { required: "Required." })}
+									autoComplete="given-name"
+									className={inputCls}
+								/>
+								{errors.first_name && (
+									<p className="text-red-400 text-xs mt-1.5">{errors.first_name.message}</p>
+								)}
+							</div>
+							<div>
+								<label htmlFor="last_name" className={labelCls}>Last Name</label>
+								<input
+									type="text"
+									id="last_name"
+									{...register("last_name", { required: "Required." })}
+									autoComplete="family-name"
+									className={inputCls}
+								/>
+								{errors.last_name && (
+									<p className="text-red-400 text-xs mt-1.5">{errors.last_name.message}</p>
+								)}
+							</div>
+						</div>
+
+						<div className="mb-4">
+							<label htmlFor="password" className={labelCls}>Password</label>
+							<input
+								type="password"
+								id="password"
+								{...register("password", {
+									required: "Password is required.",
+									minLength: { value: 8, message: "Must be at least 8 characters." },
+								})}
+								autoComplete="new-password"
+								className={inputCls}
+							/>
+							{errors.password && (
+								<p className="text-red-400 text-xs mt-1.5">{errors.password.message}</p>
+							)}
+						</div>
+
+						<div className="mb-6">
+							<label htmlFor="confirmPassword" className={labelCls}>Confirm Password</label>
+							<input
+								type="password"
+								id="confirmPassword"
+								{...register("confirmPassword", {
+									required: "Please confirm your password.",
+									validate: (value) => value === password || "Passwords do not match.",
+								})}
+								autoComplete="new-password"
+								className={inputCls}
+							/>
+							{errors.confirmPassword && (
+								<p className="text-red-400 text-xs mt-1.5">{errors.confirmPassword.message}</p>
+							)}
+						</div>
+
+						{errors.root && (
+							<div className="mb-5 px-3 py-2.5 bg-red-500/10 border border-red-500/30 rounded-lg">
+								<p className="text-red-400 text-sm">{errors.root.message}</p>
+							</div>
 						)}
-					</div>
 
-					{errors.root && <div className="text-error">{errors.root.message}</div>}
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							className="w-full py-2.5 rounded-lg font-bold text-sm bg-brand text-black
+								hover:bg-brand/85 transition cursor-pointer
+								disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{isSubmitting ? "Creating account…" : "Create Account"}
+						</button>
+					</form>
 
-					<button type="submit" disabled={isSubmitting} className="w-full px-4 py-2 rounded font-semibold bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-						{isSubmitting ? "Registering..." : "Register"}
-					</button>
-				</form>
+					<p className="text-center text-sm text-gray-500 mt-6">
+						Already have an account?{" "}
+						<Link to="/login" className="text-brand hover:text-brand/75 transition font-medium">
+							Sign in
+						</Link>
+					</p>
+				</div>
 			</div>
 		</div>
 	)
