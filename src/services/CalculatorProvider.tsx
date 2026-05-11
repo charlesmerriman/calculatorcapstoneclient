@@ -54,6 +54,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
 	const [isDropdown, setIsDropdown] = useState(true)
+	const [isLoading, setIsLoading] = useState(true)
+	const [fetchError, setFetchError] = useState(false)
 
 	const handleDropDownToggle = (): void => {
 		setIsDropdown((prev) => !prev)
@@ -66,15 +68,6 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					plannedBanner.banner_uma || plannedBanner.banner_support
 			)
 			.map((plannedBanner) => {
-				/**
-				 * TYPESCRIPT CONCEPT: Destructuring with Unused Variables
-				 *
-				 * We destructure tempId out because we don't want to send it to the server.
-				 * The underscore prefix (_tempId) is a common convention to signal "intentionally
-				 * unused." We also need the eslint disable because the linter would otherwise
-				 * flag it. An alternative is to use a utility function like omit(obj, 'tempId').
-				 */
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
 				const { tempId: _tempId, ...rest } = plannedBanner
 				return {
 					...rest,
@@ -103,7 +96,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	})
 
 	useEffect(() => {
-		initialCalculatorDataFetch()
+		const controller = new AbortController()
+
+		initialCalculatorDataFetch(controller.signal)
 			.then((response) => response.json())
 			.then((data: CalculatorData) => {
 				/**
@@ -154,19 +149,27 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
 				setOrganizedTimelineData(sortedMergedEvents)
+				setIsLoading(false)
 			})
 			.catch((error: unknown) => {
+				// AbortError is expected when Strict Mode cleanup cancels the first fetch
+				if (error instanceof Error && error.name === "AbortError") return
 				console.error("Error fetching calculator data:", error)
-				toast.error("Failed to load data. Please refresh.")
+				setIsLoading(false)
+				setFetchError(true)
 			})
+
+		return () => controller.abort()
 	}, [])
 
-	const isInitialMount = useRef(true)
+	// prevStatsRef tracks what userStatsData was on the last effect run.
+	// When it's null, this is either the initial mount or the initial data load — both should
+	// be skipped. Only start the timer once real user edits happen (prevStatsRef is non-null).
+	const prevStatsRef = useRef<UserStats | null>(null)
 	useEffect(() => {
-		if (isInitialMount.current) {
-			isInitialMount.current = false
-			return
-		}
+		const wasEmpty = prevStatsRef.current === null
+		prevStatsRef.current = userStatsData
+		if (wasEmpty) return
 		startTimer()
 	}, [startTimer, userStatsData, userPlannedBannerData])
 
@@ -190,6 +193,29 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		setIsDropdown,
 		setUserPlannedBannerData,
 		setUserStatsData
+	}
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center min-h-screen">
+				<div className="h-10 w-10 border-4 border-gray-600 border-t-brand rounded-full animate-spin" />
+			</div>
+		)
+	}
+
+	if (fetchError) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen gap-4 text-white">
+				<h1 className="text-2xl font-bold">Failed to load data</h1>
+				<p className="text-white/60">The server may be down. Please try again.</p>
+				<button
+					className="px-4 py-2 rounded bg-brand text-black font-semibold hover:opacity-80 transition-opacity"
+					onClick={() => window.location.reload()}
+				>
+					Reload page
+				</button>
+			</div>
+		)
 	}
 
 	return (

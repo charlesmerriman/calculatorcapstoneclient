@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { useBannerResources } from '../hooks/useBannerResources'
 import {
-  DAILY_BASE_CARATS,
+  DAILY_CARAT_PACK_PER_DAY,
   PULL_COST_CARATS,
 } from '../constants/gameConstants'
 import type {
@@ -62,7 +62,7 @@ const noIncome = {
   leagueOfHeroesData: [] as LeagueOfHeroes[],
 }
 
-function makeUmaBanner(id: number, endDate: string, pulls: number): UserPlannedBanner {
+function makeUmaBanner(id: number, endDate: string, pulls: number, freePulls = 0): UserPlannedBanner {
   return {
     id,
     user: 1,
@@ -72,7 +72,7 @@ function makeUmaBanner(id: number, endDate: string, pulls: number): UserPlannedB
       name: `Uma Banner ${id}`,
       admin_comments: '',
       umas: [],
-      free_pulls: 0,
+      free_pulls: freePulls,
       banner_timeline: {
         id,
         name: `Timeline ${id}`,
@@ -83,6 +83,34 @@ function makeUmaBanner(id: number, endDate: string, pulls: number): UserPlannedB
     },
     banner_support: null,
   }
+}
+
+function makeChampionsMeeting(id: number, endDate: string): ChampionsMeeting {
+  return {
+    id,
+    name: `CM ${id}`,
+    cm_number: id,
+    start_date: daysFromNow(0),
+    end_date: endDate,
+    image: '',
+    track: 'Tokyo',
+    surface_type: 'Turf',
+    distance: 'Long',
+    length: '2400m',
+    track_condition: 'Good',
+    season: 'Spring',
+    weather: 'Sunny',
+    direction: 'Right',
+    speed_recommendation: '1200',
+    stamina_recommendation: '1200',
+    power_recommendation: '1000',
+    guts_recommendation: '800',
+    wit_recommendation: '800',
+  }
+}
+
+function makeLeagueOfHeroes(id: number, endDate: string): LeagueOfHeroes {
+  return { id, name: `LoH ${id}`, start_date: daysFromNow(0), end_date: endDate, image: null }
 }
 
 function makeSupportBanner(id: number, endDate: string, pulls: number): UserPlannedBanner {
@@ -390,6 +418,354 @@ describe('useBannerResources', () => {
       // Period income is at most ~300 carats (2 days × 2 periods), deduction is 1500.
       // Balance must be well negative.
       expect(result.current[1].carats).toBeLessThan(0)
+    })
+
+    it('does not count an event reward twice when two banners share the same window', () => {
+      // Reward falls in banner 1's window (day 0–10). When banner 2 is processed
+      // (day 10–20), lastEndDate = day 10, so the day-5 reward is excluded.
+      const reward = makeEventReward(1, daysFromNow(5), 1_000)
+      const { result: withReward } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0),
+            makeUmaBanner(2, daysFromNow(20), 0),
+          ],
+          ...noIncome,
+          eventRewardsData: [reward],
+        })
+      )
+      const { result: noReward } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0),
+            makeUmaBanner(2, daysFromNow(20), 0),
+          ],
+          ...noIncome,
+          eventRewardsData: [],
+        })
+      )
+      // Banner 1 gets +1000 from the reward; it carries into banner 2's opening balance.
+      expect(withReward.current[0].carats - noReward.current[0].carats).toBe(1_000)
+      // Banner 2's extra is still just 1000 (carried over), not 2000.
+      expect(withReward.current[1].carats - noReward.current[1].carats).toBe(1_000)
+    })
+  })
+
+  describe('daily carat pack income', () => {
+    it('adds DAILY_CARAT_PACK_PER_DAY × days when daily_carat is true', () => {
+      const banner = [makeUmaBanner(1, daysFromNow(30), 0)]
+      const { result: withPack } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, daily_carat: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: withoutPack } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, daily_carat: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const diff = withPack.current[0].carats - withoutPack.current[0].carats
+      // Both hooks run at the same instant so they see the same day count N.
+      // The difference is always an exact whole-day multiple of the pack value.
+      expect(diff).toBeGreaterThan(0)
+      expect(diff % DAILY_CARAT_PACK_PER_DAY).toBe(0)
+    })
+  })
+
+  describe('club rank monthly income', () => {
+    it('adds club rank income once per calendar month in the window', () => {
+      const clubRankWithIncome: ClubRank = { id: 2, name: 'Bronze', income_amount: 1_000 }
+      // 50-day window always spans at least one calendar month from today.
+      const banner = [makeUmaBanner(1, daysFromNow(50), 0)]
+      const { result: withRank } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, club_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          clubRankData: [noRank, clubRankWithIncome],
+        })
+      )
+      const { result: withoutRank } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, club_rank: 1 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          clubRankData: [noRank, clubRankWithIncome],
+        })
+      )
+      const diff = withRank.current[0].carats - withoutRank.current[0].carats
+      expect(diff).toBeGreaterThanOrEqual(1_000) // at least one month paid
+      expect(diff % 1_000).toBe(0)               // always whole-month multiples
+    })
+  })
+
+  describe('team trials rank weekly income', () => {
+    it('adds team trials rank income for each Monday in the window', () => {
+      const ttRankWithIncome: TeamTrialsRank = { id: 2, name: 'Bronze', income_amount: 500 }
+      // 14-day window always contains at least 2 Mondays.
+      const banner = [makeUmaBanner(1, daysFromNow(14), 0)]
+      const { result: withRank } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, team_trials_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          teamTrialsRankData: [noTeamTrialsRank, ttRankWithIncome],
+        })
+      )
+      const { result: withoutRank } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, team_trials_rank: 1 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          teamTrialsRankData: [noTeamTrialsRank, ttRankWithIncome],
+        })
+      )
+      const diff = withRank.current[0].carats - withoutRank.current[0].carats
+      expect(diff).toBeGreaterThanOrEqual(500) // at least one Monday
+      expect(diff % 500).toBe(0)               // always whole-Monday multiples
+    })
+  })
+
+  describe('champions meeting income', () => {
+    const cmIncome = 2_000
+    const cmRankWithIncome: ChampionsMeetingRank = { id: 2, name: 'Bronze', income_amount: cmIncome }
+
+    it('adds champions meeting income when the meeting ends within the banner window', () => {
+      const meetingInWindow = makeChampionsMeeting(1, daysFromNow(15))
+      const banner = [makeUmaBanner(1, daysFromNow(30), 0)]
+      const { result: withMeeting } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, champions_meeting_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          championsMeetingRankData: [noCmRank, cmRankWithIncome],
+          championsMeetingData: [meetingInWindow],
+        })
+      )
+      const { result: withoutMeeting } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, champions_meeting_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          championsMeetingRankData: [noCmRank, cmRankWithIncome],
+          championsMeetingData: [],
+        })
+      )
+      expect(withMeeting.current[0].carats - withoutMeeting.current[0].carats).toBe(cmIncome)
+    })
+
+    it('does not add income when the meeting ends after the banner deadline', () => {
+      const meetingOutside = makeChampionsMeeting(1, daysFromNow(50))
+      const banner = [makeUmaBanner(1, daysFromNow(30), 0)]
+      const { result: withMeeting } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, champions_meeting_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          championsMeetingRankData: [noCmRank, cmRankWithIncome],
+          championsMeetingData: [meetingOutside],
+        })
+      )
+      const { result: withoutMeeting } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, champions_meeting_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          championsMeetingRankData: [noCmRank, cmRankWithIncome],
+          championsMeetingData: [],
+        })
+      )
+      expect(withMeeting.current[0].carats).toBe(withoutMeeting.current[0].carats)
+    })
+  })
+
+  describe('league of heroes income', () => {
+    const lohIncome = 1_500
+    const lohRankWithIncome: LeagueOfHeroesRank = { id: 2, name: 'Bronze', income_amount: lohIncome }
+
+    it('adds league of heroes income when the event ends within the banner window', () => {
+      const lohInWindow = makeLeagueOfHeroes(1, daysFromNow(15))
+      const banner = [makeUmaBanner(1, daysFromNow(30), 0)]
+      const { result: withLoH } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, league_of_heroes_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          leagueOfHeroesRankData: [noLohRank, lohRankWithIncome],
+          leagueOfHeroesData: [lohInWindow],
+        })
+      )
+      const { result: withoutLoH } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, league_of_heroes_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          leagueOfHeroesRankData: [noLohRank, lohRankWithIncome],
+          leagueOfHeroesData: [],
+        })
+      )
+      expect(withLoH.current[0].carats - withoutLoH.current[0].carats).toBe(lohIncome)
+    })
+
+    it('does not add income when the event ends after the banner deadline', () => {
+      const lohOutside = makeLeagueOfHeroes(1, daysFromNow(50))
+      const banner = [makeUmaBanner(1, daysFromNow(30), 0)]
+      const { result: withLoH } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, league_of_heroes_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          leagueOfHeroesRankData: [noLohRank, lohRankWithIncome],
+          leagueOfHeroesData: [lohOutside],
+        })
+      )
+      const { result: withoutLoH } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, league_of_heroes_rank: 2 },
+          userPlannedBannerData: banner,
+          ...noIncome,
+          leagueOfHeroesRankData: [noLohRank, lohRankWithIncome],
+          leagueOfHeroesData: [],
+        })
+      )
+      expect(withLoH.current[0].carats).toBe(withoutLoH.current[0].carats)
+    })
+  })
+
+  describe('training pass income', () => {
+    // A date one month after the feature launches (Aug 15, 2027).
+    // The Aug 24 training pass reward day falls in this window,
+    // and the Sep 1 base reward date also falls in it.
+    const POST_PASS_DATE = '2027-09-15'
+    const PRE_PASS_DATE  = '2027-08-10' // just before the feature launches
+
+    it('adds more carats with training_pass true than false for banners after launch', () => {
+      const banner = [makeUmaBanner(1, POST_PASS_DATE, 0)]
+      const { result: withPass } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: withoutPass } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      // Paid pass gives TRAINING_PASS_MONTHLY_REWARD; free tier gives MONTHLY_BASE_REWARD.
+      // The paid reward is always larger, so withPass > withoutPass.
+      expect(withPass.current[0].carats).toBeGreaterThan(withoutPass.current[0].carats)
+    })
+
+    it('adds MONTHLY_BASE_REWARD for banners extending past the launch date', () => {
+      // Without training_pass, the base reward still applies after launch.
+      // The post-launch result should exceed the pre-launch result (more income).
+      const postBanner = [makeUmaBanner(1, POST_PASS_DATE, 0)]
+      const preBanner  = [makeUmaBanner(1, PRE_PASS_DATE, 0)]
+      const { result: afterLaunch } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: false },
+          userPlannedBannerData: postBanner,
+          ...noIncome,
+        })
+      )
+      const { result: beforeLaunch } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: false },
+          userPlannedBannerData: preBanner,
+          ...noIncome,
+        })
+      )
+      expect(afterLaunch.current[0].carats).toBeGreaterThan(beforeLaunch.current[0].carats)
+    })
+
+    it('does not add training pass income for banners ending before the launch date', () => {
+      // training_pass true/false must produce identical results before the feature exists.
+      const banner = [makeUmaBanner(1, PRE_PASS_DATE, 0)]
+      const { result: withPass } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: withoutPass } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      expect(withPass.current[0].carats).toBe(withoutPass.current[0].carats)
+    })
+  })
+
+  describe('free pulls', () => {
+    it('subtracts free pulls before charging carats or tickets', () => {
+      // 5 planned pulls, 3 free → only 2 pulls cost carats.
+      // Compare with 0 free pulls (5 pulls cost carats) to isolate the saving.
+      const makeBanners = (freePulls: number) => [
+        makeUmaBanner(1, daysFromNow(1), 5, freePulls),
+        makeUmaBanner(2, daysFromNow(2), 0),
+      ]
+      const { result: withFree } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: makeBanners(3),
+          ...noIncome,
+        })
+      )
+      const { result: noFree } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: makeBanners(0),
+          ...noIncome,
+        })
+      )
+      // 3 fewer pulls charged at PULL_COST_CARATS each.
+      expect(withFree.current[1].carats - noFree.current[1].carats).toBe(3 * PULL_COST_CARATS)
+    })
+
+    it('never charges carats when free pulls cover all planned pulls', () => {
+      // 5 planned pulls, 5 free → 0 carats spent.
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, current_carat: 10_000 },
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(1), 5, 5),
+            makeUmaBanner(2, daysFromNow(2), 0),
+          ],
+          ...noIncome,
+        })
+      )
+      expect(result.current[1].carats).toBeGreaterThanOrEqual(10_000)
+    })
+  })
+
+  describe('event reward filtering (additional)', () => {
+    it('adds support ticket rewards within the banner window', () => {
+      const reward: EventReward = {
+        ...makeEventReward(1, daysFromNow(10), 0),
+        support_ticket_amount: 3,
+      }
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          eventRewardsData: [reward],
+        })
+      )
+      expect(result.current[0].supportTickets).toBe(3)
     })
   })
 })

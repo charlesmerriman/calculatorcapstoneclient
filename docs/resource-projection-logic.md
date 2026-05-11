@@ -97,11 +97,17 @@ Iterates every single day in the window and adds:
 
 **9. Add Training Pass or monthly base payout**
 
+The Training Pass feature (both paid and free tiers) does not exist until **August 15, 2027**. No income is added for any window that ends before that date.
+
+For windows that extend past August 15, 2027, the calculation is clamped so only the post-launch portion counts:
+
 ```
+passStart = max(lastEndDate, August 15 2027)
+
 if training_pass:
-    carats += 2200 * (occurrences of the 24th of the month in the window)
+    carats += 2200 * (occurrences of the 24th of the month in [passStart, endDate])
 else:
-    carats += 500 * months
+    carats += 500 * (month boundaries crossed in [passStart, endDate])
 ```
 
 **10. Record the snapshot**

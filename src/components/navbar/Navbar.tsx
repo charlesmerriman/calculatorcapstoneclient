@@ -10,6 +10,7 @@ export const Navbar = () => {
 	const location = useLocation()
 	const { timerIsGoing, saveNow, handleDropDownToggle, isDropdown, setIsDropdown } = useCalculatorData()
 
+	const navRef = useRef<HTMLDivElement>(null)
 	const incomeButtonRef = useRef<HTMLButtonElement>(null)
 	const [caretLeft, setCaretLeft] = useState<number>(0)
 	// True only when the panel open/close was triggered by a user click — not by navigation
@@ -39,6 +40,28 @@ export const Navbar = () => {
 		return () => window.removeEventListener("resize", updateCaretPosition)
 	}, [isDropdown])
 
+	// Compensate scroll position when the sticky nav changes height (e.g. income form open/close).
+	// Without this, opening the income form while scrolled causes it to overlap page content.
+	useEffect(() => {
+		if (!navRef.current) return
+		let lastHeight: number | null = null
+
+		const observer = new ResizeObserver(([entry]) => {
+			const newHeight = entry.contentRect.height
+			if (lastHeight !== null) {
+				const diff = newHeight - lastHeight
+				// Only compensate when already scrolled — at scrollY=0 content reflows naturally
+				if (diff !== 0 && window.scrollY > 0) {
+					window.scrollBy({ top: -diff, behavior: "instant" })
+				}
+			}
+			lastHeight = newHeight
+		})
+
+		observer.observe(navRef.current)
+		return () => observer.disconnect()
+	}, [])
+
 	const handleLogout = async (): Promise<void> => {
 		try {
 			await userLogout()
@@ -54,7 +77,7 @@ export const Navbar = () => {
 	const isTimeline = location.pathname === "/timeline"
 
 	return (
-		<div className="sticky top-0 z-50">
+		<div ref={navRef} className="sticky top-0 z-50">
 			<nav className="grid grid-cols-[auto_1fr_auto] items-center px-5 bg-gray-900 border-b border-gray-700 h-14">
 				{/* Left: Branding */}
 				<div className="flex flex-col justify-center leading-tight select-none">
@@ -125,15 +148,18 @@ export const Navbar = () => {
 
 				{/* Right: Save indicator + Logout */}
 				<div className="flex items-center gap-3">
-					{timerIsGoing ? (
-						<button
-							onClick={saveNow}
-							className="cursor-pointer hover:opacity-70 transition-opacity"
-							title="Click to save now"
-						>
-							<div className="h-5 w-5 border-2 border-gray-600 border-t-brand rounded-full animate-spin" />
-						</button>
-					) : null}
+					{/* Fixed-width slot keeps the right grid column stable so the center nav links don't shift */}
+					<div className="w-9 h-9 flex items-center justify-center">
+						{timerIsGoing && (
+							<button
+								onClick={saveNow}
+								className="cursor-pointer hover:opacity-70 transition-opacity"
+								title="Click to save now"
+							>
+								<div className="h-5 w-5 border-2 border-gray-600 border-t-brand rounded-full animate-spin" />
+							</button>
+						)}
+					</div>
 					<button
 						onClick={handleLogout}
 						className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:text-white transition"
