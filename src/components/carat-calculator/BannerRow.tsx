@@ -141,7 +141,7 @@ export const BannerRow = ({
 	}
 
 	return (
-		<div className="w-full flex items-stretch bg-gray-800 h-[64px]">
+		<div className="w-full flex items-stretch bg-gray-800 h-16">
 			{/* === Type badge (square block on left) === */}
 			<div
 				className={`banner-type-tab ${
