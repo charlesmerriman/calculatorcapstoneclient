@@ -274,7 +274,7 @@ export const IncomeForm = () => {
 											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
 										</label>
 										<div className="w-20 h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-											{userStatsData.daily_carat ? "+2,500/mo" : "+0/mo"}
+											{userStatsData.daily_carat ? "+50/day" : "+0/day"}
 										</div>
 
 										<Dumbbell className="w-8 h-8 shrink-0 text-brand" />

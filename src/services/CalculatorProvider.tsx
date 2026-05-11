@@ -161,12 +161,14 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			})
 	}, [])
 
-	const isInitialMount = useRef(true)
+	// prevStatsRef tracks what userStatsData was on the last effect run.
+	// When it's null, this is either the initial mount or the initial data load — both should
+	// be skipped. Only start the timer once real user edits happen (prevStatsRef is non-null).
+	const prevStatsRef = useRef<UserStats | null>(null)
 	useEffect(() => {
-		if (isInitialMount.current) {
-			isInitialMount.current = false
-			return
-		}
+		const wasEmpty = prevStatsRef.current === null
+		prevStatsRef.current = userStatsData
+		if (wasEmpty) return
 		startTimer()
 	}, [startTimer, userStatsData, userPlannedBannerData])
 

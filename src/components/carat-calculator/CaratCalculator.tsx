@@ -51,11 +51,16 @@ export const CaratCalculator: React.FC = () => {
 		} satisfies UserPlannedBanner
 
 		const plannedBannersArrayCopy = [...userPlannedBannerData]
-		if (
-			plannedBannersArrayCopy.every(
-				(banner) => banner.banner_uma || banner.banner_support
-			)
-		) {
+		const blankIndex = plannedBannersArrayCopy.findIndex(
+			(banner) => !banner.banner_uma && !banner.banner_support
+		)
+
+		if (blankIndex !== -1) {
+			// Replace the existing blank with the new type.
+			// Using a new object (with a new tempId) forces React to remount the BannerRow,
+			// which re-initialises its bannerType state to the correct value.
+			plannedBannersArrayCopy[blankIndex] = newPlannedBanner
+		} else {
 			plannedBannersArrayCopy.unshift(newPlannedBanner)
 		}
 		setUserPlannedBannerData(plannedBannersArrayCopy)
@@ -65,7 +70,7 @@ export const CaratCalculator: React.FC = () => {
 		<div className="page-container">
 			<div className="flex mx-4 flex-col items-center gap-1.5">
 				<div className="w-full border border-gray-600 rounded-lg shadow-sm overflow-hidden mt-2 pb-4">
-					<div className="flex w-full border-b border-gray-700 border-b-0 py-4 gap-4 px-4">
+					<div className="flex w-full py-4 gap-4 px-4">
 						<button
 							className="flex-1 py-2.5 rounded-lg bg-brand text-black font-medium hover:bg-brand/90 transition"
 							onClick={() => handleAddBanner("Uma")}
