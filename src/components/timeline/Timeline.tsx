@@ -70,20 +70,43 @@ export const Timeline = () => {
 
 	return (
 		<div className="page-container pb-6">
-			<div className="flex justify-between items-center mt-6 mb-2 px-2 gap-4">
+			<div className="grid grid-cols-3 items-center mt-6 mb-2 px-2 gap-4">
 				<button
-					className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+					className="justify-self-start px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 					onClick={() => setShowPast((prev) => !prev)}
 				>
 					{showPast ? "Show current/future events" : "Show past events"}
 				</button>
-				<input
-					type="text"
-					className="w-64 px-2 py-1 text-sm rounded border border-gray-600 bg-gray-700 text-gray-100 focus:outline-none focus:border-gray-500"
-					placeholder="Search characters or events..."
-					value={searchQuery}
-					onChange={(e) => setSearchQuery(e.target.value)}
-				/>
+				{totalPages > 1 ? (
+					<div className="flex justify-center items-center gap-4">
+						<button
+							className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							disabled={currentPage === 1}
+							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+						>
+							Previous
+						</button>
+						<span className="text-sm font-medium text-gray-100">
+							Page {currentPage} of {totalPages}
+						</span>
+						<button
+							className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							disabled={currentPage === totalPages}
+							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+						>
+							Next
+						</button>
+					</div>
+				) : <div />}
+				<div className="flex justify-end">
+					<input
+						type="text"
+						className="w-64 px-2 py-1 text-sm rounded border border-gray-600 bg-gray-700 text-gray-100 focus:outline-none focus:border-gray-500"
+						placeholder="Search characters or events..."
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+					/>
+				</div>
 			</div>
 
 			<div className="flex flex-col items-center">
@@ -99,7 +122,7 @@ export const Timeline = () => {
 										{format(event.start_date, "MMMM d, yyyy")} through{" "}
 										{format(event.end_date, "MMMM d, yyyy")}
 									</div>
-									<div>Images are placeholders</div>
+									<div className="text-gray-100">Images are placeholders</div>
 									<img src={event.image} alt={event.name} />
 									<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
 										<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
@@ -113,7 +136,7 @@ export const Timeline = () => {
 											<div>{event.weather}</div>
 										</div>
 									</div>
-									<div className="flex text-center p-1 gap-4 md:gap-16">
+									<div className="flex text-center p-1 gap-4 md:gap-16 text-gray-100">
 										<div className="flex flex-col">
 											<img src="/00_CMSPEED1.png" />
 											{event.speed_recommendation}
@@ -226,7 +249,7 @@ export const Timeline = () => {
 					>
 						Previous
 					</button>
-					<span className="text-sm font-medium">
+					<span className="text-sm font-medium text-gray-100">
 						Page {currentPage} of {totalPages}
 					</span>
 					<button
