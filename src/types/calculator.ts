@@ -82,7 +82,7 @@ export interface CalculatorContextType {
 	isDropdown: boolean
 	organizedTimelineData: OrganizedTimelineData
 	handleDropDownToggle: () => void
-	saveNow: () => void
+	saveNow: () => Promise<void>
 	setIsDropdown: Dispatch<SetStateAction<boolean>>
 	setUserPlannedBannerData: Dispatch<SetStateAction<UserPlannedBanner[]>>
 	setUserStatsData: Dispatch<SetStateAction<UserStats | null>>

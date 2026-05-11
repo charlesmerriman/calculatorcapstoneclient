@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 interface UseAutoSaveParams {
-	saveFn: () => void
+	saveFn: () => Promise<void>
 	delayMs?: number
 }
 
@@ -39,17 +39,22 @@ export function useAutoSave({ saveFn, delayMs = 5000 }: UseAutoSaveParams) {
 			clearTimeout(timer.current)
 		}
 		setTimerIsGoing(true)
+		// Use an async IIFE so we can await the save before clearing the indicator.
+		// Without await, setTimerIsGoing(false) would fire before the network request
+		// finishes, making the UI look done while the save is still in flight.
 		timer.current = window.setTimeout(() => {
-			saveFnRef.current()
-			setTimerIsGoing(false)
+			void (async () => {
+				await saveFnRef.current()
+				setTimerIsGoing(false)
+			})()
 		}, delayMs)
 	}, [delayMs])
 
-	const saveNow = useCallback(() => {
+	const saveNow = useCallback(async () => {
 		if (timer.current) {
 			clearTimeout(timer.current)
 		}
-		saveFnRef.current()
+		await saveFnRef.current()
 		setTimerIsGoing(false)
 	}, [])
 

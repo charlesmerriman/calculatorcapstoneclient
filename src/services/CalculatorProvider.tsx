@@ -54,6 +54,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
 	const [isDropdown, setIsDropdown] = useState(true)
+	const [isLoading, setIsLoading] = useState(true)
+	const [fetchError, setFetchError] = useState(false)
 
 	const handleDropDownToggle = (): void => {
 		setIsDropdown((prev) => !prev)
@@ -103,7 +105,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	})
 
 	useEffect(() => {
-		initialCalculatorDataFetch()
+		const controller = new AbortController()
+
+		initialCalculatorDataFetch(controller.signal)
 			.then((response) => response.json())
 			.then((data: CalculatorData) => {
 				/**
@@ -154,11 +158,17 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
 				setOrganizedTimelineData(sortedMergedEvents)
+				setIsLoading(false)
 			})
 			.catch((error: unknown) => {
+				// AbortError is expected when Strict Mode cleanup cancels the first fetch
+				if (error instanceof Error && error.name === "AbortError") return
 				console.error("Error fetching calculator data:", error)
-				toast.error("Failed to load data. Please refresh.")
+				setIsLoading(false)
+				setFetchError(true)
 			})
+
+		return () => controller.abort()
 	}, [])
 
 	// prevStatsRef tracks what userStatsData was on the last effect run.
@@ -192,6 +202,29 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		setIsDropdown,
 		setUserPlannedBannerData,
 		setUserStatsData
+	}
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center min-h-screen">
+				<div className="h-10 w-10 border-4 border-gray-600 border-t-brand rounded-full animate-spin" />
+			</div>
+		)
+	}
+
+	if (fetchError) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen gap-4 text-white">
+				<h1 className="text-2xl font-bold">Failed to load data</h1>
+				<p className="text-white/60">The server may be down. Please try again.</p>
+				<button
+					className="px-4 py-2 rounded bg-brand text-black font-semibold hover:opacity-80 transition-opacity"
+					onClick={() => window.location.reload()}
+				>
+					Reload page
+				</button>
+			</div>
+		)
 	}
 
 	return (
