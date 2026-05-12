@@ -1,4 +1,3 @@
-import { useState } from "react"
 import type React from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
@@ -21,12 +20,10 @@ export const CaratCalculator: React.FC = () => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
+		stagedBanner,
 		setUserPlannedBannerData,
+		setStagedBanner,
 	} = useCalculatorData()
-
-	// Staged banner lives in local state — not in context — so changes here
-	// never trigger the autosave effect in CalculatorProvider.
-	const [stagedBanner, setStagedBanner] = useState<UserPlannedBanner | null>(null)
 
 	const bannerResources = useBannerResources({
 		userStatsData,

@@ -1,7 +1,15 @@
 import { useState } from "react"
 import { format } from "date-fns"
+import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import type { ChampionsMeeting, LeagueOfHeroes, BannerTimelineForViewing } from "../../types"
+import type {
+	ChampionsMeeting,
+	LeagueOfHeroes,
+	BannerTimelineForViewing,
+	BannerUma,
+	BannerSupport,
+	UserPlannedBanner,
+} from "../../types"
 
 const PAGE_SIZE = 10
 
@@ -16,6 +24,7 @@ function isLeagueOfHeroes(
 ): event is LeagueOfHeroes {
 	return !("track" in event) && !("banner_umas" in event)
 }
+
 
 function eventMatchesSearch(
 	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing,
@@ -43,12 +52,53 @@ function eventMatchesSearch(
 }
 
 export const Timeline = () => {
-	const { organizedTimelineData } = useCalculatorData()
+	const {
+		organizedTimelineData,
+		userPlannedBannerData,
+		umaBannerData,
+		supportBannerData,
+		stagedBanner,
+		setStagedBanner,
+	} = useCalculatorData()
 	const [showPast, setShowPast] = useState(false)
 	const [searchQuery, setSearchQuery] = useState("")
 	const [currentPage, setCurrentPage] = useState(1)
 
 	const today = new Date()
+
+	// Set of banner IDs already on the planner sheet — used for duplicate checks and button state.
+	const plannedBannerIds = new Set(
+		userPlannedBannerData
+			.map((b) => b.banner_uma?.id ?? b.banner_support?.id)
+			.filter((id): id is number => id !== undefined)
+	)
+
+	// Banners nested inside BannerTimelineForViewing have banner_timeline omitted by the API serializer.
+	// We look up the full object from umaBannerData/supportBannerData (which always include it)
+	// so the staged banner in CaratCalculator is structurally complete.
+	const handleAddBanner = (banner: BannerUma | BannerSupport, type: "Uma" | "Support"): void => {
+		const fullBanner = type === "Uma"
+			? umaBannerData.find((b) => b.id === banner.id)
+			: supportBannerData.find((b) => b.id === banner.id)
+
+		if (!fullBanner) {
+			toast.error("Could not find banner data. Try refreshing the page.")
+			return
+		}
+
+		const allIds = [
+			...userPlannedBannerData.map((b) => b.tempId ?? b.id ?? 0),
+			stagedBanner ? (stagedBanner.tempId ?? 0) : 0,
+		]
+		const highestId = allIds.length > 0 ? Math.max(...allIds) : 0
+
+		const newStaged: UserPlannedBanner = type === "Uma"
+			? { tempId: highestId + 1, number_of_pulls: 0, banner_uma: fullBanner as BannerUma, initialBannerType: "Uma" }
+			: { tempId: highestId + 1, number_of_pulls: 0, banner_support: fullBanner as BannerSupport, initialBannerType: "Support" }
+
+		setStagedBanner(newStaged)
+		toast.success(`${fullBanner.name} staged! Head to the Calculator to confirm.`)
+	}
 
 	const filteredEvents = organizedTimelineData
 		.filter((event) =>
@@ -174,45 +224,80 @@ export const Timeline = () => {
 						)
 					}
 
+					// BannerTimelineForViewing.
+					// TypeScript collapses the remaining type to `never` here because
+					// BannerTimelineForViewing is structurally assignable to LeagueOfHeroes
+					// (same base fields), so the negative guard's Exclude produces never.
+					// The cast is logically safe: we've already ruled out both other branches.
+					const bannerEvent = event as unknown as BannerTimelineForViewing
+					const umaBanner = bannerEvent.banner_umas[0]
+					const supportBanner = bannerEvent.banner_supports[0]
+
+					const umaExpired     = !umaBanner     || new Date(bannerEvent.end_date) <= today
+					const supportExpired = !supportBanner || new Date(bannerEvent.end_date) <= today
+					const umaPlanned     = umaBanner     ? plannedBannerIds.has(umaBanner.id)                    : false
+					const supportPlanned = supportBanner ? plannedBannerIds.has(supportBanner.id)                : false
+					const umaStaged      = umaBanner     ? stagedBanner?.banner_uma?.id === umaBanner.id         : false
+					const supportStaged  = supportBanner ? stagedBanner?.banner_support?.id === supportBanner.id : false
+
 					return (
 						<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap">
 							<div className="w-full flex flex-col card-panel p-2 rounded-xl">
 								<div className="w-full flex justify-center text-lg card-section rounded-xl mb-2 font-medium">
-									{format(event.start_date, "MMMM d, yyyy")} through{" "}
-									{format(event.end_date, "MMMM d, yyyy")}
+									{format(bannerEvent.start_date, "MMMM d, yyyy")} through{" "}
+									{format(bannerEvent.end_date, "MMMM d, yyyy")}
 								</div>
 								<div className="flex flex-col items-center md:grid md:grid-cols-[1fr_1fr_1fr]">
 									<img
-										src={event.image}
-										alt={event.name}
+										src={bannerEvent.image}
+										alt={bannerEvent.name}
 										className="border-0 rounded-2xl"
 									/>
-									<div className="flex justify-center p-4 bg-gray-800 rounded-xl md:rounded-none md:rounded-l-xl m-1 h-full w-full">
-										{event.banner_umas[0]?.umas.map((uma, umaIndex) => (
-											<div
-												key={umaIndex}
-												className="flex flex-col items-center justify-between p-1 mx-1 border bg-gray-700 border-gray-600 rounded-xl min-w-1/2"
-											>
-												{uma.recommendation ? (
-													<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
-														{uma.recommendation}
+
+									{/* Uma banner column — single shared border wraps all characters */}
+									<div className="flex flex-col p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-l-xl m-1 h-full w-full gap-3">
+										<div className="flex justify-center flex-1">
+											{umaBanner?.umas.map((uma, umaIndex) => (
+												<div
+													key={umaIndex}
+													className="flex flex-col items-center justify-between p-1 mx-1 min-w-1/2"
+												>
+													{uma.recommendation ? (
+														<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
+															{uma.recommendation}
+														</div>
+													) : (
+														<div className="h-1/6"></div>
+													)}
+													<img src={uma.image} alt={uma.name} />
+													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
+														{uma.name}
 													</div>
-												) : (
-													<div className="h-1/6"></div>
-												)}
-												<img src={uma.image} alt={uma.name} />
-												<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
-													{uma.name}
 												</div>
-											</div>
-										))}
+											))}
+										</div>
+										{umaBanner && (
+											<button
+												onClick={() => handleAddBanner(umaBanner, "Uma")}
+												disabled={umaExpired || umaPlanned || umaStaged}
+												className={`w-full py-1 text-sm rounded-lg font-medium border transition ${
+													umaExpired || umaPlanned || umaStaged
+														? "border-gray-600 text-gray-500 cursor-not-allowed"
+														: "border-brand text-brand hover:bg-brand/10 cursor-pointer"
+												}`}
+											>
+												{umaPlanned ? "Already on sheet" : umaStaged ? "Already staged" : umaExpired ? "Banner ended" : "Add to Planner"}
+											</button>
+										)}
 									</div>
-									<div className="flex justify-center p-4 bg-gray-800 rounded-xl md:rounded-none md:rounded-r-xl m-1 h-full w-full">
-										{event.banner_supports[0]?.support_cards.map(
-											(card, cardIndex) => (
+
+									{/* Support banner column — single shared border wraps all cards */}
+									<div className="flex flex-col p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-r-xl m-1 h-full w-full gap-3">
+										<div className="flex justify-center flex-1">
+											{supportBanner?.support_cards.map((card, cardIndex) => (
 												<div
 													key={cardIndex}
-													className="flex flex-col items-center justify-between p-1 mx-1 border bg-gray-700 border-gray-600 rounded-xl min-w-1/2"
+													className="flex flex-col items-center justify-between p-1 mx-1 min-w-1/2"
 												>
 													{card.recommendation ? (
 														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
@@ -226,7 +311,20 @@ export const Timeline = () => {
 														{card.name}
 													</div>
 												</div>
-											)
+											))}
+										</div>
+										{supportBanner && (
+											<button
+												onClick={() => handleAddBanner(supportBanner, "Support")}
+												disabled={supportExpired || supportPlanned || supportStaged}
+												className={`w-full py-1 text-sm rounded-lg font-medium border transition ${
+													supportExpired || supportPlanned || supportStaged
+														? "border-gray-600 text-gray-500 cursor-not-allowed"
+														: "border-brand text-brand hover:bg-brand/10 cursor-pointer"
+												}`}
+											>
+												{supportPlanned ? "Already on sheet" : supportStaged ? "Already staged" : supportExpired ? "Banner ended" : "Add to Planner"}
+											</button>
 										)}
 									</div>
 								</div>

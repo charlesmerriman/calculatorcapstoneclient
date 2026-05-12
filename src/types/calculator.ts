@@ -78,6 +78,7 @@ export interface CalculatorContextType {
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]
+	stagedBanner: UserPlannedBanner | null
 	timerIsGoing: boolean
 	isDropdown: boolean
 	organizedTimelineData: OrganizedTimelineData
@@ -85,5 +86,6 @@ export interface CalculatorContextType {
 	saveNow: () => Promise<void>
 	setIsDropdown: Dispatch<SetStateAction<boolean>>
 	setUserPlannedBannerData: Dispatch<SetStateAction<UserPlannedBanner[]>>
+	setStagedBanner: Dispatch<SetStateAction<UserPlannedBanner | null>>
 	setUserStatsData: Dispatch<SetStateAction<UserStats | null>>
 }
