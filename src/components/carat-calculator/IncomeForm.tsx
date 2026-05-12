@@ -4,6 +4,7 @@ import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select
 import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Gem, Dumbbell, Ticket, Star, Sparkles } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
+import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
 import type { ClubRank, TeamTrialsRank, ChampionsMeetingRank, LeagueOfHeroesRank } from "../../types"
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -365,23 +366,29 @@ export const IncomeForm = () => {
 					</div>
 				</div>
 
-				{/* ── Average Monthly Income ── */}
-				<div className="card-panel p-3">
-					<h3 className="font-semibold text-sm text-brand mb-3 flex items-center gap-1.5">
-						<TrendingUp className={iconCls} />
-						Average Monthly Income
-					</h3>
-					<div className="grid grid-cols-5 gap-3 items-center">
-						{monthlyItems.map((item) => (
-							<div key={item.label} className="bg-gray-900 border border-gray-700 rounded-xl p-3 flex flex-col items-center gap-1">
-								<span className="text-xs text-gray-400 text-center leading-tight">{item.label}</span>
-								<div className="relative flex items-center justify-center w-full">
-									<span className="absolute left-0 text-brand">{item.icon}</span>
-									<span className="text-2xl font-bold text-brand">{item.value.toLocaleString()}</span>
+				{/* ── Bottom row: Average Monthly Income + Uncap Crystals ── */}
+				<div className="grid grid-cols-[2fr_1fr] gap-4">
+
+					<div className="card-panel p-3">
+						<h3 className="font-semibold text-sm text-brand mb-3 flex items-center justify-center gap-1.5">
+							<TrendingUp className={iconCls} />
+							Average Monthly Income
+						</h3>
+						<div className="grid grid-cols-5 gap-3 items-stretch">
+							{monthlyItems.map((item) => (
+								<div key={item.label} className="bg-gray-900 border border-gray-700 rounded-xl p-3 flex flex-col items-center justify-center gap-1">
+									<span className="text-xs text-gray-400 text-center leading-tight">{item.label}</span>
+									<div className="relative flex items-center justify-center w-full">
+										<span className="absolute left-0 text-brand">{item.icon}</span>
+										<span className="text-2xl font-bold text-brand">{item.value.toLocaleString()}</span>
+									</div>
 								</div>
-							</div>
-						))}
+							))}
+						</div>
 					</div>
+
+					<UncapCrystalsPanel />
+
 				</div>
 
 			</div>
