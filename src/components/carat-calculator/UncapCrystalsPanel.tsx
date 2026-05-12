@@ -65,7 +65,10 @@ export const UncapCrystalsPanel = () => {
 	const bannerOptions: DateOption[] = organizedTimelineData
 		.filter((event): event is BannerTimelineForViewing => "banner_umas" in event)
 		.filter((t) => new Date(t.end_date) >= now)
-		.map((t) => ({ value: t.end_date, label: t.name }))
+		.map((t) => ({
+			value: t.end_date,
+			label: new Date(t.end_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }),
+		}))
 
 	const selectedOption = bannerOptions.find((o) => o.value === selectedEndDate) ?? null
 
