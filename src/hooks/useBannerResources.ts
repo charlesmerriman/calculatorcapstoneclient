@@ -136,12 +136,16 @@ export function useBannerResources({
 			for (const meet of parsedMeetings) {
 				if (meet.parsedDate > lastEndDate && meet.parsedDate <= endDate) {
 					carats += userChampionsMeetingRank?.income_amount ?? 0
+					umaTickets += userChampionsMeetingRank?.uma_ticket_amount ?? 0
+					supportTickets += userChampionsMeetingRank?.support_ticket_amount ?? 0
 				}
 			}
 
 			for (const loh of parsedLoH) {
 				if (loh.parsedDate > lastEndDate && loh.parsedDate <= endDate) {
 					carats += userLeagueOfHeroesRank?.income_amount ?? 0
+					umaTickets += userLeagueOfHeroesRank?.uma_ticket_amount ?? 0
+					supportTickets += userLeagueOfHeroesRank?.support_ticket_amount ?? 0
 				}
 			}
 

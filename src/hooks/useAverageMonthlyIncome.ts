@@ -105,6 +105,10 @@ export function useAverageMonthlyIncome({
 			const date = new Date(meet.end_date)
 			if (date > start && date <= end) {
 				carats += userChampionsMeetingRank?.income_amount ?? 0
+				umaTickets += userChampionsMeetingRank?.uma_ticket_amount ?? 0
+				supportTickets += userChampionsMeetingRank?.support_ticket_amount ?? 0
+				ssrShards += userChampionsMeetingRank?.ssr_shard_amount ?? 0
+				srShards += userChampionsMeetingRank?.sr_shard_amount ?? 0
 			}
 		}
 
@@ -113,6 +117,10 @@ export function useAverageMonthlyIncome({
 			const date = new Date(loh.end_date)
 			if (date > start && date <= end) {
 				carats += userLeagueOfHeroesRank?.income_amount ?? 0
+				umaTickets += userLeagueOfHeroesRank?.uma_ticket_amount ?? 0
+				supportTickets += userLeagueOfHeroesRank?.support_ticket_amount ?? 0
+				ssrShards += userLeagueOfHeroesRank?.ssr_shard_amount ?? 0
+				srShards += userLeagueOfHeroesRank?.sr_shard_amount ?? 0
 			}
 		}
 

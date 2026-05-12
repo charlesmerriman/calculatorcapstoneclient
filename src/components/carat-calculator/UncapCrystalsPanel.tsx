@@ -37,10 +37,26 @@ const CrystalCell = ({
 )
 
 export const UncapCrystalsPanel = () => {
-	const { userStatsData, eventRewardsData, organizedTimelineData } = useCalculatorData()
+	const {
+		userStatsData,
+		eventRewardsData,
+		championsMeetingData,
+		championsMeetingRankData,
+		leagueOfHeroesData,
+		leagueOfHeroesRankData,
+		organizedTimelineData,
+	} = useCalculatorData()
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null)
 
-	const crystals = useUncapCrystals(userStatsData, eventRewardsData, selectedEndDate)
+	const crystals = useUncapCrystals(
+		userStatsData,
+		eventRewardsData,
+		championsMeetingData,
+		championsMeetingRankData,
+		leagueOfHeroesData,
+		leagueOfHeroesRankData,
+		selectedEndDate,
+	)
 
 	const now = new Date()
 

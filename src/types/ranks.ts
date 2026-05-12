@@ -49,10 +49,18 @@ export interface ChampionsMeetingRank {
 	id: number
 	name: string
 	income_amount: number
+	uma_ticket_amount: number
+	support_ticket_amount: number
+	ssr_shard_amount: number
+	sr_shard_amount: number
 }
 
 export interface LeagueOfHeroesRank {
 	id: number
 	name: string
 	income_amount: number
+	uma_ticket_amount: number
+	support_ticket_amount: number
+	ssr_shard_amount: number
+	sr_shard_amount: number
 }
