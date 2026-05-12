@@ -64,9 +64,15 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 		textAlign: "center",
 		width: "100%"
 	}),
+	// menuPortal controls the z-index of the body-attached portal wrapper when
+	// menuPortalTarget={document.body} is set. Without this, the portal renders
+	// at the default stacking level and gets buried behind other elements.
+	menuPortal: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		zIndex: 9999,
+	}),
 	menu: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		zIndex: 50,
 		backgroundColor: "#27272f",
 		border: "1px solid #3c3c46"
 	}),
