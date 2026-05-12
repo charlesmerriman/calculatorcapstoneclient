@@ -73,8 +73,8 @@ export const UncapCrystalsPanel = () => {
 
 			<div className="mt-2 grid grid-cols-2 gap-2">
 				{/* Column headers */}
-				<div className="text-xs text-gray-400 text-center font-semibold">SSR Crystals</div>
-				<div className="text-xs text-gray-400 text-center font-semibold">SR Crystals</div>
+				<div className="text-xs text-gray-400 text-center font-semibold">SSR Crystals/Shards</div>
+				<div className="text-xs text-gray-400 text-center font-semibold">SR Crystals/Shards</div>
 
 				{/* Crystal rows (green) */}
 				<CrystalCell value={crystals.ssrCrystals} selected={!!selectedEndDate} green />

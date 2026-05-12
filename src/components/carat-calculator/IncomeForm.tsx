@@ -113,11 +113,11 @@ export const IncomeForm = () => {
 	)
 
 	const monthlyItems = [
-		{ label: "Monthly Carats", value: monthlyStats.carats, icon: <Gem className={iconCls} /> },
-		{ label: "Monthly Uma Tickets", value: monthlyStats.umaTickets, icon: <Ticket className={iconCls} /> },
-		{ label: "Monthly Support Tickets", value: monthlyStats.supportTickets, icon: <Ticket className={iconCls} /> },
-		{ label: "Monthly SSR Shards", value: monthlyStats.ssrShards, icon: <Star className={iconCls} /> },
-		{ label: "Monthly SR Shards", value: monthlyStats.srShards, icon: <Sparkles className={iconCls} /> },
+		{ label: "Carats", value: monthlyStats.carats, icon: <Gem className={iconCls} /> },
+		{ label: "Uma Tickets", value: monthlyStats.umaTickets, icon: <Ticket className={iconCls} /> },
+		{ label: "Support Tickets", value: monthlyStats.supportTickets, icon: <Ticket className={iconCls} /> },
+		{ label: "SSR Shards", value: monthlyStats.ssrShards, icon: <Star className={iconCls} /> },
+		{ label: "SR Shards", value: monthlyStats.srShards, icon: <Sparkles className={iconCls} /> },
 	]
 
 	return (
@@ -129,11 +129,7 @@ export const IncomeForm = () => {
 
 					{/* Income Sources outer card */}
 					<div className="card-panel p-4">
-						<h2 className="font-bold text-brand text-base mb-4 flex items-center gap-2">
-							<Trophy className={iconCls} />
-							Income Sources
-						</h2>
-						<div className="border border-gray-700 rounded-xl p-4 grid grid-cols-[3fr_auto_2fr] gap-4">
+						<div className="grid grid-cols-[3fr_auto_2fr] gap-4">
 
 							{/* Competitive Progress */}
 							<div>
@@ -369,12 +365,12 @@ export const IncomeForm = () => {
 				{/* ── Bottom row: Average Monthly Income + Uncap Crystals ── */}
 				<div className="grid grid-cols-[2fr_1fr] gap-4">
 
-					<div className="card-panel p-3">
+					<div className="card-panel p-3 flex flex-col">
 						<h3 className="font-semibold text-sm text-brand mb-3 flex items-center justify-center gap-1.5">
 							<TrendingUp className={iconCls} />
 							Average Monthly Income
 						</h3>
-						<div className="grid grid-cols-5 gap-3 items-stretch">
+						<div className="flex-1 grid grid-cols-5 gap-3 items-stretch">
 							{monthlyItems.map((item) => (
 								<div key={item.label} className="bg-gray-900 border border-gray-700 rounded-xl p-3 flex flex-col items-center justify-center gap-1">
 									<span className="text-xs text-gray-400 text-center leading-tight">{item.label}</span>
