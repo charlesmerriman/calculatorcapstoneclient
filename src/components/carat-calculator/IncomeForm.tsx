@@ -3,6 +3,7 @@ import Select from "react-select"
 import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select"
 import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Gem, Dumbbell, Ticket, Star, Sparkles } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
+import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import type { ClubRank, TeamTrialsRank, ChampionsMeetingRank, LeagueOfHeroesRank } from "../../types"
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -82,8 +83,22 @@ export const IncomeForm = () => {
 		teamTrialsRankData,
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
+		eventRewardsData,
+		championsMeetingData,
+		leagueOfHeroesData,
 		setUserStatsData,
 	} = useCalculatorData()
+
+	const monthlyStats = useAverageMonthlyIncome({
+		userStatsData,
+		clubRankData,
+		teamTrialsRankData,
+		championsMeetingRankData,
+		leagueOfHeroesRankData,
+		eventRewardsData,
+		championsMeetingData,
+		leagueOfHeroesData,
+	})
 
 	if (!userStatsData) return null
 
@@ -95,15 +110,6 @@ export const IncomeForm = () => {
 	const leagueOfHeroesRank = leagueOfHeroesRankData.find(
 		(r) => r.id === userStatsData.league_of_heroes_rank,
 	)
-
-	// Placeholder values — calculation logic to be wired up later
-	const monthlyStats = {
-		carats: 0,
-		umaTickets: 0,
-		supportTickets: 0,
-		ssrShards: 0,
-		srShards: 0,
-	}
 
 	const monthlyItems = [
 		{ label: "Monthly Carats", value: monthlyStats.carats, icon: <Gem className={iconCls} /> },
