@@ -131,7 +131,7 @@
 /* ===== THUMBNAILS ===== */
 
 .thumb-banner {
-	@apply h-14 w-14 object-cover rounded-md bg-stone-100;
+	@apply h-14 w-auto object-contain rounded-md;
 }
 
 /* ===== SELECT OVERRIDES ===== */

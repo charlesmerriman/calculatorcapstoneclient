@@ -269,7 +269,7 @@ export const Timeline = () => {
 													) : (
 														<div className="h-1/6"></div>
 													)}
-													<img src={uma.image} alt={uma.name} />
+													<img src={uma.image} alt={uma.name} className="max-h-28 w-auto" />
 													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
 														{uma.name}
 													</div>
@@ -306,7 +306,7 @@ export const Timeline = () => {
 													) : (
 														<div className="h-1/6 p-1 mb-1"></div>
 													)}
-													<img src={card.image} alt={card.name} />
+													<img src={card.image} alt={card.name} className="max-h-28 w-auto" />
 													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
 														{card.name}
 													</div>

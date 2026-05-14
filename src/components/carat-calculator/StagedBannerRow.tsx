@@ -134,6 +134,7 @@ export const StagedBannerRow = ({
 			<div className="w-44 shrink-0 flex items-center justify-center py-2 px-2">
 				<Select<BannerOption>
 					className="w-full"
+					autoFocus
 					styles={{
 						...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
 						menuPortal: (base) => ({ ...base, zIndex: 9999 })
