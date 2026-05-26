@@ -275,15 +275,15 @@ export const Timeline = () => {
 					const supportStatus = getBannerCardStatus(!!supportBanner, supportExpired, supportPlanned, supportStaged)
 					const durationDays = getDurationDays(bannerEvent.start_date, bannerEvent.end_date)
 					const umaFeatureGridClass = umaBanner && umaBanner.umas.length === 1
-						? "sm:grid-cols-1"
-						: "sm:grid-cols-2"
+						? "grid-cols-1"
+						: "grid-cols-2"
 					const supportFeatureGridClass = supportBanner && supportBanner.support_cards.length === 1
-						? "sm:grid-cols-1"
-						: "sm:grid-cols-2"
+						? "grid-cols-1"
+						: "grid-cols-2"
 
 					return (
 						<div key={index} className="my-3 w-full px-2">
-							<div className="card-panel w-full overflow-hidden rounded-xl p-4 sm:p-5">
+							<div className="card-panel w-full overflow-hidden rounded-xl p-2 sm:p-3">
 								<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="flex min-w-0 items-center gap-3">
 										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 text-brand">
@@ -300,7 +300,7 @@ export const Timeline = () => {
 									</div>
 								</div>
 
-								<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(320px,1fr)] xl:items-stretch">
+								<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(260px,0.78fr)] xl:items-stretch">
 									<div className="min-w-0">
 										<img
 											src={bannerEvent.image}
@@ -309,25 +309,25 @@ export const Timeline = () => {
 										/>
 									</div>
 
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-2 py-2.5 shadow-sm xl:overflow-hidden">
-										<div className="mb-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
+										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 											<Sparkles className="h-4 w-4" />
 											<span>Featured Umamusume</span>
 										</div>
-										<div className={`grid flex-1 grid-cols-1 place-items-center content-center gap-2 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
+										<div className={`grid flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
 											{umaBanner?.umas.map((uma, umaIndex) => (
 												<button
 													key={umaIndex}
 													type="button"
 													onClick={() => handleAddBanner(umaBanner, "Uma")}
 													disabled={umaStatus !== "available"}
-													className={`flex w-full min-w-0 max-w-36 flex-col overflow-hidden rounded-lg border border-gray-600 bg-gray-700 text-left shadow-sm transition xl:max-w-[8.25rem] 2xl:max-w-36 ${
+													className={`flex h-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm transition ${
 														umaStatus === "available"
-															? "cursor-pointer hover:border-brand/80 hover:bg-gray-600"
+															? "cursor-pointer hover:bg-gray-600"
 															: "cursor-not-allowed opacity-80"
 													}`}
 												>
-													<div className="relative shrink-0 overflow-hidden bg-gray-800">
+													<div className="relative shrink-0 overflow-hidden bg-gray-700">
 														{uma.recommendation && (
 															<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
 																{uma.recommendation}
@@ -336,14 +336,14 @@ export const Timeline = () => {
 														<img
 															src={uma.image}
 															alt={uma.name}
-															className="block h-auto w-full"
+															className="block h-auto w-full object-contain"
 														/>
 													</div>
-													<div className="flex min-h-0 flex-col gap-2 p-2">
-														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-sm font-semibold leading-tight text-gray-100">
+													<div className="flex flex-1 flex-col gap-1.5 p-1.5">
+														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
 															{uma.name}
 														</div>
-														<div className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(umaStatus)}`}>
+														<div className={`mt-auto flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(umaStatus)}`}>
 															<span className="flex items-center gap-2">
 																<Star className="h-3.5 w-3.5" />
 																{getBannerStatusLabel(umaStatus)}
@@ -361,25 +361,25 @@ export const Timeline = () => {
 										</div>
 									</section>
 
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-2 py-2.5 shadow-sm xl:overflow-hidden">
-										<div className="mb-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
+										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 											<Ticket className="h-4 w-4" />
 											<span>Featured Support Cards</span>
 										</div>
-										<div className={`grid flex-1 grid-cols-1 place-items-center content-center gap-2 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
+										<div className={`grid flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
 											{supportBanner?.support_cards.map((card, cardIndex) => (
 												<button
 													key={cardIndex}
 													type="button"
 													onClick={() => handleAddBanner(supportBanner, "Support")}
 													disabled={supportStatus !== "available"}
-													className={`flex w-full min-w-0 max-w-36 flex-col overflow-hidden rounded-lg border border-gray-600 bg-gray-700 text-left shadow-sm transition xl:max-w-[8.25rem] 2xl:max-w-36 ${
+													className={`flex h-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm transition ${
 														supportStatus === "available"
-															? "cursor-pointer hover:border-brand/80 hover:bg-gray-600"
+															? "cursor-pointer hover:bg-gray-600"
 															: "cursor-not-allowed opacity-80"
 													}`}
 												>
-													<div className="relative flex h-36 shrink-0 items-center justify-center overflow-hidden bg-gray-800 p-2 sm:h-28">
+													<div className="relative shrink-0 overflow-hidden bg-gray-700">
 														{card.recommendation && (
 															<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
 																{card.recommendation}
@@ -388,14 +388,14 @@ export const Timeline = () => {
 														<img
 															src={card.image}
 															alt={card.name}
-															className="max-h-28 max-w-full w-auto object-contain"
+															className="block h-auto w-full object-contain"
 														/>
 													</div>
-													<div className="flex min-h-0 flex-col gap-2 p-2">
-														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-sm font-semibold leading-tight text-gray-100">
+													<div className="flex flex-1 flex-col gap-1.5 p-1.5">
+														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
 															{card.name}
 														</div>
-														<div className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(supportStatus)}`}>
+														<div className={`mt-auto flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(supportStatus)}`}>
 															<span className="flex items-center gap-2">
 																<Ticket className="h-3.5 w-3.5" />
 																{getBannerStatusLabel(supportStatus)}
