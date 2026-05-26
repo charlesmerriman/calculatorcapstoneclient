@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { format } from "date-fns"
+import { differenceInCalendarDays, format } from "date-fns"
+import { CalendarDays, ChevronRight, Clock3, Sparkles, Star, Ticket } from "lucide-react"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import type {
@@ -12,6 +13,8 @@ import type {
 } from "../../types"
 
 const PAGE_SIZE = 10
+
+type BannerCardStatus = "available" | "planned" | "staged" | "expired"
 
 function isChampionsMeeting(
 	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
@@ -49,6 +52,35 @@ function eventMatchesSearch(
 		}
 	}
 	return false
+}
+
+function getBannerCardStatus(
+	hasBanner: boolean,
+	expired: boolean,
+	planned: boolean,
+	staged: boolean
+): BannerCardStatus {
+	if (!hasBanner || expired) return "expired"
+	if (planned) return "planned"
+	if (staged) return "staged"
+	return "available"
+}
+
+function getBannerStatusLabel(status: BannerCardStatus): string {
+	if (status === "planned") return "Already on sheet"
+	if (status === "staged") return "Already staged"
+	if (status === "expired") return "Banner ended"
+	return "Add to Planner"
+}
+
+function getBannerStatusClasses(status: BannerCardStatus): string {
+	if (status === "available") return "border-brand text-brand hover:bg-brand/10"
+	if (status === "planned" || status === "staged") return "border-gray-600 text-gray-300"
+	return "border-gray-600 text-gray-500"
+}
+
+function getDurationDays(startDate: string, endDate: string): number {
+	return differenceInCalendarDays(new Date(endDate), new Date(startDate)) + 1
 }
 
 export const Timeline = () => {
@@ -239,94 +271,147 @@ export const Timeline = () => {
 					const supportPlanned = supportBanner ? plannedBannerIds.has(supportBanner.id)                : false
 					const umaStaged      = umaBanner     ? stagedBanner?.banner_uma?.id === umaBanner.id         : false
 					const supportStaged  = supportBanner ? stagedBanner?.banner_support?.id === supportBanner.id : false
+					const umaStatus = getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)
+					const supportStatus = getBannerCardStatus(!!supportBanner, supportExpired, supportPlanned, supportStaged)
+					const durationDays = getDurationDays(bannerEvent.start_date, bannerEvent.end_date)
+					const umaFeatureGridClass = umaBanner && umaBanner.umas.length === 1
+						? "sm:grid-cols-1"
+						: "sm:grid-cols-2"
+					const supportFeatureGridClass = supportBanner && supportBanner.support_cards.length === 1
+						? "sm:grid-cols-1"
+						: "sm:grid-cols-2"
 
 					return (
-						<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap">
-							<div className="w-full flex flex-col card-panel p-2 rounded-xl">
-								<div className="w-full flex justify-center text-center text-sm sm:text-lg card-section rounded-xl mb-2 font-medium">
-									{format(bannerEvent.start_date, "MMMM d, yyyy")} through{" "}
-									{format(bannerEvent.end_date, "MMMM d, yyyy")}
+						<div key={index} className="my-3 w-full px-2">
+							<div className="card-panel w-full overflow-hidden rounded-xl p-4 sm:p-5">
+								<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 text-brand">
+											<CalendarDays className="h-5 w-5" />
+										</div>
+										<div className="min-w-0 text-xl font-semibold text-gray-100 sm:text-2xl">
+											{format(bannerEvent.start_date, "MMMM d, yyyy")} through{" "}
+											{format(bannerEvent.end_date, "MMMM d, yyyy")}
+										</div>
+									</div>
+									<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-semibold text-gray-100">
+										<span>{durationDays} Days</span>
+										<Clock3 className="h-4 w-4 text-brand" />
+									</div>
 								</div>
-								<div className="flex flex-col items-center md:grid md:grid-cols-[1fr_1fr_1fr]">
-									<img
-										src={bannerEvent.image}
-										alt={bannerEvent.name}
-										className="max-w-full h-auto border-0 rounded-2xl"
-									/>
 
-									{/* Uma banner column — single shared border wraps all characters */}
-									<div className="flex flex-col p-3 sm:p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-l-xl my-2 md:m-1 h-full w-full gap-3">
-										<div className="flex justify-center flex-1">
+								<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(320px,1fr)] xl:items-stretch">
+									<div className="min-w-0">
+										<img
+											src={bannerEvent.image}
+											alt={bannerEvent.name}
+											className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+										/>
+									</div>
+
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-2 py-2.5 shadow-sm xl:overflow-hidden">
+										<div className="mb-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
+											<Sparkles className="h-4 w-4" />
+											<span>Featured Umamusume</span>
+										</div>
+										<div className={`grid flex-1 grid-cols-1 place-items-center content-center gap-2 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
 											{umaBanner?.umas.map((uma, umaIndex) => (
-												<div
+												<button
 													key={umaIndex}
-													className="flex min-w-0 flex-1 flex-col items-center justify-between p-1 mx-1"
+													type="button"
+													onClick={() => handleAddBanner(umaBanner, "Uma")}
+													disabled={umaStatus !== "available"}
+													className={`flex w-full min-w-0 max-w-36 flex-col overflow-hidden rounded-lg border border-gray-600 bg-gray-700 text-left shadow-sm transition xl:max-w-[8.25rem] 2xl:max-w-36 ${
+														umaStatus === "available"
+															? "cursor-pointer hover:border-brand/80 hover:bg-gray-600"
+															: "cursor-not-allowed opacity-80"
+													}`}
 												>
-													{uma.recommendation ? (
-														<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
-															{uma.recommendation}
-														</div>
-													) : (
-														<div className="h-1/6"></div>
-													)}
-													<img src={uma.image} alt={uma.name} className="max-h-28 max-w-full w-auto" />
-													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
-														{uma.name}
+													<div className="relative shrink-0 overflow-hidden bg-gray-800">
+														{uma.recommendation && (
+															<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
+																{uma.recommendation}
+															</div>
+														)}
+														<img
+															src={uma.image}
+															alt={uma.name}
+															className="block h-auto w-full"
+														/>
 													</div>
-												</div>
+													<div className="flex min-h-0 flex-col gap-2 p-2">
+														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-sm font-semibold leading-tight text-gray-100">
+															{uma.name}
+														</div>
+														<div className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(umaStatus)}`}>
+															<span className="flex items-center gap-2">
+																<Star className="h-3.5 w-3.5" />
+																{getBannerStatusLabel(umaStatus)}
+															</span>
+															{umaStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
+														</div>
+													</div>
+												</button>
 											))}
+											{!umaBanner && (
+												<div className="flex min-h-40 w-full items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
+													No Umamusume banner in this window.
+												</div>
+											)}
 										</div>
-										{umaBanner && (
-											<button
-												onClick={() => handleAddBanner(umaBanner, "Uma")}
-												disabled={umaExpired || umaPlanned || umaStaged}
-												className={`w-full py-1 text-sm rounded-lg font-medium border transition ${
-													umaExpired || umaPlanned || umaStaged
-														? "border-gray-600 text-gray-500 cursor-not-allowed"
-														: "border-brand text-brand hover:bg-brand/10 cursor-pointer"
-												}`}
-											>
-												{umaPlanned ? "Already on sheet" : umaStaged ? "Already staged" : umaExpired ? "Banner ended" : "Add to Planner"}
-											</button>
-										)}
-									</div>
+									</section>
 
-									{/* Support banner column — single shared border wraps all cards */}
-									<div className="flex flex-col p-3 sm:p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-r-xl my-2 md:m-1 h-full w-full gap-3">
-										<div className="flex justify-center flex-1">
-											{supportBanner?.support_cards.map((card, cardIndex) => (
-												<div
-													key={cardIndex}
-													className="flex min-w-0 flex-1 flex-col items-center justify-between p-1 mx-1"
-												>
-													{card.recommendation ? (
-														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
-															{card.recommendation}
-														</div>
-													) : (
-														<div className="h-1/6 p-1 mb-1"></div>
-													)}
-													<img src={card.image} alt={card.name} className="max-h-28 max-w-full w-auto" />
-													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
-														{card.name}
-													</div>
-												</div>
-											))}
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-2 py-2.5 shadow-sm xl:overflow-hidden">
+										<div className="mb-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
+											<Ticket className="h-4 w-4" />
+											<span>Featured Support Cards</span>
 										</div>
-										{supportBanner && (
-											<button
-												onClick={() => handleAddBanner(supportBanner, "Support")}
-												disabled={supportExpired || supportPlanned || supportStaged}
-												className={`w-full py-1 text-sm rounded-lg font-medium border transition ${
-													supportExpired || supportPlanned || supportStaged
-														? "border-gray-600 text-gray-500 cursor-not-allowed"
-														: "border-brand text-brand hover:bg-brand/10 cursor-pointer"
-												}`}
-											>
-												{supportPlanned ? "Already on sheet" : supportStaged ? "Already staged" : supportExpired ? "Banner ended" : "Add to Planner"}
-											</button>
-										)}
-									</div>
+										<div className={`grid flex-1 grid-cols-1 place-items-center content-center gap-2 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
+											{supportBanner?.support_cards.map((card, cardIndex) => (
+												<button
+													key={cardIndex}
+													type="button"
+													onClick={() => handleAddBanner(supportBanner, "Support")}
+													disabled={supportStatus !== "available"}
+													className={`flex w-full min-w-0 max-w-36 flex-col overflow-hidden rounded-lg border border-gray-600 bg-gray-700 text-left shadow-sm transition xl:max-w-[8.25rem] 2xl:max-w-36 ${
+														supportStatus === "available"
+															? "cursor-pointer hover:border-brand/80 hover:bg-gray-600"
+															: "cursor-not-allowed opacity-80"
+													}`}
+												>
+													<div className="relative flex h-36 shrink-0 items-center justify-center overflow-hidden bg-gray-800 p-2 sm:h-28">
+														{card.recommendation && (
+															<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
+																{card.recommendation}
+															</div>
+														)}
+														<img
+															src={card.image}
+															alt={card.name}
+															className="max-h-28 max-w-full w-auto object-contain"
+														/>
+													</div>
+													<div className="flex min-h-0 flex-col gap-2 p-2">
+														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-sm font-semibold leading-tight text-gray-100">
+															{card.name}
+														</div>
+														<div className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(supportStatus)}`}>
+															<span className="flex items-center gap-2">
+																<Ticket className="h-3.5 w-3.5" />
+																{getBannerStatusLabel(supportStatus)}
+															</span>
+															{supportStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
+														</div>
+													</div>
+												</button>
+											))}
+											{!supportBanner && (
+												<div className="flex min-h-40 w-full items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
+													No support banner in this window.
+												</div>
+											)}
+										</div>
+									</section>
 								</div>
 							</div>
 						</div>
