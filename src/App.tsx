@@ -7,26 +7,29 @@ import { Register } from "./components/auth/Register.js"
 import { Authorized } from "./views/Authorized.js"
 import { CalculatorProvider } from "./services/CalculatorProvider.js"
 import { ErrorBoundary } from "./components/ErrorBoundary.js"
+import { ThemeProvider } from "./services/ThemeProvider.js"
 
 function App() {
 	return (
-		<ErrorBoundary>
-			<Toaster theme="dark" position="bottom-right" richColors />
-			<Routes>
-				<Route path="/login" element={<Login />} />
-				<Route path="/register" element={<Register />} />
-				<Route
-					path="*"
-					element={
-						<Authorized>
-							<CalculatorProvider>
-								<ApplicationViews />
-							</CalculatorProvider>
-						</Authorized>
-					}
-				/>
-			</Routes>
-		</ErrorBoundary>
+		<ThemeProvider>
+			<ErrorBoundary>
+				<Toaster theme="dark" position="bottom-right" richColors />
+				<Routes>
+					<Route path="/login" element={<Login />} />
+					<Route path="/register" element={<Register />} />
+					<Route
+						path="*"
+						element={
+							<Authorized>
+								<CalculatorProvider>
+									<ApplicationViews />
+								</CalculatorProvider>
+							</Authorized>
+						}
+					/>
+				</Routes>
+			</ErrorBoundary>
+		</ThemeProvider>
 	)
 }
 
