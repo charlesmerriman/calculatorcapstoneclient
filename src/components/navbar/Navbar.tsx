@@ -1,18 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { CalendarDays, Calculator as CalculatorIcon, ChevronDown, LogOut, Save, UserRound } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { userLogout } from "../../services/userServices"
 import { IncomeForm } from "../carat-calculator/IncomeForm"
+import { ThemePicker } from "./ThemePicker"
 
 export const Navbar = () => {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const { timerIsGoing, saveNow, handleDropDownToggle, isDropdown, setIsDropdown } = useCalculatorData()
 
-	const incomeButtonRef = useRef<HTMLButtonElement>(null)
-	const [caretLeft, setCaretLeft] = useState<number>(0)
 	const [isMobile, setIsMobile] = useState(() =>
 		typeof window !== "undefined"
 			? window.matchMedia("(max-width: 767px)").matches
@@ -20,13 +19,6 @@ export const Navbar = () => {
 	)
 	// True only when the panel open/close was triggered by a user click — not by navigation
 	const [animatePanel, setAnimatePanel] = useState(false)
-
-	const updateCaretPosition = () => {
-		if (incomeButtonRef.current) {
-			const rect = incomeButtonRef.current.getBoundingClientRect()
-			setCaretLeft(rect.left + rect.width / 2)
-		}
-	}
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(max-width: 767px)")
@@ -37,22 +29,12 @@ export const Navbar = () => {
 		return () => mediaQuery.removeEventListener("change", handleChange)
 	}, [])
 
-	useEffect(() => {
-		if (isDropdown && !isMobile) updateCaretPosition()
-	}, [isDropdown, isMobile])
-
 	// useLayoutEffect (not useEffect) so this runs before the browser paints —
 	// prevents a visible frame where the income form is missing on navigation to "/"
 	useLayoutEffect(() => {
 		setAnimatePanel(false)
 		setIsDropdown(location.pathname === "/" && !isMobile)
 	}, [isMobile, location.pathname, setIsDropdown])
-
-	useEffect(() => {
-		if (!isDropdown || isMobile) return
-		window.addEventListener("resize", updateCaretPosition)
-		return () => window.removeEventListener("resize", updateCaretPosition)
-	}, [isDropdown, isMobile])
 
 	const handleLogout = async (): Promise<void> => {
 		try {
@@ -107,6 +89,7 @@ export const Navbar = () => {
 								</button>
 							)}
 						</div>
+						<ThemePicker />
 						<button
 							onClick={handleLogout}
 							aria-label="Logout"
@@ -138,7 +121,7 @@ export const Navbar = () => {
 				</div>
 			</nav>
 
-			<nav className="hidden grid-cols-[auto_1fr_auto] items-center px-5 bg-gray-900 border-b border-gray-700 h-14 md:grid">
+			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-900 border-b border-gray-700 h-14 md:grid">
 				{/* Left: Branding */}
 				<div className="flex flex-col justify-center leading-tight select-none">
 					<span className="font-bold text-brand text-base">UMA PLANNER</span>
@@ -164,7 +147,6 @@ export const Navbar = () => {
 					</Link>
 
 					<button
-						ref={incomeButtonRef}
 						onClick={handleIncomeToggle}
 						className={`${desktopNavClass(isDropdown)} cursor-pointer`}
 					>
@@ -174,8 +156,8 @@ export const Navbar = () => {
 					</button>
 				</div>
 
-				{/* Right: Save indicator + Logout */}
-				<div className="flex items-center gap-3">
+				{/* Right: Save indicator + Theme Picker + Logout */}
+				<div className="flex items-center justify-end gap-3">
 					{/* Fixed-width slot keeps the right grid column stable so the center nav links don't shift */}
 					<div className="w-9 h-9 flex items-center justify-center">
 						{timerIsGoing && (
@@ -188,6 +170,7 @@ export const Navbar = () => {
 							</button>
 						)}
 					</div>
+					<ThemePicker />
 					<button
 						onClick={handleLogout}
 						className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:text-white transition"
@@ -205,22 +188,6 @@ export const Navbar = () => {
 				transition={animatePanel ? { duration: 0.2, ease: "easeInOut" } : { duration: 0 }}
 				style={{ overflow: "hidden" }}
 			>
-				{/* Orange pointer caret anchored under the Income button */}
-				<div className="relative hidden h-0 bg-gray-900 md:block">
-					<div
-						className="absolute z-10"
-						style={{
-							left: caretLeft,
-							top: 0,
-							transform: "translateX(-50%)",
-							width: 0,
-							height: 0,
-							borderLeft: "9px solid transparent",
-							borderRight: "9px solid transparent",
-							borderBottom: "9px solid #E6D28A",
-						}}
-					/>
-				</div>
 				<IncomeForm />
 			</motion.div>
 		</div>

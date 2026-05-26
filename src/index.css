@@ -15,3 +15,48 @@
 	--color-gray-950: #08080c;
 }
 
+/* ===== THEME OVERRIDES =====
+   Tailwind CSS 4 compiles @theme tokens to CSS variables at :root, and utility
+   classes like bg-gray-900 reference var(--color-gray-900) at runtime. Overriding
+   these variables under [data-theme="x"] on <html> repaints the whole app.
+
+   To add a new theme:
+   1. Add a [data-theme="x"] block here
+   2. Add one entry to the THEMES array in src/services/ThemeProvider.tsx
+*/
+
+[data-theme="gold"] {
+	/* Default palette — grays inherit from @theme above */
+	--color-brand: #E6D28A;
+}
+
+[data-theme="violet"] {
+	--color-brand: #C4B5FD;
+	--color-gray-50:  #f5f4fa;
+	--color-gray-100: #eeedf5;
+	--color-gray-200: #d6d4e4;
+	--color-gray-300: #b5b2cc;
+	--color-gray-400: #8a86a8;
+	--color-gray-500: #5e5a7c;
+	--color-gray-600: #3a364f;
+	--color-gray-700: #252235;
+	--color-gray-800: #18162a;
+	--color-gray-900: #0e0c1a;
+	--color-gray-950: #070510;
+}
+
+[data-theme="teal"] {
+	--color-brand: #5EEAD4;
+	--color-gray-50:  #f2faf9;
+	--color-gray-100: #e6f4f2;
+	--color-gray-200: #c9e7e3;
+	--color-gray-300: #a0cfc9;
+	--color-gray-400: #6aada5;
+	--color-gray-500: #3d7d77;
+	--color-gray-600: #254d4a;
+	--color-gray-700: #183432;
+	--color-gray-800: #102221;
+	--color-gray-900: #091514;
+	--color-gray-950: #040c0b;
+}
+
