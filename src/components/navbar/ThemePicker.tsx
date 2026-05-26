@@ -25,7 +25,7 @@ export const ThemePicker = () => {
 				onClick={() => setOpen((prev) => !prev)}
 				aria-label="Change color theme"
 				title="Change color theme"
-				className="flex h-9 w-9 items-center justify-center rounded border border-gray-700 text-gray-300 transition hover:border-gray-500 hover:bg-gray-800 hover:text-white"
+				className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-white"
 			>
 				<Palette className="h-4 w-4" />
 			</button>

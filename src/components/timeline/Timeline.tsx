@@ -1,6 +1,16 @@
 import { useState } from "react"
 import { differenceInCalendarDays, format } from "date-fns"
-import { CalendarDays, ChevronRight, Clock3, Sparkles, Star, Ticket } from "lucide-react"
+import {
+	CalendarDays,
+	ChevronLeft,
+	ChevronRight,
+	Clock3,
+	History,
+	Search,
+	Sparkles,
+	Star,
+	Ticket,
+} from "lucide-react"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import type {
@@ -13,8 +23,55 @@ import type {
 } from "../../types"
 
 const PAGE_SIZE = 10
+const controlButtonClass =
+	"inline-flex min-h-10 items-center justify-center gap-2 rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-100 shadow-sm transition hover:border-gray-500 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-45 md:min-h-0 md:py-1.5"
+const paginationButtonClass = `${controlButtonClass} min-w-28`
+const pageIndicatorClass =
+	"inline-flex min-h-10 items-center justify-center rounded border border-gray-700 bg-gray-950/50 px-4 py-2 text-sm font-semibold text-gray-200 shadow-inner md:min-h-0 md:py-1.5"
+const searchInputClass =
+	"w-full rounded border border-gray-600 bg-gray-800 py-2 pl-9 pr-3 text-sm text-gray-100 shadow-sm placeholder:text-gray-400 transition focus:border-gray-500 focus:bg-gray-800 focus:outline-none md:py-1.5"
 
 type BannerCardStatus = "available" | "planned" | "staged" | "expired"
+
+type PaginationControlsProps = {
+	currentPage: number
+	totalPages: number
+	onPrevious: () => void
+	onNext: () => void
+}
+
+function PaginationControls({
+	currentPage,
+	totalPages,
+	onPrevious,
+	onNext,
+}: PaginationControlsProps) {
+	return (
+		<div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+			<button
+				type="button"
+				className={paginationButtonClass}
+				disabled={currentPage === 1}
+				onClick={onPrevious}
+			>
+				<ChevronLeft className="h-4 w-4" />
+				Previous
+			</button>
+			<span className={pageIndicatorClass}>
+				Page <span className="mx-1 text-brand">{currentPage}</span> of {totalPages}
+			</span>
+			<button
+				type="button"
+				className={paginationButtonClass}
+				disabled={currentPage === totalPages}
+				onClick={onNext}
+			>
+				Next
+				<ChevronRight className="h-4 w-4" />
+			</button>
+		</div>
+	)
+}
 
 function isChampionsMeeting(
 	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
@@ -147,47 +204,41 @@ export const Timeline = () => {
 	)
 
 	return (
-		<div className="page-container pb-6">
-			<div className="grid grid-cols-1 items-stretch gap-3 px-3 pt-4 pb-2 md:grid-cols-3 md:items-center md:px-2 md:pt-6">
-				<button
-					className="w-full justify-self-start rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:py-1"
-					onClick={() => { setShowPast((prev) => !prev); setCurrentPage(1) }}
-				>
-					{showPast ? "Show current/future events" : "Show past events"}
-				</button>
-				{totalPages > 1 ? (
-					<div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-						<button
-							className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
-							disabled={currentPage === 1}
-							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-						>
-							Previous
-						</button>
-						<span className="text-sm font-medium text-gray-100">
-							Page {currentPage} of {totalPages}
-						</span>
-						<button
-							className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
-							disabled={currentPage === totalPages}
-							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-						>
-							Next
-						</button>
+		<div className="w-full bg-gray-900 pb-6">
+			<div className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+				<div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
+					<button
+						type="button"
+						className={`${controlButtonClass} w-full justify-self-start md:w-auto`}
+						onClick={() => { setShowPast((prev) => !prev); setCurrentPage(1) }}
+					>
+						<History className="h-4 w-4 text-brand" />
+						{showPast ? "Show current/future events" : "Show past events"}
+					</button>
+					{totalPages > 1 ? (
+						<PaginationControls
+							currentPage={currentPage}
+							totalPages={totalPages}
+							onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+						/>
+					) : <div />}
+					<div className="flex justify-end">
+						<div className="relative w-full md:w-64">
+							<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<input
+								type="text"
+								className={searchInputClass}
+								placeholder="Search characters or events..."
+								value={searchQuery}
+								onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+							/>
+						</div>
 					</div>
-				) : <div />}
-				<div className="flex justify-end">
-					<input
-						type="text"
-						className="w-full rounded border border-gray-600 bg-gray-700 px-2 py-2 text-sm text-gray-100 focus:border-gray-500 focus:outline-none md:w-64 md:py-1"
-						placeholder="Search characters or events..."
-						value={searchQuery}
-						onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-					/>
 				</div>
 			</div>
 
-			<div className="flex flex-col items-center">
+			<div className="page-container flex flex-col items-center">
 				{pagedEvents.length === 0 && (
 					<div className="text-gray-500 mt-8">No events found.</div>
 				)}
@@ -420,24 +471,13 @@ export const Timeline = () => {
 			</div>
 
 			{totalPages > 1 && (
-				<div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-					<button
-						className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
-						disabled={currentPage === 1}
-						onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-					>
-						Previous
-					</button>
-					<span className="text-sm font-medium text-gray-100">
-						Page {currentPage} of {totalPages}
-					</span>
-					<button
-						className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
-						disabled={currentPage === totalPages}
-						onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-					>
-						Next
-					</button>
+				<div className="mx-auto mt-2 w-fit max-w-[calc(100%-1.5rem)] rounded-lg border border-gray-700/60 bg-gray-950/40 px-3 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+					<PaginationControls
+						currentPage={currentPage}
+						totalPages={totalPages}
+						onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
+						onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+					/>
 				</div>
 			)}
 		</div>

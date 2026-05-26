@@ -69,7 +69,7 @@ export const Navbar = () => {
 
 	return (
 		<div className="z-50 shrink-0">
-			<nav className="bg-gray-900 border-b border-gray-700 md:hidden">
+			<nav className="bg-gray-800 border-b border-gray-600 md:hidden">
 				<div className="flex h-14 items-center justify-between gap-3 px-3">
 					<div className="flex min-w-0 flex-col justify-center leading-tight select-none">
 						<span className="truncate text-base font-bold text-brand">UMA PLANNER</span>
@@ -83,7 +83,7 @@ export const Navbar = () => {
 									onClick={saveNow}
 									aria-label="Save now"
 									title="Click to save now"
-									className="flex h-9 w-9 items-center justify-center rounded border border-gray-700 text-brand transition hover:border-brand/70 hover:bg-gray-800"
+									className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-brand transition hover:border-brand/70 hover:bg-gray-700"
 								>
 									<Save className="h-4 w-4" />
 								</button>
@@ -94,7 +94,7 @@ export const Navbar = () => {
 							onClick={handleLogout}
 							aria-label="Logout"
 							title="Logout"
-							className="flex h-9 w-9 items-center justify-center rounded border border-gray-700 text-gray-300 transition hover:border-gray-500 hover:bg-gray-800 hover:text-white"
+							className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-white"
 						>
 							<LogOut className="h-4 w-4" />
 						</button>
@@ -121,7 +121,7 @@ export const Navbar = () => {
 				</div>
 			</nav>
 
-			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-900 border-b border-gray-700 h-14 md:grid">
+			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 md:grid">
 				{/* Left: Branding */}
 				<div className="flex flex-col justify-center leading-tight select-none">
 					<span className="font-bold text-brand text-base">UMA PLANNER</span>
@@ -173,7 +173,7 @@ export const Navbar = () => {
 					<ThemePicker />
 					<button
 						onClick={handleLogout}
-						className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:text-white transition"
+						className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
 					>
 						<UserRound className="w-4 h-4" />
 						Logout
