@@ -7,10 +7,11 @@ const STORAGE_KEY = "uma-planner-theme"
 const DEFAULT_THEME = "gold"
 
 // To add a new theme: add one entry here AND add a [data-theme="x"] block in index.css
-export const THEMES: ThemeConfig[] = [
-	{ id: "gold",   label: "Default", swatch: "#E6D28A" },
-	{ id: "violet", label: "Violet", swatch: "#C4B5FD" },
-	{ id: "teal",   label: "Teal",   swatch: "#5EEAD4" },
+const THEMES: ThemeConfig[] = [
+	{ id: "gold",     label: "Default",  swatch: "#E6D28A" },
+	{ id: "midnight", label: "Midnight", swatch: "#F6C84F" },
+	{ id: "violet",   label: "Violet",   swatch: "#C4B5FD" },
+	{ id: "teal",     label: "Teal",     swatch: "#5EEAD4" },
 ]
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {

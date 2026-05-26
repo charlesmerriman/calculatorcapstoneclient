@@ -30,6 +30,21 @@
 	--color-brand: #E6D28A;
 }
 
+[data-theme="midnight"] {
+	--color-brand: #F6C84F;
+	--color-gray-50:  #f4f7fb;
+	--color-gray-100: #e8edf5;
+	--color-gray-200: #cfd8e6;
+	--color-gray-300: #aebbd0;
+	--color-gray-400: #7f8da8;
+	--color-gray-500: #556276;
+	--color-gray-600: #354154;
+	--color-gray-700: #20293a;
+	--color-gray-800: #121a2a;
+	--color-gray-900: #08111f;
+	--color-gray-950: #040a14;
+}
+
 [data-theme="violet"] {
 	--color-brand: #C4B5FD;
 	--color-gray-50:  #f5f4fa;
@@ -59,4 +74,3 @@
 	--color-gray-900: #091514;
 	--color-gray-950: #040c0b;
 }
-
