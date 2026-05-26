@@ -9,9 +9,9 @@ export const ApplicationViews = () => {
 			<Route
 				path="/"
 				element={
-					<div className="flex flex-col h-screen overflow-hidden">
+					<div className="flex min-h-dvh flex-col bg-gray-900 md:h-dvh md:overflow-hidden">
 						<Navbar />
-						<div className="flex-1 overflow-y-auto">
+						<div className="min-h-0 flex-1 overflow-y-auto">
 							<Outlet />
 						</div>
 					</div>

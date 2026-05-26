@@ -100,17 +100,17 @@ export const CaratCalculator: React.FC = () => {
 
 	return (
 		<div className="page-container">
-			<div className="flex mx-4 flex-col items-center gap-1.5">
+			<div className="flex mx-2 flex-col items-center gap-1.5 sm:mx-4">
 				<div className="w-full border border-gray-600 rounded-lg shadow-sm overflow-hidden mt-2 pb-4">
 					{/* Add banner buttons */}
-					<div className="flex w-full py-4 gap-4 px-4">
+					<div className="flex w-full flex-col gap-3 px-3 py-4 sm:flex-row sm:gap-4 sm:px-4">
 						<button
 							className="flex-1 py-2.5 rounded-lg bg-brand text-black font-medium hover:bg-brand/90 transition"
 							onClick={() => handleAddBanner("Uma")}
 						>
 							⊕ Add Uma Banner
 						</button>
-						<div className="w-px bg-gray-700 self-stretch" />
+						<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
 						<button
 							className="flex-1 py-2.5 rounded-lg border border-brand text-brand bg-transparent font-medium hover:bg-brand/10 transition"
 							onClick={() => handleAddBanner("Support")}
@@ -128,7 +128,7 @@ export const CaratCalculator: React.FC = () => {
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: -6 }}
 								transition={{ duration: 0.18 }}
-								className="mx-4"
+								className="mx-3 sm:mx-4"
 							>
 								{showSectionLabels && (
 									<div className="flex items-center gap-2 pb-2 px-1">
@@ -136,7 +136,7 @@ export const CaratCalculator: React.FC = () => {
 										<div className="flex-1 h-px bg-amber-400/20" />
 									</div>
 								)}
-								<div className="flex w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5">
+								<div className="hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 md:flex">
 									<div className="w-17.5 shrink-0 text-center">Type</div>
 									<div className="w-36 shrink-0 text-center">Images</div>
 									<div className="w-44 shrink-0 text-center">Banner</div>
@@ -161,14 +161,14 @@ export const CaratCalculator: React.FC = () => {
 
 					{/* Confirmed banner sheet */}
 					{userPlannedBannerData.length > 0 && (
-						<div className="mx-4">
+						<div className="mx-3 sm:mx-4">
 							{showSectionLabels && (
 								<div className="flex items-center gap-2 pt-3 pb-2 px-1">
 									<span className="text-xs font-semibold text-brand uppercase tracking-wider">Sheet</span>
 									<div className="flex-1 h-px bg-brand/20" />
 								</div>
 							)}
-							<div className="flex w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5">
+							<div className="hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 md:flex">
 								<div className="w-17.5 shrink-0 text-center">Type</div>
 								<div className="w-36 shrink-0 text-center">Images</div>
 								<div className="w-44 shrink-0 text-center">Banner</div>
@@ -178,7 +178,7 @@ export const CaratCalculator: React.FC = () => {
 								<div className="flex-1 text-center">% Chance to MLB (5x Copies)</div>
 								<div className="w-10 shrink-0 text-center"></div>
 							</div>
-							<div className="divide-y divide-gray-700">
+							<div className="space-y-3 md:space-y-0 md:divide-y md:divide-gray-700">
 								<AnimatePresence initial={false}>
 									{userPlannedBannerData.map((plannedBanner, index) => {
 										const resources = bannerResources[index] ?? {

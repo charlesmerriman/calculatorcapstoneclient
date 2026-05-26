@@ -116,17 +116,17 @@ export const Timeline = () => {
 
 	return (
 		<div className="page-container pb-6">
-			<div className="grid grid-cols-3 items-center mt-6 mb-2 px-2 gap-4">
+			<div className="grid grid-cols-1 items-stretch gap-3 px-3 pt-4 pb-2 md:grid-cols-3 md:items-center md:px-2 md:pt-6">
 				<button
-					className="justify-self-start px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+					className="w-full justify-self-start rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:py-1"
 					onClick={() => { setShowPast((prev) => !prev); setCurrentPage(1) }}
 				>
 					{showPast ? "Show current/future events" : "Show past events"}
 				</button>
 				{totalPages > 1 ? (
-					<div className="flex justify-center items-center gap-4">
+					<div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
 						<button
-							className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
 							disabled={currentPage === 1}
 							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
 						>
@@ -136,7 +136,7 @@ export const Timeline = () => {
 							Page {currentPage} of {totalPages}
 						</span>
 						<button
-							className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
 							disabled={currentPage === totalPages}
 							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
 						>
@@ -147,7 +147,7 @@ export const Timeline = () => {
 				<div className="flex justify-end">
 					<input
 						type="text"
-						className="w-64 px-2 py-1 text-sm rounded border border-gray-600 bg-gray-700 text-gray-100 focus:outline-none focus:border-gray-500"
+						className="w-full rounded border border-gray-600 bg-gray-700 px-2 py-2 text-sm text-gray-100 focus:border-gray-500 focus:outline-none md:w-64 md:py-1"
 						placeholder="Search characters or events..."
 						value={searchQuery}
 						onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
@@ -162,14 +162,14 @@ export const Timeline = () => {
 				{pagedEvents.map((event, index) => {
 					if (isChampionsMeeting(event)) {
 						return (
-							<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap font-medium text-lg">
+							<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
 								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex justify-center text-lg card-section rounded-xl font-medium">
+									<div className="w-full flex justify-center text-center text-sm sm:text-lg card-section rounded-xl font-medium">
 										{format(event.start_date, "MMMM d, yyyy")} through{" "}
 										{format(event.end_date, "MMMM d, yyyy")}
 									</div>
 									<div className="text-gray-100">Images are placeholders</div>
-									<img src={event.image} alt={event.name} />
+									<img src={event.image} alt={event.name} className="max-w-full h-auto" />
 									<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
 										<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
 											<div>{event.track}</div>
@@ -182,25 +182,25 @@ export const Timeline = () => {
 											<div>{event.weather}</div>
 										</div>
 									</div>
-									<div className="flex text-center p-1 gap-4 md:gap-16 text-gray-100">
-										<div className="flex flex-col">
-											<img src="/00_CMSPEED1.png" />
+									<div className="grid w-full grid-cols-2 gap-3 p-1 text-center text-gray-100 sm:grid-cols-3 lg:grid-cols-5">
+										<div className="flex flex-col items-center">
+											<img src="/00_CMSPEED1.png" className="max-w-16" />
 											{event.speed_recommendation}
 										</div>
-										<div className="flex flex-col">
-											<img src="/01_CMStamina1.png" />
+										<div className="flex flex-col items-center">
+											<img src="/01_CMStamina1.png" className="max-w-16" />
 											{event.stamina_recommendation}
 										</div>
-										<div className="flex flex-col">
-											<img src="/02_CMPOWER1.png" />
+										<div className="flex flex-col items-center">
+											<img src="/02_CMPOWER1.png" className="max-w-16" />
 											{event.power_recommendation}
 										</div>
-										<div className="flex flex-col">
-											<img src="/03_CMGUTS1.png" />
+										<div className="flex flex-col items-center">
+											<img src="/03_CMGUTS1.png" className="max-w-16" />
 											{event.guts_recommendation}
 										</div>
-										<div className="flex flex-col">
-											<img src="/04_CMWits1.png" />
+										<div className="flex flex-col items-center">
+											<img src="/04_CMWits1.png" className="max-w-16" />
 											{event.wit_recommendation}
 										</div>
 									</div>
@@ -211,14 +211,14 @@ export const Timeline = () => {
 
 					if (isLeagueOfHeroes(event)) {
 						return (
-							<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap font-medium text-lg">
+							<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
 								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex justify-center text-lg card-section rounded-xl font-medium">
+									<div className="w-full flex justify-center text-center text-sm sm:text-lg card-section rounded-xl font-medium">
 										{format(event.start_date, "MMMM d, yyyy")} through{" "}
 										{format(event.end_date, "MMMM d, yyyy")}
 									</div>
 									<div>{event.name}</div>
-									{event.image && <img src={event.image} alt={event.name} />}
+									{event.image && <img src={event.image} alt={event.name} className="max-w-full h-auto" />}
 								</div>
 							</div>
 						)
@@ -241,9 +241,9 @@ export const Timeline = () => {
 					const supportStaged  = supportBanner ? stagedBanner?.banner_support?.id === supportBanner.id : false
 
 					return (
-						<div key={index} className="m-2 w-full flex flex-wrap lg:flex-nowrap">
+						<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap">
 							<div className="w-full flex flex-col card-panel p-2 rounded-xl">
-								<div className="w-full flex justify-center text-lg card-section rounded-xl mb-2 font-medium">
+								<div className="w-full flex justify-center text-center text-sm sm:text-lg card-section rounded-xl mb-2 font-medium">
 									{format(bannerEvent.start_date, "MMMM d, yyyy")} through{" "}
 									{format(bannerEvent.end_date, "MMMM d, yyyy")}
 								</div>
@@ -251,16 +251,16 @@ export const Timeline = () => {
 									<img
 										src={bannerEvent.image}
 										alt={bannerEvent.name}
-										className="border-0 rounded-2xl"
+										className="max-w-full h-auto border-0 rounded-2xl"
 									/>
 
 									{/* Uma banner column — single shared border wraps all characters */}
-									<div className="flex flex-col p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-l-xl m-1 h-full w-full gap-3">
+									<div className="flex flex-col p-3 sm:p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-l-xl my-2 md:m-1 h-full w-full gap-3">
 										<div className="flex justify-center flex-1">
 											{umaBanner?.umas.map((uma, umaIndex) => (
 												<div
 													key={umaIndex}
-													className="flex flex-col items-center justify-between p-1 mx-1 min-w-1/2"
+													className="flex min-w-0 flex-1 flex-col items-center justify-between p-1 mx-1"
 												>
 													{uma.recommendation ? (
 														<div className="flex justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
@@ -269,7 +269,7 @@ export const Timeline = () => {
 													) : (
 														<div className="h-1/6"></div>
 													)}
-													<img src={uma.image} alt={uma.name} className="max-h-28 w-auto" />
+													<img src={uma.image} alt={uma.name} className="max-h-28 max-w-full w-auto" />
 													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
 														{uma.name}
 													</div>
@@ -292,12 +292,12 @@ export const Timeline = () => {
 									</div>
 
 									{/* Support banner column — single shared border wraps all cards */}
-									<div className="flex flex-col p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-r-xl m-1 h-full w-full gap-3">
+									<div className="flex flex-col p-3 sm:p-4 bg-gray-800 border border-gray-600 rounded-xl md:rounded-none md:rounded-r-xl my-2 md:m-1 h-full w-full gap-3">
 										<div className="flex justify-center flex-1">
 											{supportBanner?.support_cards.map((card, cardIndex) => (
 												<div
 													key={cardIndex}
-													className="flex flex-col items-center justify-between p-1 mx-1 min-w-1/2"
+													className="flex min-w-0 flex-1 flex-col items-center justify-between p-1 mx-1"
 												>
 													{card.recommendation ? (
 														<div className="flex p-1 mb-1 justify-center items-center w-full text-center h-1/6 border border-gray-600 rounded-xl bg-blue-700 text-gray-100 value-bold">
@@ -306,7 +306,7 @@ export const Timeline = () => {
 													) : (
 														<div className="h-1/6 p-1 mb-1"></div>
 													)}
-													<img src={card.image} alt={card.name} className="max-h-28 w-auto" />
+													<img src={card.image} alt={card.name} className="max-h-28 max-w-full w-auto" />
 													<div className="flex p-1 border border-gray-600 rounded-xl w-full text-center justify-center items-center h-1/4 text-sm font-medium text-gray-100">
 														{card.name}
 													</div>
@@ -335,9 +335,9 @@ export const Timeline = () => {
 			</div>
 
 			{totalPages > 1 && (
-				<div className="flex justify-center items-center gap-4 mt-2">
+				<div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
 					<button
-						className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
 						disabled={currentPage === 1}
 						onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
 					>
@@ -347,7 +347,7 @@ export const Timeline = () => {
 						Page {currentPage} of {totalPages}
 					</span>
 					<button
-						className="px-3 py-1 text-sm rounded font-medium bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						className="rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 md:py-1"
 						disabled={currentPage === totalPages}
 						onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
 					>

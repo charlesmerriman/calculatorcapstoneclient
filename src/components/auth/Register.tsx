@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { userRegister, ApiError } from "../../services/userServices"
 import { Link, useNavigate } from "react-router-dom"
 import type React from "react"
@@ -22,12 +22,12 @@ export const Register: React.FC = () => {
 	const {
 		register,
 		handleSubmit,
-		watch,
 		setError,
+		control,
 		formState: { errors, isSubmitting }
 	} = useForm<RegisterFormData>()
 	const navigate = useNavigate()
-	const password = watch("password")
+	const password = useWatch({ control, name: "password" })
 
 	const handleRegisterSubmit = async (data: RegisterFormData): Promise<void> => {
 		try {
@@ -92,7 +92,7 @@ export const Register: React.FC = () => {
 						</div>
 
 						{/* First and last name side by side */}
-						<div className="grid grid-cols-2 gap-3 mb-4">
+						<div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
 							<div>
 								<label htmlFor="first_name" className={labelCls}>First Name</label>
 								<input

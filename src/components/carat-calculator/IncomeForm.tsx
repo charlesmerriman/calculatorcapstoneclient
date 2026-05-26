@@ -60,9 +60,9 @@ const ResourceRow = ({
 	value: number
 	onChange: (v: number) => void
 }) => (
-	<div className="flex items-center gap-2">
+	<div className="flex min-w-0 items-center gap-2">
 		<span className="shrink-0 w-8 h-8 flex items-center justify-center">{icon}</span>
-		<span className="text-sm text-gray-400 flex-1 leading-tight">{label}</span>
+		<span className="min-w-0 flex-1 text-sm text-gray-400 leading-tight">{label}</span>
 		<input
 			type="number"
 			min={0}
@@ -121,26 +121,27 @@ export const IncomeForm = () => {
 	]
 
 	return (
-		<div className="w-full bg-gray-900 px-4 py-3">
+		<div className="w-full bg-gray-900 px-3 py-3 sm:px-4">
 			<div className="max-w-7xl mx-auto space-y-4">
 
 				{/* ── Top row: Income Sources + Current Resources ── */}
-				<div className="grid grid-cols-[2fr_1fr] gap-4">
+				<div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
 
 					{/* Income Sources outer card */}
-					<div className="card-panel p-4">
-						<div className="grid grid-cols-[3fr_auto_2fr] gap-4">
+					<div className="card-panel p-3 sm:p-4">
+						<div className="grid grid-cols-1 gap-4 xl:grid-cols-[3fr_auto_2fr]">
 
 							{/* Competitive Progress */}
-							<div>
+							<div className="min-w-0">
 								<h3 className="font-semibold text-center text-sm text-brand mb-4 flex items-center justify-center gap-1.5">
 									<Trophy className={iconCls} />
 									Competitive Progress
 								</h3>
-								<div className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-x-2 gap-y-3">
+								<div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-3 sm:grid-cols-[auto_auto_1fr_auto]">
 									<Sword className={iconCls} />
-									<span className="text-sm text-gray-400 text-right pr-2 leading-tight whitespace-nowrap">Team Trials:</span>
+									<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">Team Trials:</span>
 									<Select
+										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
 										defaultValue={
@@ -154,7 +155,7 @@ export const IncomeForm = () => {
 										}}
 										options={teamTrialsRankData.map((r) => ({ value: r, label: r.name, key: r.id }))}
 									/>
-									<div className="w-20">
+									<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
 										{teamTrialsRank && (
 											<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
 												{`+${teamTrialsRank.income_amount.toLocaleString()}/mo`}
@@ -163,8 +164,9 @@ export const IncomeForm = () => {
 									</div>
 
 									<Users className={iconCls} />
-									<span className="text-sm text-gray-400 text-right pr-2 leading-tight whitespace-nowrap">Club Rank:</span>
+									<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">Club Rank:</span>
 									<Select
+										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
 										defaultValue={
@@ -178,7 +180,7 @@ export const IncomeForm = () => {
 										}}
 										options={clubRankData.map((r) => ({ value: r, label: r.name, key: r.id }))}
 									/>
-									<div className="w-20">
+									<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
 										{clubRank && (
 											<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
 												{`+${clubRank.income_amount.toLocaleString()}/mo`}
@@ -187,8 +189,9 @@ export const IncomeForm = () => {
 									</div>
 
 									<Crown className={iconCls} />
-									<span className="text-sm text-gray-400 text-right pr-2 leading-tight whitespace-nowrap">Champion's Meeting:</span>
+									<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">Champion's Meeting:</span>
 									<Select
+										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
 										defaultValue={
@@ -210,7 +213,7 @@ export const IncomeForm = () => {
 											key: r.id,
 										}))}
 									/>
-									<div className="w-20">
+									<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
 										{championsMeetingRank && (
 											<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
 												{`+${championsMeetingRank.income_amount.toLocaleString()}/event`}
@@ -219,8 +222,9 @@ export const IncomeForm = () => {
 									</div>
 
 									<Flame className={iconCls} />
-									<span className="text-sm text-gray-400 text-right pr-2 leading-tight whitespace-nowrap">League of Heroes:</span>
+									<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">League of Heroes:</span>
 									<Select
+										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
 										defaultValue={
@@ -242,7 +246,7 @@ export const IncomeForm = () => {
 											key: r.id,
 										}))}
 									/>
-									<div className="w-20">
+									<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
 										{leagueOfHeroesRank && (
 											<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
 												{`+${leagueOfHeroesRank.income_amount.toLocaleString()}/event`}
@@ -253,18 +257,18 @@ export const IncomeForm = () => {
 							</div>
 
 							{/* Separator */}
-							<div className="w-px bg-gray-700 self-stretch my-2" />
+							<div className="hidden w-px bg-gray-700 self-stretch my-2 xl:block" />
 
 							{/* Purchases / Bonuses */}
-							<div className="flex flex-col">
+							<div className="flex min-w-0 flex-col">
 								<h3 className="font-semibold text-center text-sm text-brand mb-4 flex items-center justify-center gap-1.5">
 									<Gift className={iconCls} />
 									Purchases / Bonuses
 								</h3>
 								<div className="flex-1 flex items-center justify-center">
-									<div className="grid grid-cols-[auto_auto_auto_auto] items-center gap-x-4 gap-y-4">
+									<div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-3 sm:w-auto sm:grid-cols-[auto_auto_auto_auto] sm:gap-x-4 sm:gap-y-4">
 										<Gem className="w-8 h-8 shrink-0 text-brand" />
-										<span className="text-sm text-gray-400 text-right leading-tight whitespace-nowrap">Daily Carat Pack:</span>
+										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Daily Carat Pack:</span>
 										<label className="relative inline-flex items-center cursor-pointer">
 											<input
 												type="checkbox"
@@ -276,12 +280,12 @@ export const IncomeForm = () => {
 											/>
 											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
 										</label>
-										<div className="w-20 h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
+										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
 											{userStatsData.daily_carat ? "+50/day" : "+0/day"}
 										</div>
 
 										<Dumbbell className="w-8 h-8 shrink-0 text-brand" />
-										<span className="text-sm text-gray-400 text-right leading-tight whitespace-nowrap">Training Pass:</span>
+										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Training Pass:</span>
 										<label className="relative inline-flex items-center cursor-pointer">
 											<input
 												type="checkbox"
@@ -293,7 +297,7 @@ export const IncomeForm = () => {
 											/>
 											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
 										</label>
-										<div className="w-20 h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
+										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
 											{userStatsData.training_pass ? "+2,200/mo" : "+500/mo"}
 										</div>
 									</div>
@@ -304,12 +308,12 @@ export const IncomeForm = () => {
 					</div>
 
 					{/* Current Resources */}
-					<div className="card-panel p-5">
+					<div className="card-panel p-3 sm:p-5">
 						<h3 className="font-semibold text-center text-sm text-brand mb-4 flex items-center justify-center gap-1.5">
 							<Diamond className={iconCls} />
 							Current Resources
 						</h3>
-						<div className="grid grid-cols-2 gap-x-6 gap-y-2">
+						<div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
 							<ResourceRow
 								icon={<img src="/item_icon_00043.png" alt="Carats" className="w-8 h-8 object-contain" />}
 								label="Carats"
@@ -363,20 +367,20 @@ export const IncomeForm = () => {
 				</div>
 
 				{/* ── Bottom row: Average Monthly Income + Uncap Crystals ── */}
-				<div className="grid grid-cols-[2fr_1fr] gap-4">
+				<div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
 
 					<div className="card-panel p-3 flex flex-col">
 						<h3 className="font-semibold text-sm text-brand mb-3 flex items-center justify-center gap-1.5">
 							<TrendingUp className={iconCls} />
 							Average Monthly Income
 						</h3>
-						<div className="flex-1 grid grid-cols-5 gap-3 items-stretch">
+						<div className="flex-1 grid grid-cols-1 gap-3 items-stretch sm:grid-cols-2 xl:grid-cols-5">
 							{monthlyItems.map((item) => (
 								<div key={item.label} className="bg-gray-900 border border-gray-700 rounded-xl p-3 flex flex-col items-center justify-center gap-1">
 									<span className="text-xs text-gray-400 text-center leading-tight">{item.label}</span>
-									<div className="relative flex items-center justify-center w-full">
-										<span className="absolute left-0 text-brand">{item.icon}</span>
-										<span className="text-2xl font-bold text-brand">{item.value.toLocaleString()}</span>
+									<div className="flex w-full items-center justify-center gap-1.5">
+										<span className="text-brand">{item.icon}</span>
+										<span className="text-xl font-bold text-brand sm:text-2xl">{item.value.toLocaleString()}</span>
 									</div>
 								</div>
 							))}

@@ -8,6 +8,7 @@ import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
+import { MobileBannerCard } from "./MobileBannerCard"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 
 interface StagedBannerRowProps {
@@ -91,8 +92,100 @@ export const StagedBannerRow = ({
 		return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 	}
 
+	const bannerSelect = (
+		<Select<BannerOption>
+			className="w-full"
+			styles={{
+				...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
+				menuPortal: (base) => ({ ...base, zIndex: 9999 })
+			}}
+			menuPortalTarget={document.body}
+			placeholder={`Target ${bannerType} Banner`}
+			value={
+				currentBanner
+					? { value: currentBanner as BannerUma | BannerSupport, label: currentBanner.name, key: currentBanner.id }
+					: null
+			}
+			onChange={handleBannerSelect}
+			formatOptionLabel={(option) => (
+				<span className={alreadyPlannedBannerIds.has(option.value.id) ? "text-gray-500" : ""}>
+					{option.label}
+					{alreadyPlannedBannerIds.has(option.value.id) && (
+						<span className="ml-1 text-xs">(on sheet)</span>
+					)}
+				</span>
+			)}
+			options={targetBannerData
+				.filter(
+					(banner) =>
+						(bannerType === "Uma" ? "umas" in banner : "support_cards" in banner) &&
+						new Date(banner.banner_timeline.end_date) > currentDate
+				)
+				.map((banner) => ({
+					value: banner,
+					label: banner.name,
+					key: banner.id
+				}))}
+		/>
+	)
+
+	const dateDisplay = bannerTimeline ? (
+		<div className="space-y-0.5 text-xs text-gray-400">
+			<div>Start: <span className="text-white">{formatDate(bannerTimeline.start_date)}</span></div>
+			<div>End: <span className="text-white">{formatDate(bannerTimeline.end_date)}</span></div>
+		</div>
+	) : (
+		<span className="text-xs text-gray-600">—</span>
+	)
+
+	const confirmButton = (
+		<button
+			onClick={onConfirm}
+			disabled={!hasBanner}
+			className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-40"
+		>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+				<polyline points="20 6 9 17 4 12" />
+			</svg>
+			Add to sheet
+		</button>
+	)
+
+	const pullsInput = (
+		<input
+			type="number"
+			value={stagedBanner.number_of_pulls}
+			className="spin-arrows h-9 w-20 rounded border border-green-500 bg-gray-700 pl-4.5 text-center text-sm text-green-400 focus:border-green-400 focus:outline-none"
+			min={0}
+			onChange={handlePullCountChange}
+		/>
+	)
+
+	const chanceDisplay = hasBanner ? (
+		<MLBChanceDisplay
+			pulls={stagedBanner.number_of_pulls}
+			plannedBanner={stagedBanner}
+		/>
+	) : (
+		<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
+	)
+
 	return (
-		<div className="w-full flex items-stretch bg-gray-800 h-[64px]">
+		<>
+		<MobileBannerCard
+			bannerType={bannerType}
+			images={images}
+			bannerSelect={bannerSelect}
+			dates={dateDisplay}
+			summary={confirmButton}
+			pullsInput={pullsInput}
+			chanceDisplay={chanceDisplay}
+			onRemove={onDiscard}
+			removeLabel="Discard staged banner"
+			removeIcon="discard"
+		/>
+
+		<div className="hidden w-full items-stretch bg-gray-800 h-[64px] md:flex">
 			{/* === Type badge === */}
 			<div
 				className={`banner-type-tab ${
@@ -132,41 +225,7 @@ export const StagedBannerRow = ({
 
 			{/* === Banner select === */}
 			<div className="w-44 shrink-0 flex items-center justify-center py-2 px-2">
-				<Select<BannerOption>
-					className="w-full"
-					autoFocus
-					styles={{
-						...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
-						menuPortal: (base) => ({ ...base, zIndex: 9999 })
-					}}
-					menuPortalTarget={document.body}
-					placeholder={`Target ${bannerType} Banner`}
-					value={
-						currentBanner
-							? { value: currentBanner as BannerUma | BannerSupport, label: currentBanner.name, key: currentBanner.id }
-							: null
-					}
-					onChange={handleBannerSelect}
-					formatOptionLabel={(option) => (
-						<span className={alreadyPlannedBannerIds.has(option.value.id) ? "text-gray-500" : ""}>
-							{option.label}
-							{alreadyPlannedBannerIds.has(option.value.id) && (
-								<span className="ml-1 text-xs">(on sheet)</span>
-							)}
-						</span>
-					)}
-					options={targetBannerData
-						.filter(
-							(banner) =>
-								(bannerType === "Uma" ? "umas" in banner : "support_cards" in banner) &&
-								new Date(banner.banner_timeline.end_date) > currentDate
-						)
-						.map((banner) => ({
-							value: banner,
-							label: banner.name,
-							key: banner.id
-						}))}
-				/>
+				{bannerSelect}
 			</div>
 
 			{/* === Start / End Date === */}
@@ -229,5 +288,6 @@ export const StagedBannerRow = ({
 				</svg>
 			</button>
 		</div>
+		</>
 	)
 }
