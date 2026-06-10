@@ -52,11 +52,8 @@ export const Register: React.FC = () => {
 		<div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
 			<div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
 				{/* Brand header strip */}
-				<div className="border-b border-gray-700 px-8 py-6 text-center">
-					<div className="font-bold text-brand text-lg leading-tight select-none tracking-wide">
-						UMA PLANNER
-					</div>
-					<div className="text-brand/50 text-[11px] mt-0.5 select-none">Resource Calculator</div>
+				<div className="border-b border-gray-700 px-8 py-4 flex justify-center">
+					<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-28 w-auto" />
 				</div>
 
 				<div className="px-8 py-7">
