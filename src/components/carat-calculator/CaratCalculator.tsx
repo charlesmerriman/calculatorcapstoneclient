@@ -20,9 +20,9 @@ export const CaratCalculator: React.FC = () => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
-		stagedBanner,
+		stagedBanners,
 		setUserPlannedBannerData,
-		setStagedBanner,
+		setStagedBanners,
 	} = useCalculatorData()
 
 	const bannerResources = useBannerResources({
@@ -42,36 +42,47 @@ export const CaratCalculator: React.FC = () => {
 	}
 
 	const handleAddBanner = (bannerType: "Uma" | "Support"): void => {
-		// Block adding a second staged banner of the same type.
-		// Adding the opposite type is fine — it silently replaces the staged banner
-		// (same behaviour as the old blank-banner replacement in the confirmed list).
-		if (stagedBanner && stagedBanner.initialBannerType === bannerType) {
-			toast.error(`A ${bannerType} banner is already staged. Select a banner for it or discard it first.`)
+		const emptyStaged = stagedBanners.find(b => !b.banner_uma && !b.banner_support)
+
+		if (emptyStaged) {
+			if (emptyStaged.initialBannerType === bannerType) {
+				// Same type already waiting — nothing to do.
+				toast.error(`An empty ${bannerType} banner is already staged. Select a banner for it or discard it first.`)
+				return
+			}
+			// Opposite type — replace it in-place so the user doesn't lose its position in the list.
+			setStagedBanners((prev) =>
+				prev.map(b => b.tempId === emptyStaged.tempId ? { ...b, initialBannerType: bannerType } : b)
+			)
 			return
 		}
 
-		// Generate a tempId higher than every existing id, including the current
-		// staged banner's id, so there are never two banners sharing a tempId.
+		// Generate a tempId higher than every existing id so there are never two banners sharing one.
 		const allIds = [
 			...userPlannedBannerData.map((b) => b.tempId ?? b.id ?? 0),
-			stagedBanner ? (stagedBanner.tempId ?? 0) : 0
+			...stagedBanners.map((b) => b.tempId ?? 0),
 		]
 		const highestId = allIds.length > 0 ? Math.max(...allIds) : 0
 
-		setStagedBanner({
-			tempId: highestId + 1,
-			number_of_pulls: 0,
-			initialBannerType: bannerType
-		} satisfies UserPlannedBanner)
+		setStagedBanners((prev) => [
+			...prev,
+			{ tempId: highestId + 1, number_of_pulls: 0, initialBannerType: bannerType } satisfies UserPlannedBanner
+		])
 	}
 
-	const handleConfirmStagedBanner = (): void => {
-		if (!stagedBanner) return
-		if (!stagedBanner.banner_uma && !stagedBanner.banner_support) {
+	// Updates a single staged banner in the array when the user edits it.
+	const handleUpdateStagedBanner = (updated: UserPlannedBanner): void => {
+		setStagedBanners((prev) => prev.map((b) => b.tempId === updated.tempId ? updated : b))
+	}
+
+	const handleConfirmStagedBanner = (tempId: number): void => {
+		const banner = stagedBanners.find((b) => b.tempId === tempId)
+		if (!banner) return
+		if (!banner.banner_uma && !banner.banner_support) {
 			toast.error("Please select a banner before adding it to the sheet.")
 			return
 		}
-		const stagedId = stagedBanner.banner_uma?.id ?? stagedBanner.banner_support?.id
+		const stagedId = banner.banner_uma?.id ?? banner.banner_support?.id
 		const isDuplicate = userPlannedBannerData.some(
 			(b) => (b.banner_uma?.id ?? b.banner_support?.id) === stagedId
 		)
@@ -80,7 +91,7 @@ export const CaratCalculator: React.FC = () => {
 			return
 		}
 
-		const updated = [...userPlannedBannerData, stagedBanner].sort((a, b) => {
+		const updated = [...userPlannedBannerData, banner].sort((a, b) => {
 			const aDate = new Date(
 				a.banner_uma?.banner_timeline.start_date ?? a.banner_support!.banner_timeline.start_date
 			)
@@ -91,12 +102,16 @@ export const CaratCalculator: React.FC = () => {
 		})
 
 		setUserPlannedBannerData(updated)
-		setStagedBanner(null)
+		setStagedBanners((prev) => prev.filter((b) => b.tempId !== tempId))
+	}
+
+	const handleDiscardStagedBanner = (tempId: number): void => {
+		setStagedBanners((prev) => prev.filter((b) => b.tempId !== tempId))
 	}
 
 	// Only show section labels when both the staging area and the sheet are visible,
 	// so the user understands which section is which.
-	const showSectionLabels = stagedBanner !== null && userPlannedBannerData.length > 0
+	const showSectionLabels = stagedBanners.length > 0 && userPlannedBannerData.length > 0
 
 	return (
 		<div className="page-container">
@@ -119,9 +134,9 @@ export const CaratCalculator: React.FC = () => {
 						</button>
 					</div>
 
-					{/* Staging area — slides in/out as stagedBanner is set or cleared */}
+					{/* Staging area — slides in/out as stagedBanners are added or cleared */}
 					<AnimatePresence>
-						{stagedBanner && (
+						{stagedBanners.length > 0 && (
 							<motion.div
 								key="staging-area"
 								initial={{ opacity: 0, y: -6 }}
@@ -146,15 +161,18 @@ export const CaratCalculator: React.FC = () => {
 									<div className="flex-1 text-center">% Chance to MLB (5x Copies)</div>
 									<div className="w-10 shrink-0 text-center"></div>
 								</div>
-								<StagedBannerRow
-									stagedBanner={stagedBanner}
-									setStagedBanner={(b) => setStagedBanner(b)}
-									onConfirm={handleConfirmStagedBanner}
-									onDiscard={() => setStagedBanner(null)}
-									umaBannerData={umaBannerData}
-									supportBannerData={supportBannerData}
-									userPlannedBannerData={userPlannedBannerData}
-								/>
+								{stagedBanners.map((banner) => (
+									<StagedBannerRow
+										key={banner.tempId}
+										stagedBanner={banner}
+										setStagedBanner={handleUpdateStagedBanner}
+										onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
+										onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
+										umaBannerData={umaBannerData}
+										supportBannerData={supportBannerData}
+										userPlannedBannerData={userPlannedBannerData}
+									/>
+								))}
 							</motion.div>
 						)}
 					</AnimatePresence>

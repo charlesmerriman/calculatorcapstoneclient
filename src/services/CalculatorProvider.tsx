@@ -49,7 +49,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [umaBannerData, setUmaBannerData] = useState<BannerUma[]>([])
 	const [supportBannerData, setSupportBannerData] = useState<BannerSupport[]>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
-	const [stagedBanner, setStagedBanner] = useState<UserPlannedBanner | null>(null)
+	const [stagedBanners, setStagedBanners] = useState<UserPlannedBanner[]>([])
 	const [eventRewardsData, setEventRewardsData] = useState<EventReward[]>([])
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
@@ -183,7 +183,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
-		stagedBanner,
+		stagedBanners,
 		eventRewardsData,
 		championsMeetingData,
 		leagueOfHeroesData,
@@ -194,7 +194,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		saveNow,
 		setIsDropdown,
 		setUserPlannedBannerData,
-		setStagedBanner,
+		setStagedBanners,
 		setUserStatsData
 	}
 
