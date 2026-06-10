@@ -71,9 +71,8 @@ export const Navbar = () => {
 		<div className="z-50 shrink-0">
 			<nav className="bg-gray-800 border-b border-gray-600 md:hidden">
 				<div className="flex h-14 items-center justify-between gap-3 px-3">
-					<div className="flex min-w-0 flex-col justify-center leading-tight select-none">
-						<span className="truncate text-base font-bold text-brand">UMA PLANNER</span>
-						<span className="truncate text-[10px] text-brand/70">Resource Calculator</span>
+					<div className="flex min-w-0 items-center">
+						<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-12 w-auto" />
 					</div>
 
 					<div className="flex shrink-0 items-center gap-1.5">
@@ -123,9 +122,8 @@ export const Navbar = () => {
 
 			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 md:grid">
 				{/* Left: Branding */}
-				<div className="flex flex-col justify-center leading-tight select-none">
-					<span className="font-bold text-brand text-base">UMA PLANNER</span>
-					<span className="text-brand/70 text-[10px]">Resource Calculator</span>
+				<div className="flex items-center">
+					<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-12 w-auto" />
 				</div>
 
 				{/* Center: Nav links */}
