@@ -2,6 +2,7 @@ import { useForm, useWatch } from "react-hook-form"
 import { userRegister, ApiError } from "../../services/userServices"
 import { Link, useNavigate } from "react-router-dom"
 import type React from "react"
+import { Footer } from "../footer/Footer"
 
 interface RegisterFormData {
 	email: string
@@ -33,7 +34,7 @@ export const Register: React.FC = () => {
 		try {
 			const { confirmPassword: _confirmPassword, ...registerData } = data
 			await userRegister(registerData)
-			navigate("/")
+			navigate("/app")
 		} catch (e) {
 			if (e instanceof ApiError && Object.keys(e.fieldErrors).length > 0) {
 				// Map server field errors (e.g. "username already exists") to the correct field
@@ -49,8 +50,8 @@ export const Register: React.FC = () => {
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-			<div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+		<div className="flex min-h-screen flex-col bg-gray-900 p-4">
+			<div className="m-auto w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
 				{/* Brand header strip */}
 				<div className="border-b border-gray-700 px-8 py-4 flex justify-center">
 					<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-28 w-auto" />
@@ -177,6 +178,7 @@ export const Register: React.FC = () => {
 					</p>
 				</div>
 			</div>
+			<Footer />
 		</div>
 	)
 }

@@ -25,3 +25,10 @@ export const useCalculatorData = (): CalculatorContextType => {
 
 	return context
 }
+
+// Safe variant for components that may render outside CalculatorProvider (e.g. Navbar on the home page).
+// Returns null instead of throwing so the component can adapt its rendering accordingly.
+export const useCalculatorDataSafe = (): CalculatorContextType | null => {
+	const context = useContext(CalculatorContext)
+	return context ?? null
+}

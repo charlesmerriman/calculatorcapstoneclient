@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form"
 import { userLogin } from "../../services/userServices"
 import { Link, useNavigate } from "react-router-dom"
 import type React from "react"
+import { Footer } from "../footer/Footer"
 
 interface LoginFormData {
 	username: string
@@ -26,15 +27,15 @@ export const Login: React.FC = () => {
 	const handleLoginSubmit = async (data: LoginFormData): Promise<void> => {
 		try {
 			await userLogin(data)
-			navigate("/")
+			navigate("/app")
 		} catch {
 			setError("root", { message: "Invalid username or password." })
 		}
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-			<div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+		<div className="flex min-h-screen flex-col bg-gray-900 p-4">
+			<div className="m-auto w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
 				{/* Brand header strip */}
 				<div className="border-b border-gray-700 px-8 py-4 flex justify-center">
 					<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-28 w-auto" />
@@ -97,6 +98,7 @@ export const Login: React.FC = () => {
 					</p>
 				</div>
 			</div>
+			<Footer />
 		</div>
 	)
 }
