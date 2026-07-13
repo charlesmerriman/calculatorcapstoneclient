@@ -10,6 +10,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js"
 import { ThemeProvider } from "./services/ThemeProvider.js"
 import { HomePage } from "./components/home/HomePage.js"
 import { PrivacyPolicy } from "./components/legal/PrivacyPolicy.js"
+import { Changelog } from "./components/info/Changelog.js"
+import { Faq } from "./components/info/Faq.js"
+import { Feedback } from "./components/info/Feedback.js"
 
 function App() {
 	return (
@@ -21,6 +24,9 @@ function App() {
 					<Route path="/login" element={<Login />} />
 					<Route path="/register" element={<Register />} />
 					<Route path="/privacy-policy" element={<PrivacyPolicy />} />
+					<Route path="/changelog" element={<Changelog />} />
+					<Route path="/faq" element={<Faq />} />
+					<Route path="/feedback" element={<Feedback />} />
 					<Route
 						path="/app/*"
 						element={
