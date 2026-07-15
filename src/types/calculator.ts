@@ -25,9 +25,11 @@ import type {
 import type { UserStats, UserPlannedBanner } from "./user"
 import type { EventReward, GameEvent, ChampionsMeeting, LeagueOfHeroes } from "./events"
 
-/** The full payload returned by GET /calculator-data */
+/** The full payload returned by GET /calculator-data.
+ * `user_stats_data` is null for anonymous (guest) requests — the provider
+ * seeds DEFAULT_GUEST_STATS in that case. */
 export interface CalculatorData {
-	user_stats_data: UserStats
+	user_stats_data: UserStats | null
 	club_rank_data: ClubRank[]
 	team_trials_rank_data: TeamTrialsRank[]
 	champions_meeting_rank_data: ChampionsMeetingRank[]

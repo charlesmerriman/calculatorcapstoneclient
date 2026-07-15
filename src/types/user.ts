@@ -2,7 +2,9 @@ import type { BannerUma, BannerSupport } from "./banner"
 
 /**
  * Represents the user's current resources and income settings.
- * The rank fields store FK ids that reference rank objects.
+ * The rank fields store FK ids that reference rank objects. They are
+ * nullable because the backend FKs are nullable — new accounts and
+ * guests start with no ranks selected.
  */
 export interface UserStats {
 	current_carat: number
@@ -11,10 +13,10 @@ export interface UserStats {
 	support_ticket: number
 	daily_carat: boolean
 	training_pass: boolean
-	club_rank: number
-	team_trials_rank: number
-	champions_meeting_rank: number
-	league_of_heroes_rank: number
+	club_rank: number | null
+	team_trials_rank: number | null
+	champions_meeting_rank: number | null
+	league_of_heroes_rank: number | null
 	ssr_crystals: number
 	sr_crystals: number
 	ssr_shards: number
