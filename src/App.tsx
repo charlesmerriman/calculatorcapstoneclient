@@ -4,7 +4,6 @@ import { Toaster } from "sonner"
 import { ApplicationViews } from "./views/ApplicationViews.js"
 import { Login } from "./components/auth/Login.js"
 import { Register } from "./components/auth/Register.js"
-import { Authorized } from "./views/Authorized.js"
 import { CalculatorProvider } from "./services/CalculatorProvider.js"
 import { ErrorBoundary } from "./components/ErrorBoundary.js"
 import { ThemeProvider } from "./services/ThemeProvider.js"
@@ -27,14 +26,14 @@ function App() {
 					<Route path="/changelog" element={<Changelog />} />
 					<Route path="/faq" element={<Faq />} />
 					<Route path="/feedback" element={<Feedback />} />
+					{/* Public since guest mode: the calculator works without an
+					    account; logging in is only needed to save a plan. */}
 					<Route
 						path="/app/*"
 						element={
-							<Authorized>
-								<CalculatorProvider>
-									<ApplicationViews />
-								</CalculatorProvider>
-							</Authorized>
+							<CalculatorProvider>
+								<ApplicationViews />
+							</CalculatorProvider>
 						}
 					/>
 					{/* Redirect any unmatched path to the home page */}

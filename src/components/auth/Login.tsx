@@ -3,6 +3,7 @@ import { userLogin } from "../../services/userServices"
 import { Link, useNavigate } from "react-router-dom"
 import type React from "react"
 import { Footer } from "../footer/Footer"
+import { readGuestPlanStash } from "../../services/guestMigration"
 
 interface LoginFormData {
 	username: string
@@ -43,6 +44,15 @@ export const Login: React.FC = () => {
 
 				<div className="px-8 py-7">
 					<h2 className="text-xl font-semibold text-gray-100 mb-6">Sign In</h2>
+
+					{/* Shown when the user arrived via "Sign in to save" with a guest plan pending migration */}
+					{readGuestPlanStash() && (
+						<div className="mb-5 px-3 py-2.5 bg-brand/10 border border-brand/30 rounded-lg">
+							<p className="text-brand text-sm">
+								Your current plan will be saved to your account after you sign in.
+							</p>
+						</div>
+					)}
 
 					<form onSubmit={handleSubmit(handleLoginSubmit)} noValidate>
 						<div className="mb-4">
