@@ -97,13 +97,18 @@ function eventMatchesSearch(
 	if (isLeagueOfHeroes(event)) {
 		return event.name.toLowerCase().includes(q)
 	}
-	if (event.name.toLowerCase().includes(q)) return true
-	for (const banner of event.banner_umas) {
+	// TypeScript collapses the remaining type to `never` here because
+	// BannerTimelineForViewing is structurally assignable to LeagueOfHeroes
+	// (same base fields), so the negative guards' Exclude produces never.
+	// The cast is logically safe: we've already ruled out both other branches.
+	const bannerEvent = event as unknown as BannerTimelineForViewing
+	if (bannerEvent.name.toLowerCase().includes(q)) return true
+	for (const banner of bannerEvent.banner_umas) {
 		for (const uma of banner.umas) {
 			if (uma.name.toLowerCase().includes(q)) return true
 		}
 	}
-	for (const banner of event.banner_supports) {
+	for (const banner of bannerEvent.banner_supports) {
 		for (const card of banner.support_cards) {
 			if (card.name.toLowerCase().includes(q)) return true
 		}
@@ -146,8 +151,8 @@ export const Timeline = () => {
 		userPlannedBannerData,
 		umaBannerData,
 		supportBannerData,
-		stagedBanner,
-		setStagedBanner,
+		stagedBanners,
+		setStagedBanners,
 	} = useCalculatorData()
 	const [showPast, setShowPast] = useState(false)
 	const [searchQuery, setSearchQuery] = useState("")
@@ -177,7 +182,7 @@ export const Timeline = () => {
 
 		const allIds = [
 			...userPlannedBannerData.map((b) => b.tempId ?? b.id ?? 0),
-			stagedBanner ? (stagedBanner.tempId ?? 0) : 0,
+			...stagedBanners.map((b) => b.tempId ?? 0),
 		]
 		const highestId = allIds.length > 0 ? Math.max(...allIds) : 0
 
@@ -185,7 +190,7 @@ export const Timeline = () => {
 			? { tempId: highestId + 1, number_of_pulls: 0, banner_uma: fullBanner as BannerUma, initialBannerType: "Uma" }
 			: { tempId: highestId + 1, number_of_pulls: 0, banner_support: fullBanner as BannerSupport, initialBannerType: "Support" }
 
-		setStagedBanner(newStaged)
+		setStagedBanners((prev) => [...prev, newStaged])
 		toast.success(`${fullBanner.name} staged! Head to the Calculator to confirm.`)
 	}
 
@@ -320,8 +325,8 @@ export const Timeline = () => {
 					const supportExpired = !supportBanner || new Date(bannerEvent.end_date) <= today
 					const umaPlanned     = umaBanner     ? plannedBannerIds.has(umaBanner.id)                    : false
 					const supportPlanned = supportBanner ? plannedBannerIds.has(supportBanner.id)                : false
-					const umaStaged      = umaBanner     ? stagedBanner?.banner_uma?.id === umaBanner.id         : false
-					const supportStaged  = supportBanner ? stagedBanner?.banner_support?.id === supportBanner.id : false
+					const umaStaged      = umaBanner     ? stagedBanners.some((b) => b.banner_uma?.id === umaBanner.id)         : false
+					const supportStaged  = supportBanner ? stagedBanners.some((b) => b.banner_support?.id === supportBanner.id) : false
 					const umaStatus = getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)
 					const supportStatus = getBannerCardStatus(!!supportBanner, supportExpired, supportPlanned, supportStaged)
 					const durationDays = getDurationDays(bannerEvent.start_date, bannerEvent.end_date)
