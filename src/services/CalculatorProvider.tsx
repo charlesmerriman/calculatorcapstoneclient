@@ -18,8 +18,14 @@ import type {
 } from "../types"
 import {
 	initialCalculatorDataFetch,
-	userCalculatorDataPatch
+	userCalculatorDataPatch,
+	toBannerPayload
 } from "./calculatorFetchCalls"
+import {
+	DEFAULT_GUEST_STATS,
+	readGuestPlanStash,
+	clearGuestPlanStash
+} from "./guestMigration"
 import { useAutoSave } from "../hooks/useAutoSave"
 
 interface CalculatorProviderProps {
@@ -62,23 +68,18 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		setIsDropdown((prev) => !prev)
 	}
 
-	const prepareBannerData = useCallback(() => {
-		return userPlannedBannerData
-			.filter(
-				(plannedBanner) =>
-					plannedBanner.banner_uma || plannedBanner.banner_support
-			)
-			.map((plannedBanner) => {
-				const { tempId: _tempId, ...rest } = plannedBanner
-				return {
-					...rest,
-					banner_uma: plannedBanner.banner_uma?.id ?? null,
-					banner_support: plannedBanner.banner_support?.id ?? null
-				}
-			})
-	}, [userPlannedBannerData])
+	// The response→request shape conversion lives in toBannerPayload (a pure
+	// function) so the guest-migration flow can also run it on data that
+	// isn't in React state yet.
+	const prepareBannerData = useCallback(
+		() => toBannerPayload(userPlannedBannerData),
+		[userPlannedBannerData]
+	)
 
 	const performSave = useCallback(async (): Promise<void> => {
+		// Guests never PATCH — their plan is in-memory only. The auto-save
+		// timer is already gated, but saveNow could still land here.
+		if (!localStorage.getItem("authToken")) return
 		try {
 			const response = await userCalculatorDataPatch(userStatsData, prepareBannerData())
 			if (!response.ok) {
@@ -96,12 +97,14 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		delayMs: 5000
 	})
 
+	// Guards the guest-plan migration against firing twice when React
+	// StrictMode double-runs the mount effect in dev.
+	const didMigrateRef = useRef(false)
+
 	useEffect(() => {
 		const controller = new AbortController()
 
-		initialCalculatorDataFetch(controller.signal)
-			.then((response) => response.json())
-			.then((data: CalculatorData) => {
+		const applyData = (data: CalculatorData): void => {
 				/**
 				 * TYPESCRIPT CONCEPT: Extending Objects with Extra Fields
 				 *
@@ -138,7 +141,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					return 0
 				})
 
-				setUserStatsData(data.user_stats_data)
+				// Guests get null stats from the server — seed local defaults so
+				// downstream components never have to care who they're rendering for.
+				setUserStatsData(data.user_stats_data ?? DEFAULT_GUEST_STATS)
 				setClubRankData([...data.club_rank_data].sort((a, b) => b.income_amount - a.income_amount))
 				setTeamTrialsRankData([...data.team_trials_rank_data].sort((a, b) => b.income_amount - a.income_amount))
 				setChampionsMeetingRankData([...data.champions_meeting_rank_data].sort((a, b) => b.income_amount - a.income_amount))
@@ -151,14 +156,80 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
 				setOrganizedTimelineData(sortedMergedEvents)
 				setIsLoading(false)
-			})
-			.catch((error: unknown) => {
-				// AbortError is expected when Strict Mode cleanup cancels the first fetch
-				if (error instanceof Error && error.name === "AbortError") return
-				console.error("Error fetching calculator data:", error)
-				setIsLoading(false)
-				setFetchError(true)
-			})
+		}
+
+		const load = async (): Promise<void> => {
+			// A present-but-invalid token makes the backend 401 even on the
+			// now-public GET (DRF authenticates before checking permissions).
+			// Drop the stale token and retry as a guest instead of stranding
+			// the user on the error screen.
+			let response = await initialCalculatorDataFetch(controller.signal)
+			if (response.status === 401 && localStorage.getItem("authToken")) {
+				localStorage.removeItem("authToken")
+				response = await initialCalculatorDataFetch(controller.signal)
+			}
+			if (!response.ok) {
+				throw new Error(`calculator-data fetch failed: ${response.status}`)
+			}
+			let data = (await response.json()) as CalculatorData
+
+			// Guest-plan migration: a stash in sessionStorage + a token means
+			// the user just logged in after building a plan as a guest.
+			// This runs BEFORE any state is set, so the auto-save effect
+			// (which skips while prevStatsRef is null) can't race it.
+			const stash = readGuestPlanStash()
+			if (
+				stash &&
+				localStorage.getItem("authToken") &&
+				!didMigrateRef.current
+			) {
+				didMigrateRef.current = true
+				try {
+					// Conflict rule: keep the account's saved rows (sending them
+					// WITH ids preserves them — the PATCH deletes anything absent)
+					// and append the guest's rows (no ids → created). Stats are in
+					// the stash only if the guest actually edited them.
+					const patchResponse = await userCalculatorDataPatch(
+						stash.stats,
+						[
+							...toBannerPayload(data.user_planned_banner_data),
+							...stash.banners
+						]
+					)
+					if (patchResponse.ok) {
+						clearGuestPlanStash()
+						// Re-fetch so the migrated banners come back with real
+						// database ids in canonical order.
+						const refreshed = await initialCalculatorDataFetch(controller.signal)
+						if (refreshed.ok) {
+							data = (await refreshed.json()) as CalculatorData
+						}
+						toast.success("Your guest plan was saved to your account")
+					} else if (patchResponse.status < 500) {
+						// 4xx — retrying the same payload would fail forever.
+						clearGuestPlanStash()
+						toast.error("Couldn't import your guest plan. Loaded your saved data instead.")
+					} else {
+						// 5xx — keep the stash so the next page load retries.
+						toast.error("Couldn't import your guest plan right now. It will retry on your next visit.")
+					}
+				} catch (error: unknown) {
+					if (error instanceof Error && error.name === "AbortError") throw error
+					// Network failure — keep the stash for a retry on next load.
+					toast.error("Couldn't import your guest plan right now. It will retry on your next visit.")
+				}
+			}
+
+			applyData(data)
+		}
+
+		load().catch((error: unknown) => {
+			// AbortError is expected when Strict Mode cleanup cancels the first fetch
+			if (error instanceof Error && error.name === "AbortError") return
+			console.error("Error fetching calculator data:", error)
+			setIsLoading(false)
+			setFetchError(true)
+		})
 
 		return () => controller.abort()
 	}, [])
@@ -171,6 +242,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		const wasEmpty = prevStatsRef.current === null
 		prevStatsRef.current = userStatsData
 		if (wasEmpty) return
+		// Guests have nothing to save to the server. Never arming the timer
+		// also suppresses the pending-save icon and the beforeunload warning.
+		if (!localStorage.getItem("authToken")) return
 		startTimer()
 	}, [startTimer, userStatsData, userPlannedBannerData])
 

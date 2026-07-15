@@ -4,6 +4,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom"
 import { CalendarDays, Calculator as CalculatorIcon, ChevronDown, LogIn, LogOut, Save, UserRound } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
 import { userLogout } from "../../services/userServices"
+import { toBannerPayload } from "../../services/calculatorFetchCalls"
+import { stashGuestPlan } from "../../services/guestMigration"
 import { IncomeForm } from "../carat-calculator/IncomeForm"
 import { ThemePicker } from "./ThemePicker"
 
@@ -54,8 +56,24 @@ export const Navbar = () => {
 			console.error("Logout failed")
 		} finally {
 			localStorage.removeItem("authToken")
-			navigate("/login")
+			// Full reload rather than navigate(): we're usually already on
+			// /app, so a client-side navigation wouldn't remount the provider
+			// and the logged-out user would keep seeing their account data.
+			window.location.href = "/app"
 		}
+	}
+
+	// Guest's path to saving: snapshot the in-memory plan into sessionStorage
+	// (the provider unmounts on route change, taking its state with it), then
+	// send them to login. The provider migrates the snapshot after login.
+	const handleSignInToSave = (): void => {
+		if (calculatorData) {
+			stashGuestPlan(
+				calculatorData.userStatsData,
+				toBannerPayload(calculatorData.userPlannedBannerData)
+			)
+		}
+		navigate("/login")
 	}
 
 	const isCalculator = location.pathname === "/app"
@@ -88,6 +106,20 @@ export const Navbar = () => {
 		<Link to="/">
 			<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-12 w-auto" />
 		</Link>
+	)
+
+	// Guest affordance shown in app mode instead of the save icon + Logout.
+	// Passive by design — it never interrupts planning.
+	const signInToSaveButton = (
+		<button
+			onClick={handleSignInToSave}
+			aria-label="Sign in to save"
+			title="Sign in to save your plan to an account"
+			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
+		>
+			<LogIn className="w-4 h-4" />
+			Sign in to save
+		</button>
 	)
 
 	// Auth button shown on the right side when outside the app (home mode)
@@ -123,29 +155,36 @@ export const Navbar = () => {
 
 					<div className="flex shrink-0 items-center gap-1.5">
 						{calculatorData ? (
-							<>
-								<div className="flex h-9 w-9 items-center justify-center">
-									{timerIsGoing && (
-										<button
-											onClick={calculatorData.saveNow}
-											aria-label="Save now"
-											title="Click to save now"
-											className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-brand transition hover:border-brand/70 hover:bg-gray-700"
-										>
-											<Save className="h-4 w-4" />
-										</button>
-									)}
-								</div>
-								<ThemePicker />
-								<button
-									onClick={handleLogout}
-									aria-label="Logout"
-									title="Logout"
-									className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-white"
-								>
-									<LogOut className="h-4 w-4" />
-								</button>
-							</>
+							isLoggedIn ? (
+								<>
+									<div className="flex h-9 w-9 items-center justify-center">
+										{timerIsGoing && (
+											<button
+												onClick={calculatorData.saveNow}
+												aria-label="Save now"
+												title="Click to save now"
+												className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-brand transition hover:border-brand/70 hover:bg-gray-700"
+											>
+												<Save className="h-4 w-4" />
+											</button>
+										)}
+									</div>
+									<ThemePicker />
+									<button
+										onClick={handleLogout}
+										aria-label="Logout"
+										title="Logout"
+										className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-white"
+									>
+										<LogOut className="h-4 w-4" />
+									</button>
+								</>
+							) : (
+								<>
+									<ThemePicker />
+									{signInToSaveButton}
+								</>
+							)
 						) : (
 							authButton
 						)}
@@ -207,29 +246,36 @@ export const Navbar = () => {
 				{/* Right: Save indicator + Theme Picker + Logout/Login */}
 				<div className="flex items-center justify-end gap-3">
 					{calculatorData ? (
-						<>
-							{/* Fixed-width slot keeps the right grid column stable so the center nav links don't shift */}
-							<div className="w-9 h-9 flex items-center justify-center">
-								{timerIsGoing && (
-									<button
-										onClick={calculatorData.saveNow}
-										className="cursor-pointer hover:opacity-70 transition-opacity"
-										title="Click to save now"
-									>
-										<Save className="h-5 w-5 text-brand" />
-									</button>
-								)}
-							</div>
-							<ThemePicker />
-							<button
-								onClick={handleLogout}
-								className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
-							>
-								<UserRound className="w-4 h-4" />
-								Logout
-								<LogOut className="w-4 h-4" />
-							</button>
-						</>
+						isLoggedIn ? (
+							<>
+								{/* Fixed-width slot keeps the right grid column stable so the center nav links don't shift */}
+								<div className="w-9 h-9 flex items-center justify-center">
+									{timerIsGoing && (
+										<button
+											onClick={calculatorData.saveNow}
+											className="cursor-pointer hover:opacity-70 transition-opacity"
+											title="Click to save now"
+										>
+											<Save className="h-5 w-5 text-brand" />
+										</button>
+									)}
+								</div>
+								<ThemePicker />
+								<button
+									onClick={handleLogout}
+									className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
+								>
+									<UserRound className="w-4 h-4" />
+									Logout
+									<LogOut className="w-4 h-4" />
+								</button>
+							</>
+						) : (
+							<>
+								<ThemePicker />
+								{signInToSaveButton}
+							</>
+						)
 					) : (
 						<>
 							<ThemePicker />

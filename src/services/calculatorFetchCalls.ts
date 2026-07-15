@@ -18,7 +18,7 @@
  * where you control both ends, this is standard practice.
  */
 
-import type { UserStats } from "../types"
+import type { UserStats, UserPlannedBanner } from "../types"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -32,11 +32,47 @@ const API_URL = import.meta.env.VITE_API_URL
  * but we send back just the id. These are different shapes, so they
  * deserve different types. Don't try to make one type serve both roles.
  */
-interface PlannedBannerPayload {
+export interface PlannedBannerPayload {
 	id?: number
 	number_of_pulls: number
 	banner_uma: number | null
 	banner_support: number | null
+}
+
+/**
+ * Builds the Authorization header only when a token exists. Guests send
+ * no header at all — sending "Token null" would make the backend 401.
+ */
+function authHeaders(): Record<string, string> {
+	const token = localStorage.getItem("authToken")
+	return token ? { Authorization: `Token ${token}` } : {}
+}
+
+/**
+ * Converts planned banners from response shape (nested objects) to request
+ * shape (FK ids), dropping client-only fields (tempId) and empty rows.
+ *
+ * A pure function rather than provider-internal logic because the guest
+ * migration flow needs to run it on data that isn't in React state yet
+ * (banners fresh off the GET response). Saved banners keep their `id` —
+ * that's what tells the PATCH endpoint to preserve rather than delete them.
+ */
+export function toBannerPayload(
+	banners: UserPlannedBanner[]
+): PlannedBannerPayload[] {
+	return banners
+		.filter(
+			(plannedBanner) =>
+				plannedBanner.banner_uma || plannedBanner.banner_support
+		)
+		.map((plannedBanner) => {
+			const { tempId: _tempId, ...rest } = plannedBanner
+			return {
+				...rest,
+				banner_uma: plannedBanner.banner_uma?.id ?? null,
+				banner_support: plannedBanner.banner_support?.id ?? null
+			}
+		})
 }
 
 export function userCalculatorDataPatch(
@@ -47,7 +83,7 @@ export function userCalculatorDataPatch(
 		method: "PATCH",
 		headers: {
 			"Content-Type": "application/json",
-			Authorization: `Token ${localStorage.getItem("authToken")}`
+			...authHeaders()
 		},
 		body: JSON.stringify({
 			user_stats_data: userStatsData,
@@ -71,7 +107,7 @@ export function initialCalculatorDataFetch(signal?: AbortSignal): Promise<Respon
 		method: "GET",
 		headers: {
 			"Content-Type": "application/json",
-			Authorization: `Token ${localStorage.getItem("authToken")}`
+			...authHeaders()
 		},
 		signal
 	})
