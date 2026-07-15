@@ -43,9 +43,13 @@ The core business logic hook. For each planned banner it walks forward in time f
 
 The result is a per-banner forecast of carats and tickets available at the banner's end date.
 
+### Guest mode
+
+The whole app works without an account. Anonymous visitors get the full reference payload from the API (with `user_stats_data: null`), are seeded with local default stats (`DEFAULT_GUEST_STATS` in `services/guestMigration.ts`), and plan entirely in memory — a refresh discards the plan. When a guest clicks **Sign in to save**, their plan is snapshotted into sessionStorage (key `guestPlanMigration.v1`), and after login/register the provider migrates it to the account: existing account banners are preserved, guest banners are appended, and guest stats are only sent if they were actually edited from the defaults.
+
 ### Auto-save
 
-User changes trigger a 5-second debounced `PATCH` via the `useAutoSave` hook. A save-indicator in the UI reflects pending state, and an `onbeforeunload` guard warns if a save is in flight when the user tries to leave.
+For logged-in users, changes trigger a 5-second debounced `PATCH` via the `useAutoSave` hook. A save-indicator in the UI reflects pending state, and an `onbeforeunload` guard warns if a save is in flight when the user tries to leave. Guests never arm the timer — their plan is in-memory only.
 
 ### Type system
 
@@ -62,7 +66,7 @@ Planned banners use a **discriminated union**:
 | `/` | `CaratCalculator` | Main planner — current resources, pull plan, per-banner forecasts |
 | `/timeline` | `Timeline` | Banner and Champions Meeting calendar |
 
-Public routes (`/login`, `/register`) live outside the `Authorized` guard. Auth token is stored in `localStorage`.
+All routes are public — the calculator works for guests, and an account is only needed to save a plan (see Guest mode above). The auth token is stored in `localStorage` and attached to requests only when present.
 
 ## Local Setup
 
