@@ -370,51 +370,54 @@ export const Timeline = () => {
 											<Sparkles className="h-4 w-4" />
 											<span>Featured Umamusume</span>
 										</div>
-										<div className={`grid flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
-											{umaBanner?.umas.map((uma, umaIndex) => (
+										{umaBanner ? (
+											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
+												<div className={`grid grid-rows-1 flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
+													{umaBanner.umas.map((uma, umaIndex) => (
+														<div
+															key={umaIndex}
+															className="flex h-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm"
+														>
+															<div className="relative shrink-0 overflow-hidden bg-gray-700">
+																{uma.recommendation && (
+																	<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
+																		{uma.recommendation}
+																	</div>
+																)}
+																<img
+																	src={uma.image}
+																	alt={uma.name}
+																	className="block h-auto w-full object-contain"
+																/>
+															</div>
+															<div className="flex flex-1 flex-col justify-center p-1.5">
+																<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
+																	{uma.name}
+																</div>
+															</div>
+														</div>
+													))}
+												</div>
+												{/* Single shared action button — both featured umas belong to the same
+												    banner, so one full-width button drives the add for all of them. */}
 												<button
-													key={umaIndex}
 													type="button"
 													onClick={() => handleAddBanner(umaBanner, "Uma")}
 													disabled={umaStatus !== "available"}
-													className={`flex h-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm transition ${
-														umaStatus === "available"
-															? "cursor-pointer hover:bg-gray-600"
-															: "cursor-not-allowed opacity-80"
+													className={`flex shrink-0 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-medium leading-tight transition ${getBannerStatusClasses(umaStatus)} ${
+														umaStatus === "available" ? "cursor-pointer" : "cursor-not-allowed"
 													}`}
 												>
-													<div className="relative shrink-0 overflow-hidden bg-gray-700">
-														{uma.recommendation && (
-															<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
-																{uma.recommendation}
-															</div>
-														)}
-														<img
-															src={uma.image}
-															alt={uma.name}
-															className="block h-auto w-full object-contain"
-														/>
-													</div>
-													<div className="flex flex-1 flex-col gap-1.5 p-1.5">
-														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
-															{uma.name}
-														</div>
-														<div className={`mt-auto flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(umaStatus)}`}>
-															<span className="flex items-center gap-2">
-																<Star className="h-3.5 w-3.5" />
-																{getBannerStatusLabel(umaStatus)}
-															</span>
-															{umaStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
-														</div>
-													</div>
+													<Star className="h-3.5 w-3.5" />
+													{getBannerStatusLabel(umaStatus)}
+													{umaStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
 												</button>
-											))}
-											{!umaBanner && (
-												<div className="flex min-h-40 w-full items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
-													No Umamusume banner in this window.
-												</div>
-											)}
-										</div>
+											</div>
+										) : (
+											<div className="flex min-h-40 w-full flex-1 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
+												No Umamusume banner in this window.
+											</div>
+										)}
 									</section>
 
 									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
@@ -422,51 +425,54 @@ export const Timeline = () => {
 											<Ticket className="h-4 w-4" />
 											<span>Featured Support Cards</span>
 										</div>
-										<div className={`grid flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
-											{supportBanner?.support_cards.map((card, cardIndex) => (
+										{supportBanner ? (
+											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
+												<div className={`grid grid-rows-1 flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
+													{supportBanner.support_cards.map((card, cardIndex) => (
+														<div
+															key={cardIndex}
+															className="flex h-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm"
+														>
+															<div className="relative shrink-0 overflow-hidden bg-gray-700">
+																{card.recommendation && (
+																	<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
+																		{card.recommendation}
+																	</div>
+																)}
+																<img
+																	src={card.image}
+																	alt={card.name}
+																	className="block h-auto w-full object-contain"
+																/>
+															</div>
+															<div className="flex flex-1 flex-col justify-center p-1.5">
+																<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
+																	{card.name}
+																</div>
+															</div>
+														</div>
+													))}
+												</div>
+												{/* Single shared action button — all featured support cards belong to the
+												    same banner, so one full-width button drives the add for all of them. */}
 												<button
-													key={cardIndex}
 													type="button"
 													onClick={() => handleAddBanner(supportBanner, "Support")}
 													disabled={supportStatus !== "available"}
-													className={`flex h-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm transition ${
-														supportStatus === "available"
-															? "cursor-pointer hover:bg-gray-600"
-															: "cursor-not-allowed opacity-80"
+													className={`flex shrink-0 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-medium leading-tight transition ${getBannerStatusClasses(supportStatus)} ${
+														supportStatus === "available" ? "cursor-pointer" : "cursor-not-allowed"
 													}`}
 												>
-													<div className="relative shrink-0 overflow-hidden bg-gray-700">
-														{card.recommendation && (
-															<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
-																{card.recommendation}
-															</div>
-														)}
-														<img
-															src={card.image}
-															alt={card.name}
-															className="block h-auto w-full object-contain"
-														/>
-													</div>
-													<div className="flex flex-1 flex-col gap-1.5 p-1.5">
-														<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
-															{card.name}
-														</div>
-														<div className={`mt-auto flex items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[11px] font-medium leading-tight transition ${getBannerStatusClasses(supportStatus)}`}>
-															<span className="flex items-center gap-2">
-																<Ticket className="h-3.5 w-3.5" />
-																{getBannerStatusLabel(supportStatus)}
-															</span>
-															{supportStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
-														</div>
-													</div>
+													<Ticket className="h-3.5 w-3.5" />
+													{getBannerStatusLabel(supportStatus)}
+													{supportStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
 												</button>
-											))}
-											{!supportBanner && (
-												<div className="flex min-h-40 w-full items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
-													No support banner in this window.
-												</div>
-											)}
-										</div>
+											</div>
+										) : (
+											<div className="flex min-h-40 w-full flex-1 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
+												No support banner in this window.
+											</div>
+										)}
 									</section>
 								</div>
 							</div>
