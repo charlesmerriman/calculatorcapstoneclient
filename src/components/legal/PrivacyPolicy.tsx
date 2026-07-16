@@ -22,7 +22,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1 overflow-y-auto">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: July 15, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: July 16, 2026</p>
 
 					<p className={paragraph}>
 						This Privacy Policy explains what information the Uma Musume Carat Calculator
@@ -48,9 +48,13 @@ export const PrivacyPolicy: React.FC = () => {
 
 					<h2 className={heading}>How We Use Your Information</h2>
 					<p className={paragraph}>
-						We use your account and planning data solely to operate the Site: to
-						authenticate you, to save and display your resource projections, and to keep
-						your plan synced across sessions. We do not sell your personal information.
+						We use your account and planning data to operate the Site: to authenticate
+						you, to save and display your resource projections, and to keep your plan
+						synced across sessions. We also analyze planning data in aggregate,
+						anonymized form — for example, the percentage of users who enable certain
+						income options, or the overall popularity of banners — to understand how the
+						Site is used and to improve it. These statistics never identify individual
+						users. We do not sell your personal information.
 					</p>
 
 					<h2 className={heading}>Cookies and Local Storage</h2>
