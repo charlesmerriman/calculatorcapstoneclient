@@ -39,7 +39,7 @@ export function calculateMaxPossiblePulls({
 			plannedBanner.banner_support.banner_timeline.end_date
 		)
 		if (endDate.getTime() < currentDate.getTime()) {
-			return 0
+			return "Passed"
 		}
 		return (
 			plannedBanner.banner_support.free_pulls +
