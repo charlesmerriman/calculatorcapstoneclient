@@ -22,7 +22,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1 overflow-y-auto">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: July 13, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: July 15, 2026</p>
 
 					<p className={paragraph}>
 						This Privacy Policy explains what information the Uma Musume Carat Calculator
@@ -87,6 +87,15 @@ export const PrivacyPolicy: React.FC = () => {
 					<p className={paragraph}>
 						We may update this Privacy Policy from time to time. Any changes will be posted on
 						this page with an updated &quot;Last updated&quot; date.
+					</p>
+
+					<h2 className={heading}>Contact Us</h2>
+					<p className={paragraph}>
+						If you have any questions about this Privacy Policy, you can contact us at{" "}
+						<a href="mailto:Henryhandsomederby@gmail.com" className={link}>
+							Henryhandsomederby@gmail.com
+						</a>
+						.
 					</p>
 				</div>
 			</main>

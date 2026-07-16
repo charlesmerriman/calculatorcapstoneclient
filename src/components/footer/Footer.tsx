@@ -23,6 +23,13 @@ export const Footer = () => {
 				<Link to="/privacy-policy" className="text-gray-400 transition hover:text-brand">
 					Privacy Policy
 				</Link>
+				<span aria-hidden="true">·</span>
+				<a
+					href="mailto:Henryhandsomederby@gmail.com"
+					className="text-gray-400 transition hover:text-brand"
+				>
+					Contact
+				</a>
 			</div>
 			<p className="mt-1 text-gray-600">
 				Not affiliated with Cygames or Uma Musume Pretty Derby.
