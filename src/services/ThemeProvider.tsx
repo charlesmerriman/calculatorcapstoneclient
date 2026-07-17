@@ -12,6 +12,7 @@ const THEMES: ThemeConfig[] = [
 	{ id: "midnight", label: "Midnight", swatch: "#F6C84F" },
 	{ id: "violet",   label: "Violet",   swatch: "#C4B5FD" },
 	{ id: "teal",     label: "Teal",     swatch: "#5EEAD4" },
+	{ id: "light",    label: "Light",    swatch: "#f6f6f9" },
 ]
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {

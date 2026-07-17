@@ -28,7 +28,7 @@ export const UnderConstruction: React.FC<UnderConstructionProps> = ({ title, blu
 				</p>
 				<Link
 					to="/"
-					className="mt-2 flex items-center gap-1.5 rounded border border-gray-600 px-3 py-1.5 text-sm text-gray-300 transition hover:border-gray-400 hover:bg-gray-700 hover:text-white"
+					className="mt-2 flex items-center gap-1.5 rounded border border-gray-600 px-3 py-1.5 text-sm text-gray-300 transition hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100"
 				>
 					<ArrowLeft className="h-4 w-4" aria-hidden="true" />
 					Back to home

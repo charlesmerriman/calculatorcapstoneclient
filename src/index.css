@@ -74,3 +74,28 @@
 	--color-gray-900: #091514;
 	--color-gray-950: #040c0b;
 }
+
+/* Light theme. The app treats the gray ramp as "50 = lightest, 950 = darkest"
+   and pairs dark surfaces (bg-gray-900/800/700) with light text (text-gray-100/
+   300/400). To flip to a light theme without editing a single component, we
+   INVERT the ramp: gray-950 becomes pure white, gray-900 the page bg, and the
+   low numbers become the dark text tones. Every existing utility class keeps
+   working — a dark surface just resolves to a light one and vice versa.
+
+   Brand is deepened to #8f6b12 (a bronzed gold): the default pale gold fails
+   contrast on white, whereas this hits ~4.5:1 as text on the light surfaces
+   (WCAG AA) while still reading as gold and keeping black button labels legible. */
+[data-theme="light"] {
+	--color-brand: #8f6b12;
+	--color-gray-50:  #17171b; /* darkest — primary text */
+	--color-gray-100: #26262d; /* primary text */
+	--color-gray-200: #3b3b44;
+	--color-gray-300: #55555f; /* secondary text */
+	--color-gray-400: #71717c; /* muted text (AA on light bg) */
+	--color-gray-500: #82828d; /* de-emphasized text / tracks */
+	--color-gray-600: #c7c7cf; /* borders / dividers */
+	--color-gray-700: #e2e2e8; /* controls, inputs, hover surface */
+	--color-gray-800: #ededf1; /* cards / panels */
+	--color-gray-900: #f6f6f9; /* page background */
+	--color-gray-950: #ffffff; /* deepest recess — white */
+}

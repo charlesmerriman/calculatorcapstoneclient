@@ -17,30 +17,35 @@ interface RankOption<T> {
 
 // ── Shared Styles ─────────────────────────────────────────────────────
 
+// Colors reference the theme's CSS variables (the same gray tokens the Tailwind
+// utilities use) so these rank selects repaint with the active [data-theme]
+// instead of being locked to the dark palette. gray-700 = surface, gray-600 =
+// border/selected, gray-500 = hover border, gray-400 = indicator/placeholder,
+// gray-100 = text.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const selectStyles: StylesConfig<any, false> = {
 	control: (base: CSSObjectWithLabel) => ({
 		...base,
-		border: "1px solid #3c3c46",
+		border: "1px solid var(--color-gray-600)",
 		borderRadius: 4,
 		boxShadow: "none",
 		minHeight: 32,
-		backgroundColor: "#27272f",
-		"&:hover": { borderColor: "#606068" },
+		backgroundColor: "var(--color-gray-700)",
+		"&:hover": { borderColor: "var(--color-gray-500)" },
 	}),
 	valueContainer: (base: CSSObjectWithLabel) => ({ ...base, padding: "0 6px" }),
-	dropdownIndicator: (base: CSSObjectWithLabel) => ({ ...base, padding: "0 4px", color: "#8e8e9a" }),
+	dropdownIndicator: (base: CSSObjectWithLabel) => ({ ...base, padding: "0 4px", color: "var(--color-gray-400)" }),
 	indicatorSeparator: () => ({ display: "none" }),
-	menu: (base: CSSObjectWithLabel) => ({ ...base, zIndex: 100, borderRadius: 4, backgroundColor: "#27272f", border: "1px solid #3c3c46" }),
+	menu: (base: CSSObjectWithLabel) => ({ ...base, zIndex: 100, borderRadius: 4, backgroundColor: "var(--color-gray-700)", border: "1px solid var(--color-gray-600)" }),
 	option: (base: CSSObjectWithLabel, state: { isSelected: boolean; isFocused: boolean }) => ({
 		...base,
-		color: "#f9fafb",
-		backgroundColor: state.isSelected ? "#3c3c46" : state.isFocused ? "#3c3c46" : "#27272f",
+		color: "var(--color-gray-100)",
+		backgroundColor: state.isSelected || state.isFocused ? "var(--color-gray-600)" : "var(--color-gray-700)",
 		padding: "4px 8px",
 	}),
-	singleValue: (base: CSSObjectWithLabel) => ({ ...base, color: "#f9fafb" }),
-	input: (base: CSSObjectWithLabel) => ({ ...base, color: "#f9fafb" }),
-	placeholder: (base: CSSObjectWithLabel) => ({ ...base, color: "#8e8e9a" }),
+	singleValue: (base: CSSObjectWithLabel) => ({ ...base, color: "var(--color-gray-100)" }),
+	input: (base: CSSObjectWithLabel) => ({ ...base, color: "var(--color-gray-100)" }),
+	placeholder: (base: CSSObjectWithLabel) => ({ ...base, color: "var(--color-gray-400)" }),
 	menuPortal: (base: CSSObjectWithLabel) => ({ ...base, zIndex: 9999 }),
 }
 

@@ -103,7 +103,7 @@ export const HomePage = () => {
 						<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
 							<Link
 								to="/app"
-								className="rounded-lg bg-brand px-5 py-2 font-semibold text-gray-900 transition hover:bg-brand/85"
+								className="rounded-lg bg-brand px-5 py-2 font-semibold text-black transition hover:bg-brand/85"
 							>
 								Open the Calculator
 							</Link>
@@ -156,7 +156,7 @@ export const HomePage = () => {
 									href={HENRY_SHEET_URL}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-700 hover:text-white"
+									className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100"
 								>
 									Open the Sheet
 									<ArrowUpRight className="h-4 w-4" aria-hidden="true" />
