@@ -1,4 +1,5 @@
 import type React from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
 import {
@@ -16,6 +17,9 @@ import {
 } from "lucide-react"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
+import { changelogFetch } from "../../services/changelogFetchCalls"
+import { formatRelativeDate } from "../../utils/relativeDate"
+import type { ChangelogEntry } from "../../types"
 
 // ---------------------------------------------------------------------------
 // Config — edit these in one place.
@@ -87,6 +91,24 @@ const fadeUp = {
  *   D. Featured creator: channel link + auto-latest video embed + skeleton page links
  */
 export const HomePage = () => {
+	// Latest changelog date powers the "Updated N days ago" caption on the
+	// Changelog card. One lightweight fetch; failures fall back to a neutral
+	// caption and never block the page.
+	const [latestChangelogDate, setLatestChangelogDate] = useState<string | null>(null)
+
+	useEffect(() => {
+		const controller = new AbortController()
+		changelogFetch(controller.signal)
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data: ChangelogEntry[] | null) => {
+				if (data && data.length > 0) setLatestChangelogDate(data[0].date)
+			})
+			.catch(() => {
+				// AbortError (StrictMode double-mount) or network error — leave the fallback caption.
+			})
+		return () => controller.abort()
+	}, [])
+
 	return (
 		<div className="flex min-h-dvh flex-col bg-gray-900">
 			<Navbar />
@@ -167,6 +189,14 @@ export const HomePage = () => {
 							<div className="mt-4 grid gap-4 sm:grid-cols-3">
 								{infoLinks.map((item) => {
 									const Icon = item.icon
+									// The Changelog is live: show when it was last updated. FAQ and
+									// Feedback are still placeholders, so they keep "Coming soon".
+									let caption = "Coming soon"
+									if (item.to === "/changelog") {
+										caption = latestChangelogDate
+											? `Updated ${formatRelativeDate(latestChangelogDate)}`
+											: "View updates"
+									}
 									return (
 										<Link
 											key={item.to}
@@ -176,7 +206,7 @@ export const HomePage = () => {
 											<Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
 											<div>
 												<div className="font-semibold text-gray-100">{item.label}</div>
-												<div className="text-xs text-gray-500">Coming soon</div>
+												<div className="text-xs text-gray-500">{caption}</div>
 											</div>
 										</Link>
 									)

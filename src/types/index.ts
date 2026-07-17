@@ -52,3 +52,9 @@ export type {
 	OrganizedTimelineData,
 	CalculatorContextType
 } from "./calculator"
+
+export type {
+	ChangeCategory,
+	ChangelogChange,
+	ChangelogEntry
+} from "./changelog"
