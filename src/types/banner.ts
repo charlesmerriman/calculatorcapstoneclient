@@ -7,12 +7,24 @@
  * and can be extended later. Use `type` for unions, intersections, or aliases.
  */
 
-/** Represents a time window during which banners are available for pulling */
+/** Represents a time window during which banners are available for pulling.
+ *
+ * `start_date`/`end_date` are the RESOLVED global dates: the confirmed global
+ * dates when available, otherwise dates predicted from the JP schedule by the
+ * backend. `is_predicted` is true when they're an estimate. The raw jp and
+ * global date fields are exposed for reference (the global dates are null
+ * until a banner is confirmed).
+ */
 export interface BannerTimeline {
 	id: number
 	name: string
 	start_date: string
 	end_date: string
+	is_predicted: boolean
+	jp_start_date: string | null
+	jp_end_date: string | null
+	global_start_date: string | null
+	global_end_date: string | null
 	image: string
 }
 
@@ -64,6 +76,11 @@ export interface BannerTimelineForViewing {
 	name: string
 	start_date: string
 	end_date: string
+	is_predicted: boolean
+	jp_start_date: string | null
+	jp_end_date: string | null
+	global_start_date: string | null
+	global_end_date: string | null
 	image: string
 	banner_umas: BannerUma[]
 	banner_supports: BannerSupport[]

@@ -9,6 +9,7 @@ import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
+import PredictedBadge from "../PredictedBadge"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 
 interface StagedBannerRowProps {
@@ -133,6 +134,7 @@ export const StagedBannerRow = ({
 		<div className="space-y-0.5 text-xs text-gray-400">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
+			{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
 		</div>
 	) : (
 		<span className="text-xs text-gray-600">—</span>
@@ -235,6 +237,7 @@ export const StagedBannerRow = ({
 					<>
 						<span>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></span>
 						<span>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></span>
+						{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
 					</>
 				) : (
 					<span className="text-gray-600">—</span>

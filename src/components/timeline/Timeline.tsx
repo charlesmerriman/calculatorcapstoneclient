@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
+import PredictedBadge from "../PredictedBadge"
 import type {
 	ChampionsMeeting,
 	LeagueOfHeroes,
@@ -346,8 +347,13 @@ export const Timeline = () => {
 											<CalendarDays className="h-5 w-5" />
 										</div>
 										<div className="min-w-0 text-xl font-semibold text-gray-100 sm:text-2xl">
-											{format(bannerEvent.start_date, "MMMM d, yyyy")} through{" "}
-											{format(bannerEvent.end_date, "MMMM d, yyyy")}
+											<div className="flex flex-wrap items-center gap-2">
+												<span>
+													{format(bannerEvent.start_date, "MMMM d, yyyy")} through{" "}
+													{format(bannerEvent.end_date, "MMMM d, yyyy")}
+												</span>
+												{bannerEvent.is_predicted && <PredictedBadge />}
+											</div>
 										</div>
 									</div>
 									<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-semibold text-gray-100">

@@ -36,6 +36,8 @@ For each banner in the sorted list:
 
 The cutoff is the banner's `end_date` (from its `banner_timeline`). Resources earned right up to when the banner closes are counted. If no end date exists the banner is skipped.
 
+> Note: `end_date` is the **resolved** global date — the confirmed date when available, otherwise a date predicted from the JP schedule by the backend (`is_predicted: true`). The projection treats both identically; only the display shows an "Estimated" badge for predicted dates.
+
 **2. Add event rewards**
 
 For every `EventReward` whose `date` is strictly after `lastEndDate` and on or before `endDate`:
