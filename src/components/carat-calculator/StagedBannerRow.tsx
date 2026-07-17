@@ -131,8 +131,8 @@ export const StagedBannerRow = ({
 
 	const dateDisplay = bannerTimeline ? (
 		<div className="space-y-0.5 text-xs text-gray-400">
-			<div>Start: <span className="text-white">{formatDate(bannerTimeline.start_date)}</span></div>
-			<div>End: <span className="text-white">{formatDate(bannerTimeline.end_date)}</span></div>
+			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
+			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 		</div>
 	) : (
 		<span className="text-xs text-gray-600">—</span>
@@ -233,8 +233,8 @@ export const StagedBannerRow = ({
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{bannerTimeline ? (
 					<>
-						<span>Start: <span className="text-white">{formatDate(bannerTimeline.start_date)}</span></span>
-						<span>End: <span className="text-white">{formatDate(bannerTimeline.end_date)}</span></span>
+						<span>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></span>
+						<span>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></span>
 					</>
 				) : (
 					<span className="text-gray-600">—</span>

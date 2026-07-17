@@ -11,6 +11,14 @@ export const darkTextStyles: StylesConfig<unknown, false> = {
 /**
  * Compact react-select styles for use in the banner row.
  * Reduces height, font size, and padding to fit the narrow layout.
+ *
+ * Colors reference the theme's CSS variables (var(--color-gray-*)) rather than
+ * hardcoded hex so the dropdown repaints with the active [data-theme] — the
+ * same tokens the Tailwind utility classes use. The variables resolve from
+ * :root even for the body-portaled menu. Semantic mapping:
+ *   gray-700 = control/menu surface, gray-600 = border & hover/selected option,
+ *   gray-500 = control hover border, gray-400 = indicator/placeholder,
+ *   gray-100 = value/option text.
  */
 export const compactSelectStyles: StylesConfig<unknown, false> = {
 	control: (provided: CSSObjectWithLabel) => ({
@@ -20,10 +28,10 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 		minHeight: "32px",
 		fontSize: "12px",
 		width: "100%",
-		backgroundColor: "#27272f",
-		borderColor: "#3c3c46",
+		backgroundColor: "var(--color-gray-700)",
+		borderColor: "var(--color-gray-600)",
 		flexWrap: "nowrap",
-		"&:hover": { borderColor: "#606068" }
+		"&:hover": { borderColor: "var(--color-gray-500)" }
 	}),
 	valueContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
@@ -38,7 +46,7 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 		...provided,
 		margin: "0",
 		padding: "0",
-		color: "#f9fafb"
+		color: "var(--color-gray-100)"
 	}),
 	indicatorsContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
@@ -48,19 +56,19 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 	dropdownIndicator: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		padding: "2px 4px",
-		color: "#8e8e9a"
+		color: "var(--color-gray-400)"
 	}),
 	option: (provided: CSSObjectWithLabel, state: { isSelected: boolean; isFocused: boolean }) => ({
 		...provided,
-		color: "#f9fafb",
+		color: "var(--color-gray-100)",
 		fontSize: "12px",
 		padding: "4px 8px",
-		backgroundColor: state.isSelected ? "#3c3c46" : state.isFocused ? "#3c3c46" : "#27272f"
+		backgroundColor: state.isSelected || state.isFocused ? "var(--color-gray-600)" : "var(--color-gray-700)"
 	}),
 	singleValue: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		fontSize: "12px",
-		color: "#f9fafb",
+		color: "var(--color-gray-100)",
 		textAlign: "center",
 		width: "100%"
 	}),
@@ -73,12 +81,12 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 	}),
 	menu: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		backgroundColor: "#27272f",
-		border: "1px solid #3c3c46"
+		backgroundColor: "var(--color-gray-700)",
+		border: "1px solid var(--color-gray-600)"
 	}),
 	placeholder: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		color: "#8e8e9a",
+		color: "var(--color-gray-400)",
 		textAlign: "center",
 		width: "100%"
 	})

@@ -25,7 +25,7 @@ export const ThemePicker = () => {
 				onClick={() => setOpen((prev) => !prev)}
 				aria-label="Change color theme"
 				title="Change color theme"
-				className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-white"
+				className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-gray-100"
 			>
 				<Palette className="h-4 w-4" />
 			</button>
@@ -40,8 +40,8 @@ export const ThemePicker = () => {
 							aria-pressed={activeTheme === theme.id}
 							className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs transition ${
 								activeTheme === theme.id
-									? "bg-gray-700 text-white"
-									: "text-gray-300 hover:bg-gray-700 hover:text-white"
+									? "bg-gray-700 text-gray-100"
+									: "text-gray-300 hover:bg-gray-700 hover:text-gray-100"
 							}`}
 						>
 							{/* Static hex, not var(--color-brand) — all swatches visible at once */}

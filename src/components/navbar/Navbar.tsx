@@ -115,7 +115,7 @@ export const Navbar = () => {
 			onClick={handleSignInToSave}
 			aria-label="Sign in to save"
 			title="Sign in to save your plan to an account"
-			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
+			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition"
 		>
 			<LogIn className="w-4 h-4" />
 			Sign in to save
@@ -128,7 +128,7 @@ export const Navbar = () => {
 			onClick={handleLogout}
 			aria-label="Logout"
 			title="Logout"
-			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
+			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition"
 		>
 			<UserRound className="w-4 h-4" />
 			Logout
@@ -137,7 +137,7 @@ export const Navbar = () => {
 	) : (
 		<Link
 			to="/login"
-			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
+			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition"
 		>
 			<LogIn className="w-4 h-4" />
 			Login
@@ -174,7 +174,7 @@ export const Navbar = () => {
 										onClick={handleLogout}
 										aria-label="Logout"
 										title="Logout"
-										className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-white"
+										className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-gray-100"
 									>
 										<LogOut className="h-4 w-4" />
 									</button>
@@ -263,7 +263,7 @@ export const Navbar = () => {
 								<ThemePicker />
 								<button
 									onClick={handleLogout}
-									className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-white transition"
+									className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition"
 								>
 									<UserRound className="w-4 h-4" />
 									Logout

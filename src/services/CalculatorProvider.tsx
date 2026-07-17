@@ -282,7 +282,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 
 	if (fetchError) {
 		return (
-			<div className="flex flex-col items-center justify-center min-h-screen gap-4 text-white">
+			<div className="flex flex-col items-center justify-center min-h-screen gap-4 text-gray-100">
 				<h1 className="text-2xl font-bold">Failed to load data</h1>
 				<p className="text-white/60">The server may be down. Please try again.</p>
 				<button
