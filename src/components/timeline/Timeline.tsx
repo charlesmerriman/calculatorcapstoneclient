@@ -253,9 +253,12 @@ export const Timeline = () => {
 						return (
 							<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
 								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex justify-center text-center text-sm sm:text-lg card-section rounded-xl font-medium">
-										{format(event.start_date, "MMMM d, yyyy")} through{" "}
-										{format(event.end_date, "MMMM d, yyyy")}
+									<div className="w-full flex flex-wrap items-center justify-center gap-2 text-center text-sm sm:text-lg card-section rounded-xl font-medium">
+										<span>
+											{format(event.start_date, "MMMM d, yyyy")} through{" "}
+											{format(event.end_date, "MMMM d, yyyy")}
+										</span>
+										{event.is_predicted && <PredictedBadge />}
 									</div>
 									<div className="text-gray-100">Images are placeholders</div>
 									<img src={event.image} alt={event.name} className="max-w-full h-auto" />
@@ -302,9 +305,12 @@ export const Timeline = () => {
 						return (
 							<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
 								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex justify-center text-center text-sm sm:text-lg card-section rounded-xl font-medium">
-										{format(event.start_date, "MMMM d, yyyy")} through{" "}
-										{format(event.end_date, "MMMM d, yyyy")}
+									<div className="w-full flex flex-wrap items-center justify-center gap-2 text-center text-sm sm:text-lg card-section rounded-xl font-medium">
+										<span>
+											{format(event.start_date, "MMMM d, yyyy")} through{" "}
+											{format(event.end_date, "MMMM d, yyyy")}
+										</span>
+										{event.is_predicted && <PredictedBadge />}
 									</div>
 									<div>{event.name}</div>
 									{event.image && <img src={event.image} alt={event.name} className="max-w-full h-auto" />}

@@ -97,6 +97,11 @@ function makeChampionsMeeting(id: number, endDate: string): ChampionsMeeting {
     cm_number: id,
     start_date: daysFromNow(0),
     end_date: endDate,
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: daysFromNow(0),
+    global_end_date: endDate,
     image: '',
     track: 'Tokyo',
     surface_type: 'Turf',
@@ -115,7 +120,18 @@ function makeChampionsMeeting(id: number, endDate: string): ChampionsMeeting {
 }
 
 function makeLeagueOfHeroes(id: number, endDate: string): LeagueOfHeroes {
-  return { id, name: `LoH ${id}`, start_date: daysFromNow(0), end_date: endDate, image: null }
+  return {
+    id,
+    name: `LoH ${id}`,
+    start_date: daysFromNow(0),
+    end_date: endDate,
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: daysFromNow(0),
+    global_end_date: endDate,
+    image: null,
+  }
 }
 
 function makeSupportBanner(id: number, endDate: string, pulls: number): UserPlannedBanner {

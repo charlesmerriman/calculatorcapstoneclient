@@ -37,12 +37,23 @@ export interface GameEvent {
 /** @deprecated Use EventReward (singular) instead */
 export type EventRewards = EventReward
 
+/**
+ * `start_date`/`end_date` are the RESOLVED global dates (confirmed when
+ * available, otherwise predicted from the JP schedule by the backend);
+ * `is_predicted` is true when they're an estimate. The raw jp/global fields are
+ * exposed for reference (global dates are null until the meeting is confirmed).
+ */
 export interface ChampionsMeeting {
 	id: number
 	name: string
 	cm_number: number
 	start_date: string
 	end_date: string
+	is_predicted: boolean
+	jp_start_date: string | null
+	jp_end_date: string | null
+	global_start_date: string | null
+	global_end_date: string | null
 	image: string
 	track: string
 	surface_type: string
@@ -59,10 +70,21 @@ export interface ChampionsMeeting {
 	wit_recommendation: string
 }
 
+/**
+ * `start_date`/`end_date` are the RESOLVED global dates (confirmed when
+ * available, otherwise predicted from the JP schedule by the backend);
+ * `is_predicted` is true when they're an estimate. The raw jp/global fields are
+ * exposed for reference (global dates are null until the event is confirmed).
+ */
 export interface LeagueOfHeroes {
 	id: number
 	name: string
 	start_date: string
 	end_date: string
+	is_predicted: boolean
+	jp_start_date: string | null
+	jp_end_date: string | null
+	global_start_date: string | null
+	global_end_date: string | null
 	image: string | null
 }
