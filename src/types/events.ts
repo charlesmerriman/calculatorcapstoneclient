@@ -25,12 +25,21 @@ export interface EventReward {
 	date: string
 }
 
+/**
+ * `start_date`/`end_date` are derived entirely from the linked BannerTimeline
+ * (resolved global dates, confirmed when available otherwise predicted from
+ * the JP schedule; `end_date` trails the banner's own end date by 4 days) —
+ * `banner_timeline` is null for events with no linked banner (e.g. Champions
+ * Meeting tie-ins), in which case dates are null too.
+ */
 export interface GameEvent {
 	id: number
 	name: string
-	image: string
-	start_date: string
-	end_date: string
+	image: string | null
+	start_date: string | null
+	end_date: string | null
+	is_predicted: boolean
+	banner_timeline: number | null
 	rewards: EventReward[]
 }
 
