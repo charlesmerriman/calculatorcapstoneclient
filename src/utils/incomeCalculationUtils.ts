@@ -83,3 +83,37 @@ export function calculateDayOfMonthOccurrences(
 	}
 	return count
 }
+
+/**
+ * Share of a GameEvent's carats_throughout earned within [windowStart, windowEnd],
+ * prorated by real elapsed time (not calendar days) across the event's own
+ * start_date..end_date span. Milliseconds avoid an off-by-one from end_date
+ * not being midnight-aligned (it's the linked banner's resolved end + a flat
+ * 4-day buffer), and sidestep open/closed boundary ambiguity entirely — a
+ * point-in-time boundary has zero width, so this composes correctly across a
+ * chain of contiguous banner windows.
+ *
+ * For an event already in progress "now" (windowStart clipped to today),
+ * this naturally excludes the already-elapsed share — carats_throughout is
+ * divided by the event's FULL duration, not a renormalized remaining
+ * duration, so already-elapsed carats are treated as already banked/spent
+ * rather than redistributed onto what's left.
+ */
+export function getThroughoutCaratsInWindow(
+	event: { carats_throughout: number; start_date: string | Date | null; end_date: string | Date | null },
+	windowStart: Date,
+	windowEnd: Date
+): number {
+	if (!event.carats_throughout || !event.start_date || !event.end_date) return 0
+
+	const eventStart = event.start_date instanceof Date ? event.start_date : new Date(event.start_date)
+	const eventEnd = event.end_date instanceof Date ? event.end_date : new Date(event.end_date)
+	const totalMs = eventEnd.getTime() - eventStart.getTime()
+	if (totalMs <= 0) return 0
+
+	const overlapMs = Math.max(
+		0,
+		Math.min(eventEnd.getTime(), windowEnd.getTime()) - Math.max(eventStart.getTime(), windowStart.getTime())
+	)
+	return (overlapMs / totalMs) * event.carats_throughout
+}

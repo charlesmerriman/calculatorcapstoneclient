@@ -38,7 +38,7 @@ The core business logic hook. For each planned banner it walks forward in time f
 - Weekly rank payouts (Team Trials, every Monday)
 - Monthly rank payouts (Club rank)
 - Champions Meeting event payouts
-- Dated `EventReward` entries filtered to the relevant date range
+- `GameEvent` reward fields filtered to the relevant date range, plus a prorated share of each event's `carats_throughout`
 - Free pulls granted by the banner itself
 
 The result is a per-banner forecast of carats and tickets available at the banner's end date.

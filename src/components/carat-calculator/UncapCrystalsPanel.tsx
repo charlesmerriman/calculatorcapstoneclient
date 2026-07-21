@@ -39,7 +39,7 @@ const CrystalCell = ({
 export const UncapCrystalsPanel = () => {
 	const {
 		userStatsData,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		championsMeetingRankData,
 		leagueOfHeroesData,
@@ -50,7 +50,7 @@ export const UncapCrystalsPanel = () => {
 
 	const crystals = useUncapCrystals(
 		userStatsData,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		championsMeetingRankData,
 		leagueOfHeroesData,

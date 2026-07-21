@@ -11,7 +11,7 @@ import type {
 	UserPlannedBanner,
 	BannerUma,
 	BannerSupport,
-	EventReward,
+	GameEvent,
 	ChampionsMeeting,
 	LeagueOfHeroes,
 	OrganizedTimelineData
@@ -56,7 +56,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [supportBannerData, setSupportBannerData] = useState<BannerSupport[]>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
 	const [stagedBanners, setStagedBanners] = useState<UserPlannedBanner[]>([])
-	const [eventRewardsData, setEventRewardsData] = useState<EventReward[]>([])
+	const [gameEventsData, setGameEventsData] = useState<GameEvent[]>([])
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
@@ -151,7 +151,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
-				setEventRewardsData(data.events_data.flatMap((event) => event.rewards))
+				setGameEventsData(data.events_data)
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
 				setOrganizedTimelineData(sortedMergedEvents)
@@ -258,7 +258,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		supportBannerData,
 		userPlannedBannerData,
 		stagedBanners,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
 		timerIsGoing,

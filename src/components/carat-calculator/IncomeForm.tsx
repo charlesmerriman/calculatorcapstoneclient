@@ -89,7 +89,7 @@ export const IncomeForm = () => {
 		teamTrialsRankData,
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
 		setUserStatsData,
@@ -101,7 +101,7 @@ export const IncomeForm = () => {
 		teamTrialsRankData,
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
 	})

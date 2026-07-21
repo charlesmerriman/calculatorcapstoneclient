@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import type {
 	UserStats,
-	EventReward,
+	GameEvent,
 	ChampionsMeeting,
 	ChampionsMeetingRank,
 	LeagueOfHeroes,
@@ -22,7 +22,8 @@ const SHARDS_PER_CRYSTAL = 20
  *
  * Starts from the user's current inventory, then adds shards/crystals from three
  * sources whose dates fall between now and the selected end date:
- *   1. EventReward entries (game events)
+ *   1. GameEvent reward amounts (shards/crystals are always a lump on start_date --
+ *      carats_throughout only ever affects carats, never shards/crystals)
  *   2. Champions Meeting payouts (based on the user's rank)
  *   3. League of Heroes payouts (based on the user's rank)
  *
@@ -30,7 +31,7 @@ const SHARDS_PER_CRYSTAL = 20
  */
 export function useUncapCrystals(
 	userStatsData: UserStats | null,
-	eventRewardsData: EventReward[],
+	gameEventsData: GameEvent[],
 	championsMeetingData: ChampionsMeeting[],
 	championsMeetingRankData: ChampionsMeetingRank[],
 	leagueOfHeroesData: LeagueOfHeroes[],
@@ -49,13 +50,13 @@ export function useUncapCrystals(
 		const now = new Date()
 		const endDate = new Date(selectedEndDate)
 
-		for (const ev of eventRewardsData) {
-			const date = new Date(ev.date)
-			if (date > now && date <= endDate) {
-				totalSsrShards += ev.ssr_shard_amount
-				totalSrShards += ev.sr_shard_amount
-				totalSsrCrystals += ev.ssr_crystal_amount
-				totalSrCrystals += ev.sr_crystal_amount
+		for (const ge of gameEventsData) {
+			const startDate = ge.start_date ? new Date(ge.start_date) : null
+			if (startDate && startDate > now && startDate <= endDate) {
+				totalSsrShards += ge.ssr_shard_amount
+				totalSrShards += ge.sr_shard_amount
+				totalSsrCrystals += ge.ssr_crystal_amount
+				totalSrCrystals += ge.sr_crystal_amount
 			}
 		}
 
@@ -93,7 +94,7 @@ export function useUncapCrystals(
 		}
 	}, [
 		userStatsData,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		championsMeetingRankData,
 		leagueOfHeroesData,

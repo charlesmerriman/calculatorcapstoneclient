@@ -23,7 +23,7 @@ import type {
 	LeagueOfHeroesRank
 } from "./ranks"
 import type { UserStats, UserPlannedBanner } from "./user"
-import type { EventReward, GameEvent, ChampionsMeeting, LeagueOfHeroes } from "./events"
+import type { GameEvent, ChampionsMeeting, LeagueOfHeroes } from "./events"
 
 /** The full payload returned by GET /calculator-data.
  * `user_stats_data` is null for anonymous (guest) requests — the provider
@@ -76,7 +76,7 @@ export interface CalculatorContextType {
 	leagueOfHeroesRankData: LeagueOfHeroesRank[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
-	eventRewardsData: EventReward[]
+	gameEventsData: GameEvent[]
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]

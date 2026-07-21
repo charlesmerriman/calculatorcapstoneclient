@@ -1,29 +1,16 @@
 /**
  * Game event types.
  *
- * TYPESCRIPT CONCEPT: Naming Conventions
- * Types/interfaces should be singular nouns describing ONE instance.
- * "EventReward" (not "EventRewards") because each object IS one reward.
- * Arrays of them get typed as EventReward[] at the point of use.
- * The original codebase had "EventRewards" as the type name — this is
- * a common beginner mistake that makes it confusing when you see:
- *   const rewards: EventRewards[]  // "rewards of type EventRewardses"??
- *
- * We keep the old name as a deprecated alias so nothing breaks immediately.
+ * Reward amounts used to live on a separate EventReward model (one-to-many
+ * with GameEvent). In practice every event had at most one immediate reward
+ * and one throughout-the-event reward, so the two were folded directly onto
+ * GameEvent as fields — carat_amount is earned once the event's own resolved
+ * start_date passes, carats_throughout is prorated by elapsed time across
+ * start_date..end_date (see getThroughoutCaratsInWindow in
+ * utils/incomeCalculationUtils.ts), independent of start_date. Only carats
+ * are ever distributed this way — tickets/shards/crystals are always earned
+ * as a lump on start_date.
  */
-
-export interface EventReward {
-	id: number
-	name: string
-	carat_amount: number
-	support_ticket_amount: number
-	uma_ticket_amount: number
-	sr_shard_amount: number
-	sr_crystal_amount: number
-	ssr_shard_amount: number
-	ssr_crystal_amount: number
-	date: string
-}
 
 /**
  * `start_date`/`end_date` are derived entirely from the linked BannerTimeline
@@ -40,11 +27,15 @@ export interface GameEvent {
 	end_date: string | null
 	is_predicted: boolean
 	banner_timeline: number | null
-	rewards: EventReward[]
+	carat_amount: number
+	carats_throughout: number
+	support_ticket_amount: number
+	uma_ticket_amount: number
+	sr_shard_amount: number
+	sr_crystal_amount: number
+	ssr_shard_amount: number
+	ssr_crystal_amount: number
 }
-
-/** @deprecated Use EventReward (singular) instead */
-export type EventRewards = EventReward
 
 /**
  * `start_date`/`end_date` are the RESOLVED global dates (confirmed when

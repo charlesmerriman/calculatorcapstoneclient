@@ -40,8 +40,6 @@ export type {
 export { isSavedBanner, isLocalBanner } from "./user"
 
 export type {
-	EventReward,
-	EventRewards,
 	GameEvent,
 	ChampionsMeeting,
 	LeagueOfHeroes

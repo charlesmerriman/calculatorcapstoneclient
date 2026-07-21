@@ -11,7 +11,7 @@ import type {
   ChampionsMeetingRank,
   LeagueOfHeroesRank,
   UserPlannedBanner,
-  EventReward,
+  GameEvent,
   ChampionsMeeting,
   LeagueOfHeroes,
 } from '../types'
@@ -57,7 +57,7 @@ const noIncome = {
   teamTrialsRankData: [noTeamTrialsRank],
   championsMeetingRankData: [noCmRank],
   leagueOfHeroesRankData: [noLohRank],
-  eventRewardsData: [] as EventReward[],
+  gameEventsData: [] as GameEvent[],
   championsMeetingData: [] as ChampionsMeeting[],
   leagueOfHeroesData: [] as LeagueOfHeroes[],
 }
@@ -162,18 +162,35 @@ function makeSupportBanner(id: number, endDate: string, pulls: number): UserPlan
   }
 }
 
-function makeEventReward(id: number, date: string, caratAmount: number): EventReward {
+/**
+ * GameEvent used to carry only reward amounts via a separate EventReward
+ * model (one-to-many with GameEvent). It's since been folded onto GameEvent
+ * directly (see types/events.ts) — carat_amount is a lump earned on
+ * start_date, carats_throughout is prorated across start_date..end_date.
+ */
+function makeGameEvent(
+  id: number,
+  startDate: string | null,
+  endDate: string | null,
+  caratAmount: number,
+  caratsThroughout = 0
+): GameEvent {
   return {
     id,
     name: `Event ${id}`,
+    image: null,
+    start_date: startDate,
+    end_date: endDate,
+    is_predicted: false,
+    banner_timeline: null,
     carat_amount: caratAmount,
+    carats_throughout: caratsThroughout,
     support_ticket_amount: 0,
     uma_ticket_amount: 0,
     sr_shard_amount: 0,
     sr_crystal_amount: 0,
     ssr_shard_amount: 0,
     ssr_crystal_amount: 0,
-    date,
   }
 }
 
@@ -349,14 +366,14 @@ describe('useBannerResources', () => {
   })
 
   describe('event reward filtering', () => {
-    it('adds event rewards whose date falls within the banner window', () => {
-      const reward = makeEventReward(1, daysFromNow(15), 1_000)
+    it('adds event rewards whose start_date falls within the banner window', () => {
+      const event = makeGameEvent(1, daysFromNow(15), daysFromNow(15), 1_000)
       const { result } = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
           userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
           ...noIncome,
-          eventRewardsData: [reward],
+          gameEventsData: [event],
         })
       )
       // Without the reward the balance would be daily income only.
@@ -364,37 +381,31 @@ describe('useBannerResources', () => {
       expect(result.current[0].carats).toBeGreaterThanOrEqual(1_000)
     })
 
-    it('does not add event rewards whose date falls after the banner deadline', () => {
-      // Reward is on day 50 but banner ends on day 20 — should be excluded.
-      const reward = makeEventReward(1, daysFromNow(50), 1_000)
+    it('does not add event rewards whose start_date falls after the banner deadline', () => {
+      // Event starts on day 50 but banner ends on day 20 — should be excluded.
+      const event = makeGameEvent(1, daysFromNow(50), daysFromNow(50), 1_000)
       const { result } = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
           userPlannedBannerData: [makeUmaBanner(1, daysFromNow(20), 0)],
           ...noIncome,
-          eventRewardsData: [reward],
+          gameEventsData: [event],
         })
       )
-      // 20 days of daily income at 75/day = 1500 max base income.
-      // No reward added, so balance < 1500 + potential bonuses.
-      // We verify the reward wasn't included by checking the balance is not inflated.
-      // Max daily income for 20 days is 20 * (75 + 75) = 3000 (base + max bonus).
-      // With reward it would be at least 1000 + 20*75 = 2500+. So if < 4000 it's fine
-      // but let's check the specific reward wasn't added by comparing with/without.
       const noRewardResult = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
           userPlannedBannerData: [makeUmaBanner(1, daysFromNow(20), 0)],
           ...noIncome,
-          eventRewardsData: [],
+          gameEventsData: [],
         })
       )
       expect(result.current[0].carats).toBe(noRewardResult.result.current[0].carats)
     })
 
     it('adds uma ticket rewards within the banner window', () => {
-      const reward: EventReward = {
-        ...makeEventReward(1, daysFromNow(10), 0),
+      const event: GameEvent = {
+        ...makeGameEvent(1, daysFromNow(10), daysFromNow(10), 0),
         uma_ticket_amount: 5,
       }
       const { result } = renderHook(() =>
@@ -402,7 +413,7 @@ describe('useBannerResources', () => {
           userStatsData: zeroStats,
           userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
           ...noIncome,
-          eventRewardsData: [reward],
+          gameEventsData: [event],
         })
       )
       expect(result.current[0].umaTickets).toBe(5)
@@ -447,9 +458,9 @@ describe('useBannerResources', () => {
     })
 
     it('does not count an event reward twice when two banners share the same window', () => {
-      // Reward falls in banner 1's window (day 0–10). When banner 2 is processed
-      // (day 10–20), lastEndDate = day 10, so the day-5 reward is excluded.
-      const reward = makeEventReward(1, daysFromNow(5), 1_000)
+      // Event starts in banner 1's window (day 0–10). When banner 2 is processed
+      // (day 10–20), lastEndDate = day 10, so the day-5 start is excluded.
+      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(5), 1_000)
       const { result: withReward } = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
@@ -458,7 +469,7 @@ describe('useBannerResources', () => {
             makeUmaBanner(2, daysFromNow(20), 0),
           ],
           ...noIncome,
-          eventRewardsData: [reward],
+          gameEventsData: [event],
         })
       )
       const { result: noReward } = renderHook(() =>
@@ -469,7 +480,7 @@ describe('useBannerResources', () => {
             makeUmaBanner(2, daysFromNow(20), 0),
           ],
           ...noIncome,
-          eventRewardsData: [],
+          gameEventsData: [],
         })
       )
       // Banner 1 gets +1000 from the reward; it carries into banner 2's opening balance.
@@ -779,8 +790,8 @@ describe('useBannerResources', () => {
 
   describe('event reward filtering (additional)', () => {
     it('adds support ticket rewards within the banner window', () => {
-      const reward: EventReward = {
-        ...makeEventReward(1, daysFromNow(10), 0),
+      const event: GameEvent = {
+        ...makeGameEvent(1, daysFromNow(10), daysFromNow(10), 0),
         support_ticket_amount: 3,
       }
       const { result } = renderHook(() =>
@@ -788,10 +799,142 @@ describe('useBannerResources', () => {
           userStatsData: zeroStats,
           userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
           ...noIncome,
-          eventRewardsData: [reward],
+          gameEventsData: [event],
         })
       )
       expect(result.current[0].supportTickets).toBe(3)
+    })
+  })
+
+  describe('carats_throughout distribution', () => {
+    it('adds the full carats_throughout amount when the event span is entirely within the banner window', () => {
+      // Event runs day 1–11 (10-day span, 1000 carats). Banner window (now, day30]
+      // starts before the event and ends after it, so the full amount is earned.
+      const event = makeGameEvent(1, daysFromNow(1), daysFromNow(11), 0, 1_000)
+      const { result: withEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [event],
+        })
+      )
+      const { result: withoutEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(1_000)
+    })
+
+    it('splits carats_throughout proportionally when the event spans a banner boundary', () => {
+      // Event runs day 5–15 (10-day span, 1000 carats -> 100/day).
+      // Banner 1 ends day 10 (covers days 5-10 of the event = 500 carats).
+      // Banner 2 ends day 20 (covers the remaining days 10-15 = 500 more carats).
+      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(15), 0, 1_000)
+      const banners = [
+        makeUmaBanner(1, daysFromNow(10), 0),
+        makeUmaBanner(2, daysFromNow(20), 0),
+      ]
+      const { result: withEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+          gameEventsData: [event],
+        })
+      )
+      const { result: withoutEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      // Banner 1 earns half the event's span.
+      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(500)
+      // Banner 2's cumulative total picks up the other half (carried over, not doubled).
+      expect(withEvent.current[1].carats - withoutEvent.current[1].carats).toBe(1_000)
+    })
+
+    it('contributes 0 when the event has unresolved (null) dates', () => {
+      const event: GameEvent = {
+        ...makeGameEvent(1, daysFromNow(5), daysFromNow(15), 0, 1_000),
+        start_date: null,
+        end_date: null,
+      }
+      const { result: withEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [event],
+        })
+      )
+      const { result: withoutEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      expect(() => withEvent).not.toThrow()
+      expect(withEvent.current[0].carats).toBe(withoutEvent.current[0].carats)
+    })
+
+    it('only projects the remaining share of an event already in progress', () => {
+      // Event started 5 days ago and ends 5 days from now (10-day span, 1000 carats).
+      // The banner window starts "now", partway through the event, so only the
+      // remaining (not yet elapsed) share should be projected -- strictly less
+      // than the full 1000, but still more than 0 since 5 days remain.
+      const event = makeGameEvent(1, daysFromNow(-5), daysFromNow(5), 0, 1_000)
+      const { result: withEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [event],
+        })
+      )
+      const { result: withoutEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      const diff = withEvent.current[0].carats - withoutEvent.current[0].carats
+      expect(diff).toBeGreaterThan(0)
+      expect(diff).toBeLessThan(1_000)
+    })
+
+    it('sums carat_amount and carats_throughout on the same event', () => {
+      // Event has both an immediate 200-carat lump (on start_date) and a
+      // 1000-carat throughout amount fully inside the banner window.
+      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(15), 200, 1_000)
+      const { result: withEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [event],
+        })
+      )
+      const { result: withoutEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(1_200)
     })
   })
 })

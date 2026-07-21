@@ -38,15 +38,23 @@ The cutoff is the banner's `end_date` (from its `banner_timeline`). Resources ea
 
 > Note: `end_date` is the **resolved** global date — the confirmed date when available, otherwise a date predicted from the JP schedule by the backend (`is_predicted: true`). The projection treats both identically; only the display shows an "Estimated" badge for predicted dates.
 
-**2. Add event rewards**
+**2. Add game event rewards**
 
-For every `EventReward` whose `date` is strictly after `lastEndDate` and on or before `endDate`:
+`GameEvent` reward amounts fall into two categories, both handled per event in this step.
+
+**Immediate amounts.** For every `GameEvent` whose `start_date` is strictly after `lastEndDate` and on or before `endDate`:
 ```
-carats         += reward.carat_amount
-umaTickets     += reward.uma_ticket_amount
-supportTickets += reward.support_ticket_amount
+carats         += event.carat_amount
+umaTickets     += event.uma_ticket_amount
+supportTickets += event.support_ticket_amount
 ```
 SR/SSR shards and crystals are received but the projection does not currently track those balances.
+
+**Throughout amounts.** Independent of `start_date`, every event also contributes a prorated share of `carats_throughout` — carats spread evenly across the event's own `start_date`..`end_date` span rather than granted as a lump. `getThroughoutCaratsInWindow` (in `utils/incomeCalculationUtils.ts`) computes the overlap between `[lastEndDate, endDate]` and the event's span, proportioned by real elapsed time (milliseconds, not calendar days — `end_date` isn't guaranteed midnight-aligned):
+```
+carats += event.carats_throughout × (overlap between [lastEndDate, endDate] and [event.start_date, event.end_date]) / (event.end_date − event.start_date)
+```
+This composes correctly across a chain of banners — an event spanning a banner boundary has its `carats_throughout` split proportionally between them rather than credited all-or-nothing to whichever banner's window happens to contain a single reward date.
 
 **3. Add Champions Meeting payouts**
 

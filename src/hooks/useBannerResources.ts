@@ -23,6 +23,7 @@ import {
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
 	calculateDayOfMonthOccurrences,
+	getThroughoutCaratsInWindow,
 } from "../utils/incomeCalculationUtils"
 import type {
 	UserStats,
@@ -31,7 +32,7 @@ import type {
 	ChampionsMeetingRank,
 	LeagueOfHeroesRank,
 	UserPlannedBanner,
-	EventReward,
+	GameEvent,
 	ChampionsMeeting,
 	LeagueOfHeroes
 } from "../types"
@@ -48,7 +49,7 @@ interface BannerResourcesParams {
 	teamTrialsRankData: TeamTrialsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
 	leagueOfHeroesRankData: LeagueOfHeroesRank[]
-	eventRewardsData: EventReward[]
+	gameEventsData: GameEvent[]
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]
@@ -61,7 +62,7 @@ export function useBannerResources({
 	teamTrialsRankData,
 	championsMeetingRankData,
 	leagueOfHeroesRankData,
-	eventRewardsData,
+	gameEventsData,
 	championsMeetingData,
 	leagueOfHeroesData,
 	userPlannedBannerData
@@ -88,9 +89,10 @@ export function useBannerResources({
 
 		// Pre-parse all event/meeting/LoH dates once so we don't reconstruct
 		// Date objects on every iteration of the inner loops.
-		const parsedEventRewards = eventRewardsData.map((ev) => ({
-			...ev,
-			parsedDate: new Date(ev.date),
+		const parsedGameEvents = gameEventsData.map((ge) => ({
+			...ge,
+			parsedStart: ge.start_date ? new Date(ge.start_date) : null,
+			parsedEnd: ge.end_date ? new Date(ge.end_date) : null,
 		}))
 		const parsedMeetings = championsMeetingData.map((m) => ({
 			...m,
@@ -125,12 +127,17 @@ export function useBannerResources({
 
 			const endDate = new Date(endDateStr)
 
-			for (const ev of parsedEventRewards) {
-				if (ev.parsedDate > lastEndDate && ev.parsedDate <= endDate) {
-					carats += ev.carat_amount
-					umaTickets += ev.uma_ticket_amount
-					supportTickets += ev.support_ticket_amount
+			for (const ge of parsedGameEvents) {
+				if (ge.parsedStart && ge.parsedStart > lastEndDate && ge.parsedStart <= endDate) {
+					carats += ge.carat_amount
+					umaTickets += ge.uma_ticket_amount
+					supportTickets += ge.support_ticket_amount
 				}
+				carats += getThroughoutCaratsInWindow(
+					{ carats_throughout: ge.carats_throughout, start_date: ge.parsedStart, end_date: ge.parsedEnd },
+					lastEndDate,
+					endDate
+				)
 			}
 
 			for (const meet of parsedMeetings) {
@@ -201,7 +208,7 @@ export function useBannerResources({
 		championsMeetingData,
 		championsMeetingRankData,
 		clubRankData,
-		eventRewardsData,
+		gameEventsData,
 		leagueOfHeroesData,
 		leagueOfHeroesRankData,
 		teamTrialsRankData,

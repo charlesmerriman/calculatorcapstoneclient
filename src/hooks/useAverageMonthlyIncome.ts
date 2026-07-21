@@ -17,6 +17,7 @@ import {
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
 	calculateDayOfMonthOccurrences,
+	getThroughoutCaratsInWindow,
 } from "../utils/incomeCalculationUtils"
 import type {
 	UserStats,
@@ -24,7 +25,7 @@ import type {
 	TeamTrialsRank,
 	ChampionsMeetingRank,
 	LeagueOfHeroesRank,
-	EventReward,
+	GameEvent,
 	ChampionsMeeting,
 	LeagueOfHeroes,
 } from "../types"
@@ -43,7 +44,7 @@ interface AverageMonthlyIncomeParams {
 	teamTrialsRankData: TeamTrialsRank[]
 	championsMeetingRankData: ChampionsMeetingRank[]
 	leagueOfHeroesRankData: LeagueOfHeroesRank[]
-	eventRewardsData: EventReward[]
+	gameEventsData: GameEvent[]
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]
 }
@@ -56,7 +57,7 @@ export function useAverageMonthlyIncome({
 	teamTrialsRankData,
 	championsMeetingRankData,
 	leagueOfHeroesRankData,
-	eventRewardsData,
+	gameEventsData,
 	championsMeetingData,
 	leagueOfHeroesData,
 }: AverageMonthlyIncomeParams): AverageMonthlyIncome {
@@ -87,17 +88,18 @@ export function useAverageMonthlyIncome({
 		let ssrShards = 0
 		let srShards = 0
 
-		// Event rewards whose date falls strictly after start and on or before end.
-		// Matches the same comparison used in useBannerResources.
-		for (const ev of eventRewardsData) {
-			const date = new Date(ev.date)
-			if (date > start && date <= end) {
-				carats += ev.carat_amount
-				umaTickets += ev.uma_ticket_amount
-				supportTickets += ev.support_ticket_amount
-				ssrShards += ev.ssr_shard_amount
-				srShards += ev.sr_shard_amount
+		// Game events whose start_date falls strictly after start and on or
+		// before end. Matches the same comparison used in useBannerResources.
+		for (const ge of gameEventsData) {
+			const startDate = ge.start_date ? new Date(ge.start_date) : null
+			if (startDate && startDate > start && startDate <= end) {
+				carats += ge.carat_amount
+				umaTickets += ge.uma_ticket_amount
+				supportTickets += ge.support_ticket_amount
+				ssrShards += ge.ssr_shard_amount
+				srShards += ge.sr_shard_amount
 			}
+			carats += getThroughoutCaratsInWindow(ge, start, end)
 		}
 
 		// Champions Meeting payouts
@@ -157,7 +159,7 @@ export function useAverageMonthlyIncome({
 		championsMeetingData,
 		championsMeetingRankData,
 		clubRankData,
-		eventRewardsData,
+		gameEventsData,
 		leagueOfHeroesData,
 		leagueOfHeroesRankData,
 		teamTrialsRankData,

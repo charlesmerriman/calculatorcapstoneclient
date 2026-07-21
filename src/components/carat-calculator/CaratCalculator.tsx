@@ -16,7 +16,7 @@ export const CaratCalculator: React.FC = () => {
 		leagueOfHeroesRankData,
 		championsMeetingData,
 		leagueOfHeroesData,
-		eventRewardsData,
+		gameEventsData,
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
@@ -31,7 +31,7 @@ export const CaratCalculator: React.FC = () => {
 		teamTrialsRankData,
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
-		eventRewardsData,
+		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
 		userPlannedBannerData
