@@ -5,11 +5,11 @@
  * with GameEvent). In practice every event had at most one immediate reward
  * and one throughout-the-event reward, so the two were folded directly onto
  * GameEvent as fields — carat_amount is earned once the event's own resolved
- * start_date passes, carats_throughout is prorated by elapsed time across
- * start_date..end_date (see getThroughoutCaratsInWindow in
- * utils/incomeCalculationUtils.ts), independent of start_date. Only carats
- * are ever distributed this way — tickets/shards/crystals are always earned
- * as a lump on start_date.
+ * start_date passes, carats_throughout is front-loaded across
+ * start_date..end_date via a decay curve (see remainingShare in
+ * utils/incomeCalculationUtils.ts) reaching 100% earned exactly at end_date,
+ * independent of start_date. Only carats are ever distributed this way —
+ * tickets/shards/crystals are always earned as a lump on start_date.
  */
 
 /**

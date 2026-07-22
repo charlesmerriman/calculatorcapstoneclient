@@ -84,20 +84,50 @@ export function calculateDayOfMonthOccurrences(
 	return count
 }
 
+const THROUGHOUT_DECAY_K = 2 // steepness of the early exponential leg
+const THROUGHOUT_DECAY_LINEAR_SLOPE = 0.8 // slope of the linear fallback leg
+const E_NEG_K = Math.exp(-THROUGHOUT_DECAY_K)
+
 /**
- * Share of a GameEvent's carats_throughout earned within [windowStart, windowEnd],
- * prorated by real elapsed time (not calendar days) across the event's own
- * start_date..end_date span. Milliseconds avoid an off-by-one from end_date
- * not being midnight-aligned (it's the linked banner's resolved end + a flat
- * 4-day buffer), and sidestep open/closed boundary ambiguity entirely — a
- * point-in-time boundary has zero width, so this composes correctly across a
- * chain of contiguous banner windows.
+ * Fraction of an event's carats_throughout still uncredited at instant `t`
+ * (1 = none earned yet, 0 = fully earned by end_date). Blends a fast
+ * exponential early decay with a slower linear tail by taking whichever leg
+ * has MORE left at a given moment -- that's what makes the exponential
+ * dominate right after start_date (front-loading the reward) and the linear
+ * leg take over for the rest, reaching exactly 0 at end_date. Self-clamps to
+ * [0, 1] outside the event's span: before start_date both legs exceed 1 so
+ * MIN(1, ...) caps it at 1; after end_date both legs go negative so
+ * MAX(0, ...) floors it at 0.
+ */
+function remainingShare(t: Date, eventStart: Date, eventEnd: Date): number {
+	const totalMs = eventEnd.getTime() - eventStart.getTime()
+	if (totalMs <= 0) return 0
+
+	const fraction = (t.getTime() - eventStart.getTime()) / totalMs
+	const exponential = (Math.exp(-THROUGHOUT_DECAY_K * fraction) - E_NEG_K) / (1 - E_NEG_K)
+	const linear = 1 - fraction
+
+	return Math.max(0, Math.min(1, exponential), Math.min(1, linear * THROUGHOUT_DECAY_LINEAR_SLOPE))
+}
+
+/**
+ * Share of a GameEvent's carats_throughout earned within [windowStart, windowEnd].
+ * Front-loaded: more of the pool is credited earlier in the event's life than
+ * later (see remainingShare above) -- not a flat per-millisecond rate. Computed
+ * as the drop in "remaining share" between the window's two edges, which is
+ * why this composes correctly across a chain of contiguous banner windows:
+ * summing (remainingShare(a) - remainingShare(b)) + (remainingShare(b) -
+ * remainingShare(c)) + ... telescopes to (remainingShare(a) - remainingShare(z))
+ * no matter how many windows the event's span is chopped into. The outer
+ * Math.max(0, ...) guards against a "backwards" window (windowEnd before
+ * windowStart -- possible when an overlapping banner's own end date is
+ * earlier than the running cutoff from a longer banner before it); without
+ * it, a non-increasing remainingShare could produce a small negative credit.
  *
- * For an event already in progress "now" (windowStart clipped to today),
- * this naturally excludes the already-elapsed share — carats_throughout is
- * divided by the event's FULL duration, not a renormalized remaining
- * duration, so already-elapsed carats are treated as already banked/spent
- * rather than redistributed onto what's left.
+ * For an event already in progress "now" (windowStart clipped to today), this
+ * still only credits the remaining share as of "now" -- whatever had already
+ * decayed away before "now" is treated as already banked/spent, not
+ * redistributed onto what's left.
  */
 export function getThroughoutCaratsInWindow(
 	event: { carats_throughout: number; start_date: string | Date | null; end_date: string | Date | null },
@@ -108,12 +138,9 @@ export function getThroughoutCaratsInWindow(
 
 	const eventStart = event.start_date instanceof Date ? event.start_date : new Date(event.start_date)
 	const eventEnd = event.end_date instanceof Date ? event.end_date : new Date(event.end_date)
-	const totalMs = eventEnd.getTime() - eventStart.getTime()
-	if (totalMs <= 0) return 0
 
-	const overlapMs = Math.max(
-		0,
-		Math.min(eventEnd.getTime(), windowEnd.getTime()) - Math.max(eventStart.getTime(), windowStart.getTime())
-	)
-	return (overlapMs / totalMs) * event.carats_throughout
+	const startShare = remainingShare(windowStart, eventStart, eventEnd)
+	const endShare = remainingShare(windowEnd, eventStart, eventEnd)
+
+	return Math.max(0, (startShare - endShare) * event.carats_throughout)
 }
