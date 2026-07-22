@@ -50,11 +50,13 @@ supportTickets += event.support_ticket_amount
 ```
 SR/SSR shards and crystals are received but the projection does not currently track those balances.
 
-**Throughout amounts.** Independent of `start_date`, every event also contributes a prorated share of `carats_throughout` — carats spread evenly across the event's own `start_date`..`end_date` span rather than granted as a lump. `getThroughoutCaratsInWindow` (in `utils/incomeCalculationUtils.ts`) computes the overlap between `[lastEndDate, endDate]` and the event's span, proportioned by real elapsed time (milliseconds, not calendar days — `end_date` isn't guaranteed midnight-aligned):
+**Throughout amounts.** Independent of `start_date`, every event also contributes a *front-loaded* share of `carats_throughout` — rather than a flat rate, more of the pool is credited earlier in the event's life, tapering off toward `end_date` (where it reaches exactly 100% earned). `getThroughoutCaratsInWindow` (in `utils/incomeCalculationUtils.ts`) computes this via a `remainingShare(t)` helper — the fraction of the pool still uncredited at instant `t` — evaluated at both edges of `[lastEndDate, endDate]`:
 ```
-carats += event.carats_throughout × (overlap between [lastEndDate, endDate] and [event.start_date, event.end_date]) / (event.end_date − event.start_date)
+carats += event.carats_throughout × (remainingShare(lastEndDate) − remainingShare(endDate))
 ```
-This composes correctly across a chain of banners — an event spanning a banner boundary has its `carats_throughout` split proportionally between them rather than credited all-or-nothing to whichever banner's window happens to contain a single reward date.
+`remainingShare` blends a fast exponential decay (`k=2`, dominant for roughly the first ~17% of the event) with a slower linear decay (`slope=0.8`, dominant for the rest) — see the JSDoc on `remainingShare` for the exact formula. For example, a 10-day, 1000-carat event earns ~210 carats in just the first day, and the full 1000 only at the very end of day 10 — there's no early cutoff or dead zone; the last day of the event still earns carats.
+
+This composes correctly across a chain of banners — an event spanning a banner boundary has its `carats_throughout` split according to the decay curve between them (front-loaded onto the earlier banner) rather than credited all-or-nothing to whichever banner's window happens to contain a single reward date.
 
 **3. Add Champions Meeting payouts**
 
@@ -161,6 +163,7 @@ The next banner's income window starts from here.
 ## Key Invariants
 
 - **Income is cumulative across banners.** Resources carry over; the loop never resets `carats`, `umaTickets`, or `supportTickets` to zero between banners.
+- **`carats_throughout` is front-loaded, not a flat rate.** More of an event's throughout-carat pool is earned early in its life than late — see `remainingShare` in `utils/incomeCalculationUtils.ts`.
 - **The cutoff is `end_date`, not `start_date`.** A banner starting April 1 and ending April 14 captures income through April 14. The resources shown are what you'll have at the end of that banner's run.
 - **Uma tickets only offset uma banner pulls; support tickets only offset support banner pulls.** There is no cross-ticket substitution.
 - **Banners must be sorted by timeline start date** for the sequential window logic to produce correct results. This sort is enforced server-side.
