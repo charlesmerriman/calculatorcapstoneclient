@@ -54,7 +54,8 @@ export interface ChampionsMeeting {
 	jp_end_date: string | null
 	global_start_date: string | null
 	global_end_date: string | null
-	image: string
+	// Null when no art is uploaded yet; DRF serializes an empty ImageField as null.
+	image: string | null
 	track: string
 	surface_type: string
 	distance: string

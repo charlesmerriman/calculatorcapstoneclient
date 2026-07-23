@@ -6,6 +6,7 @@ import {
 	ChevronRight,
 	Clock3,
 	History,
+	ImageOff,
 	Search,
 	Sparkles,
 	Star,
@@ -146,6 +147,20 @@ function getDurationDays(startDate: string, endDate: string): number {
 	return differenceInCalendarDays(new Date(endDate), new Date(startDate)) + 1
 }
 
+// Banner art is uploaded per banner and is often missing for far-future,
+// still-predicted banners. Render a labelled placeholder instead of letting the
+// browser show a broken-image glyph for an empty `image`.
+function BannerArtPlaceholder({ className = "" }: { className?: string }) {
+	return (
+		<div
+			className={`flex min-h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border border-gray-600 bg-gray-800 p-4 text-center text-sm text-gray-400 ${className}`}
+		>
+			<ImageOff className="h-6 w-6" />
+			<span>Banner art coming soon</span>
+		</div>
+	)
+}
+
 export const Timeline = () => {
 	const {
 		organizedTimelineData,
@@ -261,7 +276,11 @@ export const Timeline = () => {
 										{event.is_predicted && <PredictedBadge />}
 									</div>
 									<div className="text-gray-100">Images are placeholders</div>
-									<img src={event.image} alt={event.name} className="max-w-full h-auto" />
+									{event.image ? (
+										<img src={event.image} alt={event.name} className="max-w-full h-auto" />
+									) : (
+										<BannerArtPlaceholder className="max-w-md" />
+									)}
 									<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
 										<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
 											<div>{event.track}</div>
@@ -370,11 +389,15 @@ export const Timeline = () => {
 
 								<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(260px,0.78fr)] xl:items-stretch">
 									<div className="min-w-0">
-										<img
-											src={bannerEvent.image}
-											alt={bannerEvent.name}
-											className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
-										/>
+										{bannerEvent.image ? (
+											<img
+												src={bannerEvent.image}
+												alt={bannerEvent.name}
+												className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+											/>
+										) : (
+											<BannerArtPlaceholder />
+										)}
 									</div>
 
 									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">

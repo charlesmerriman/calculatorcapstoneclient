@@ -81,7 +81,9 @@ export interface BannerTimelineForViewing {
 	jp_end_date: string | null
 	global_start_date: string | null
 	global_end_date: string | null
-	image: string
+	// Null when a banner has no art uploaded yet (common for far-future,
+	// still-predicted banners); the DRF ImageField serializes empty as null.
+	image: string | null
 	banner_umas: BannerUma[]
 	banner_supports: BannerSupport[]
 }
