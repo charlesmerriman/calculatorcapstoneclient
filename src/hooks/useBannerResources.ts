@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from "react"
-import { differenceInDays } from "date-fns"
+import { differenceInDays, startOfDay } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
 	PULL_COST_CARATS,
@@ -85,7 +85,17 @@ export function useBannerResources({
 
 		const results: BannerResources[] = []
 		const plannedBanners = [...userPlannedBannerData]
-		let lastEndDate = new Date()
+
+		// Anchor the whole projection to the START of today (local midnight),
+		// computed once. Using a live `new Date()` here meant every recompute
+		// (add/remove a banner, edit a stat, autosave round-trip) grabbed a
+		// slightly later instant, so any event's front-loaded `carats_throughout`
+		// — the only fractional income source — had "melted" a few more seconds
+		// and credited a hair less, drifting the estimates down by ~1/100th of a
+		// carat each update. A stable start-of-day makes recomputes on the same
+		// calendar day produce identical numbers.
+		const today = startOfDay(new Date())
+		let lastEndDate = today
 
 		// Pre-parse all event/meeting/LoH dates once so we don't reconstruct
 		// Date objects on every iteration of the inner loops.
@@ -103,8 +113,8 @@ export function useBannerResources({
 			parsedDate: new Date(l.end_date),
 		}))
 
-		// Hoisted outside the loop — same "now" used for all banners.
-		const referenceDate = new Date()
+		// Same stable anchor drives the weekly-bonus pattern for every banner.
+		const referenceDate = today
 
 		const userChampionsMeetingRank = championsMeetingRankData.find(
 			(rank) => rank.id === userStatsData.champions_meeting_rank

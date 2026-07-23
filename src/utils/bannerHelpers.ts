@@ -1,3 +1,4 @@
+import { startOfDay } from "date-fns"
 import type { UserPlannedBanner } from "../types"
 
 interface MaxPullsParams {
@@ -11,6 +12,16 @@ interface MaxPullsParams {
  * Calculates the maximum number of pulls a user can make on a banner,
  * accounting for free pulls, tickets, and carats.
  * Returns "Passed" if the banner has already ended.
+ *
+ * The "already ended" cutoff is the START of today (local midnight), matching
+ * the projection's stable anchor in useBannerResources — not a live `new
+ * Date()`. This keeps the two in sync: a banner ending *today* is still active
+ * (the projection counts income through its end date), so it should show an
+ * estimate rather than blanking to "Passed" partway through the day.
+ *
+ * The result is floored at 0: when earlier banners overspend, caratsAvailable
+ * can be negative, and `Math.floor(negative / 150)` would otherwise drag the
+ * whole total below zero and surface a nonsensical negative "Max Pulls".
  */
 export function calculateMaxPossiblePulls({
 	plannedBanner,
@@ -18,19 +29,20 @@ export function calculateMaxPossiblePulls({
 	umaTicketsAvailable,
 	supportTicketsAvailable
 }: MaxPullsParams): number | "Passed" {
-	const currentDate = new Date()
+	const today = startOfDay(new Date())
 
 	if (plannedBanner.banner_uma) {
 		const endDate = new Date(
 			plannedBanner.banner_uma.banner_timeline.end_date
 		)
-		if (endDate.getTime() < currentDate.getTime()) {
+		if (endDate.getTime() < today.getTime()) {
 			return "Passed"
 		}
-		return (
+		return Math.max(
+			0,
 			plannedBanner.banner_uma.free_pulls +
-			umaTicketsAvailable +
-			Math.floor(caratsAvailable / 150)
+				umaTicketsAvailable +
+				Math.floor(caratsAvailable / 150)
 		)
 	}
 
@@ -38,13 +50,14 @@ export function calculateMaxPossiblePulls({
 		const endDate = new Date(
 			plannedBanner.banner_support.banner_timeline.end_date
 		)
-		if (endDate.getTime() < currentDate.getTime()) {
+		if (endDate.getTime() < today.getTime()) {
 			return "Passed"
 		}
-		return (
+		return Math.max(
+			0,
 			plannedBanner.banner_support.free_pulls +
-			supportTicketsAvailable +
-			Math.floor(caratsAvailable / 150)
+				supportTicketsAvailable +
+				Math.floor(caratsAvailable / 150)
 		)
 	}
 

@@ -1044,4 +1044,89 @@ describe('useBannerResources', () => {
       expect(withEvent.current[1].carats - withoutEvent.current[1].carats).toBe(1_000)
     })
   })
+
+  describe('banner count invariance (no shared-boundary double-count)', () => {
+    // Regression guard for the bug where each banner's income window was
+    // inclusive of BOTH endpoints, so the day two adjacent banners share (one
+    // banner's end = the next banner's start) was counted twice. That made
+    // adding a banner inflate every downstream total by ~a day's income, and
+    // removing one deflate it. Income windows are now half-open (start, end],
+    // so totals must not depend on how many banners the timeline is sliced into.
+
+    it('inserting a zero-pull banner in the middle does not change the final banner total', () => {
+      // daily_carat on so a double-counted boundary day would be very visible
+      // (base income + pack), plus non-zero ranks so Monday/month boundaries
+      // would also surface any double-count.
+      const stats: UserStats = {
+        ...zeroStats,
+        daily_carat: true,
+        club_rank: 2,
+        team_trials_rank: 2,
+      }
+      const incomeRanks = {
+        ...noIncome,
+        clubRankData: [noRank, { id: 2, name: 'Silver', income_amount: 3_000 }],
+        teamTrialsRankData: [noTeamTrialsRank, { id: 2, name: 'Silver', income_amount: 700 }],
+      }
+
+      const withoutMiddle = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0),
+            makeUmaBanner(3, daysFromNow(30), 0),
+          ],
+          ...incomeRanks,
+        })
+      )
+      const withMiddle = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0),
+            makeUmaBanner(2, daysFromNow(20), 0), // inserted, spends nothing
+            makeUmaBanner(3, daysFromNow(30), 0),
+          ],
+          ...incomeRanks,
+        })
+      )
+
+      // The day-30 banner is last in both configs. Since the inserted banner
+      // pulls 0 (spends nothing), the day-30 total must be identical.
+      const lastWithout = withoutMiddle.result.current.at(-1)!.carats
+      const lastWith = withMiddle.result.current.at(-1)!.carats
+      expect(lastWith).toBe(lastWithout)
+
+      // The day-10 banner is computed first and unaffected by later banners.
+      expect(withMiddle.result.current[0].carats).toBe(withoutMiddle.result.current[0].carats)
+    })
+
+    it('splitting one window into two contiguous windows yields the same end total', () => {
+      // One banner ending day 20 vs. two banners ending day 10 and day 20.
+      // The shared day-10 boundary must not be counted twice.
+      const stats: UserStats = { ...zeroStats, daily_carat: true }
+
+      const oneWindow = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(20), 0)],
+          ...noIncome,
+        })
+      )
+      const twoWindows = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0),
+            makeUmaBanner(2, daysFromNow(20), 0),
+          ],
+          ...noIncome,
+        })
+      )
+
+      expect(twoWindows.result.current.at(-1)!.carats).toBe(
+        oneWindow.result.current[0].carats
+      )
+    })
+  })
 })

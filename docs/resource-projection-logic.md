@@ -20,9 +20,11 @@ The output is an array of `BannerResources` objects — one per planned banner, 
 carats         = current_carat + current_paid_carat
 umaTickets     = uma_ticket
 supportTickets = support_ticket
-lastEndDate    = today
+lastEndDate    = startOfDay(today)   // local midnight, computed once
 results        = []
 ```
+
+`lastEndDate` is anchored to the **start of today (local midnight)**, computed a single time. It is deliberately *not* a live `new Date()`: every recompute (adding/removing a banner, editing a stat, an autosave round-trip) would otherwise capture a slightly later instant, and any in-progress event's front-loaded `carats_throughout` — the only fractional income source — would have decayed a few more seconds, drifting the estimates downward by a fraction of a carat each time. A stable start-of-day makes all recomputes on the same calendar day produce identical numbers.
 
 The planned banners are already sorted by timeline start date by the server (the `GET /calculator-data` endpoint annotates and orders by timeline date).
 
@@ -76,9 +78,11 @@ carats += user's LeagueOfHeroesRank.income_amount
 
 ```
 days    = differenceInDays(endDate, lastEndDate)
-mondays = count of Mondays in [lastEndDate, endDate]
+mondays = count of Mondays in (lastEndDate, endDate]   // half-open, start excluded
 months  = count of 1st-of-month boundaries crossed
 ```
+
+> **Windows are half-open: `(lastEndDate, endDate]`.** The start day is excluded, the end day included. This matters because banner windows are contiguous — one banner's `endDate` is the next banner's `lastEndDate`. If both endpoints were counted, that shared boundary day would be tallied twice (once as the earlier window's last day, once as the next window's first day), so every added banner would inflate all downstream totals by ~a day's income and every removed banner would deflate them. Half-open windows tile perfectly — `(a,b] ∪ (b,c] = (a,c]` — so totals are independent of how many banners the timeline is sliced into. `differenceInDays` already has this half-open count; `calculateDailyIncome` and `calculateMondaysBetween` drop the start day (`.slice(1)`) to match.
 
 **5. Add daily carat bonus** (if enabled)
 
@@ -100,7 +104,7 @@ carats += TeamTrialsRank.income_amount * mondays
 
 **8. Add base daily income**
 
-Iterates every single day in the window and adds:
+Iterates every day in the half-open window (every day *after* `lastEndDate`, through `endDate`) and adds:
 - 75 carats (base, every day)
 - +25 bonus every day where `daysSinceReference % 7 === 0` (first day of each week)
 - +25 bonus every day where `daysSinceReference % 7 === 3`
@@ -163,6 +167,8 @@ The next banner's income window starts from here.
 ## Key Invariants
 
 - **Income is cumulative across banners.** Resources carry over; the loop never resets `carats`, `umaTickets`, or `supportTickets` to zero between banners.
+- **Windows are half-open `(lastEndDate, endDate]`.** The start day is excluded so adjacent banner windows don't double-count their shared boundary day. Totals therefore don't depend on how many banners the timeline is split into — guarded by the "banner count invariance" tests.
+- **The projection is anchored to a stable start-of-today.** Recomputes on the same calendar day are deterministic; there is no per-recompute time drift.
 - **`carats_throughout` is front-loaded, not a flat rate.** More of an event's throughout-carat pool is earned early in its life than late — see `remainingShare` in `utils/incomeCalculationUtils.ts`.
 - **The cutoff is `end_date`, not `start_date`.** A banner starting April 1 and ending April 14 captures income through April 14. The resources shown are what you'll have at the end of that banner's run.
 - **Uma tickets only offset uma banner pulls; support tickets only offset support banner pulls.** There is no cross-ticket substitution.

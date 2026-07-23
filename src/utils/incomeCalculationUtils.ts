@@ -7,7 +7,19 @@ import { differenceInDays, eachDayOfInterval, getDay } from "date-fns"
 import { DAILY_BASE_CARATS, WEEKDAY_BONUS_CARATS, WEEKEND_BONUS_CARATS } from "../constants/gameConstants"
 
 /**
- * Calculates total daily + weekly bonus carats earned in [start, end].
+ * Calculates total daily + weekly bonus carats earned in the half-open window
+ * (start, end] — the start day is EXCLUDED, the end day is included.
+ *
+ * Why half-open: banner income is computed window-by-window where each window
+ * runs from the previous banner's end to this banner's end. If both endpoints
+ * were counted (as `eachDayOfInterval` does by default), the shared boundary
+ * day between two adjacent banners would be counted twice — once as the last
+ * day of the earlier window and once as the first day of the next. That makes
+ * every banner you add inflate all downstream totals by ~a day's income.
+ * Dropping the start day makes the windows tile perfectly: (a,b] ∪ (b,c] =
+ * (a,c], with no overlap and no gap, so totals no longer depend on how many
+ * banners the timeline is sliced into.
+ *
  * referenceDate is the fixed "week anchor" — the same date used across all
  * calculations in a session so the weekly pattern stays consistent.
  */
@@ -16,8 +28,14 @@ export function calculateDailyIncome(
 	end: Date,
 	referenceDate: Date
 ): number {
+	// Empty (or backwards) window earns nothing. Guarding here also avoids
+	// calling eachDayOfInterval with start > end, which throws.
+	if (end <= start) return 0
+
 	let totalIncome = 0
-	const allDays = eachDayOfInterval({ start, end })
+	// slice(1) drops the start day, turning the inclusive [start, end] that
+	// eachDayOfInterval returns into the half-open (start, end] we want.
+	const allDays = eachDayOfInterval({ start, end }).slice(1)
 
 	allDays.forEach((day) => {
 		totalIncome += DAILY_BASE_CARATS
@@ -38,9 +56,15 @@ export function calculateDailyIncome(
 	return totalIncome
 }
 
-/** Count of Mondays in [start, end] inclusive — used for Team Trials payouts. */
+/**
+ * Count of Mondays in the half-open window (start, end] — the start day is
+ * EXCLUDED, the end day is included. Used for Team Trials payouts. Half-open
+ * for the same reason as calculateDailyIncome: a Monday landing exactly on a
+ * banner boundary must not be paid out by both adjacent windows.
+ */
 export function calculateMondaysBetween(start: Date, end: Date): number {
-	const allDays = eachDayOfInterval({ start, end })
+	if (end <= start) return 0
+	const allDays = eachDayOfInterval({ start, end }).slice(1)
 	return allDays.filter((day) => getDay(day) === 1).length
 }
 

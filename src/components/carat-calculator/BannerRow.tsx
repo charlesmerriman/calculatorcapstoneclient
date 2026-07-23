@@ -70,8 +70,16 @@ export const BannerRow = ({
 		supportTicketsAvailable: supportTicketsAvailableForThisBanner
 	})
 
+	// Round the *displayed* estimate DOWN to the nearest ten carats (ones place
+	// is always 0, never a decimal). Flooring rather than rounding to nearest
+	// avoids overstating: rounding 145 up to 150 would imply a pull is
+	// affordable while "Max Pulls" (which floors 145/150 to 0) says it isn't.
+	// Presentation-only — the raw caratsAvailableForThisBanner still drives the
+	// max-pulls math above, so this never affects how many pulls are allowed.
 	const displayCarats =
-		maxPossiblePulls === "Passed" ? 0 : caratsAvailableForThisBanner
+		maxPossiblePulls === "Passed"
+			? 0
+			: Math.floor(caratsAvailableForThisBanner / 10) * 10
 
 	const updateBannerInList = (
 		updater: (banner: UserPlannedBanner) => UserPlannedBanner
@@ -134,9 +142,20 @@ export const BannerRow = ({
 	}
 
 	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+		// The number input's `max`/`min` attributes only style the field and
+		// drive the spinner arrows — they do NOT clamp a value the user types.
+		// So we sanitise here: a whole number of pulls, never below 0, and never
+		// above what's affordable. Without the floor, a typed decimal like "2.5"
+		// would flow into getExactProbability (which assumes integer trials) and
+		// into the carat deduction, corrupting both.
+		const parsed = Math.floor(Number(e.target.value))
+		const nonNegative = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+		const upperBound = typeof maxPossiblePulls === "number" ? maxPossiblePulls : 0
+		const clamped = Math.min(nonNegative, upperBound)
+
 		const updated = updateBannerInList((banner) => ({
 			...banner,
-			number_of_pulls: Number(e.target.value)
+			number_of_pulls: clamped
 		}))
 		setUserPlannedBannerData(updated)
 	}
