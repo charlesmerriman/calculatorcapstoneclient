@@ -96,6 +96,18 @@ carats += 50 * days
 carats += ClubRank.income_amount * months
 ```
 
+**6b. Add Misc Earnings + 50-Day Login Bonus** (both flat monthly)
+
+```
+carats += misc_earnings ? MISC_EARNINGS_PER_MONTH * months : 0   // toggle-gated, 1800
+carats += FIFTY_DAY_LOGIN_PER_MONTH * months                     // always on, ~170
+```
+
+Both are flat monthly approximations credited on month boundaries — the same `months`
+count as Club Rank. Misc Earnings (gifts / Team Trials extras / careers) mirrors the source
+sheet's toggle and is **on by default** (`userStatsData.misc_earnings`); the 50-Day Login
+Bonus is universal income, so it has **no toggle** and always applies.
+
 **7. Add Team Trials payout**
 
 ```

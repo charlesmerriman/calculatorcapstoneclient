@@ -1,9 +1,16 @@
 import { renderHook } from '@testing-library/react'
+import { startOfDay } from 'date-fns'
 import { useBannerResources } from '../hooks/useBannerResources'
 import {
   DAILY_CARAT_PACK_PER_DAY,
   PULL_COST_CARATS,
+  MISC_EARNINGS_PER_MONTH,
+  FIFTY_DAY_LOGIN_PER_MONTH,
 } from '../constants/gameConstants'
+import {
+  calculateDailyIncome,
+  calculateMonthlyOccurrences,
+} from '../utils/incomeCalculationUtils'
 import type {
   UserStats,
   ClubRank,
@@ -35,6 +42,9 @@ const zeroStats: UserStats = {
   support_ticket: 0,
   daily_carat: false,
   training_pass: false,
+  // misc_earnings off in the baseline so existing exact-diff tests aren't
+  // affected by its monthly credit; the misc tests below flip it on explicitly.
+  misc_earnings: false,
   // rank IDs that map to income_amount: 0 via the noRank fixtures below
   club_rank: 1,
   team_trials_rank: 1,
@@ -539,6 +549,54 @@ describe('useBannerResources', () => {
       const diff = withRank.current[0].carats - withoutRank.current[0].carats
       expect(diff).toBeGreaterThanOrEqual(1_000) // at least one month paid
       expect(diff % 1_000).toBe(0)               // always whole-month multiples
+    })
+  })
+
+  describe('misc earnings monthly income', () => {
+    it('adds MISC_EARNINGS_PER_MONTH per month boundary only when the toggle is on', () => {
+      // 50-day window always spans at least one calendar month from today.
+      const banner = [makeUmaBanner(1, daysFromNow(50), 0)]
+      const { result: on } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, misc_earnings: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, misc_earnings: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const diff = on.current[0].carats - off.current[0].carats
+      expect(diff).toBeGreaterThanOrEqual(MISC_EARNINGS_PER_MONTH) // at least one month
+      expect(diff % MISC_EARNINGS_PER_MONTH).toBe(0)               // whole-month multiples
+    })
+  })
+
+  describe('50-day login bonus (always on)', () => {
+    it('adds FIFTY_DAY_LOGIN_PER_MONTH per month boundary on top of base daily income', () => {
+      // With every other source zeroed (ranks 0, daily_carat/misc off, no
+      // events, banner ends well before the training-pass launch), the only
+      // income is base daily + the always-on 50-day login bonus — so the total
+      // is exact and isolates the new constant.
+      const endStr = daysFromNow(50)
+      const banner = [makeUmaBanner(1, endStr, 0)]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, misc_earnings: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const today = startOfDay(new Date())
+      const end = new Date(endStr)
+      const expected =
+        calculateDailyIncome(today, end, today) +
+        FIFTY_DAY_LOGIN_PER_MONTH * calculateMonthlyOccurrences(today, end)
+      expect(result.current[0].carats).toBe(expected)
     })
   })
 

@@ -305,6 +305,23 @@ export const IncomeForm = () => {
 										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
 											{userStatsData.training_pass ? "+2,200/mo" : "+500/mo"}
 										</div>
+
+										<Sparkles className="w-8 h-8 shrink-0 text-brand" />
+										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Misc Earnings:</span>
+										<label className="relative inline-flex items-center cursor-pointer">
+											<input
+												type="checkbox"
+												className="sr-only peer"
+												checked={userStatsData.misc_earnings}
+												onChange={(e) =>
+													setUserStatsData({ ...userStatsData, misc_earnings: e.target.checked })
+												}
+											/>
+											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+										</label>
+										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
+											{userStatsData.misc_earnings ? "+1,800/mo" : "+0/mo"}
+										</div>
 									</div>
 								</div>
 							</div>

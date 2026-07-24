@@ -26,6 +26,9 @@ export const DEFAULT_GUEST_STATS: UserStats = {
 	support_ticket: 0,
 	daily_carat: false,
 	training_pass: false,
+	// On by default to mirror the source sheet (and the backend model default),
+	// so guest estimates match the sheet out of the box.
+	misc_earnings: true,
 	club_rank: null,
 	team_trials_rank: null,
 	champions_meeting_rank: null,

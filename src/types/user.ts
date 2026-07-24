@@ -13,6 +13,7 @@ export interface UserStats {
 	support_ticket: number
 	daily_carat: boolean
 	training_pass: boolean
+	misc_earnings: boolean
 	club_rank: number | null
 	team_trials_rank: number | null
 	champions_meeting_rank: number | null

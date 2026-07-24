@@ -11,6 +11,8 @@ import {
 	TRAINING_PASS_MONTHLY_REWARD,
 	TRAINING_PASS_REWARD_DAY,
 	MONTHLY_BASE_REWARD,
+	MISC_EARNINGS_PER_MONTH,
+	FIFTY_DAY_LOGIN_PER_MONTH,
 } from "../constants/gameConstants"
 import {
 	calculateDailyIncome,
@@ -134,6 +136,11 @@ export function useAverageMonthlyIncome({
 		carats += (userClubRank?.income_amount ?? 0) * months
 		carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 		carats += calculateDailyIncome(start, end, referenceDate)
+
+		// Misc earnings (toggle-gated) + 50-day login (always on) — both flat
+		// monthly, credited on month boundaries like Club Rank. See useBannerResources.
+		carats += userStatsData.misc_earnings ? MISC_EARNINGS_PER_MONTH * months : 0
+		carats += FIFTY_DAY_LOGIN_PER_MONTH * months
 
 		// Training Pass — only exists from August 15, 2027
 		if (end > TRAINING_PASS_START_DATE) {

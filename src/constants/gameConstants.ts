@@ -26,6 +26,23 @@ export const WEEKEND_BONUS_CARATS = 75
 /** Daily carats from the paid Daily Carat Pack, awarded per day when active. */
 export const DAILY_CARAT_PACK_PER_DAY = 50
 
+// ── Monthly approximations ────────────────────────────────────────────────────
+
+/**
+ * Flat monthly carat approximation for miscellaneous earnings (gifts, team
+ * trials, career mode) — mirrors the source sheet's "Misc Earnings" figure.
+ * Gated behind the user's `misc_earnings` toggle (on by default). Credited on
+ * month boundaries, the same way Club Rank income is.
+ */
+export const MISC_EARNINGS_PER_MONTH = 1800
+
+/**
+ * Flat monthly carats from the game's recurring 50-day login campaign.
+ * Universal income (like the base daily carats), so it is always applied —
+ * there is no toggle. Credited on month boundaries. Approximate; tune here.
+ */
+export const FIFTY_DAY_LOGIN_PER_MONTH = 170
+
 // ── Pull costs ────────────────────────────────────────────────────────────────
 
 /** Carat cost of a single standard pull (after free pulls are consumed). */
