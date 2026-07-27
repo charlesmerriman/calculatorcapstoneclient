@@ -5,6 +5,7 @@ import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Gem, Dum
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
+import { ToggleSwitch } from "../ToggleSwitch"
 import type { ClubRank, TeamTrialsRank, ChampionsMeetingRank, LeagueOfHeroesRank } from "../../types"
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -274,53 +275,28 @@ export const IncomeForm = () => {
 									<div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-3 sm:w-auto sm:grid-cols-[auto_auto_auto_auto] sm:gap-x-4 sm:gap-y-4">
 										<Gem className="w-8 h-8 shrink-0 text-brand" />
 										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Daily Carat Pack:</span>
-										<label className="relative inline-flex items-center cursor-pointer">
-											<input
-												type="checkbox"
-												className="sr-only peer"
-												checked={userStatsData.daily_carat}
-												onChange={(e) =>
-													setUserStatsData({ ...userStatsData, daily_carat: e.target.checked })
-												}
-											/>
-											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
-										</label>
+										<ToggleSwitch
+											ariaLabel="Daily Carat Pack"
+											checked={userStatsData.daily_carat}
+											onChange={(checked) =>
+												setUserStatsData({ ...userStatsData, daily_carat: checked })
+											}
+										/>
 										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
 											{userStatsData.daily_carat ? "+50/day" : "+0/day"}
 										</div>
 
 										<Dumbbell className="w-8 h-8 shrink-0 text-brand" />
 										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Training Pass:</span>
-										<label className="relative inline-flex items-center cursor-pointer">
-											<input
-												type="checkbox"
-												className="sr-only peer"
-												checked={userStatsData.training_pass}
-												onChange={(e) =>
-													setUserStatsData({ ...userStatsData, training_pass: e.target.checked })
-												}
-											/>
-											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
-										</label>
+										<ToggleSwitch
+											ariaLabel="Training Pass"
+											checked={userStatsData.training_pass}
+											onChange={(checked) =>
+												setUserStatsData({ ...userStatsData, training_pass: checked })
+											}
+										/>
 										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
 											{userStatsData.training_pass ? "+2,200/mo" : "+500/mo"}
-										</div>
-
-										<Sparkles className="w-8 h-8 shrink-0 text-brand" />
-										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Misc Earnings:</span>
-										<label className="relative inline-flex items-center cursor-pointer">
-											<input
-												type="checkbox"
-												className="sr-only peer"
-												checked={userStatsData.misc_earnings}
-												onChange={(e) =>
-													setUserStatsData({ ...userStatsData, misc_earnings: e.target.checked })
-												}
-											/>
-											<div className="relative w-10 h-6 rounded-full bg-gray-600 peer-checked:bg-brand after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
-										</label>
-										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
-											{userStatsData.misc_earnings ? "+1,800/mo" : "+0/mo"}
 										</div>
 									</div>
 								</div>

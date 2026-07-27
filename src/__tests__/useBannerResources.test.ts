@@ -1,11 +1,14 @@
 import { renderHook } from '@testing-library/react'
-import { startOfDay } from 'date-fns'
+import { differenceInDays, max, startOfDay } from 'date-fns'
 import { useBannerResources } from '../hooks/useBannerResources'
 import {
   DAILY_CARAT_PACK_PER_DAY,
   PULL_COST_CARATS,
+  DISCOUNTED_PULL_COST_CARATS,
   MISC_EARNINGS_PER_MONTH,
   FIFTY_DAY_LOGIN_PER_MONTH,
+  MONTHLY_SHOP_UMA_TICKETS,
+  MONTHLY_SHOP_SUPPORT_TICKETS,
 } from '../constants/gameConstants'
 import {
   calculateDailyIncome,
@@ -42,9 +45,15 @@ const zeroStats: UserStats = {
   support_ticket: 0,
   daily_carat: false,
   training_pass: false,
-  // misc_earnings off in the baseline so existing exact-diff tests aren't
-  // affected by its monthly credit; the misc tests below flip it on explicitly.
+  // misc_earnings gates the flat 1,800/mo approximation; off here so the
+  // exact-diff tests below aren't perturbed by it (the misc tests flip it on).
   misc_earnings: false,
+  // New opt-in features off; full_price_paid_pulls on (the default) so paid
+  // carats behave like the old merged pool. Paid carats are 0 here anyway, so
+  // these don't affect the existing exact-total tests.
+  monthly_shop_tickets: false,
+  discounted_paid_pulls: false,
+  full_price_paid_pulls: true,
   // rank IDs that map to income_amount: 0 via the noRank fixtures below
   club_rank: 1,
   team_trials_rank: 1,
@@ -58,8 +67,14 @@ const zeroStats: UserStats = {
 
 const noRank: ClubRank = { id: 1, name: 'None', income_amount: 0 }
 const noTeamTrialsRank: TeamTrialsRank = { id: 1, name: 'None', income_amount: 0 }
-const noCmRank: ChampionsMeetingRank = { id: 1, name: 'None', income_amount: 0 }
-const noLohRank: LeagueOfHeroesRank = { id: 1, name: 'None', income_amount: 0 }
+const zeroRankRewards = {
+  uma_ticket_amount: 0,
+  support_ticket_amount: 0,
+  ssr_shard_amount: 0,
+  sr_shard_amount: 0,
+}
+const noCmRank: ChampionsMeetingRank = { id: 1, name: 'None', income_amount: 0, ...zeroRankRewards }
+const noLohRank: LeagueOfHeroesRank = { id: 1, name: 'None', income_amount: 0, ...zeroRankRewards }
 
 /** Shared "no extra income" rank arrays used across most tests. */
 const noIncome = {
@@ -552,10 +567,11 @@ describe('useBannerResources', () => {
     })
   })
 
-  describe('misc earnings monthly income', () => {
-    it('adds MISC_EARNINGS_PER_MONTH per month boundary only when the toggle is on', () => {
+  describe('misc earnings monthly income (toggle-gated)', () => {
+    it('adds MISC_EARNINGS_PER_MONTH per month boundary only when misc_earnings is on', () => {
       // 50-day window always spans at least one calendar month from today.
-      const banner = [makeUmaBanner(1, daysFromNow(50), 0)]
+      const endStr = daysFromNow(50)
+      const banner = [makeUmaBanner(1, endStr, 0)]
       const { result: on } = renderHook(() =>
         useBannerResources({
           userStatsData: { ...zeroStats, misc_earnings: true },
@@ -570,9 +586,19 @@ describe('useBannerResources', () => {
           ...noIncome,
         })
       )
-      const diff = on.current[0].carats - off.current[0].carats
-      expect(diff).toBeGreaterThanOrEqual(MISC_EARNINGS_PER_MONTH) // at least one month
-      expect(diff % MISC_EARNINGS_PER_MONTH).toBe(0)               // whole-month multiples
+      const today = startOfDay(new Date())
+      const end = new Date(endStr)
+      const months = calculateMonthlyOccurrences(today, end)
+
+      // Toggle off: only base daily income plus the always-on 50-day login bonus.
+      const expectedOff =
+        calculateDailyIncome(today, end, today) + FIFTY_DAY_LOGIN_PER_MONTH * months
+      expect(off.current[0].carats).toBe(expectedOff)
+
+      // Toggle on: adds exactly MISC_EARNINGS_PER_MONTH per month boundary.
+      expect(on.current[0].carats - off.current[0].carats).toBe(
+        MISC_EARNINGS_PER_MONTH * months
+      )
     })
   })
 
@@ -580,13 +606,13 @@ describe('useBannerResources', () => {
     it('adds FIFTY_DAY_LOGIN_PER_MONTH per month boundary on top of base daily income', () => {
       // With every other source zeroed (ranks 0, daily_carat/misc off, no
       // events, banner ends well before the training-pass launch), the only
-      // income is base daily + the always-on 50-day login bonus — so the total
-      // is exact and isolates the new constant.
+      // income is base daily plus the always-on 50-day login bonus — so the
+      // total is exact and isolates the constant.
       const endStr = daysFromNow(50)
       const banner = [makeUmaBanner(1, endStr, 0)]
       const { result } = renderHook(() =>
         useBannerResources({
-          userStatsData: { ...zeroStats, misc_earnings: false },
+          userStatsData: zeroStats,
           userPlannedBannerData: banner,
           ...noIncome,
         })
@@ -597,6 +623,132 @@ describe('useBannerResources', () => {
         calculateDailyIncome(today, end, today) +
         FIFTY_DAY_LOGIN_PER_MONTH * calculateMonthlyOccurrences(today, end)
       expect(result.current[0].carats).toBe(expected)
+    })
+  })
+
+  describe('monthly shop tickets', () => {
+    it('credits 3 uma + 4 support tickets per month boundary only when enabled', () => {
+      const endStr = daysFromNow(50)
+      const banner = [makeUmaBanner(1, endStr, 0)] // 0 pulls so tickets aren't spent
+      const shared = { userPlannedBannerData: banner, ...noIncome }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...zeroStats, monthly_shop_tickets: true }, ...shared })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...zeroStats, monthly_shop_tickets: false }, ...shared })
+      )
+      const months = calculateMonthlyOccurrences(startOfDay(new Date()), new Date(endStr))
+
+      expect(off.current[0].umaTickets).toBe(0)
+      expect(off.current[0].supportTickets).toBe(0)
+      expect(on.current[0].umaTickets).toBe(MONTHLY_SHOP_UMA_TICKETS * months)
+      expect(on.current[0].supportTickets).toBe(MONTHLY_SHOP_SUPPORT_TICKETS * months)
+    })
+  })
+
+  describe('discounted paid pulls', () => {
+    // Spend effects only surface on the *next* banner's snapshot (each banner's
+    // carats are captured before its own pulls are spent), so these use a second
+    // 0-pull banner one day later to read the leftover balance.
+    const laterBanner = makeUmaBanner(2, daysFromNow(21), 0)
+
+    it('spends paid carats at the discount rate (50), saving 100 per discounted pull', () => {
+      const pulls = 5
+      const banners = [makeUmaBanner(1, daysFromNow(20), pulls), laterBanner]
+      const stats = { ...zeroStats, current_paid_carat: 500, full_price_paid_pulls: true }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: banners, ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: banners, ...noIncome })
+      )
+      // 5 discounted pulls (day cap 20, paid covers 500/50=10) each save 150-50.
+      expect(on.current[1].carats - off.current[1].carats).toBe(
+        pulls * (PULL_COST_CARATS - DISCOUNTED_PULL_COST_CARATS)
+      )
+    })
+
+    it('does nothing when the user has no paid carats', () => {
+      const banners = [makeUmaBanner(1, daysFromNow(20), 5), laterBanner]
+      const stats = { ...zeroStats, current_paid_carat: 0, full_price_paid_pulls: true }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: banners, ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: banners, ...noIncome })
+      )
+      expect(on.current[1].carats).toBe(off.current[1].carats)
+    })
+
+    it('stops discounting once paid carats run out', () => {
+      // 120 paid carats only fund floor(120/50) = 2 discounted pulls; the other
+      // 3 pulls fall back to full price, so only 2 pulls' worth is saved.
+      const banners = [makeUmaBanner(1, daysFromNow(20), 5), laterBanner]
+      const stats = { ...zeroStats, current_paid_carat: 120, full_price_paid_pulls: true }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: banners, ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: banners, ...noIncome })
+      )
+      expect(on.current[1].carats - off.current[1].carats).toBe(
+        2 * (PULL_COST_CARATS - DISCOUNTED_PULL_COST_CARATS)
+      )
+    })
+
+    it('caps discounted pulls at one per active day of the banner window', () => {
+      // Short window: the day count (not the 5 planned pulls or the 1000/50 = 20
+      // paid capacity) is what limits discounts. The banner's active days are
+      // derived the same way the hook does (differenceInDays over the window
+      // from today) so the assertion is timezone-robust.
+      const endStr = daysFromNow(3)
+      const banners = [makeUmaBanner(1, endStr, 5), makeUmaBanner(2, daysFromNow(4), 0)]
+      const stats = { ...zeroStats, current_paid_carat: 1000, full_price_paid_pulls: true }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: banners, ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: banners, ...noIncome })
+      )
+      const discountDays = Math.max(
+        0,
+        differenceInDays(new Date(endStr), max([startOfDay(new Date()), new Date(daysFromNow(0))]))
+      )
+      // The day count is the binding cap here (< 5 pulls, < 20 paid capacity).
+      expect(discountDays).toBeGreaterThan(0)
+      expect(discountDays).toBeLessThan(5)
+      expect(on.current[1].carats - off.current[1].carats).toBe(
+        discountDays * (PULL_COST_CARATS - DISCOUNTED_PULL_COST_CARATS)
+      )
+    })
+  })
+
+  describe('max possible pulls reflects the paid-carat strategy', () => {
+    it('counts paid carats at full price only when full_price_paid_pulls is on', () => {
+      // 300 paid carats = exactly 2 full-price pulls (300 / 150).
+      const banner = [makeUmaBanner(1, daysFromNow(1), 0)]
+      const stats = { ...zeroStats, current_paid_carat: 300 }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, full_price_paid_pulls: true }, userPlannedBannerData: banner, ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, full_price_paid_pulls: false }, userPlannedBannerData: banner, ...noIncome })
+      )
+      expect(on.current[0].maxPossiblePulls - off.current[0].maxPossiblePulls).toBe(2)
+    })
+
+    it('adds discounted pulls to the max when discounted_paid_pulls is on', () => {
+      // 100 paid carats = 2 discounted pulls (100 / 50); full price off so paid
+      // carats otherwise contribute nothing, isolating the discount's effect.
+      const banner = [makeUmaBanner(1, daysFromNow(10), 0)]
+      const stats = { ...zeroStats, current_paid_carat: 100, full_price_paid_pulls: false }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: banner, ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: banner, ...noIncome })
+      )
+      expect(on.current[0].maxPossiblePulls - off.current[0].maxPossiblePulls).toBe(2)
     })
   })
 
@@ -629,7 +781,7 @@ describe('useBannerResources', () => {
 
   describe('champions meeting income', () => {
     const cmIncome = 2_000
-    const cmRankWithIncome: ChampionsMeetingRank = { id: 2, name: 'Bronze', income_amount: cmIncome }
+    const cmRankWithIncome: ChampionsMeetingRank = { id: 2, name: 'Bronze', income_amount: cmIncome, ...zeroRankRewards }
 
     it('adds champions meeting income when the meeting ends within the banner window', () => {
       const meetingInWindow = makeChampionsMeeting(1, daysFromNow(15))
@@ -682,7 +834,7 @@ describe('useBannerResources', () => {
 
   describe('league of heroes income', () => {
     const lohIncome = 1_500
-    const lohRankWithIncome: LeagueOfHeroesRank = { id: 2, name: 'Bronze', income_amount: lohIncome }
+    const lohRankWithIncome: LeagueOfHeroesRank = { id: 2, name: 'Bronze', income_amount: lohIncome, ...zeroRankRewards }
 
     it('adds league of heroes income when the event ends within the banner window', () => {
       const lohInWindow = makeLeagueOfHeroes(1, daysFromNow(15))

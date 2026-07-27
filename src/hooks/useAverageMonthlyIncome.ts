@@ -13,6 +13,8 @@ import {
 	MONTHLY_BASE_REWARD,
 	MISC_EARNINGS_PER_MONTH,
 	FIFTY_DAY_LOGIN_PER_MONTH,
+	MONTHLY_SHOP_UMA_TICKETS,
+	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
 import {
 	calculateDailyIncome,
@@ -137,10 +139,18 @@ export function useAverageMonthlyIncome({
 		carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 		carats += calculateDailyIncome(start, end, referenceDate)
 
-		// Misc earnings (toggle-gated) + 50-day login (always on) — both flat
-		// monthly, credited on month boundaries like Club Rank. See useBannerResources.
-		carats += userStatsData.misc_earnings ? MISC_EARNINGS_PER_MONTH * months : 0
+		// Misc earnings (toggle-gated) + 50-day login (universal) — flat monthly
+		// income credited on month boundaries like Club Rank. See useBannerResources.
+		if (userStatsData.misc_earnings) {
+			carats += MISC_EARNINGS_PER_MONTH * months
+		}
 		carats += FIFTY_DAY_LOGIN_PER_MONTH * months
+
+		// Monthly shop tickets: fixed uma/support bundle each month (no carat cost).
+		if (userStatsData.monthly_shop_tickets) {
+			umaTickets += MONTHLY_SHOP_UMA_TICKETS * months
+			supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * months
+		}
 
 		// Training Pass — only exists from August 15, 2027
 		if (end > TRAINING_PASS_START_DATE) {

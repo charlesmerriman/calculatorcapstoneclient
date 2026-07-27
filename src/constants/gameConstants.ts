@@ -48,6 +48,23 @@ export const FIFTY_DAY_LOGIN_PER_MONTH = 170
 /** Carat cost of a single standard pull (after free pulls are consumed). */
 export const PULL_COST_CARATS = 150
 
+/**
+ * Carat cost of a single "discounted paid pull" — a once-per-day option that
+ * spends PAID carats only. Modeled as one discounted pull per active banner day
+ * (see useBannerResources / applyPullStrategy).
+ */
+export const DISCOUNTED_PULL_COST_CARATS = 50
+
+// ── Monthly shop tickets ──────────────────────────────────────────────────────
+
+/**
+ * Gacha tickets buyable from the in-game monthly shop with a currency not
+ * tracked in this calculator. When the `monthly_shop_tickets` toggle is on,
+ * these are credited each month at no carat cost.
+ */
+export const MONTHLY_SHOP_UMA_TICKETS = 3
+export const MONTHLY_SHOP_SUPPORT_TICKETS = 4
+
 // ── Training Pass monthly reward ──────────────────────────────────────────────
 
 /**

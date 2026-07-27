@@ -9,16 +9,17 @@
  */
 
 import { useMemo } from "react"
-import { differenceInDays, startOfDay } from "date-fns"
+import { differenceInDays, max, startOfDay } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
-	PULL_COST_CARATS,
 	TRAINING_PASS_START_DATE,
 	TRAINING_PASS_MONTHLY_REWARD,
 	TRAINING_PASS_REWARD_DAY,
 	MONTHLY_BASE_REWARD,
 	MISC_EARNINGS_PER_MONTH,
 	FIFTY_DAY_LOGIN_PER_MONTH,
+	MONTHLY_SHOP_UMA_TICKETS,
+	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
 import {
 	calculateDailyIncome,
@@ -27,6 +28,7 @@ import {
 	calculateDayOfMonthOccurrences,
 	getThroughoutCaratsInWindow,
 } from "../utils/incomeCalculationUtils"
+import { applyPullStrategy } from "../utils/bannerHelpers"
 import type {
 	UserStats,
 	ClubRank,
@@ -41,6 +43,11 @@ import type {
 
 export interface BannerResources {
 	carats: number
+	/**
+	 * Max pulls this banner could support if all available resources were spent
+	 * on it (accounts for the paid-carat pull strategy). Drives "Max Pulls".
+	 */
+	maxPossiblePulls: number
 	umaTickets: number
 	supportTickets: number
 }
@@ -81,7 +88,12 @@ export function useBannerResources({
 		 */
 		if (!userStatsData) return []
 
-		let carats = (userStatsData.current_carat || 0) + (userStatsData.current_paid_carat || 0)
+		// Free (earned) and paid (purchased) carats are tracked separately: all
+		// income accrues to free carats, while paid carats are the only source
+		// for discounted pulls and are spent last at full price. They only merge
+		// for the display total (see the per-banner snapshot below).
+		let freeCarats = userStatsData.current_carat || 0
+		let paidCarats = userStatsData.current_paid_carat || 0
 		let umaTickets = userStatsData.uma_ticket || 0
 		let supportTickets = userStatsData.support_ticket || 0
 
@@ -132,20 +144,21 @@ export function useBannerResources({
 		)
 
 		for (const banner of plannedBanners) {
-			const endDateStr =
-				banner.banner_uma?.banner_timeline.end_date ??
-				banner.banner_support?.banner_timeline.end_date
+			const timeline =
+				banner.banner_uma?.banner_timeline ??
+				banner.banner_support?.banner_timeline
+			const endDateStr = timeline?.end_date
 			if (!endDateStr) continue
 
 			const endDate = new Date(endDateStr)
 
 			for (const ge of parsedGameEvents) {
 				if (ge.parsedStart && ge.parsedStart > lastEndDate && ge.parsedStart <= endDate) {
-					carats += ge.carat_amount
+					freeCarats += ge.carat_amount
 					umaTickets += ge.uma_ticket_amount
 					supportTickets += ge.support_ticket_amount
 				}
-				carats += getThroughoutCaratsInWindow(
+				freeCarats += getThroughoutCaratsInWindow(
 					{ carats_throughout: ge.carats_throughout, start_date: ge.parsedStart, end_date: ge.parsedEnd },
 					lastEndDate,
 					endDate
@@ -154,7 +167,7 @@ export function useBannerResources({
 
 			for (const meet of parsedMeetings) {
 				if (meet.parsedDate > lastEndDate && meet.parsedDate <= endDate) {
-					carats += userChampionsMeetingRank?.income_amount ?? 0
+					freeCarats += userChampionsMeetingRank?.income_amount ?? 0
 					umaTickets += userChampionsMeetingRank?.uma_ticket_amount ?? 0
 					supportTickets += userChampionsMeetingRank?.support_ticket_amount ?? 0
 				}
@@ -162,7 +175,7 @@ export function useBannerResources({
 
 			for (const loh of parsedLoH) {
 				if (loh.parsedDate > lastEndDate && loh.parsedDate <= endDate) {
-					carats += userLeagueOfHeroesRank?.income_amount ?? 0
+					freeCarats += userLeagueOfHeroesRank?.income_amount ?? 0
 					umaTickets += userLeagueOfHeroesRank?.uma_ticket_amount ?? 0
 					supportTickets += userLeagueOfHeroesRank?.support_ticket_amount ?? 0
 				}
@@ -172,17 +185,26 @@ export function useBannerResources({
 			const mondays = calculateMondaysBetween(lastEndDate, endDate)
 			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
 
-			carats += userStatsData.daily_carat ? DAILY_CARAT_PACK_PER_DAY * days : 0
-			carats += (userClubRank?.income_amount ?? 0) * months
-			carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
-			carats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
+			freeCarats += userStatsData.daily_carat ? DAILY_CARAT_PACK_PER_DAY * days : 0
+			freeCarats += (userClubRank?.income_amount ?? 0) * months
+			freeCarats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
+			freeCarats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
-			// Misc earnings (gifts, team trials, careers) — a flat monthly
-			// approximation gated behind the user's toggle. 50-day login is
-			// universal income, so it's always applied. Both credited on month
-			// boundaries, the same as Club Rank above.
-			carats += userStatsData.misc_earnings ? MISC_EARNINGS_PER_MONTH * months : 0
-			carats += FIFTY_DAY_LOGIN_PER_MONTH * months
+			// Misc earnings (gifts, team trials, careers) is a flat monthly
+			// approximation gated behind the user's toggle. The 50-day login
+			// bonus is universal (no toggle). Both credit on month boundaries,
+			// the same as Club Rank above.
+			if (userStatsData.misc_earnings) {
+				freeCarats += MISC_EARNINGS_PER_MONTH * months
+			}
+			freeCarats += FIFTY_DAY_LOGIN_PER_MONTH * months
+
+			// Monthly shop tickets: a fixed uma/support ticket bundle buyable
+			// each month (with an untracked currency), so no carat cost.
+			if (userStatsData.monthly_shop_tickets) {
+				umaTickets += MONTHLY_SHOP_UMA_TICKETS * months
+				supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * months
+			}
 
 			// Training Pass (paid and free tiers) only exists from August 15, 2027.
 			if (endDate > TRAINING_PASS_START_DATE) {
@@ -193,30 +215,49 @@ export function useBannerResources({
 					: TRAINING_PASS_START_DATE
 
 				if (userStatsData.training_pass) {
-					carats += calculateDayOfMonthOccurrences(passStart, endDate, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
+					freeCarats += calculateDayOfMonthOccurrences(passStart, endDate, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
 				} else {
-					carats += calculateMonthlyOccurrences(passStart, endDate) * MONTHLY_BASE_REWARD
+					freeCarats += calculateMonthlyOccurrences(passStart, endDate) * MONTHLY_BASE_REWARD
 				}
 			}
 
-			results.push({ carats, umaTickets, supportTickets })
+			// Discounted pulls are a once-per-day feature, so the cap is the
+			// number of days this banner is still active (from today onward).
+			// This uses the banner's OWN window, not the income-tiling window.
+			const bannerStart = timeline?.start_date ? new Date(timeline.start_date) : today
+			const discountDays = Math.max(0, differenceInDays(endDate, max([today, bannerStart])))
 
 			const isUmaBanner = !!banner.banner_uma
 			const freePulls =
 				banner.banner_uma?.free_pulls ?? banner.banner_support?.free_pulls ?? 0
-			let normalPullsNeeded = Math.max(0, banner.number_of_pulls - freePulls)
 
-			if (isUmaBanner) {
-				const use = Math.min(normalPullsNeeded, umaTickets)
-				umaTickets -= use
-				normalPullsNeeded -= use
-				carats -= normalPullsNeeded * PULL_COST_CARATS
-			} else {
-				const use = Math.min(normalPullsNeeded, supportTickets)
-				supportTickets -= use
-				normalPullsNeeded -= use
-				carats -= normalPullsNeeded * PULL_COST_CARATS
-			}
+			// Snapshot the balance available *before* spending on this banner
+			// (total carats for display, plus the strategy-aware max pulls),
+			// then spend the planned pulls and carry the leftovers forward.
+			const strategy = applyPullStrategy({
+				isUmaBanner,
+				plannedPulls: banner.number_of_pulls,
+				freePulls,
+				umaTickets,
+				supportTickets,
+				freeCarats,
+				paidCarats,
+				discountDays,
+				discountedPaidPulls: userStatsData.discounted_paid_pulls,
+				fullPricePaidPulls: userStatsData.full_price_paid_pulls,
+			})
+
+			results.push({
+				carats: freeCarats + paidCarats,
+				maxPossiblePulls: strategy.maxPossiblePulls,
+				umaTickets,
+				supportTickets,
+			})
+
+			freeCarats = strategy.freeCarats
+			paidCarats = strategy.paidCarats
+			umaTickets = strategy.umaTickets
+			supportTickets = strategy.supportTickets
 
 			if (endDate > lastEndDate) {
 				lastEndDate = endDate

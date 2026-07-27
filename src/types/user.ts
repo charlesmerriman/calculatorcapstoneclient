@@ -14,6 +14,9 @@ export interface UserStats {
 	daily_carat: boolean
 	training_pass: boolean
 	misc_earnings: boolean
+	monthly_shop_tickets: boolean
+	discounted_paid_pulls: boolean
+	full_price_paid_pulls: boolean
 	club_rank: number | null
 	team_trials_rank: number | null
 	champions_meeting_rank: number | null

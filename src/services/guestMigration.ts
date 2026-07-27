@@ -29,6 +29,11 @@ export const DEFAULT_GUEST_STATS: UserStats = {
 	// On by default to mirror the source sheet (and the backend model default),
 	// so guest estimates match the sheet out of the box.
 	misc_earnings: true,
+	// New opt-in features start off; full-price paid pulls stays on to match the
+	// historical behavior where paid carats always counted toward pulls.
+	monthly_shop_tickets: false,
+	discounted_paid_pulls: false,
+	full_price_paid_pulls: true,
 	club_rank: null,
 	team_trials_rank: null,
 	champions_meeting_rank: null,

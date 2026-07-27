@@ -8,13 +8,14 @@ import type {
 	BannerSupport
 } from "../../types"
 import React from "react"
+import { startOfDay } from "date-fns"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
-import { calculateMaxPossiblePulls, getFreePulls } from "../../utils/bannerHelpers"
+import { getFreePulls } from "../../utils/bannerHelpers"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 
 interface BannerRowProps {
@@ -27,11 +28,10 @@ interface BannerRowProps {
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
 	caratsAvailableForThisBanner: number
+	maxPossiblePullsForThisBanner: number
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[]>
 	>
-	umaTicketsAvailableForThisBanner: number
-	supportTicketsAvailableForThisBanner: number
 	initialBannerType?: "Uma" | "Support"
 }
 
@@ -47,9 +47,8 @@ export const BannerRow = ({
 	umaBannerData,
 	supportBannerData,
 	caratsAvailableForThisBanner,
+	maxPossiblePullsForThisBanner,
 	setUserPlannedBannerData,
-	umaTicketsAvailableForThisBanner,
-	supportTicketsAvailableForThisBanner,
 	initialBannerType
 }: BannerRowProps) => {
 	const bannerType: "Uma" | "Support" = plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
@@ -63,12 +62,21 @@ export const BannerRow = ({
 
 	const currentDate = new Date()
 
-	const maxPossiblePulls = calculateMaxPossiblePulls({
-		plannedBanner,
-		caratsAvailable: caratsAvailableForThisBanner,
-		umaTicketsAvailable: umaTicketsAvailableForThisBanner,
-		supportTicketsAvailable: supportTicketsAvailableForThisBanner
-	})
+	// The pull economics (free/paid carats, tickets, discounts) are computed
+	// centrally in useBannerResources → applyPullStrategy; here we only apply the
+	// "Passed" gate for banners that have already ended. The cutoff is the START
+	// of today (local midnight), matching the projection's stable anchor — a
+	// banner ending *today* is still active, so it shows an estimate.
+	const bannerEndDateStr =
+		plannedBanner.banner_uma?.banner_timeline.end_date ??
+		plannedBanner.banner_support?.banner_timeline.end_date
+	const bannerHasEnded =
+		!!bannerEndDateStr &&
+		new Date(bannerEndDateStr).getTime() < startOfDay(new Date()).getTime()
+
+	const maxPossiblePulls: number | "Passed" = bannerHasEnded
+		? "Passed"
+		: maxPossiblePullsForThisBanner
 
 	// Round the *displayed* estimate DOWN to the nearest ten carats (ones place
 	// is always 0, never a decimal). Flooring rather than rounding to nearest

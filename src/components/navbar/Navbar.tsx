@@ -8,6 +8,7 @@ import { toBannerPayload } from "../../services/calculatorFetchCalls"
 import { stashGuestPlan } from "../../services/guestMigration"
 import { IncomeForm } from "../carat-calculator/IncomeForm"
 import { ThemePicker } from "./ThemePicker"
+import { SettingsMenu } from "./SettingsMenu"
 
 export const Navbar = () => {
 	const navigate = useNavigate()
@@ -75,6 +76,15 @@ export const Navbar = () => {
 		}
 		navigate("/login")
 	}
+
+	// Settings gear + theme picker, grouped so every nav cluster renders the same
+	// controls. SettingsMenu renders nothing outside app mode (no stats loaded).
+	const navControls = (
+		<>
+			<SettingsMenu />
+			<ThemePicker />
+		</>
+	)
 
 	const isCalculator = location.pathname === "/app"
 	const isTimeline = location.pathname === "/app/timeline"
@@ -169,7 +179,7 @@ export const Navbar = () => {
 											</button>
 										)}
 									</div>
-									<ThemePicker />
+									{navControls}
 									<button
 										onClick={handleLogout}
 										aria-label="Logout"
@@ -181,7 +191,7 @@ export const Navbar = () => {
 								</>
 							) : (
 								<>
-									<ThemePicker />
+									{navControls}
 									{signInToSaveButton}
 								</>
 							)
@@ -260,7 +270,7 @@ export const Navbar = () => {
 										</button>
 									)}
 								</div>
-								<ThemePicker />
+								{navControls}
 								<button
 									onClick={handleLogout}
 									className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition"
@@ -272,13 +282,13 @@ export const Navbar = () => {
 							</>
 						) : (
 							<>
-								<ThemePicker />
+								{navControls}
 								{signInToSaveButton}
 							</>
 						)
 					) : (
 						<>
-							<ThemePicker />
+							{navControls}
 							{authButton}
 						</>
 					)}

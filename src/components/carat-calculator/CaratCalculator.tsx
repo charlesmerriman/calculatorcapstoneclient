@@ -201,6 +201,7 @@ export const CaratCalculator: React.FC = () => {
 									{userPlannedBannerData.map((plannedBanner, index) => {
 										const resources = bannerResources[index] ?? {
 											carats: 0,
+											maxPossiblePulls: 0,
 											umaTickets: 0,
 											supportTickets: 0
 										}
@@ -225,8 +226,7 @@ export const CaratCalculator: React.FC = () => {
 													supportBannerData={supportBannerData}
 													setUserPlannedBannerData={setUserPlannedBannerData}
 													caratsAvailableForThisBanner={resources.carats}
-													umaTicketsAvailableForThisBanner={resources.umaTickets}
-													supportTicketsAvailableForThisBanner={resources.supportTickets}
+													maxPossiblePullsForThisBanner={resources.maxPossiblePulls}
 													initialBannerType={plannedBanner.initialBannerType}
 												/>
 											</motion.div>

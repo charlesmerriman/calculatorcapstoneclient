@@ -144,10 +144,17 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				// Guests get null stats from the server — seed local defaults so
 				// downstream components never have to care who they're rendering for.
 				setUserStatsData(data.user_stats_data ?? DEFAULT_GUEST_STATS)
+				// These three rank types climb monotonically with income, so
+				// sorting by income descending puts the best rank first — the
+				// natural dropdown order.
 				setClubRankData([...data.club_rank_data].sort((a, b) => b.income_amount - a.income_amount))
 				setTeamTrialsRankData([...data.team_trials_rank_data].sort((a, b) => b.income_amount - a.income_amount))
-				setChampionsMeetingRankData([...data.champions_meeting_rank_data].sort((a, b) => b.income_amount - a.income_amount))
 				setLeagueOfHeroesRankData([...data.league_of_heroes_rank_data].sort((a, b) => b.income_amount - a.income_amount))
+				// Champions Meeting placements DON'T sort logically by income (a
+				// top-league Third pays fewer carats than a Group B 1st), so the
+				// backend orders them by an explicit sort_order field. Trust that
+				// order as-is rather than re-sorting here.
+				setChampionsMeetingRankData(data.champions_meeting_rank_data)
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
