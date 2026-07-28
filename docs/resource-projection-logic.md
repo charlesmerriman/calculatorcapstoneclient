@@ -103,19 +103,27 @@ carats += 50 * days
 carats += ClubRank.income_amount * months
 ```
 
-**6b. Add Misc Earnings + 50-Day Login Bonus** (flat monthly)
+**6b. Add Misc Earnings + 50-Day Login Bonus** (flat approximations)
 
 ```
 if misc_earnings:
-    freeCarats += MISC_EARNINGS_PER_MONTH * months   // toggle-gated, 1800
+    // toggle-gated, 1800 per completed 30-day cycle counted from today
+    freeCarats += MISC_EARNINGS_PER_CYCLE *
+                  calculateIntervalOccurrences(windowStart, windowEnd, today, 30)
 freeCarats += FIFTY_DAY_LOGIN_PER_MONTH * months     // always on, ~170
 ```
 
-Both are flat monthly approximations credited on month boundaries — the same `months`
-count as Club Rank. **Misc Earnings** (gifts / Team Trials extras / careers) mirrors the
-source sheet's figure and is gated behind the user's `misc_earnings` toggle (on by default,
-surfaced in the navbar Settings menu). The **50-Day Login Bonus** is universal
-login-campaign income with no toggle.
+**Misc Earnings** (gifts / Team Trials extras / careers) mirrors the source sheet's figure
+and is gated behind the user's `misc_earnings` toggle (on by default, surfaced in the
+navbar Settings menu). It does **not** use the `months` count: it accrues over a rolling
+30-day cycle anchored to `today`, so the first payout lands on day 30 (a banner ending
+before then gets nothing) and one more lands every 30 days after. Anchoring the schedule
+to `today` instead of to each window's start is what makes it tile — `calculateIntervalOccurrences`
+counts absolute payout instants, so `(a,b] ∪ (b,c]` credits exactly what `(a,c]` would,
+and planning more banners never inflates the total.
+
+The **50-Day Login Bonus** is universal login-campaign income with no toggle, still
+credited on month boundaries — the same `months` count as Club Rank.
 
 **6c. Add Monthly Shop Tickets** (if enabled)
 

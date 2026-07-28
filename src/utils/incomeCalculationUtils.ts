@@ -3,7 +3,7 @@
  * Used by both useBannerResources and useAverageMonthlyIncome.
  */
 
-import { differenceInDays, eachDayOfInterval, getDay } from "date-fns"
+import { addDays, differenceInDays, eachDayOfInterval, getDay } from "date-fns"
 import { DAILY_BASE_CARATS, WEEKDAY_BONUS_CARATS, WEEKEND_BONUS_CARATS } from "../constants/gameConstants"
 
 /**
@@ -81,6 +81,43 @@ export function calculateMonthlyOccurrences(start: Date, end: Date): number {
 	while (cursor <= end) {
 		count++
 		cursor.setMonth(cursor.getMonth() + 1)
+	}
+	return count
+}
+
+/**
+ * Count of payouts from a fixed-interval schedule that land in the half-open
+ * window (start, end]. Payouts occur at anchor + intervalDays,
+ * anchor + 2×intervalDays, and so on — never on the anchor itself, since that
+ * is "day 0" of the first cycle and nothing has accrued yet.
+ *
+ * The schedule is anchored to a date passed in from OUTSIDE the window (today,
+ * in practice) rather than counted off `start`. That is what makes it tile
+ * correctly across the chain of banner windows: the payout instants are
+ * absolute, so slicing (a,c] into (a,b] ∪ (b,c] gives the same total — the same
+ * property the 1st-of-month boundaries in calculateMonthlyOccurrences rely on.
+ * Counting off each window's own start would instead restart the cycle at every
+ * banner, inflating totals as more banners are planned.
+ */
+export function calculateIntervalOccurrences(
+	start: Date,
+	end: Date,
+	anchor: Date,
+	intervalDays: number
+): number {
+	if (end <= start || intervalDays <= 0) return 0
+
+	let cursor = addDays(anchor, intervalDays)
+	// Fast-forward past any payout that already happened before this window
+	// opened (i.e. was credited by an earlier banner's window).
+	while (cursor <= start) {
+		cursor = addDays(cursor, intervalDays)
+	}
+
+	let count = 0
+	while (cursor <= end) {
+		count++
+		cursor = addDays(cursor, intervalDays)
 	}
 	return count
 }

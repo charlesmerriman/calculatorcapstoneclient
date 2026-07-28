@@ -5,7 +5,7 @@ import {
   DAILY_CARAT_PACK_PER_DAY,
   PULL_COST_CARATS,
   DISCOUNTED_PULL_COST_CARATS,
-  MISC_EARNINGS_PER_MONTH,
+  MISC_EARNINGS_PER_CYCLE,
   FIFTY_DAY_LOGIN_PER_MONTH,
   MONTHLY_SHOP_UMA_TICKETS,
   MONTHLY_SHOP_SUPPORT_TICKETS,
@@ -45,8 +45,8 @@ const zeroStats: UserStats = {
   support_ticket: 0,
   daily_carat: false,
   training_pass: false,
-  // misc_earnings gates the flat 1,800/mo approximation; off here so the
-  // exact-diff tests below aren't perturbed by it (the misc tests flip it on).
+  // misc_earnings gates the flat 1,800-per-30-days approximation; off here so
+  // the exact-diff tests below aren't perturbed by it (the misc tests flip it on).
   misc_earnings: false,
   // New opt-in features off; full_price_paid_pulls on (the default) so paid
   // carats behave like the old merged pool. Paid carats are 0 here anyway, so
@@ -567,38 +567,78 @@ describe('useBannerResources', () => {
     })
   })
 
-  describe('misc earnings monthly income (toggle-gated)', () => {
-    it('adds MISC_EARNINGS_PER_MONTH per month boundary only when misc_earnings is on', () => {
-      // 50-day window always spans at least one calendar month from today.
-      const endStr = daysFromNow(50)
-      const banner = [makeUmaBanner(1, endStr, 0)]
+  describe('misc earnings (rolling 30-day cycle, toggle-gated)', () => {
+    /**
+     * Runs one plan twice — misc_earnings on and off — and returns the carat
+     * totals for the banner at `index`. Diffing the two isolates misc earnings
+     * from every other income source.
+     */
+    function miscDiff(plan: UserPlannedBanner[], index = plan.length - 1): number {
       const { result: on } = renderHook(() =>
         useBannerResources({
           userStatsData: { ...zeroStats, misc_earnings: true },
-          userPlannedBannerData: banner,
+          userPlannedBannerData: plan,
           ...noIncome,
         })
       )
       const { result: off } = renderHook(() =>
         useBannerResources({
           userStatsData: { ...zeroStats, misc_earnings: false },
-          userPlannedBannerData: banner,
+          userPlannedBannerData: plan,
+          ...noIncome,
+        })
+      )
+      return on.current[index].carats - off.current[index].carats
+    }
+
+    it('credits nothing before the first cycle completes', () => {
+      // Day 25 is inside the first 30-day cycle, so no payout has landed yet
+      // and the toggle must make no difference at all.
+      expect(miscDiff([makeUmaBanner(1, daysFromNow(25), 0)])).toBe(0)
+    })
+
+    it('adds one MISC_EARNINGS_PER_CYCLE payout once a full cycle has elapsed', () => {
+      // Day 50 clears the day-30 payout; the next one (day 60) is past the end.
+      expect(miscDiff([makeUmaBanner(1, daysFromNow(50), 0)])).toBe(
+        MISC_EARNINGS_PER_CYCLE
+      )
+    })
+
+    it('adds one payout per completed cycle over a longer window', () => {
+      // Day 80 clears the day-30 and day-60 payouts, but not day 90.
+      expect(miscDiff([makeUmaBanner(1, daysFromNow(80), 0)])).toBe(
+        MISC_EARNINGS_PER_CYCLE * 2
+      )
+    })
+
+    it('anchors the cycle to today, so slicing the timeline into more banners does not change the total', () => {
+      // The payout schedule is absolute (today+30, today+60, ...), so the total
+      // by day 80 must be the same whether the run-up is one window or three.
+      // If the cycle restarted at each banner's start, the sliced plan would
+      // over-credit.
+      const sliced = [
+        makeUmaBanner(1, daysFromNow(20), 0),
+        makeUmaBanner(2, daysFromNow(45), 0),
+        makeUmaBanner(3, daysFromNow(80), 0),
+      ]
+      expect(miscDiff(sliced)).toBe(miscDiff([makeUmaBanner(1, daysFromNow(80), 0)]))
+    })
+
+    it('leaves the non-misc baseline as daily income plus the 50-day login bonus', () => {
+      const endStr = daysFromNow(50)
+      const { result: off } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, misc_earnings: false },
+          userPlannedBannerData: [makeUmaBanner(1, endStr, 0)],
           ...noIncome,
         })
       )
       const today = startOfDay(new Date())
       const end = new Date(endStr)
-      const months = calculateMonthlyOccurrences(today, end)
-
-      // Toggle off: only base daily income plus the always-on 50-day login bonus.
       const expectedOff =
-        calculateDailyIncome(today, end, today) + FIFTY_DAY_LOGIN_PER_MONTH * months
+        calculateDailyIncome(today, end, today) +
+        FIFTY_DAY_LOGIN_PER_MONTH * calculateMonthlyOccurrences(today, end)
       expect(off.current[0].carats).toBe(expectedOff)
-
-      // Toggle on: adds exactly MISC_EARNINGS_PER_MONTH per month boundary.
-      expect(on.current[0].carats - off.current[0].carats).toBe(
-        MISC_EARNINGS_PER_MONTH * months
-      )
     })
   })
 

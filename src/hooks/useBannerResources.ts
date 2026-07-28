@@ -16,7 +16,8 @@ import {
 	TRAINING_PASS_MONTHLY_REWARD,
 	TRAINING_PASS_REWARD_DAY,
 	MONTHLY_BASE_REWARD,
-	MISC_EARNINGS_PER_MONTH,
+	MISC_EARNINGS_PER_CYCLE,
+	MISC_EARNINGS_CYCLE_DAYS,
 	FIFTY_DAY_LOGIN_PER_MONTH,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
@@ -25,6 +26,7 @@ import {
 	calculateDailyIncome,
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
+	calculateIntervalOccurrences,
 	calculateDayOfMonthOccurrences,
 	getThroughoutCaratsInWindow,
 } from "../utils/incomeCalculationUtils"
@@ -190,12 +192,23 @@ export function useBannerResources({
 			freeCarats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 			freeCarats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
-			// Misc earnings (gifts, team trials, careers) is a flat monthly
-			// approximation gated behind the user's toggle. The 50-day login
-			// bonus is universal (no toggle). Both credit on month boundaries,
-			// the same as Club Rank above.
+			// Misc earnings (gifts, team trials, careers) is a flat approximation
+			// gated behind the user's toggle. It accrues on a rolling 30-day
+			// cycle anchored to `today` rather than on month boundaries: the
+			// first payout lands 30 days out, so a banner ending sooner than
+			// that earns none of it. Anchoring to `today` (not to lastEndDate)
+			// keeps the schedule identical no matter how the timeline is sliced
+			// into banner windows. The 50-day login bonus is universal (no
+			// toggle) and still credits on month boundaries like Club Rank.
 			if (userStatsData.misc_earnings) {
-				freeCarats += MISC_EARNINGS_PER_MONTH * months
+				freeCarats +=
+					MISC_EARNINGS_PER_CYCLE *
+					calculateIntervalOccurrences(
+						lastEndDate,
+						endDate,
+						today,
+						MISC_EARNINGS_CYCLE_DAYS
+					)
 			}
 			freeCarats += FIFTY_DAY_LOGIN_PER_MONTH * months
 

@@ -29,12 +29,23 @@ export const DAILY_CARAT_PACK_PER_DAY = 50
 // ── Monthly approximations ────────────────────────────────────────────────────
 
 /**
- * Flat monthly carat approximation for miscellaneous earnings (gifts, team
- * trials, career mode) — mirrors the source sheet's "Misc Earnings" figure.
- * Gated behind the user's `misc_earnings` toggle (on by default). Credited on
- * month boundaries, the same way Club Rank income is.
+ * Flat carat approximation for miscellaneous earnings (gifts, team trials,
+ * career mode) — mirrors the source sheet's "Misc Earnings" figure. Gated
+ * behind the user's `misc_earnings` toggle (on by default).
+ *
+ * Unlike the other flat incomes below, this is NOT credited on calendar-month
+ * boundaries: it accrues over a rolling 30-day cycle anchored to today, so the
+ * first payout lands MISC_EARNINGS_CYCLE_DAYS from now (nothing is earned
+ * before then) and one more lands every cycle after that.
  */
-export const MISC_EARNINGS_PER_MONTH = 1800
+export const MISC_EARNINGS_PER_CYCLE = 1800
+
+/**
+ * Length of one misc-earnings accrual cycle, in days. The user has to play a
+ * full cycle before the first payout, which is why nothing is credited for the
+ * first 30 days of the projection.
+ */
+export const MISC_EARNINGS_CYCLE_DAYS = 30
 
 /**
  * Flat monthly carats from the game's recurring 50-day login campaign.

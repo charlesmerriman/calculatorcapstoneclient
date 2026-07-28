@@ -11,7 +11,8 @@ import {
 	TRAINING_PASS_MONTHLY_REWARD,
 	TRAINING_PASS_REWARD_DAY,
 	MONTHLY_BASE_REWARD,
-	MISC_EARNINGS_PER_MONTH,
+	MISC_EARNINGS_PER_CYCLE,
+	MISC_EARNINGS_CYCLE_DAYS,
 	FIFTY_DAY_LOGIN_PER_MONTH,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
@@ -20,6 +21,7 @@ import {
 	calculateDailyIncome,
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
+	calculateIntervalOccurrences,
 	calculateDayOfMonthOccurrences,
 	getThroughoutCaratsInWindow,
 } from "../utils/incomeCalculationUtils"
@@ -139,10 +141,14 @@ export function useAverageMonthlyIncome({
 		carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 		carats += calculateDailyIncome(start, end, referenceDate)
 
-		// Misc earnings (toggle-gated) + 50-day login (universal) — flat monthly
-		// income credited on month boundaries like Club Rank. See useBannerResources.
+		// Misc earnings (toggle-gated): a rolling 30-day cycle anchored to the
+		// window start (= today), so the first payout falls on day 30 and the
+		// first 30 days earn none of it. The 50-day login bonus (universal) is
+		// still credited on month boundaries like Club Rank. See useBannerResources.
 		if (userStatsData.misc_earnings) {
-			carats += MISC_EARNINGS_PER_MONTH * months
+			carats +=
+				MISC_EARNINGS_PER_CYCLE *
+				calculateIntervalOccurrences(start, end, start, MISC_EARNINGS_CYCLE_DAYS)
 		}
 		carats += FIFTY_DAY_LOGIN_PER_MONTH * months
 

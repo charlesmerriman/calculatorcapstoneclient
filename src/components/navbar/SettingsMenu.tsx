@@ -27,7 +27,8 @@ const SETTINGS: {
 	{
 		key: "misc_earnings",
 		label: "Misc Earnings",
-		description: "~1,800 carats/month from gifts, team trials, and careers.",
+		description:
+			"~1,800 carats from gifts, team trials, and careers every 30 days — first payout 30 days from today.",
 	},
 	{
 		key: "discounted_paid_pulls",
