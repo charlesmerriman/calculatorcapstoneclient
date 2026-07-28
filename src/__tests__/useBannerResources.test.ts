@@ -9,10 +9,17 @@ import {
   FIFTY_DAY_LOGIN_PER_MONTH,
   MONTHLY_SHOP_UMA_TICKETS,
   MONTHLY_SHOP_SUPPORT_TICKETS,
+  TRAINING_PASS_START_DATE,
+  TRAINING_PASS_REWARD_DAY,
+  TRAINING_PASS_FREE_UMA_TICKETS,
+  TRAINING_PASS_FREE_SUPPORT_TICKETS,
+  TRAINING_PASS_PAID_BONUS_UMA_TICKETS,
+  TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS,
 } from '../constants/gameConstants'
 import {
   calculateDailyIncome,
   calculateMonthlyOccurrences,
+  calculateDayOfMonthOccurrences,
 } from '../utils/incomeCalculationUtils'
 import type {
   UserStats,
@@ -993,6 +1000,66 @@ describe('useBannerResources', () => {
         })
       )
       expect(withPass.current[0].carats).toBe(withoutPass.current[0].carats)
+    })
+
+    // Tickets, unlike carats, are base + bonus: the free tier applies to every
+    // account after launch and the paid pass stacks its bonus on top. Both land
+    // on TRAINING_PASS_REWARD_DAY even for free-tier accounts (whose carats
+    // still pay on month boundaries).
+    it('credits free-tier tickets on the reward day without a paid pass', () => {
+      const banner = [makeUmaBanner(1, POST_PASS_DATE, 0)] // 0 pulls so tickets aren't spent
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const rewardDays = calculateDayOfMonthOccurrences(
+        TRAINING_PASS_START_DATE,
+        new Date(POST_PASS_DATE),
+        TRAINING_PASS_REWARD_DAY
+      )
+
+      expect(rewardDays).toBeGreaterThan(0) // guard: the window must contain a payout
+      expect(result.current[0].umaTickets).toBe(rewardDays * TRAINING_PASS_FREE_UMA_TICKETS)
+      expect(result.current[0].supportTickets).toBe(rewardDays * TRAINING_PASS_FREE_SUPPORT_TICKETS)
+    })
+
+    it('stacks the paid bonus tickets on top of the free tier', () => {
+      const banner = [makeUmaBanner(1, POST_PASS_DATE, 0)]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const rewardDays = calculateDayOfMonthOccurrences(
+        TRAINING_PASS_START_DATE,
+        new Date(POST_PASS_DATE),
+        TRAINING_PASS_REWARD_DAY
+      )
+
+      expect(result.current[0].umaTickets).toBe(
+        rewardDays * (TRAINING_PASS_FREE_UMA_TICKETS + TRAINING_PASS_PAID_BONUS_UMA_TICKETS)
+      )
+      expect(result.current[0].supportTickets).toBe(
+        rewardDays * (TRAINING_PASS_FREE_SUPPORT_TICKETS + TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS)
+      )
+    })
+
+    it('credits no tickets for banners ending before the launch date', () => {
+      const banner = [makeUmaBanner(1, PRE_PASS_DATE, 0)]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      expect(result.current[0].umaTickets).toBe(0)
+      expect(result.current[0].supportTickets).toBe(0)
     })
   })
 

@@ -151,20 +151,30 @@ Iterates every day in the half-open window (every day *after* `lastEndDate`, thr
 - +25 bonus every day where `daysSinceReference % 7 === 5`
 - +75 bonus every day where `daysSinceReference % 7 === 6` (last day of each week)
 
-**9. Add Training Pass or monthly base payout**
+**9. Add Training Pass payout (carats and tickets)**
 
 The Training Pass feature (both paid and free tiers) does not exist until **August 15, 2027**. No income is added for any window that ends before that date.
 
-For windows that extend past August 15, 2027, the calculation is clamped so only the post-launch portion counts:
+For windows that extend past August 15, 2027, the calculation is clamped so only the post-launch portion counts. Carats are **either/or** (the paid reward replaces the free tier's), while tickets are **base + bonus** (the paid pass stacks on top of the free tier) and always land on the 24th:
 
 ```
-passStart = max(lastEndDate, August 15 2027)
+passStart  = max(lastEndDate, August 15 2027)
+rewardDays = occurrences of the 24th of the month in [passStart, endDate]
 
 if training_pass:
-    carats += 2200 * (occurrences of the 24th of the month in [passStart, endDate])
+    carats += 2200 * rewardDays
 else:
     carats += 500 * (month boundaries crossed in [passStart, endDate])
+
+umaTickets     += rewardDays * (2 + (training_pass ? 2 : 0))
+supportTickets += rewardDays * (2 + (training_pass ? 2 : 0))
 ```
+
+Both this step and the equivalent one in `useAverageMonthlyIncome` call the shared
+`getTrainingPassIncome(windowStart, windowEnd, hasPaidPass)` helper in
+`utils/incomeCalculationUtils.ts`, which owns the launch-date gate and both schedules.
+
+Note that a free-tier account draws its carats on the 1st but its tickets on the 24th — the pass resets as a unit, so the tickets follow the pass's own reward day regardless of tier.
 
 **10. Record the snapshot**
 

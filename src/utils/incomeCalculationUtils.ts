@@ -4,7 +4,19 @@
  */
 
 import { addDays, differenceInDays, eachDayOfInterval, getDay } from "date-fns"
-import { DAILY_BASE_CARATS, WEEKDAY_BONUS_CARATS, WEEKEND_BONUS_CARATS } from "../constants/gameConstants"
+import {
+	DAILY_BASE_CARATS,
+	WEEKDAY_BONUS_CARATS,
+	WEEKEND_BONUS_CARATS,
+	TRAINING_PASS_START_DATE,
+	TRAINING_PASS_MONTHLY_REWARD,
+	TRAINING_PASS_REWARD_DAY,
+	TRAINING_PASS_FREE_UMA_TICKETS,
+	TRAINING_PASS_FREE_SUPPORT_TICKETS,
+	TRAINING_PASS_PAID_BONUS_UMA_TICKETS,
+	TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS,
+	MONTHLY_BASE_REWARD,
+} from "../constants/gameConstants"
 
 /**
  * Calculates total daily + weekly bonus carats earned in the half-open window
@@ -143,6 +155,70 @@ export function calculateDayOfMonthOccurrences(
 		cursor.setMonth(cursor.getMonth() + 1)
 	}
 	return count
+}
+
+export interface TrainingPassIncome {
+	carats: number
+	umaTickets: number
+	supportTickets: number
+}
+
+/**
+ * Training Pass income earned in the half-open window (windowStart, windowEnd].
+ *
+ * The feature does not exist before TRAINING_PASS_START_DATE, so the window is
+ * clamped to that launch date and a window ending before it earns nothing.
+ *
+ * The two reward kinds accrue on DIFFERENT clocks, which is the subtle part:
+ *
+ * - Carats are either/or. The paid pass pays TRAINING_PASS_MONTHLY_REWARD on
+ *   the 24th; without it the account gets MONTHLY_BASE_REWARD on the 1st (the
+ *   free tier). They never stack, so this stays an if/else.
+ * - Tickets are base + bonus. Every account earns the free-tier tickets once
+ *   the feature launches and an active paid pass adds its bonus on top. Both
+ *   parts land on TRAINING_PASS_REWARD_DAY because the pass resets as a unit —
+ *   so a free-tier account draws carats on the 1st but tickets on the 24th.
+ *
+ * Returns a value object instead of mutating caller counters so it stays pure
+ * and testable; both useBannerResources and useAverageMonthlyIncome call it
+ * with their own window, which is what keeps the two projections in step.
+ */
+export function getTrainingPassIncome(
+	windowStart: Date,
+	windowEnd: Date,
+	hasPaidPass: boolean
+): TrainingPassIncome {
+	if (windowEnd <= TRAINING_PASS_START_DATE) {
+		return { carats: 0, umaTickets: 0, supportTickets: 0 }
+	}
+
+	// Clamp the start to the launch date so pre-launch months earn nothing even
+	// when the window straddles it.
+	const passStart =
+		windowStart > TRAINING_PASS_START_DATE ? windowStart : TRAINING_PASS_START_DATE
+
+	const rewardDays = calculateDayOfMonthOccurrences(
+		passStart,
+		windowEnd,
+		TRAINING_PASS_REWARD_DAY
+	)
+
+	const carats = hasPaidPass
+		? rewardDays * TRAINING_PASS_MONTHLY_REWARD
+		: calculateMonthlyOccurrences(passStart, windowEnd) * MONTHLY_BASE_REWARD
+
+	const umaPerMonth =
+		TRAINING_PASS_FREE_UMA_TICKETS +
+		(hasPaidPass ? TRAINING_PASS_PAID_BONUS_UMA_TICKETS : 0)
+	const supportPerMonth =
+		TRAINING_PASS_FREE_SUPPORT_TICKETS +
+		(hasPaidPass ? TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS : 0)
+
+	return {
+		carats,
+		umaTickets: rewardDays * umaPerMonth,
+		supportTickets: rewardDays * supportPerMonth,
+	}
 }
 
 const THROUGHOUT_DECAY_K = 2 // steepness of the early exponential leg

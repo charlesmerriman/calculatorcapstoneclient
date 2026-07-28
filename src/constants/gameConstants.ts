@@ -95,3 +95,17 @@ export const TRAINING_PASS_REWARD_DAY = 24
  * Awarded once per calendar month, but only after TRAINING_PASS_START_DATE.
  */
 export const MONTHLY_BASE_REWARD = 500
+
+/**
+ * Gacha tickets from the Training Pass, delivered on TRAINING_PASS_REWARD_DAY.
+ *
+ * Unlike the carat reward (paid tier REPLACES the free tier's 500), the tickets
+ * are additive: every account gets the FREE amount once the feature launches,
+ * and an active paid pass adds the PAID_BONUS on top — 2 + 2 = 4 of each type
+ * per month. Kept as separate free/bonus constants rather than one "paid total"
+ * so a future balance change to either tier is a single-number edit.
+ */
+export const TRAINING_PASS_FREE_UMA_TICKETS = 2
+export const TRAINING_PASS_FREE_SUPPORT_TICKETS = 2
+export const TRAINING_PASS_PAID_BONUS_UMA_TICKETS = 2
+export const TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS = 2

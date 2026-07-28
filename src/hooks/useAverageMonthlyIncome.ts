@@ -7,10 +7,6 @@ import { useMemo } from "react"
 import { addMonths, differenceInDays } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
-	TRAINING_PASS_START_DATE,
-	TRAINING_PASS_MONTHLY_REWARD,
-	TRAINING_PASS_REWARD_DAY,
-	MONTHLY_BASE_REWARD,
 	MISC_EARNINGS_PER_CYCLE,
 	MISC_EARNINGS_CYCLE_DAYS,
 	FIFTY_DAY_LOGIN_PER_MONTH,
@@ -22,8 +18,8 @@ import {
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
-	calculateDayOfMonthOccurrences,
 	getThroughoutCaratsInWindow,
+	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import type {
 	UserStats,
@@ -158,18 +154,12 @@ export function useAverageMonthlyIncome({
 			supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * months
 		}
 
-		// Training Pass — only exists from August 15, 2027
-		if (end > TRAINING_PASS_START_DATE) {
-			const passStart = start > TRAINING_PASS_START_DATE
-				? start
-				: TRAINING_PASS_START_DATE
-
-			if (userStatsData.training_pass) {
-				carats += calculateDayOfMonthOccurrences(passStart, end, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
-			} else {
-				carats += calculateMonthlyOccurrences(passStart, end) * MONTHLY_BASE_REWARD
-			}
-		}
+		// Training Pass — only exists from August 15, 2027. Same helper as
+		// useBannerResources, so carats and tickets stay in step across both views.
+		const trainingPass = getTrainingPassIncome(start, end, userStatsData.training_pass)
+		carats += trainingPass.carats
+		umaTickets += trainingPass.umaTickets
+		supportTickets += trainingPass.supportTickets
 
 		return {
 			carats: Math.round(carats / WINDOW_MONTHS),

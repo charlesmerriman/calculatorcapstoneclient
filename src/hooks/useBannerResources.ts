@@ -12,10 +12,6 @@ import { useMemo } from "react"
 import { differenceInDays, max, startOfDay } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
-	TRAINING_PASS_START_DATE,
-	TRAINING_PASS_MONTHLY_REWARD,
-	TRAINING_PASS_REWARD_DAY,
-	MONTHLY_BASE_REWARD,
 	MISC_EARNINGS_PER_CYCLE,
 	MISC_EARNINGS_CYCLE_DAYS,
 	FIFTY_DAY_LOGIN_PER_MONTH,
@@ -27,8 +23,8 @@ import {
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
-	calculateDayOfMonthOccurrences,
 	getThroughoutCaratsInWindow,
+	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import { applyPullStrategy } from "../utils/bannerHelpers"
 import type {
@@ -219,20 +215,16 @@ export function useBannerResources({
 				supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * months
 			}
 
-			// Training Pass (paid and free tiers) only exists from August 15, 2027.
-			if (endDate > TRAINING_PASS_START_DATE) {
-				// Clamp the start to the feature launch date so pre-launch months
-				// don't generate any training pass income.
-				const passStart = lastEndDate > TRAINING_PASS_START_DATE
-					? lastEndDate
-					: TRAINING_PASS_START_DATE
-
-				if (userStatsData.training_pass) {
-					freeCarats += calculateDayOfMonthOccurrences(passStart, endDate, TRAINING_PASS_REWARD_DAY) * TRAINING_PASS_MONTHLY_REWARD
-				} else {
-					freeCarats += calculateMonthlyOccurrences(passStart, endDate) * MONTHLY_BASE_REWARD
-				}
-			}
+			// Training Pass (paid and free tiers) only exists from August 15, 2027;
+			// the helper owns that gate plus the differing carat/ticket schedules.
+			const trainingPass = getTrainingPassIncome(
+				lastEndDate,
+				endDate,
+				userStatsData.training_pass
+			)
+			freeCarats += trainingPass.carats
+			umaTickets += trainingPass.umaTickets
+			supportTickets += trainingPass.supportTickets
 
 			// Discounted pulls are a once-per-day feature, so the cap is the
 			// number of days this banner is still active (from today onward).
