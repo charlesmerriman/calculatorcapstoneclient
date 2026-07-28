@@ -129,11 +129,11 @@ credited on month boundaries — the same `months` count as Club Rank.
 
 ```
 if monthly_shop_tickets:
-    umaTickets     += 3 * months
+    umaTickets     += 4 * months
     supportTickets += 4 * months
 ```
 
-The in-game monthly shop bundle (3 uma + 4 support tickets) is bought with an untracked
+The in-game monthly shop bundle (4 uma + 4 support tickets) is bought with an untracked
 currency, so it's credited on month boundaries at no carat cost. Off by default.
 
 **7. Add Team Trials payout**

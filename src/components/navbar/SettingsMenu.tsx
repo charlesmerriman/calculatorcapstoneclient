@@ -22,23 +22,22 @@ const SETTINGS: {
 	{
 		key: "monthly_shop_tickets",
 		label: "Monthly Shop Tickets",
-		description: "Buy +3 uma & +4 support tickets each month (no carat cost).",
+		description: "Buy 4 uma and 4 support tickets each month.",
 	},
 	{
 		key: "misc_earnings",
 		label: "Misc Earnings",
-		description:
-			"~1,800 carats from gifts, team trials, and careers every 30 days — first payout 30 days from today.",
+		description: "Roughly 1,800 carats every 30 days from gifts, team trials, and careers.",
 	},
 	{
 		key: "discounted_paid_pulls",
 		label: "Discounted Paid Pulls",
-		description: "Spend 50 paid carats (not 150) on one pull per day, while paid carats last.",
+		description: "Take the discounted 50-carat pull once a day.",
 	},
 	{
 		key: "full_price_paid_pulls",
 		label: "Full-Price Paid Pulls",
-		description: "Let paid carats be spent normally (150/pull) on banners.",
+		description: "Spend paid carats on normal 150-carat pulls.",
 	},
 ]
 

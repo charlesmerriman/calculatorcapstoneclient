@@ -674,7 +674,7 @@ describe('useBannerResources', () => {
   })
 
   describe('monthly shop tickets', () => {
-    it('credits 3 uma + 4 support tickets per month boundary only when enabled', () => {
+    it('credits 4 uma + 4 support tickets per month boundary only when enabled', () => {
       const endStr = daysFromNow(50)
       const banner = [makeUmaBanner(1, endStr, 0)] // 0 pulls so tickets aren't spent
       const shared = { userPlannedBannerData: banner, ...noIncome }

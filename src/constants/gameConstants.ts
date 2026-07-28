@@ -73,7 +73,7 @@ export const DISCOUNTED_PULL_COST_CARATS = 50
  * tracked in this calculator. When the `monthly_shop_tickets` toggle is on,
  * these are credited each month at no carat cost.
  */
-export const MONTHLY_SHOP_UMA_TICKETS = 3
+export const MONTHLY_SHOP_UMA_TICKETS = 4
 export const MONTHLY_SHOP_SUPPORT_TICKETS = 4
 
 // ── Training Pass monthly reward ──────────────────────────────────────────────
