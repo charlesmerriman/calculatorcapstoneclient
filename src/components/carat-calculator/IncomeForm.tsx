@@ -295,7 +295,17 @@ export const IncomeForm = () => {
 												setUserStatsData({ ...userStatsData, training_pass: checked })
 											}
 										/>
-										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
+										{/* Carats only — the pass's ticket income is projected but not
+										    shown here, to keep the badge in step with the rows above.
+										    The tooltip carries the full breakdown for anyone who wants it. */}
+										<div
+											className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20"
+											title={
+												userStatsData.training_pass
+													? "Paid Training Pass: +2,200 carats, 4 uma tickets and 4 support tickets each month"
+													: "Free Training Pass tier: +500 carats, 2 uma tickets and 2 support tickets each month"
+											}
+										>
 											{userStatsData.training_pass ? "+2,200/mo" : "+500/mo"}
 										</div>
 									</div>
