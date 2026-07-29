@@ -9,7 +9,8 @@ import {
 	WEEKDAY_BONUS_CARATS,
 	WEEKEND_BONUS_CARATS,
 	TRAINING_PASS_START_DATE,
-	TRAINING_PASS_MONTHLY_REWARD,
+	TRAINING_PASS_MONTHLY_FREE_CARATS,
+	TRAINING_PASS_MONTHLY_PAID_CARATS,
 	TRAINING_PASS_REWARD_DAY,
 	TRAINING_PASS_FREE_UMA_TICKETS,
 	TRAINING_PASS_FREE_SUPPORT_TICKETS,
@@ -158,7 +159,10 @@ export function calculateDayOfMonthOccurrences(
 }
 
 export interface TrainingPassIncome {
-	carats: number
+	/** Ordinary earned carats — spent at full price like every other income. */
+	freeCarats: number
+	/** Purchased carats — the balance that can fund discounted pulls. */
+	paidCarats: number
 	umaTickets: number
 	supportTickets: number
 }
@@ -171,9 +175,11 @@ export interface TrainingPassIncome {
  *
  * The two reward kinds accrue on DIFFERENT clocks, which is the subtle part:
  *
- * - Carats are either/or. The paid pass pays TRAINING_PASS_MONTHLY_REWARD on
- *   the 24th; without it the account gets MONTHLY_BASE_REWARD on the 1st (the
- *   free tier). They never stack, so this stays an if/else.
+ * - Carats are either/or. The paid pass pays its 2,200 on the 24th; without it
+ *   the account gets MONTHLY_BASE_REWARD on the 1st (the free tier). They never
+ *   stack, so this stays an if/else. The paid tier's 2,200 is also SPLIT across
+ *   the two balances (1,850 free + 350 paid) because part of it is purchased
+ *   currency; the free tier's 500 is entirely free carats.
  * - Tickets are base + bonus. Every account earns the free-tier tickets once
  *   the feature launches and an active paid pass adds its bonus on top. Both
  *   parts land on TRAINING_PASS_REWARD_DAY because the pass resets as a unit —
@@ -189,7 +195,7 @@ export function getTrainingPassIncome(
 	hasPaidPass: boolean
 ): TrainingPassIncome {
 	if (windowEnd <= TRAINING_PASS_START_DATE) {
-		return { carats: 0, umaTickets: 0, supportTickets: 0 }
+		return { freeCarats: 0, paidCarats: 0, umaTickets: 0, supportTickets: 0 }
 	}
 
 	// Clamp the start to the launch date so pre-launch months earn nothing even
@@ -203,9 +209,12 @@ export function getTrainingPassIncome(
 		TRAINING_PASS_REWARD_DAY
 	)
 
-	const carats = hasPaidPass
-		? rewardDays * TRAINING_PASS_MONTHLY_REWARD
+	const freeCarats = hasPaidPass
+		? rewardDays * TRAINING_PASS_MONTHLY_FREE_CARATS
 		: calculateMonthlyOccurrences(passStart, windowEnd) * MONTHLY_BASE_REWARD
+
+	// Only the paid tier grants paid carats; the free tier's 500 is all free.
+	const paidCarats = hasPaidPass ? rewardDays * TRAINING_PASS_MONTHLY_PAID_CARATS : 0
 
 	const umaPerMonth =
 		TRAINING_PASS_FREE_UMA_TICKETS +
@@ -215,7 +224,8 @@ export function getTrainingPassIncome(
 		(hasPaidPass ? TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS : 0)
 
 	return {
-		carats,
+		freeCarats,
+		paidCarats,
 		umaTickets: rewardDays * umaPerMonth,
 		supportTickets: rewardDays * supportPerMonth,
 	}

@@ -7,6 +7,8 @@ import { useMemo } from "react"
 import { addMonths, differenceInDays } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
+	DAILY_CARAT_PACK_PAID_CARATS,
+	DAILY_CARAT_PACK_CYCLE_DAYS,
 	MISC_EARNINGS_PER_CYCLE,
 	MISC_EARNINGS_CYCLE_DAYS,
 	FIFTY_DAY_LOGIN_PER_MONTH,
@@ -133,6 +135,15 @@ export function useAverageMonthlyIncome({
 		const months = calculateMonthlyOccurrences(start, end)
 
 		carats += userStatsData.daily_carat ? DAILY_CARAT_PACK_PER_DAY * days : 0
+		// Plus the pack's 500 paid carats per 30-day repurchase cycle. This view
+		// reports one combined carat figure, so free and paid income are summed
+		// here — the free/paid split only matters to the per-banner projection,
+		// where the two balances buy pulls at different prices.
+		if (userStatsData.daily_carat) {
+			carats +=
+				DAILY_CARAT_PACK_PAID_CARATS *
+				calculateIntervalOccurrences(start, end, start, DAILY_CARAT_PACK_CYCLE_DAYS)
+		}
 		carats += (userClubRank?.income_amount ?? 0) * months
 		carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 		carats += calculateDailyIncome(start, end, referenceDate)
@@ -156,8 +167,10 @@ export function useAverageMonthlyIncome({
 
 		// Training Pass — only exists from August 15, 2027. Same helper as
 		// useBannerResources, so carats and tickets stay in step across both views.
+		// Free and paid carats are summed here (as with the Daily Carat Pack
+		// above) because this view reports one combined monthly figure.
 		const trainingPass = getTrainingPassIncome(start, end, userStatsData.training_pass)
-		carats += trainingPass.carats
+		carats += trainingPass.freeCarats + trainingPass.paidCarats
 		umaTickets += trainingPass.umaTickets
 		supportTickets += trainingPass.supportTickets
 

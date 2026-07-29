@@ -12,6 +12,8 @@ import { useMemo } from "react"
 import { differenceInDays, max, startOfDay } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
+	DAILY_CARAT_PACK_PAID_CARATS,
+	DAILY_CARAT_PACK_CYCLE_DAYS,
 	MISC_EARNINGS_PER_CYCLE,
 	MISC_EARNINGS_CYCLE_DAYS,
 	FIFTY_DAY_LOGIN_PER_MONTH,
@@ -86,10 +88,12 @@ export function useBannerResources({
 		 */
 		if (!userStatsData) return []
 
-		// Free (earned) and paid (purchased) carats are tracked separately: all
-		// income accrues to free carats, while paid carats are the only source
-		// for discounted pulls and are spent last at full price. They only merge
-		// for the display total (see the per-banner snapshot below).
+		// Free (earned) and paid (purchased) carats are tracked separately:
+		// essentially all income accrues to free carats, while paid carats are
+		// the only source for discounted pulls and are spent last at full price.
+		// The Daily Carat Pack's 500-carat repurchase lump is the one income
+		// source that credits the paid side (see below). They only merge for the
+		// display total (see the per-banner snapshot below).
 		let freeCarats = userStatsData.current_carat || 0
 		let paidCarats = userStatsData.current_paid_carat || 0
 		let umaTickets = userStatsData.uma_ticket || 0
@@ -184,6 +188,22 @@ export function useBannerResources({
 			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
 
 			freeCarats += userStatsData.daily_carat ? DAILY_CARAT_PACK_PER_DAY * days : 0
+			// The pack's second half: each repurchase grants a 500 PAID carat
+			// lump. The daily drip above is ordinary earned currency, but this
+			// is bought — so it goes to the paid balance, where it can fund
+			// discounted pulls. It uses the same rolling-cycle machinery as misc
+			// earnings (anchored to `today`, first payout on day 30), so the
+			// payout instants are absolute and the banner windows still tile.
+			if (userStatsData.daily_carat) {
+				paidCarats +=
+					DAILY_CARAT_PACK_PAID_CARATS *
+					calculateIntervalOccurrences(
+						lastEndDate,
+						endDate,
+						today,
+						DAILY_CARAT_PACK_CYCLE_DAYS
+					)
+			}
 			freeCarats += (userClubRank?.income_amount ?? 0) * months
 			freeCarats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 			freeCarats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
@@ -217,20 +237,43 @@ export function useBannerResources({
 
 			// Training Pass (paid and free tiers) only exists from August 15, 2027;
 			// the helper owns that gate plus the differing carat/ticket schedules.
+			// Its carats arrive split across both balances (the paid tier's 2,200
+			// is 1,850 free + 350 paid), so credit each to its own pool — same
+			// shape as the Daily Carat Pack above.
 			const trainingPass = getTrainingPassIncome(
 				lastEndDate,
 				endDate,
 				userStatsData.training_pass
 			)
-			freeCarats += trainingPass.carats
+			freeCarats += trainingPass.freeCarats
+			paidCarats += trainingPass.paidCarats
 			umaTickets += trainingPass.umaTickets
 			supportTickets += trainingPass.supportTickets
 
 			// Discounted pulls are a once-per-day feature, so the cap is the
 			// number of days this banner is still active (from today onward).
 			// This uses the banner's OWN window, not the income-tiling window.
+			//
+			// Counted as INCLUSIVE CALENDAR DAYS, which needs both the
+			// `startOfDay` normalisation and the `+ 1`. Banner windows are stored
+			// as `<start>T22:00:00Z` -> `<end>T21:59:59Z`, and the user can take
+			// the discount on the opening and closing days even though both are
+			// partial. Two separate off-by-ones came out of doing this with a bare
+			// `differenceInDays(endDate, start)`:
+			//   1. It measures the gaps between days, not the days themselves, so
+			//      a Sep 10 -> Sep 22 banner scored 12 instead of 13.
+			//   2. The `21:59:59` end is one second short of a whole day, so the
+			//      truncating subtraction dropped a second day (12 -> 11).
+			// Flooring both ends to local midnight first kills #2, and the `+ 1`
+			// kills #1. Working in LOCAL days is deliberate: the banner card
+			// renders its Start/End in local time, so the cap now matches the
+			// dates the user can see and count on screen.
 			const bannerStart = timeline?.start_date ? new Date(timeline.start_date) : today
-			const discountDays = Math.max(0, differenceInDays(endDate, max([today, bannerStart])))
+			const discountAnchor = max([today, startOfDay(bannerStart)])
+			const discountDays = Math.max(
+				0,
+				differenceInDays(startOfDay(endDate), discountAnchor) + 1
+			)
 
 			const isUmaBanner = !!banner.banner_uma
 			const freePulls =

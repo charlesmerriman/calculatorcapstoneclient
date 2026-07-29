@@ -17,8 +17,8 @@ The output is an array of `BannerResources` objects — one per planned banner, 
 ### Initialization
 
 ```
-freeCarats     = current_carat        // earned carats — receive ALL income
-paidCarats     = current_paid_carat   // purchased carats — never grow
+freeCarats     = current_carat        // earned carats — receive nearly ALL income
+paidCarats     = current_paid_carat   // purchased carats — grow only from the Daily Carat Pack
 umaTickets     = uma_ticket
 supportTickets = support_ticket
 lastEndDate    = startOfDay(today)   // local midnight, computed once
@@ -26,10 +26,13 @@ results        = []
 ```
 
 Carats are tracked as **two balances**. Every income source in the steps below accrues to
-`freeCarats` (the pseudocode writes `carats +=` for brevity, but it means `freeCarats`).
-`paidCarats` only ever *decreases*, and only when pulls are paid for (step 11). The two are
-combined solely for the displayed snapshot total (step 10). This split is what powers the
-"discounted paid pulls" strategy, which draws exclusively from `paidCarats`.
+`freeCarats` (the pseudocode writes `carats +=` for brevity, but it means `freeCarats`) —
+with two exceptions, both of them purchased currency: the Daily Carat Pack's 500-carat
+purchase bonus (step 5) and 350 of the paid Training Pass's 2,200 monthly carats (step 9).
+Those are the only income that credits `paidCarats`; otherwise it only *decreases*, and only
+when pulls are paid for (step 11). The two are combined solely for the displayed snapshot
+total (step 10). This split is what powers the "discounted paid pulls" strategy, which draws
+exclusively from `paidCarats`.
 
 `lastEndDate` is anchored to the **start of today (local midnight)**, computed a single time. It is deliberately *not* a live `new Date()`: every recompute (adding/removing a banner, editing a stat, an autosave round-trip) would otherwise capture a slightly later instant, and any in-progress event's front-loaded `carats_throughout` — the only fractional income source — would have decayed a few more seconds, drifting the estimates downward by a fraction of a carat each time. A stable start-of-day makes all recomputes on the same calendar day produce identical numbers.
 
@@ -91,11 +94,24 @@ months  = count of 1st-of-month boundaries crossed
 
 > **Windows are half-open: `(lastEndDate, endDate]`.** The start day is excluded, the end day included. This matters because banner windows are contiguous — one banner's `endDate` is the next banner's `lastEndDate`. If both endpoints were counted, that shared boundary day would be tallied twice (once as the earlier window's last day, once as the next window's first day), so every added banner would inflate all downstream totals by ~a day's income and every removed banner would deflate them. Half-open windows tile perfectly — `(a,b] ∪ (b,c] = (a,c]` — so totals are independent of how many banners the timeline is sliced into. `differenceInDays` already has this half-open count; `calculateDailyIncome` and `calculateMondaysBetween` drop the start day (`.slice(1)`) to match.
 
-**5. Add daily carat bonus** (if enabled)
+**5. Add Daily Carat Pack income** (if enabled)
 
 ```
-carats += 50 * days
+freeCarats += 50 * days                              // the daily drip — earned carats
+paidCarats += 500 * calculateIntervalOccurrences(windowStart, windowEnd, today, 30)
 ```
+
+The pack pays in two currencies. The **50/day drip** is ordinary earned income, so it lands
+in `freeCarats` like everything else. The **500-carat purchase bonus** is bought with money,
+so it lands in `paidCarats` — the only income source that does, and therefore the only thing
+that keeps discounted paid pulls funded on a long horizon.
+
+The bonus uses the same rolling-cycle machinery as Misc Earnings (step 6b): anchored to
+`today`, so the first payout is the day-30 repurchase, then day 60, day 90, … A banner ending
+inside the first 30 days gets none of it. Day 0 never pays out — the pack the user holds right
+now is assumed already counted in the `current_paid_carat` they entered. Because the payout
+instants are absolute rather than relative to each window, the totals tile: slicing a timeline
+into more banners can't inflate them.
 
 **6. Add Club Rank payout**
 
@@ -155,16 +171,19 @@ Iterates every day in the half-open window (every day *after* `lastEndDate`, thr
 
 The Training Pass feature (both paid and free tiers) does not exist until **August 15, 2027**. No income is added for any window that ends before that date.
 
-For windows that extend past August 15, 2027, the calculation is clamped so only the post-launch portion counts. Carats are **either/or** (the paid reward replaces the free tier's), while tickets are **base + bonus** (the paid pass stacks on top of the free tier) and always land on the 24th:
+For windows that extend past August 15, 2027, the calculation is clamped so only the post-launch portion counts. Carats are **either/or** (the paid reward replaces the free tier's), while tickets are **base + bonus** (the paid pass stacks on top of the free tier) and always land on the 24th.
+
+The paid tier's 2,200 carats are also **split across both balances** — 1,850 free and 350 paid — because part of the reward is purchased currency (same idea as the Daily Carat Pack's repurchase lump in step 3). The free tier's 500 is entirely free carats:
 
 ```
 passStart  = max(lastEndDate, August 15 2027)
 rewardDays = occurrences of the 24th of the month in [passStart, endDate]
 
 if training_pass:
-    carats += 2200 * rewardDays
+    freeCarats += 1850 * rewardDays
+    paidCarats +=  350 * rewardDays   # 2,200 total
 else:
-    carats += 500 * (month boundaries crossed in [passStart, endDate])
+    freeCarats += 500 * (month boundaries crossed in [passStart, endDate])
 
 umaTickets     += rewardDays * (2 + (training_pass ? 2 : 0))
 supportTickets += rewardDays * (2 + (training_pass ? 2 : 0))
@@ -199,8 +218,21 @@ order — the single source of truth for both the actual spend and `maxPossibleP
 
 1. **Matching tickets** (uma tickets for uma banners, support tickets for support banners).
 2. **Discounted paid pulls** *(if `discounted_paid_pulls`)*: 50 `paidCarats` per pull, capped
-   at one pull per active banner day (`differenceInDays(endDate, max(today, bannerStart))`)
-   and by the paid balance — the discount stops the instant `paidCarats` can't cover another 50.
+   at one pull per active banner day and by the paid balance — the discount stops the instant
+   `paidCarats` can't cover another 50. The day cap counts **inclusive local calendar days**:
+
+   ```js
+   differenceInDays(startOfDay(endDate), max([today, startOfDay(bannerStart)])) + 1
+   ```
+
+   Both parts matter. Banner windows are stored as `<start>T22:00:00Z` → `<end>T21:59:59Z`, and
+   the discount is claimable on the opening and closing days even though both are partial. A
+   bare `differenceInDays(endDate, bannerStart)` undercounted by **two**: it measures the gaps
+   between days rather than the days themselves, and it then truncated again because the window
+   is one second short of a whole number of days (a Sep 10 → Sep 22 banner scored 11, not 13).
+   Flooring to local midnight removes the truncation; the `+ 1` makes the range inclusive.
+   Local days are used deliberately — the banner card renders Start/End in local time, so the
+   cap matches the dates a user can count on screen.
 3. **Free carats** at 150 each.
 4. **Full-price paid carats** at 150 each *(only if `full_price_paid_pulls`, the default)*.
 
@@ -223,7 +255,7 @@ The next banner's income window starts from here.
 ## Key Invariants
 
 - **Income is cumulative across banners.** Resources carry over; the loop never resets `freeCarats`, `paidCarats`, `umaTickets`, or `supportTickets` to zero between banners.
-- **Free vs paid carats are tracked separately.** All income accrues to `freeCarats`; `paidCarats` only decreases (via pulls). They combine only for the displayed total. This split is required for discounted paid pulls (paid-only) and for the `full_price_paid_pulls` reserve behavior. A shortfall lands on `freeCarats` (goes negative) rather than paid.
+- **Free vs paid carats are tracked separately.** All income accrues to `freeCarats` except the two purchased sources — the Daily Carat Pack's 500-carat purchase bonus and 350 of the paid Training Pass's monthly 2,200 — which are the only growth `paidCarats` sees; otherwise it only decreases (via pulls). They combine only for the displayed total. This split is required for discounted paid pulls (paid-only) and for the `full_price_paid_pulls` reserve behavior. A shortfall lands on `freeCarats` (goes negative) rather than paid.
 - **Windows are half-open `(lastEndDate, endDate]`.** The start day is excluded so adjacent banner windows don't double-count their shared boundary day. Totals therefore don't depend on how many banners the timeline is split into — guarded by the "banner count invariance" tests.
 - **The projection is anchored to a stable start-of-today.** Recomputes on the same calendar day are deterministic; there is no per-recompute time drift.
 - **`carats_throughout` is front-loaded, not a flat rate.** More of an event's throughout-carat pool is earned early in its life than late — see `remainingShare` in `utils/incomeCalculationUtils.ts`.

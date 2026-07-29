@@ -14,9 +14,12 @@ export interface PullStrategyInput {
 	freePulls: number
 	umaTickets: number
 	supportTickets: number
-	/** Earned carats — receive all income and are spent at full price. */
+	/** Earned carats — receive nearly all income and are spent at full price. */
 	freeCarats: number
-	/** Purchased carats — never grow; the only source for discounted pulls. */
+	/**
+	 * Purchased carats — the only source for discounted pulls. Grows only from
+	 * the Daily Carat Pack's repurchase lump; every other income source is free.
+	 */
 	paidCarats: number
 	/**
 	 * Number of days this banner is active (from today onward). Caps the

@@ -3,6 +3,7 @@ import { differenceInDays, max, startOfDay } from 'date-fns'
 import { useBannerResources } from '../hooks/useBannerResources'
 import {
   DAILY_CARAT_PACK_PER_DAY,
+  DAILY_CARAT_PACK_PAID_CARATS,
   PULL_COST_CARATS,
   DISCOUNTED_PULL_COST_CARATS,
   MISC_EARNINGS_PER_CYCLE,
@@ -11,6 +12,8 @@ import {
   MONTHLY_SHOP_SUPPORT_TICKETS,
   TRAINING_PASS_START_DATE,
   TRAINING_PASS_REWARD_DAY,
+  TRAINING_PASS_MONTHLY_REWARD,
+  MONTHLY_BASE_REWARD,
   TRAINING_PASS_FREE_UMA_TICKETS,
   TRAINING_PASS_FREE_SUPPORT_TICKETS,
   TRAINING_PASS_PAID_BONUS_UMA_TICKETS,
@@ -523,6 +526,39 @@ describe('useBannerResources', () => {
   })
 
   describe('daily carat pack income', () => {
+    /**
+     * Runs one plan twice — daily_carat on and off — and returns the difference
+     * in total carats for the banner at `index`, isolating the pack from every
+     * other income source. `extraStats` lets a test flip the pull-strategy
+     * toggles without disturbing the rest of the baseline.
+     */
+    function packDiff(
+      plan: UserPlannedBanner[],
+      extraStats: Partial<UserStats> = {},
+      index = plan.length - 1
+    ): number {
+      const { result: on } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, ...extraStats, daily_carat: true },
+          userPlannedBannerData: plan,
+          ...noIncome,
+        })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, ...extraStats, daily_carat: false },
+          userPlannedBannerData: plan,
+          ...noIncome,
+        })
+      )
+      return on.current[index].carats - off.current[index].carats
+    }
+
+    /** Day count the hook itself would compute for a window from today. */
+    function daysUntil(endStr: string): number {
+      return differenceInDays(new Date(endStr), startOfDay(new Date()))
+    }
+
     it('adds DAILY_CARAT_PACK_PER_DAY × days when daily_carat is true', () => {
       const banner = [makeUmaBanner(1, daysFromNow(30), 0)]
       const { result: withPack } = renderHook(() =>
@@ -544,6 +580,68 @@ describe('useBannerResources', () => {
       // The difference is always an exact whole-day multiple of the pack value.
       expect(diff).toBeGreaterThan(0)
       expect(diff % DAILY_CARAT_PACK_PER_DAY).toBe(0)
+    })
+
+    it('credits no repurchase carats before the first 30-day cycle completes', () => {
+      // Day 25 is inside the first cycle, so the only pack income is the daily
+      // drip — the 500 lump has not landed yet.
+      const endStr = daysFromNow(25)
+      expect(packDiff([makeUmaBanner(1, endStr, 0)])).toBe(
+        DAILY_CARAT_PACK_PER_DAY * daysUntil(endStr)
+      )
+    })
+
+    it('adds one 500-carat repurchase per completed 30-day cycle', () => {
+      // Day 50 clears the day-30 repurchase; day 60 is past the end.
+      const oneCycle = daysFromNow(50)
+      expect(packDiff([makeUmaBanner(1, oneCycle, 0)])).toBe(
+        DAILY_CARAT_PACK_PER_DAY * daysUntil(oneCycle) + DAILY_CARAT_PACK_PAID_CARATS
+      )
+
+      // Day 80 clears day-30 and day-60, but not day 90.
+      const twoCycles = daysFromNow(80)
+      expect(packDiff([makeUmaBanner(1, twoCycles, 0)])).toBe(
+        DAILY_CARAT_PACK_PER_DAY * daysUntil(twoCycles) + DAILY_CARAT_PACK_PAID_CARATS * 2
+      )
+    })
+
+    it('anchors the repurchase cycle to today, so slicing the timeline does not change the total', () => {
+      // Same absolute payout schedule (today+30, today+60, ...) regardless of
+      // how many windows the run-up to day 80 is chopped into. If the cycle
+      // restarted per banner, the sliced plan would over-credit.
+      const sliced = [
+        makeUmaBanner(1, daysFromNow(20), 0),
+        makeUmaBanner(2, daysFromNow(45), 0),
+        makeUmaBanner(3, daysFromNow(80), 0),
+      ]
+      expect(packDiff(sliced)).toBe(packDiff([makeUmaBanner(1, daysFromNow(80), 0)]))
+    })
+
+    it('credits the repurchase lump as PAID carats, so it can fund discounted pulls', () => {
+      // Both runs have the pack on, differing only in discounted_paid_pulls,
+      // with full-price paid pulls off so paid carats contribute nothing else.
+      // A day-50 window banks exactly one 500-carat repurchase = 10 discounted
+      // pulls (well under the 50-day discount cap). Were the 500 credited as
+      // free carats instead, the discount toggle would make no difference here.
+      const banner = [makeUmaBanner(1, daysFromNow(50), 0)]
+      const stats = { ...zeroStats, daily_carat: true, full_price_paid_pulls: false }
+      const { result: on } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...stats, discounted_paid_pulls: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...stats, discounted_paid_pulls: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      expect(on.current[0].maxPossiblePulls - off.current[0].maxPossiblePulls).toBe(
+        DAILY_CARAT_PACK_PAID_CARATS / DISCOUNTED_PULL_COST_CARATS
+      )
     })
   })
 
@@ -746,8 +844,8 @@ describe('useBannerResources', () => {
     it('caps discounted pulls at one per active day of the banner window', () => {
       // Short window: the day count (not the 5 planned pulls or the 1000/50 = 20
       // paid capacity) is what limits discounts. The banner's active days are
-      // derived the same way the hook does (differenceInDays over the window
-      // from today) so the assertion is timezone-robust.
+      // derived the same way the hook does (inclusive calendar days over the
+      // window from today) so the assertion is timezone-robust.
       const endStr = daysFromNow(3)
       const banners = [makeUmaBanner(1, endStr, 5), makeUmaBanner(2, daysFromNow(4), 0)]
       const stats = { ...zeroStats, current_paid_carat: 1000, full_price_paid_pulls: true }
@@ -759,7 +857,10 @@ describe('useBannerResources', () => {
       )
       const discountDays = Math.max(
         0,
-        differenceInDays(new Date(endStr), max([startOfDay(new Date()), new Date(daysFromNow(0))]))
+        differenceInDays(
+          startOfDay(new Date(endStr)),
+          max([startOfDay(new Date()), startOfDay(new Date(daysFromNow(0)))])
+        ) + 1
       )
       // The day count is the binding cap here (< 5 pulls, < 20 paid capacity).
       expect(discountDays).toBeGreaterThan(0)
@@ -767,6 +868,42 @@ describe('useBannerResources', () => {
       expect(on.current[1].carats - off.current[1].carats).toBe(
         discountDays * (PULL_COST_CARATS - DISCOUNTED_PULL_COST_CARATS)
       )
+    })
+
+    it('counts the opening and closing days of a real banner window', () => {
+      // Regression for the off-by-2 day cap. Real banner windows run
+      // `<start>T22:00:00Z` -> `<end>T21:59:59Z`; this one spans 13 calendar
+      // days (the 10th through the 22nd), so it must allow 13 discounted pulls.
+      // The old bare `differenceInDays(end, start)` returned 11: it counted the
+      // gaps between days rather than the days, then truncated again because
+      // the window is one second short of a whole number of days.
+      //
+      // Both endpoints carry the same UTC offset, so the number of local
+      // calendar days they span is the same in every timezone.
+      const start = new Date()
+      start.setDate(start.getDate() + 30)
+      const startStr = `${start.toISOString().split('T')[0]}T22:00:00Z`
+      const end = new Date(start)
+      end.setDate(end.getDate() + 12)
+      const endStr = `${end.toISOString().split('T')[0]}T21:59:59Z`
+
+      const banner = makeUmaBanner(1, endStr, 0)
+      banner.banner_uma!.banner_timeline.start_date = startStr
+      banner.banner_uma!.banner_timeline.global_start_date = startStr
+
+      // Toggling the discount on/off cancels the universal daily income both
+      // runs share (it is not part of `noIncome`), so the difference is purely
+      // the discounted pulls. Paid carats are deliberately generous — 2,000
+      // funds 40 discounts — so the DAY CAP is the binding limit, and the
+      // assertion fails on an over-count as well as an under-count.
+      const stats = { ...zeroStats, current_paid_carat: 2_000, full_price_paid_pulls: false }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: [banner], ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: [banner], ...noIncome })
+      )
+      expect(on.current[0].maxPossiblePulls - off.current[0].maxPossiblePulls).toBe(13)
     })
   })
 
@@ -958,6 +1095,87 @@ describe('useBannerResources', () => {
       // Paid pass gives TRAINING_PASS_MONTHLY_REWARD; free tier gives MONTHLY_BASE_REWARD.
       // The paid reward is always larger, so withPass > withoutPass.
       expect(withPass.current[0].carats).toBeGreaterThan(withoutPass.current[0].carats)
+    })
+
+    it('reports the paid tier total across both carat balances', () => {
+      // `carats` is the combined free + paid display figure, so splitting the
+      // paid tier's reward (1,850 free + 350 paid) must not change what the
+      // user sees. This window contains exactly one reward day (Aug 24) and
+      // one month boundary (Sep 1), so the gap between the tiers is the plain
+      // difference between the two monthly figures.
+      const banner = [makeUmaBanner(1, POST_PASS_DATE, 0)]
+      const { result: withPass } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: withoutPass } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, training_pass: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+
+      expect(withPass.current[0].carats - withoutPass.current[0].carats).toBe(
+        TRAINING_PASS_MONTHLY_REWARD - MONTHLY_BASE_REWARD
+      )
+    })
+
+    it('feeds the paid balance, unlocking discounted pulls', () => {
+      // zeroStats has no starting paid carats and no Daily Carat Pack, so the
+      // pass is the ONLY paid-carat source here. If its 350 lands in the paid
+      // balance, turning discounted pulls on must buy more pulls (50 each)
+      // than folding the same carats into the 150-carat full-price pool.
+      const banner = [makeUmaBanner(1, POST_PASS_DATE, 0)]
+      const stats = { ...zeroStats, training_pass: true }
+
+      const { result: discountOn } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...stats, discounted_paid_pulls: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: discountOff } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...stats, discounted_paid_pulls: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+
+      expect(discountOn.current[0].maxPossiblePulls).toBeGreaterThan(
+        discountOff.current[0].maxPossiblePulls
+      )
+    })
+
+    it('grants no paid carats on the free tier', () => {
+      // The mirror of the test above: without the paid pass there are no paid
+      // carats at all, so the discount toggle can have no effect.
+      const banner = [makeUmaBanner(1, POST_PASS_DATE, 0)]
+      const stats = { ...zeroStats, training_pass: false }
+
+      const { result: discountOn } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...stats, discounted_paid_pulls: true },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+      const { result: discountOff } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...stats, discounted_paid_pulls: false },
+          userPlannedBannerData: banner,
+          ...noIncome,
+        })
+      )
+
+      expect(discountOn.current[0].maxPossiblePulls).toBe(
+        discountOff.current[0].maxPossiblePulls
+      )
     })
 
     it('adds MONTHLY_BASE_REWARD for banners extending past the launch date', () => {

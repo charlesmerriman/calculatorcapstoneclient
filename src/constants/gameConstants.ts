@@ -26,6 +26,24 @@ export const WEEKEND_BONUS_CARATS = 75
 /** Daily carats from the paid Daily Carat Pack, awarded per day when active. */
 export const DAILY_CARAT_PACK_PER_DAY = 50
 
+/**
+ * PAID carats granted by each Daily Carat Pack purchase, on top of the per-day
+ * carats above. The two halves land in different balances: the daily drip is
+ * ordinary (free) carats, while this lump is purchased currency and therefore
+ * the only recurring source of paid carats — the balance that funds discounted
+ * pulls (see applyPullStrategy).
+ */
+export const DAILY_CARAT_PACK_PAID_CARATS = 500
+
+/**
+ * Length of one Daily Carat Pack purchase cycle, in days. Like misc earnings
+ * (and unlike the month-boundary incomes), this is a rolling cycle anchored to
+ * today: the pack the user holds right now is assumed already reflected in
+ * their current paid-carat balance, so the first *modeled* payout is the
+ * repurchase 30 days out, then one every 30 days after.
+ */
+export const DAILY_CARAT_PACK_CYCLE_DAYS = 30
+
 // ── Monthly approximations ────────────────────────────────────────────────────
 
 /**
@@ -84,8 +102,23 @@ export const MONTHLY_SHOP_SUPPORT_TICKETS = 4
  */
 export const TRAINING_PASS_START_DATE = new Date(2027, 7, 15) // August 15, 2027
 
-/** Carats awarded on the 24th of each month when the Training Pass is active. */
-export const TRAINING_PASS_MONTHLY_REWARD = 2200
+/**
+ * The paid Training Pass's monthly carats, split across the two balances the
+ * projection tracks. Like the Daily Carat Pack above, part of the reward is
+ * purchased currency: 350 of the 2,200 arrive as PAID carats (the only kind
+ * that can buy discounted pulls), the other 1,850 as ordinary free carats.
+ */
+export const TRAINING_PASS_MONTHLY_PAID_CARATS = 350
+export const TRAINING_PASS_MONTHLY_FREE_CARATS = 1850
+
+/**
+ * Total carats awarded on the 24th of each month when the Training Pass is
+ * active — the headline "+2,200/mo" figure. DERIVED from the two halves above
+ * so a balance change to either one can never leave the displayed total
+ * disagreeing with what the projection actually credits.
+ */
+export const TRAINING_PASS_MONTHLY_REWARD =
+	TRAINING_PASS_MONTHLY_FREE_CARATS + TRAINING_PASS_MONTHLY_PAID_CARATS
 
 /** Day of the month the Training Pass reward is delivered. */
 export const TRAINING_PASS_REWARD_DAY = 24
@@ -93,6 +126,7 @@ export const TRAINING_PASS_REWARD_DAY = 24
 /**
  * Monthly carat reward for the free tier of the Training Pass.
  * Awarded once per calendar month, but only after TRAINING_PASS_START_DATE.
+ * Free carats only — the paid split above is a paid-tier perk.
  */
 export const MONTHLY_BASE_REWARD = 500
 

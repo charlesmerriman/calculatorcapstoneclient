@@ -50,8 +50,11 @@ const selectStyles: StylesConfig<any, false> = {
 	menuPortal: (base: CSSObjectWithLabel) => ({ ...base, zIndex: 9999 }),
 }
 
+// Padding is symmetric: the spin arrows are positioned out of flow (see
+// .spin-arrows in App.css), so text-center already lands optically centered —
+// the old asymmetric pl-4.5 counterweight would now push the value off-center.
 const numInputClass =
-	"spin-arrows w-20 border border-gray-600 rounded py-1 pl-4.5 pr-2 text-sm text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500"
+	"spin-arrows w-20 border border-gray-600 rounded py-1 px-2 text-sm text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500"
 
 // ── ResourceRow ───────────────────────────────────────────────────────
 
@@ -282,7 +285,17 @@ export const IncomeForm = () => {
 												setUserStatsData({ ...userStatsData, daily_carat: checked })
 											}
 										/>
-										<div className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20">
+										{/* Daily carats only — the pack's 500 paid carats per 30-day
+										    repurchase are projected but won't fit the badge, so the
+										    tooltip carries them (same pattern as Training Pass below). */}
+										<div
+											className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20"
+											title={
+												userStatsData.daily_carat
+													? "Daily Carat Pack: +50 carats every day, plus 500 paid carats each time it is re-bought (every 30 days, starting 30 days from today)"
+													: "Daily Carat Pack disabled — no daily carats and no paid carats from repurchases"
+											}
+										>
 											{userStatsData.daily_carat ? "+50/day" : "+0/day"}
 										</div>
 
@@ -302,7 +315,7 @@ export const IncomeForm = () => {
 											className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20"
 											title={
 												userStatsData.training_pass
-													? "Paid Training Pass: +2,200 carats, 4 uma tickets and 4 support tickets each month"
+													? "Paid Training Pass: +2,200 carats each month (1,850 free carats plus 350 paid carats), 4 uma tickets and 4 support tickets"
 													: "Free Training Pass tier: +500 carats, 2 uma tickets and 2 support tickets each month"
 											}
 										>
