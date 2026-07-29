@@ -110,11 +110,14 @@ export const HomePage = () => {
 	}, [])
 
 	return (
+		// See PrivacyPolicy: flex-1 lets <main> absorb leftover viewport height so the
+		// footer stays a fixed band at the bottom of a short page, and no overflow-y-auto
+		// so long content scrolls the page (footer included) instead of a nested region.
 		<div className="flex min-h-dvh flex-col bg-gray-900">
 			<Navbar />
-			<main className="flex-1 overflow-y-auto">
+			<main className="flex-1">
 				<div className="mx-auto max-w-6xl space-y-8 px-4 py-6">
-					{/* ---- A. Hero (kept compact so the footer stays visible on desktop) ---- */}
+					{/* ---- A. Hero (kept compact so the key content lands above the fold) ---- */}
 					<motion.section {...fadeUp} className="text-center">
 						<h1 className="text-2xl font-bold text-gray-100 sm:text-3xl">
 							Uma Musume Carat Calculator

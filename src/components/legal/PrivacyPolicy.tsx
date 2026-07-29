@@ -17,9 +17,15 @@ const link = "text-brand transition hover:text-brand/75"
  */
 export const PrivacyPolicy: React.FC = () => {
 	return (
+		// flex-1 on <main> absorbs any leftover viewport height so the footer keeps its
+		// fixed ~53px band at the bottom of a short page — leftover space sits above it,
+		// not below (footer and page share bg-gray-900, so slack underneath would read as
+		// a giant footer). Long content pushes the footer past the fold and it scrolls
+		// away normally; note there is no overflow-y-auto here, so the *page* scrolls
+		// rather than a nested region, which is what kept the footer permanently visible.
 		<div className="flex min-h-dvh flex-col bg-gray-900">
 			<Navbar />
-			<main className="flex-1 overflow-y-auto">
+			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
 					<p className="mt-2 text-sm text-gray-500">Last updated: July 16, 2026</p>

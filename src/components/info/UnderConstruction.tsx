@@ -18,9 +18,12 @@ interface UnderConstructionProps {
  */
 export const UnderConstruction: React.FC<UnderConstructionProps> = ({ title, blurb }) => {
 	return (
+		// See PrivacyPolicy: flex-1 lets <main> absorb leftover viewport height, which both
+		// centres the placeholder message vertically and keeps the footer a fixed band at
+		// the bottom of the page instead of a huge void beneath it.
 		<div className="flex min-h-dvh flex-col bg-gray-900">
 			<Navbar />
-			<main className="flex-1 flex flex-col items-center justify-center gap-4 px-4 text-center">
+			<main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
 				<Construction className="h-12 w-12 text-brand" aria-hidden="true" />
 				<h1 className="text-3xl font-bold text-gray-100">{title}</h1>
 				<p className="max-w-md text-gray-400">

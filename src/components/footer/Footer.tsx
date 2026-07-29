@@ -3,9 +3,15 @@ import { Link } from "react-router-dom"
 /**
  * Compact, reusable site footer shown on every page.
  *
- * Kept slim (shrink-0 + small padding/text) so it works as a thin bottom bar even
- * on the fixed-height, no-scroll app layout (`md:h-dvh md:overflow-hidden`) without
- * eating meaningful space from the calculator.
+ * Fixed ~53px band (shrink-0 + small padding/text) in every layout. Each layout gives
+ * the region ABOVE this a `flex-1` so leftover viewport height collects there: on a
+ * short page the footer sits at the bottom of the screen, and on a long one it is
+ * pushed past the fold and scrolls away with the content. Slack must never land below
+ * the footer — it shares bg-gray-900 with the page, so an empty strip underneath reads
+ * as one enormous footer rather than as background.
+ *
+ * On the fixed-height app shell (`md:h-dvh md:overflow-hidden`) the footer therefore
+ * lives inside the scroll container, not beside it — see ApplicationViews.
  *
  * Added per-layout rather than via a global wrapper: each route group sets its own
  * full height, so a single wrapper would double those heights and break the app's

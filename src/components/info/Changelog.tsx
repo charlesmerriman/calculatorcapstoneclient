@@ -64,9 +64,12 @@ export const Changelog: React.FC = () => {
 	}, [])
 
 	return (
+		// See PrivacyPolicy: flex-1 lets <main> absorb leftover viewport height so the
+		// footer stays a fixed band at the bottom of a short page, and no overflow-y-auto
+		// so long content scrolls the page (footer included) instead of a nested region.
 		<div className="flex min-h-dvh flex-col bg-gray-900">
 			<Navbar />
-			<main className="flex-1 overflow-y-auto">
+			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Changelog</h1>
 					<p className="mt-2 text-sm text-gray-500">
