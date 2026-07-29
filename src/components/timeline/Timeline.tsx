@@ -147,6 +147,26 @@ function getDurationDays(startDate: string, endDate: string): number {
 	return differenceInCalendarDays(new Date(endDate), new Date(startDate)) + 1
 }
 
+// Champions Meeting details are entered by hand in the admin and are unknown
+// until the meeting is announced. The model's columns are non-null, so "unknown"
+// is encoded as a sentinel rather than an absent value: text fields are seeded
+// with "TBD" and the stat recommendations with 0. Both predicates below map
+// those sentinels back to "not announced yet" so the rows can be hidden.
+function isTrackDetailAvailable(value: string | null | undefined): boolean {
+	if (value == null) return false
+	const trimmed = value.trim()
+	return trimmed !== "" && trimmed.toUpperCase() !== "TBD"
+}
+
+// Recommendations come off an IntegerField, so DRF sends real numbers even
+// though the TS type says `string` — coerce before comparing. A meeting never
+// legitimately recommends 0 of a stat, so 0 (and anything non-numeric) is unset.
+function isRecommendationAvailable(value: string | number | null | undefined): boolean {
+	if (value == null || value === "") return false
+	const numeric = Number(value)
+	return Number.isFinite(numeric) && numeric > 0
+}
+
 // Banner art is uploaded per banner and is often missing for far-future,
 // still-predicted banners. Render a labelled placeholder instead of letting the
 // browser show a broken-image glyph for an empty `image`.
@@ -265,6 +285,32 @@ export const Timeline = () => {
 				)}
 				{pagedEvents.map((event, index) => {
 					if (isChampionsMeeting(event)) {
+						const trackDetails = [
+							event.track,
+							event.surface_type,
+							event.distance,
+							event.length,
+							event.direction,
+							event.track_condition,
+							event.season,
+							event.weather,
+						]
+						const statRecommendations = [
+							{ icon: "/00_CMSPEED1.png", label: "Speed", value: event.speed_recommendation },
+							{ icon: "/01_CMStamina1.png", label: "Stamina", value: event.stamina_recommendation },
+							{ icon: "/02_CMPOWER1.png", label: "Power", value: event.power_recommendation },
+							{ icon: "/03_CMGUTS1.png", label: "Guts", value: event.guts_recommendation },
+							{ icon: "/04_CMWits1.png", label: "Wits", value: event.wit_recommendation },
+						]
+						// A partially-filled meeting would read as misleading rather than
+						// merely incomplete, so each row is all-or-nothing: show it only
+						// once every value in it is available. When neither row qualifies,
+						// the card falls back to just the dates and the art.
+						const showTrackDetails = trackDetails.every(isTrackDetailAvailable)
+						const showStatRecommendations = statRecommendations.every((stat) =>
+							isRecommendationAvailable(stat.value)
+						)
+
 						return (
 							<div key={index} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
 								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
@@ -275,46 +321,30 @@ export const Timeline = () => {
 										</span>
 										{event.is_predicted && <PredictedBadge />}
 									</div>
-									<div className="text-gray-100">Images are placeholders</div>
 									{event.image ? (
 										<img src={event.image} alt={event.name} className="max-w-full h-auto" />
 									) : (
 										<BannerArtPlaceholder className="max-w-md" />
 									)}
-									<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
-										<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
-											<div>{event.track}</div>
-											<div>{event.surface_type}</div>
-											<div>{event.distance}</div>
-											<div>{event.length}</div>
-											<div>{event.direction}</div>
-											<div>{event.track_condition}</div>
-											<div>{event.season}</div>
-											<div>{event.weather}</div>
+									{showTrackDetails && (
+										<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
+											<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
+												{trackDetails.map((detail, detailIndex) => (
+													<div key={detailIndex}>{detail}</div>
+												))}
+											</div>
 										</div>
-									</div>
-									<div className="grid w-full grid-cols-2 gap-3 p-1 text-center text-gray-100 sm:grid-cols-3 lg:grid-cols-5">
-										<div className="flex flex-col items-center">
-											<img src="/00_CMSPEED1.png" className="max-w-16" />
-											{event.speed_recommendation}
+									)}
+									{showStatRecommendations && (
+										<div className="grid w-full grid-cols-2 gap-3 p-1 text-center text-gray-100 sm:grid-cols-3 lg:grid-cols-5">
+											{statRecommendations.map((stat) => (
+												<div key={stat.label} className="flex flex-col items-center">
+													<img src={stat.icon} alt={stat.label} className="max-w-16" />
+													{stat.value}
+												</div>
+											))}
 										</div>
-										<div className="flex flex-col items-center">
-											<img src="/01_CMStamina1.png" className="max-w-16" />
-											{event.stamina_recommendation}
-										</div>
-										<div className="flex flex-col items-center">
-											<img src="/02_CMPOWER1.png" className="max-w-16" />
-											{event.power_recommendation}
-										</div>
-										<div className="flex flex-col items-center">
-											<img src="/03_CMGUTS1.png" className="max-w-16" />
-											{event.guts_recommendation}
-										</div>
-										<div className="flex flex-col items-center">
-											<img src="/04_CMWits1.png" className="max-w-16" />
-											{event.wit_recommendation}
-										</div>
-									</div>
+									)}
 								</div>
 							</div>
 						)
