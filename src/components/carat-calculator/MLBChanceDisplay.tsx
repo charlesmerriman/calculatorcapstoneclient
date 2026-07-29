@@ -1,8 +1,5 @@
 import type { UserPlannedBanner } from "../../types"
-import {
-	calculateSuccessProbability,
-	calculateZeroProbability
-} from "../../utils/probabilityCalculations"
+import { calculateCopyDistribution } from "../../utils/probabilityCalculations"
 
 interface MLBChanceDisplayProps {
 	pulls: number
@@ -19,12 +16,14 @@ export const MLBChanceDisplay = ({
 		? (["None", "0LB", "1LB", "2LB", "3LB", "MLB"] as const)
 		: (["None", "1x", "2x", "3x", "4x", "5x"] as const)
 
-	const values = [
-		calculateZeroProbability(pulls),
-		...([1, 2, 3, 4, 5] as const).map((n) =>
-			Math.abs(calculateSuccessProbability(pulls, n))
-		)
-	]
+	// Discrete odds per outcome — the six cells sum to 100%, so each one answers
+	// "how likely am I to finish here?" rather than "here or better?".
+	const values = calculateCopyDistribution(pulls)
+
+	// Bars are scaled against the tallest cell in this row rather than a fixed
+	// 0-100%. Spreading one whole distribution across six cells keeps every
+	// value small, and an absolute scale would flatten the row into slivers.
+	const peak = Math.max(...values)
 
 	return (
 		<div className="w-full grid grid-cols-3 sm:grid-cols-6 rounded-lg bg-gray-700 border border-gray-600 overflow-hidden">
@@ -38,7 +37,7 @@ export const MLBChanceDisplay = ({
 					<div className="h-1 bg-gray-500 rounded-full overflow-hidden mt-0.5 w-full">
 						<div
 							className="h-full bg-blue-400 rounded-full"
-							style={{ width: `${Math.min(values[i], 100)}%` }}
+							style={{ width: peak > 0 ? `${(values[i] / peak) * 100}%` : "0%" }}
 						/>
 					</div>
 				</div>
