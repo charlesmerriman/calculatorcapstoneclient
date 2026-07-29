@@ -66,11 +66,33 @@ export const MISC_EARNINGS_PER_CYCLE = 1800
 export const MISC_EARNINGS_CYCLE_DAYS = 30
 
 /**
- * Flat monthly carats from the game's recurring 50-day login campaign.
- * Universal income (like the base daily carats), so it is always applied —
- * there is no toggle. Credited on month boundaries. Approximate; tune here.
+ * Carats granted by each completion of the game's recurring 50-day login
+ * campaign. Universal income (like the base daily carats), so it is always
+ * applied — there is no toggle.
+ *
+ * Like misc earnings and the Daily Carat Pack (and UNLIKE the month-boundary
+ * incomes), this is a rolling cycle anchored to today: the campaign the user is
+ * partway through right now is assumed already reflected in the balance they
+ * entered, so the first modeled payout is the one FIFTY_DAY_LOGIN_CYCLE_DAYS
+ * out, then one every cycle after.
  */
-export const FIFTY_DAY_LOGIN_PER_MONTH = 170
+export const FIFTY_DAY_LOGIN_PER_CYCLE = 150
+
+/** Length of one 50-day login campaign, in days. */
+export const FIFTY_DAY_LOGIN_CYCLE_DAYS = 50
+
+// ── Annual events ─────────────────────────────────────────────────────────────
+
+/**
+ * Carats gifted on Valentine's Day, once per year. Universal income with no
+ * toggle, credited in full on the day itself.
+ *
+ * Month is 0-indexed to match JavaScript's Date.getMonth(), which is what
+ * calculateAnnualDateOccurrences compares against — 1 is February, not January.
+ */
+export const VALENTINES_CARATS = 500
+export const VALENTINES_MONTH = 1
+export const VALENTINES_DAY = 14
 
 // ── Pull costs ────────────────────────────────────────────────────────────────
 

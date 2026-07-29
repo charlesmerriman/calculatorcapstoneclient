@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getTrainingPassIncome, calculateDayOfMonthOccurrences, calculateMonthlyOccurrences } from '../utils/incomeCalculationUtils'
+import { getTrainingPassIncome, calculateDayOfMonthOccurrences, calculateMonthlyOccurrences, calculateAnnualDateOccurrences } from '../utils/incomeCalculationUtils'
 import {
   TRAINING_PASS_START_DATE,
   TRAINING_PASS_REWARD_DAY,
@@ -75,5 +75,65 @@ describe('getTrainingPassIncome', () => {
       expect(paid).toEqual({ freeCarats: 0, paidCarats: 0, umaTickets: 0, supportTickets: 0 })
       expect(free).toEqual({ freeCarats: 0, paidCarats: 0, umaTickets: 0, supportTickets: 0 })
     })
+  })
+})
+
+describe('calculateAnnualDateOccurrences', () => {
+  // February 14, expressed the way the constants do (month is 0-indexed).
+  const FEB = 1
+  const VDAY = 14
+
+  it('counts a single occurrence when the window spans one February 14', () => {
+    const start = new Date(2027, 0, 1)
+    const end = new Date(2027, 11, 31)
+    expect(calculateAnnualDateOccurrences(start, end, FEB, VDAY)).toBe(1)
+  })
+
+  it('counts one occurrence per year over a multi-year window', () => {
+    const start = new Date(2027, 0, 1)
+    const end = new Date(2030, 0, 1)
+    // Feb 14 of 2027, 2028 and 2029 all fall inside; 2030's is after the end.
+    expect(calculateAnnualDateOccurrences(start, end, FEB, VDAY)).toBe(3)
+  })
+
+  it('returns 0 when the window misses the date entirely', () => {
+    const start = new Date(2027, 1, 15)
+    const end = new Date(2027, 11, 31)
+    expect(calculateAnnualDateOccurrences(start, end, FEB, VDAY)).toBe(0)
+  })
+
+  it('excludes the start day and includes the end day (half-open window)', () => {
+    // Starting ON Feb 14 must NOT pay out — the start day belongs to the
+    // previous banner's window, which already credited it.
+    expect(
+      calculateAnnualDateOccurrences(new Date(2027, 1, 14), new Date(2027, 1, 20), FEB, VDAY)
+    ).toBe(0)
+
+    // Ending ON Feb 14 must pay out.
+    expect(
+      calculateAnnualDateOccurrences(new Date(2027, 1, 1), new Date(2027, 1, 14), FEB, VDAY)
+    ).toBe(1)
+  })
+
+  it('tiles across adjacent windows without double-counting the boundary', () => {
+    // The property the whole projection depends on: slicing (a,c] into
+    // (a,b] ∪ (b,c] must give the same total, including when the split lands
+    // exactly on the payout date.
+    const a = new Date(2027, 0, 1)
+    const b = new Date(2027, 1, 14)
+    const c = new Date(2029, 0, 1)
+
+    const whole = calculateAnnualDateOccurrences(a, c, FEB, VDAY)
+    const sliced =
+      calculateAnnualDateOccurrences(a, b, FEB, VDAY) +
+      calculateAnnualDateOccurrences(b, c, FEB, VDAY)
+
+    expect(sliced).toBe(whole)
+  })
+
+  it('returns 0 for an empty or backwards window', () => {
+    const d = new Date(2027, 5, 1)
+    expect(calculateAnnualDateOccurrences(d, d, FEB, VDAY)).toBe(0)
+    expect(calculateAnnualDateOccurrences(d, new Date(2027, 0, 1), FEB, VDAY)).toBe(0)
   })
 })

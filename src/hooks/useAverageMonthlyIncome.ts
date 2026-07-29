@@ -11,7 +11,11 @@ import {
 	DAILY_CARAT_PACK_CYCLE_DAYS,
 	MISC_EARNINGS_PER_CYCLE,
 	MISC_EARNINGS_CYCLE_DAYS,
-	FIFTY_DAY_LOGIN_PER_MONTH,
+	FIFTY_DAY_LOGIN_PER_CYCLE,
+	FIFTY_DAY_LOGIN_CYCLE_DAYS,
+	VALENTINES_CARATS,
+	VALENTINES_MONTH,
+	VALENTINES_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
@@ -20,6 +24,7 @@ import {
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
+	calculateAnnualDateOccurrences,
 	getThroughoutCaratsInWindow,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
@@ -150,14 +155,27 @@ export function useAverageMonthlyIncome({
 
 		// Misc earnings (toggle-gated): a rolling 30-day cycle anchored to the
 		// window start (= today), so the first payout falls on day 30 and the
-		// first 30 days earn none of it. The 50-day login bonus (universal) is
-		// still credited on month boundaries like Club Rank. See useBannerResources.
+		// first 30 days earn none of it. See useBannerResources.
 		if (userStatsData.misc_earnings) {
 			carats +=
 				MISC_EARNINGS_PER_CYCLE *
 				calculateIntervalOccurrences(start, end, start, MISC_EARNINGS_CYCLE_DAYS)
 		}
-		carats += FIFTY_DAY_LOGIN_PER_MONTH * months
+
+		// 50-day login campaign (universal): same rolling-cycle treatment,
+		// anchored to the window start so the first payout lands on day 50.
+		carats +=
+			FIFTY_DAY_LOGIN_PER_CYCLE *
+			calculateIntervalOccurrences(start, end, start, FIFTY_DAY_LOGIN_CYCLE_DAYS)
+
+		// Valentine's Day gift. Note this only contributes when the fixed
+		// WINDOW_MONTHS window happens to span February 14 — the averaged figure
+		// therefore rises when the window covers it and is absent otherwise,
+		// which is inherent to averaging a fixed forward window over incomes that
+		// only occur once a year.
+		carats +=
+			VALENTINES_CARATS *
+			calculateAnnualDateOccurrences(start, end, VALENTINES_MONTH, VALENTINES_DAY)
 
 		// Monthly shop tickets: fixed uma/support bundle each month (no carat cost).
 		if (userStatsData.monthly_shop_tickets) {

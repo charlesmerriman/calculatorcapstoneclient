@@ -158,6 +158,47 @@ export function calculateDayOfMonthOccurrences(
 	return count
 }
 
+/**
+ * Count of times a specific calendar date (month + day, e.g. February 14) falls
+ * in the half-open window (start, end] — the start day is EXCLUDED, the end day
+ * is included. Used for once-a-year incomes like the Valentine's Day gift.
+ *
+ * Half-open for the same reason as every other counter here: a February 14 that
+ * lands exactly on a banner boundary must be paid out by one window, not both.
+ *
+ * The occurrence instants are absolute calendar dates, so this tiles across a
+ * chain of banner windows the same way calculateMonthlyOccurrences does —
+ * slicing (a,c] into (a,b] ∪ (b,c] yields the same total.
+ *
+ * `month` is 0-indexed to match Date.getMonth() (1 = February).
+ */
+export function calculateAnnualDateOccurrences(
+	start: Date,
+	end: Date,
+	month: number,
+	dayOfMonth: number
+): number {
+	if (end <= start) return 0
+
+	// new Date(y, m, d) is already local midnight, matching the startOfDay
+	// anchor the projection uses.
+	const cursor = new Date(start.getFullYear(), month, dayOfMonth)
+
+	// This year's occurrence may already be behind us — or be the start day
+	// itself, which the half-open window excludes — so walk forward until it
+	// is strictly after start.
+	while (cursor <= start) {
+		cursor.setFullYear(cursor.getFullYear() + 1)
+	}
+
+	let count = 0
+	while (cursor <= end) {
+		count++
+		cursor.setFullYear(cursor.getFullYear() + 1)
+	}
+	return count
+}
+
 export interface TrainingPassIncome {
 	/** Ordinary earned carats — spent at full price like every other income. */
 	freeCarats: number

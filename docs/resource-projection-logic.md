@@ -119,14 +119,21 @@ into more banners can't inflate them.
 carats += ClubRank.income_amount * months
 ```
 
-**6b. Add Misc Earnings + 50-Day Login Bonus** (flat approximations)
+**6b. Add Misc Earnings + 50-Day Login Bonus + Valentine's Day**
 
 ```
 if misc_earnings:
     // toggle-gated, 1800 per completed 30-day cycle counted from today
     freeCarats += MISC_EARNINGS_PER_CYCLE *
                   calculateIntervalOccurrences(windowStart, windowEnd, today, 30)
-freeCarats += FIFTY_DAY_LOGIN_PER_MONTH * months     // always on, ~170
+
+// always on, 150 per completed 50-day cycle counted from today
+freeCarats += FIFTY_DAY_LOGIN_PER_CYCLE *
+              calculateIntervalOccurrences(windowStart, windowEnd, today, 50)
+
+// always on, 500 on every February 14 in the window
+freeCarats += VALENTINES_CARATS *
+              calculateAnnualDateOccurrences(windowStart, windowEnd, 1, 14)
 ```
 
 **Misc Earnings** (gifts / Team Trials extras / careers) mirrors the source sheet's figure
@@ -138,8 +145,16 @@ to `today` instead of to each window's start is what makes it tile — `calculat
 counts absolute payout instants, so `(a,b] ∪ (b,c]` credits exactly what `(a,c]` would,
 and planning more banners never inflates the total.
 
-The **50-Day Login Bonus** is universal login-campaign income with no toggle, still
-credited on month boundaries — the same `months` count as Club Rank.
+The **50-Day Login Bonus** is universal login-campaign income with no toggle. It uses the
+same rolling-cycle machinery as Misc Earnings, just with a 50-day interval: first payout on
+day 50, nothing credited before then.
+
+The **Valentine's Day gift** is universal too, but it is a fixed calendar date rather than
+a rolling cycle, so it uses `calculateAnnualDateOccurrences` — the annual analogue of the
+1st-of-month counting. Its payout instants are absolute calendar dates, which gives it the
+same tiling property: a February 14 landing exactly on a banner boundary is credited by one
+window, never both. The month argument is 0-indexed to match `Date.getMonth()`, so `1` is
+February.
 
 **6c. Add Monthly Shop Tickets** (if enabled)
 

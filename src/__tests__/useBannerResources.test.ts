@@ -7,7 +7,11 @@ import {
   PULL_COST_CARATS,
   DISCOUNTED_PULL_COST_CARATS,
   MISC_EARNINGS_PER_CYCLE,
-  FIFTY_DAY_LOGIN_PER_MONTH,
+  FIFTY_DAY_LOGIN_PER_CYCLE,
+  FIFTY_DAY_LOGIN_CYCLE_DAYS,
+  VALENTINES_CARATS,
+  VALENTINES_MONTH,
+  VALENTINES_DAY,
   MONTHLY_SHOP_UMA_TICKETS,
   MONTHLY_SHOP_SUPPORT_TICKETS,
   TRAINING_PASS_START_DATE,
@@ -23,6 +27,9 @@ import {
   calculateDailyIncome,
   calculateMonthlyOccurrences,
   calculateDayOfMonthOccurrences,
+  calculateIntervalOccurrences,
+  calculateAnnualDateOccurrences,
+  getTrainingPassIncome,
 } from '../utils/incomeCalculationUtils'
 import type {
   UserStats,
@@ -43,6 +50,25 @@ function daysFromNow(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() + n)
   return d.toISOString().split('T')[0]
+}
+
+/**
+ * Carats a projection earns regardless of the user's toggles: base daily income
+ * plus the two universal bonuses (50-day login campaign, Valentine's gift).
+ *
+ * Tests that isolate a single income source build their expectation as this
+ * baseline plus the one term under test. Centralising it means adding another
+ * always-on income later is a one-line change here rather than an edit to every
+ * exact-total assertion in the file.
+ */
+function alwaysOnBaseline(today: Date, end: Date): number {
+  return (
+    calculateDailyIncome(today, end, today) +
+    FIFTY_DAY_LOGIN_PER_CYCLE *
+      calculateIntervalOccurrences(today, end, today, FIFTY_DAY_LOGIN_CYCLE_DAYS) +
+    VALENTINES_CARATS *
+      calculateAnnualDateOccurrences(today, end, VALENTINES_MONTH, VALENTINES_DAY)
+  )
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -729,7 +755,7 @@ describe('useBannerResources', () => {
       expect(miscDiff(sliced)).toBe(miscDiff([makeUmaBanner(1, daysFromNow(80), 0)]))
     })
 
-    it('leaves the non-misc baseline as daily income plus the 50-day login bonus', () => {
+    it('leaves the non-misc baseline as daily income plus the always-on bonuses', () => {
       const endStr = daysFromNow(50)
       const { result: off } = renderHook(() =>
         useBannerResources({
@@ -740,34 +766,136 @@ describe('useBannerResources', () => {
       )
       const today = startOfDay(new Date())
       const end = new Date(endStr)
-      const expectedOff =
-        calculateDailyIncome(today, end, today) +
-        FIFTY_DAY_LOGIN_PER_MONTH * calculateMonthlyOccurrences(today, end)
-      expect(off.current[0].carats).toBe(expectedOff)
+      expect(off.current[0].carats).toBe(alwaysOnBaseline(today, end))
     })
   })
 
   describe('50-day login bonus (always on)', () => {
-    it('adds FIFTY_DAY_LOGIN_PER_MONTH per month boundary on top of base daily income', () => {
-      // With every other source zeroed (ranks 0, daily_carat/misc off, no
-      // events, banner ends well before the training-pass launch), the only
-      // income is base daily plus the always-on 50-day login bonus — so the
-      // total is exact and isolates the constant.
-      const endStr = daysFromNow(50)
-      const banner = [makeUmaBanner(1, endStr, 0)]
+    // The campaign runs on a rolling 50-day cycle anchored to today, NOT on
+    // calendar-month boundaries — so these assert against day offsets.
+    const loginDiff = (endStr: string) => {
       const { result } = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
-          userPlannedBannerData: banner,
+          userPlannedBannerData: [makeUmaBanner(1, endStr, 0)],
           ...noIncome,
         })
       )
       const today = startOfDay(new Date())
       const end = new Date(endStr)
-      const expected =
-        calculateDailyIncome(today, end, today) +
-        FIFTY_DAY_LOGIN_PER_MONTH * calculateMonthlyOccurrences(today, end)
-      expect(result.current[0].carats).toBe(expected)
+      // Strip the rest of the always-on baseline so only the login term is left.
+      return (
+        result.current[0].carats -
+        calculateDailyIncome(today, end, today) -
+        VALENTINES_CARATS *
+          calculateAnnualDateOccurrences(today, end, VALENTINES_MONTH, VALENTINES_DAY)
+      )
+    }
+
+    // NOTE: daysFromNow() yields an ISO date string, which parses as UTC
+    // midnight, while the projection anchors to LOCAL midnight. In a negative
+    // UTC offset the two differ by hours, so an assertion sitting exactly on a
+    // payout day can fall either side of the window edge. These offsets are
+    // therefore kept clear of the day-50/100/150 boundaries.
+
+    it('credits nothing before the first cycle completes', () => {
+      // Day 45 is inside the first cycle — the day-50 payout has not landed.
+      expect(loginDiff(daysFromNow(45))).toBe(0)
+    })
+
+    it('credits one payout once a full 50-day cycle has elapsed', () => {
+      expect(loginDiff(daysFromNow(55))).toBe(FIFTY_DAY_LOGIN_PER_CYCLE)
+    })
+
+    it('credits one payout per completed cycle over a longer window', () => {
+      // Day 120 clears the day-50 and day-100 payouts, but not day 150.
+      expect(loginDiff(daysFromNow(120))).toBe(FIFTY_DAY_LOGIN_PER_CYCLE * 2)
+    })
+
+    it('anchors the cycle to today, so slicing the timeline does not change the total', () => {
+      // Payout instants are absolute (today+50, today+100, ...), so three
+      // windows summing to day 120 must total the same as one.
+      const today = startOfDay(new Date())
+      const sliced = [
+        makeUmaBanner(1, daysFromNow(30), 0),
+        makeUmaBanner(2, daysFromNow(75), 0),
+        makeUmaBanner(3, daysFromNow(120), 0),
+      ]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: sliced,
+          ...noIncome,
+        })
+      )
+      const end = new Date(daysFromNow(120))
+      expect(result.current[2].carats).toBe(alwaysOnBaseline(today, end))
+    })
+  })
+
+  describe("Valentine's Day bonus (always on)", () => {
+    /**
+     * Valentine's is a fixed calendar date, so unlike the rolling-cycle incomes
+     * these tests can't use day offsets — how far away February 14 is depends on
+     * when the suite runs. Instead they assert the relationship between the
+     * projection and calculateAnnualDateOccurrences over the same window, which
+     * holds on any run date.
+     */
+    const caratsTo = (endStr: string) => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, endStr, 0)],
+          ...noIncome,
+        })
+      )
+      return result.current[0].carats
+    }
+
+    it('credits VALENTINES_CARATS for each February 14 in the window', () => {
+      // Three years out is guaranteed to span at least two Valentine's Days
+      // whatever today's date is.
+      const endStr = daysFromNow(365 * 3)
+      const today = startOfDay(new Date())
+      const end = new Date(endStr)
+      const occurrences = calculateAnnualDateOccurrences(
+        today,
+        end,
+        VALENTINES_MONTH,
+        VALENTINES_DAY
+      )
+      expect(occurrences).toBeGreaterThanOrEqual(2)
+
+      // Strip every other income the window picks up so only the Valentine's
+      // term remains. A window this long reaches past TRAINING_PASS_START_DATE,
+      // so the free-tier pass contributes too — computed with the same helper
+      // the hook uses rather than re-deriving its month math here.
+      const valentinesOnly =
+        caratsTo(endStr) -
+        calculateDailyIncome(today, end, today) -
+        FIFTY_DAY_LOGIN_PER_CYCLE *
+          calculateIntervalOccurrences(today, end, today, FIFTY_DAY_LOGIN_CYCLE_DAYS) -
+        getTrainingPassIncome(today, end, false).freeCarats
+
+      expect(valentinesOnly).toBe(VALENTINES_CARATS * occurrences)
+    })
+
+    it('credits nothing over a window too short to reach a February 14', () => {
+      // A 10-day window can only contain Feb 14 if today is within 10 days of
+      // it; skip on those few days rather than assert something false.
+      const endStr = daysFromNow(10)
+      const today = startOfDay(new Date())
+      const end = new Date(endStr)
+      const occurrences = calculateAnnualDateOccurrences(
+        today,
+        end,
+        VALENTINES_MONTH,
+        VALENTINES_DAY
+      )
+
+      if (occurrences === 0) {
+        expect(caratsTo(endStr)).toBe(calculateDailyIncome(today, end, today))
+      }
     })
   })
 

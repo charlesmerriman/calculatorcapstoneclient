@@ -16,7 +16,11 @@ import {
 	DAILY_CARAT_PACK_CYCLE_DAYS,
 	MISC_EARNINGS_PER_CYCLE,
 	MISC_EARNINGS_CYCLE_DAYS,
-	FIFTY_DAY_LOGIN_PER_MONTH,
+	FIFTY_DAY_LOGIN_PER_CYCLE,
+	FIFTY_DAY_LOGIN_CYCLE_DAYS,
+	VALENTINES_CARATS,
+	VALENTINES_MONTH,
+	VALENTINES_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
@@ -25,6 +29,7 @@ import {
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
+	calculateAnnualDateOccurrences,
 	getThroughoutCaratsInWindow,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
@@ -214,8 +219,7 @@ export function useBannerResources({
 			// first payout lands 30 days out, so a banner ending sooner than
 			// that earns none of it. Anchoring to `today` (not to lastEndDate)
 			// keeps the schedule identical no matter how the timeline is sliced
-			// into banner windows. The 50-day login bonus is universal (no
-			// toggle) and still credits on month boundaries like Club Rank.
+			// into banner windows.
 			if (userStatsData.misc_earnings) {
 				freeCarats +=
 					MISC_EARNINGS_PER_CYCLE *
@@ -226,7 +230,31 @@ export function useBannerResources({
 						MISC_EARNINGS_CYCLE_DAYS
 					)
 			}
-			freeCarats += FIFTY_DAY_LOGIN_PER_MONTH * months
+
+			// The 50-day login campaign is universal (no toggle) and runs on the
+			// same rolling-cycle machinery as misc earnings above: anchored to
+			// `today`, so the first payout lands 50 days out and a banner ending
+			// sooner earns none of it.
+			freeCarats +=
+				FIFTY_DAY_LOGIN_PER_CYCLE *
+				calculateIntervalOccurrences(
+					lastEndDate,
+					endDate,
+					today,
+					FIFTY_DAY_LOGIN_CYCLE_DAYS
+				)
+
+			// Valentine's Day gift — a fixed calendar date rather than a rolling
+			// cycle, so it uses absolute annual occurrences (like the 1st-of-month
+			// incomes) instead of an anchor.
+			freeCarats +=
+				VALENTINES_CARATS *
+				calculateAnnualDateOccurrences(
+					lastEndDate,
+					endDate,
+					VALENTINES_MONTH,
+					VALENTINES_DAY
+				)
 
 			// Monthly shop tickets: a fixed uma/support ticket bundle buyable
 			// each month (with an untracked currency), so no carat cost.
