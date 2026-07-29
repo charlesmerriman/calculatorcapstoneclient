@@ -130,8 +130,18 @@
 
 /* ===== THUMBNAILS ===== */
 
+/* Base thumbnail geometry — deliberately square-cornered. Support card art is a
+   full-bleed rectangle with its border frame drawn into the image, so any CSS
+   radius visibly slices that frame's corners off. */
 .thumb-banner {
-	@apply h-14 w-auto object-contain rounded-md;
+	@apply h-14 w-auto object-contain;
+}
+
+/* Uma icons ship with a rounded frame baked into the art (corners transparent),
+   so they get a matching radius — it lands on the existing curve rather than
+   cutting into artwork. */
+.thumb-banner--uma {
+	@apply rounded-md;
 }
 
 /* ===== SELECT OVERRIDES ===== */
@@ -157,12 +167,24 @@ input[type="number"] {
 	-moz-appearance: textfield;
 }
 
-/* Opt-in class to re-enable spinners and keep the number visually centered */
+/* Opt-in class to re-enable spinners.
+   Chrome only *paints* the spin arrows on hover/focus, but by default they
+   still *reserve* ~15px of the input's content box at all times — which pushed
+   long values (100,000+) out of view. Taking the spin button out of flow with
+   position:absolute gives the number the full box; the arrows now paint over
+   the value on hover/focus instead of permanently shrinking it.
+   Note: this is a -webkit- pseudo-element, so Firefox's spinner still reserves
+   width and will clip a digit or two sooner. */
 input[type="number"].spin-arrows::-webkit-outer-spin-button,
 input[type="number"].spin-arrows::-webkit-inner-spin-button {
 	-webkit-appearance: auto;
+	position: absolute;
+	right: 1px; /* clear the input's 1px border */
+	top: 0;
+	height: 100%;
 }
 input[type="number"].spin-arrows {
 	-moz-appearance: auto;
 	color-scheme: dark;
+	position: relative; /* containing block for the absolute spin button */
 }

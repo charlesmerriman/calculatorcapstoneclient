@@ -28,6 +28,10 @@ export const MobileBannerCard = ({
 }: MobileBannerCardProps) => {
 	const Icon = removeIcon === "delete" ? Trash2 : X
 	const typeClass = bannerType === "Uma" ? "bg-blue-900" : "bg-green-900"
+	// The thumbnail tile clips whatever it contains, so it can only be rounded
+	// where the art is too: uma icons have a rounded frame baked in, support card
+	// art is a sharp-cornered rectangle and would get its own border sliced off.
+	const thumbTileRadius = bannerType === "Uma" ? "rounded-md" : "rounded-none"
 
 	return (
 		<div className="md:hidden overflow-hidden rounded-lg border border-gray-600 bg-gray-800 shadow-sm">
@@ -43,7 +47,7 @@ export const MobileBannerCard = ({
 						images.slice(0, 2).map((img) => (
 							<div
 								key={img.name}
-								className="flex h-[72px] min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-md bg-black/10 ring-1 ring-white/10"
+								className={`flex h-[72px] min-w-0 shrink-0 items-center justify-center overflow-hidden ${thumbTileRadius} bg-black/10 ring-1 ring-white/10`}
 							>
 								<img
 									src={img.image}

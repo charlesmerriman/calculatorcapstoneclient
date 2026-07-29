@@ -255,7 +255,7 @@ export const BannerRow = ({
 		<input
 			type="number"
 			value={plannedBanner.number_of_pulls}
-			className="spin-arrows h-9 w-20 rounded border border-green-500 bg-gray-700 pl-4.5 text-center text-sm text-green-400 focus:border-green-400 focus:outline-none"
+			className="spin-arrows h-9 w-20 rounded border border-green-500 bg-gray-700 px-2 text-center text-sm text-green-400 focus:border-green-400 focus:outline-none"
 			max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
 			min={0}
 			onChange={handlePullCountChange}
@@ -318,7 +318,7 @@ export const BannerRow = ({
 						key={img.name}
 						src={img.image}
 						alt={img.name}
-						className="thumb-banner"
+						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
 					/>
 				))}
 			</div>
@@ -368,7 +368,7 @@ export const BannerRow = ({
 				<input
 					type="number"
 					value={plannedBanner.number_of_pulls}
-					className="spin-arrows w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none pl-4.5"
+					className="spin-arrows w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none px-2"
 					max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
 					min={0}
 					onChange={handlePullCountChange}
