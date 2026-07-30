@@ -36,17 +36,27 @@ exclusively from `paidCarats`.
 
 `lastEndDate` is anchored to the **start of today (local midnight)**, computed a single time. It is deliberately *not* a live `new Date()`: every recompute (adding/removing a banner, editing a stat, an autosave round-trip) would otherwise capture a slightly later instant, and any in-progress event's front-loaded `carats_throughout` — the only fractional income source — would have decayed a few more seconds, drifting the estimates downward by a fraction of a carat each time. A stable start-of-day makes all recomputes on the same calendar day produce identical numbers.
 
-The planned banners are already sorted by timeline start date by the server (the `GET /calculator-data` endpoint annotates and orders by timeline date).
+### Walk order vs. display order
+
+These are two different orderings, and conflating them was a real bug.
+
+The planned banner list is sorted by timeline **start date** — server-side by `GET /calculator-data`, and again client-side when a banner is added or changed. That is the *display* order: rows appear in the order banners open.
+
+The loop below is a single pass down the calendar carrying one cursor (`lastEndDate`), where each banner is a checkpoint keyed on its **end date**. A date cursor can only move forward — that is what makes the windows tile — so the checkpoints must be visited in ascending *end*-date order.
+
+Those two orderings differ whenever a short banner is nested inside a longer one (it opens later but closes sooner). The live schedule contains 14 such pairs. So the hook sorts a copy of the list by end date for the walk, and writes each result back into that banner's **display slot**. Nothing about the on-screen ordering changes.
+
+The sort is stable, so banners sharing an end date — every uma/support pair does — keep their display order and therefore their spend priority.
 
 ---
 
 ### Per-Banner Loop
 
-For each banner in the sorted list:
+For each banner, in ascending end-date order:
 
 **1. Determine the cutoff date**
 
-The cutoff is the banner's `end_date` (from its `banner_timeline`). Resources earned right up to when the banner closes are counted. If no end date exists the banner is skipped.
+The cutoff is the banner's `end_date` (from its `banner_timeline`). Resources earned right up to when the banner closes are counted. A banner with no resolvable end date keeps a zeroed result slot (it is not skipped, which would shift every later row's result onto the wrong card).
 
 > Note: `end_date` is the **resolved** global date — the confirmed date when available, otherwise a date predicted from the JP schedule by the backend (`is_predicted: true`). The projection treats both identically; only the display shows an "Estimated" badge for predicted dates.
 
@@ -87,12 +97,14 @@ carats += user's LeagueOfHeroesRank.income_amount
 **4. Calculate the time span**
 
 ```
-days    = differenceInDays(endDate, lastEndDate)
+days    = countDaysInWindow(lastEndDate, endDate)      // half-open, start excluded
 mondays = count of Mondays in (lastEndDate, endDate]   // half-open, start excluded
 months  = count of 1st-of-month boundaries crossed
 ```
 
-> **Windows are half-open: `(lastEndDate, endDate]`.** The start day is excluded, the end day included. This matters because banner windows are contiguous — one banner's `endDate` is the next banner's `lastEndDate`. If both endpoints were counted, that shared boundary day would be tallied twice (once as the earlier window's last day, once as the next window's first day), so every added banner would inflate all downstream totals by ~a day's income and every removed banner would deflate them. Half-open windows tile perfectly — `(a,b] ∪ (b,c] = (a,c]` — so totals are independent of how many banners the timeline is sliced into. `differenceInDays` already has this half-open count; `calculateDailyIncome` and `calculateMondaysBetween` drop the start day (`.slice(1)`) to match.
+> **Windows are half-open: `(lastEndDate, endDate]`.** The start day is excluded, the end day included. This matters because banner windows are contiguous — one banner's `endDate` is the next banner's `lastEndDate`. If both endpoints were counted, that shared boundary day would be tallied twice (once as the earlier window's last day, once as the next window's first day), so every added banner would inflate all downstream totals by ~a day's income and every removed banner would deflate them. Half-open windows tile perfectly — `(a,b] ∪ (b,c] = (a,c]` — so totals are independent of how many banners the timeline is sliced into. `countDaysInWindow`, `calculateDailyIncome` and `calculateMondaysBetween` all drop the start day to match.
+
+> **Do not use `differenceInDays` for a per-day count here.** It measures *elapsed 24-hour spans* and truncates the remainder, which is only equivalent to a calendar-day count when both endpoints share a time of day. Banner windows almost never do: the cursor starts at local midnight while timelines end at `21:59:59Z`-style instants. Because the truncation happens per window it does **not** tile — chaining `(a,b]` and `(b,c]` loses up to a day at each internal boundary. This was a live bug in the Daily Carat Pack's drip: a 12-banner plan came out 250 carats short of the same projection computed as one window, a 30-banner plan 750 short, and deleting a row merged two windows and handed a truncated day back, so every downstream estimate jumped by 50. `countDaysInWindow` counts day boundaries instead, which is additive by construction, and floors at 0 so a backwards window can never subtract income.
 
 **5. Add Daily Carat Pack income** (if enabled)
 
@@ -276,7 +288,8 @@ The next banner's income window starts from here.
 - **`carats_throughout` is front-loaded, not a flat rate.** More of an event's throughout-carat pool is earned early in its life than late — see `remainingShare` in `utils/incomeCalculationUtils.ts`.
 - **The cutoff is `end_date`, not `start_date`.** A banner starting April 1 and ending April 14 captures income through April 14. The resources shown are what you'll have at the end of that banner's run.
 - **Uma tickets only offset uma banner pulls; support tickets only offset support banner pulls.** There is no cross-ticket substitution.
-- **Banners must be sorted by timeline start date** for the sequential window logic to produce correct results. This sort is enforced server-side.
+- **The walk visits checkpoints in ascending end-date order; results are returned in display order.** The display list is sorted by timeline *start* date, which is not the same ordering when a short banner is nested inside a longer one. The hook sorts a copy by end date for the walk and writes each result back to its banner's display slot, so `bannerResources[i]` always belongs to `userPlannedBannerData[i]`. Walking in display order gave nested banners a backwards window, so they collected nothing and reported the *previous* banner's later balance — overstating one real case by ~2,300 carats.
+- **A banner's estimate depends only on its own end date**, never on its position in the list or on how many other banners are planned (given the same spending ahead of it). Guarded by the "walk order" and "banner count invariance" tests.
 
 ---
 
