@@ -1671,14 +1671,18 @@ describe('useBannerResources', () => {
       expect(lastDayMarginal).toBeGreaterThan(0)
     })
 
-    it('never credits negative carats when a nested banner ends before the running cutoff', () => {
+    it('checkpoints a nested banner at its OWN end date, not the running cutoff', () => {
       // Banner 1 is a long-running banner ending day 30. Banner 2 is nested
-      // inside it (starts later but ends sooner, day 10) -- a realistic
-      // overlapping-banner scenario. Because lastEndDate only ever advances
-      // forward (never retreats to banner 2's earlier end), banner 2's own
-      // window is "backwards" (windowStart=day30 > windowEnd=day10). Since
-      // remainingShare is non-increasing, this would subtract carats without
-      // the outer Math.max(0, ...) guard in getThroughoutCaratsInWindow.
+      // inside it (listed second because it starts later, but it closes on day
+      // 10) -- a realistic overlapping-banner scenario, and one the live
+      // schedule contains 14 times.
+      //
+      // The walk visits checkpoints in ascending END-date order, so banner 2 is
+      // evaluated first over (now, day10] and banner 1 second over (day10,
+      // day30]. Before that ordering existed the walk followed the display list,
+      // banner 2 got a backwards window (day30 -> day10) and collected nothing,
+      // so it reported banner 1's day-30 balance on a banner that closes on
+      // day 10 -- a large overstatement.
       const event = makeGameEvent(1, daysFromNow(5), daysFromNow(20), 0, 1_000)
       const banners = [
         makeUmaBanner(1, daysFromNow(30), 0),
@@ -1700,11 +1704,166 @@ describe('useBannerResources', () => {
           gameEventsData: [],
         })
       )
-      // Banner 1's window (now, day30] fully contains the event's span.
-      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(1_000)
-      // Banner 2 contributes nothing further (not a negative amount) --
-      // the cumulative total stays at the full pool, never exceeding it.
-      expect(withEvent.current[1].carats - withoutEvent.current[1].carats).toBe(1_000)
+      const longBanner = withEvent.current[0].carats - withoutEvent.current[0].carats
+      const nestedBanner = withEvent.current[1].carats - withoutEvent.current[1].carats
+
+      // Day 30 is past the event's end, so the whole pool has been paid out.
+      expect(longBanner).toBe(1_000)
+
+      // Day 10 is mid-event, so the nested banner sees only the front-loaded
+      // share earned so far -- strictly some of the pool, never all of it and
+      // never a negative amount.
+      expect(nestedBanner).toBeGreaterThan(0)
+      expect(nestedBanner).toBeLessThan(1_000)
+
+      // Results stay in DISPLAY order: index 0 is still the day-30 banner even
+      // though the walk evaluated it second.
+      expect(nestedBanner).toBeLessThan(longBanner)
+    })
+
+    it('never credits negative carats for a banner that has already ended', () => {
+      // Sorting the walk by end date removes backwards windows BETWEEN
+      // checkpoints, but not for a banner whose end date is already in the
+      // past: the cursor starts at today and must not retreat behind it, so
+      // that banner's window is (today, day-5] -- backwards. Since
+      // remainingShare is non-increasing, this would subtract carats without
+      // the outer Math.max(0, ...) guard in getThroughoutCaratsInWindow.
+      const event = makeGameEvent(1, daysFromNow(-10), daysFromNow(20), 0, 1_000)
+      const banners = [
+        makeUmaBanner(1, daysFromNow(-5), 0), // already over
+        makeUmaBanner(2, daysFromNow(30), 0),
+      ]
+      const { result: withEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+          gameEventsData: [event],
+        })
+      )
+      const { result: withoutEvent } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      // The passed banner earns exactly nothing extra -- not a negative amount.
+      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(0)
+      // The live banner still collects everything left in the pool from today on.
+      expect(withEvent.current[1].carats - withoutEvent.current[1].carats).toBeGreaterThan(0)
+    })
+  })
+
+  describe('walk order (checkpoints follow end dates, results follow display order)', () => {
+    // Regression guard for the bug where the calendar walk followed the display
+    // list. Rows are sorted by START date on screen, which is not the same
+    // ordering as END date whenever a short banner is nested inside a longer
+    // one. The walk needs ascending end dates because its cursor is a date that
+    // only moves forward; the results still have to land on the right rows.
+
+    it('gives a nested banner the same estimate however it is ordered in the list', () => {
+      // The same two banners, listed in both possible orders. Each row's
+      // estimate must depend only on its own end date, never on its position.
+      const stats: UserStats = { ...zeroStats, daily_carat: true, current_carat: 5_000 }
+      const long = makeUmaBanner(1, daysFromNow(30), 0)
+      const nested = makeUmaBanner(2, daysFromNow(10), 0)
+
+      const longFirst = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [long, nested],
+          ...noIncome,
+        })
+      )
+      const nestedFirst = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [nested, long],
+          ...noIncome,
+        })
+      )
+
+      // longFirst: [long, nested]   nestedFirst: [nested, long]
+      expect(longFirst.result.current[0].carats).toBe(nestedFirst.result.current[1].carats)
+      expect(longFirst.result.current[1].carats).toBe(nestedFirst.result.current[0].carats)
+    })
+
+    it('matches the estimate the nested banner gets on its own', () => {
+      // A checkpoint's value must equal what that banner would report as the
+      // only row in the plan, since nothing ahead of it spends anything.
+      const stats: UserStats = { ...zeroStats, daily_carat: true, current_carat: 5_000 }
+      const nested = makeUmaBanner(2, daysFromNow(10), 0)
+
+      const chained = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0), nested],
+          ...noIncome,
+        })
+      )
+      const alone = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [nested],
+          ...noIncome,
+        })
+      )
+
+      expect(chained.result.current[1].carats).toBe(alone.result.current[0].carats)
+    })
+
+    it('spends the nested banner first, so the longer banner sees the deduction', () => {
+      // Ordering the walk by end date also fixes spend order: money committed
+      // to a banner closing on day 10 is gone before the day-30 checkpoint.
+      const stats: UserStats = { ...zeroStats, current_carat: 10_000 }
+      const long = makeUmaBanner(1, daysFromNow(30), 0)
+      const nestedSpending = makeUmaBanner(2, daysFromNow(10), 10) // 10 pulls
+
+      const withSpend = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [long, nestedSpending],
+          ...noIncome,
+        })
+      )
+      const withoutSpend = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [long, makeUmaBanner(2, daysFromNow(10), 0)],
+          ...noIncome,
+        })
+      )
+
+      // Index 0 is the day-30 banner in both runs; it now loses the 10 pulls
+      // the nested banner committed earlier in the calendar.
+      expect(withoutSpend.result.current[0].carats - withSpend.result.current[0].carats).toBe(
+        10 * PULL_COST_CARATS
+      )
+    })
+
+    it('keeps display order for banners that share an end date', () => {
+      // Every uma/support pair shares a timeline, so ties are the common case.
+      // A stable sort must leave them in list order -- the uma banner keeps
+      // spending first, as it did before the walk was reordered.
+      const stats: UserStats = { ...zeroStats, current_carat: 10_000 }
+      const banners = [
+        makeUmaBanner(1, daysFromNow(10), 10), // spends 1,500
+        makeSupportBanner(2, daysFromNow(10), 0),
+      ]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+        })
+      )
+
+      // The uma banner is checkpointed before its own spend; the support banner
+      // shares the same end date so it collects no further income and sees the
+      // balance after the uma banner's pulls.
+      expect(result.current[0].carats - result.current[1].carats).toBe(10 * PULL_COST_CARATS)
     })
   })
 

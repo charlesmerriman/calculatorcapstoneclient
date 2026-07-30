@@ -105,8 +105,17 @@ export function useBannerResources({
 		let umaTickets = userStatsData.uma_ticket || 0
 		let supportTickets = userStatsData.support_ticket || 0
 
-		const results: BannerResources[] = []
-		const plannedBanners = [...userPlannedBannerData]
+		// One result slot per planned banner, pre-filled so the array always
+		// lines up positionally with `userPlannedBannerData` — the consumer
+		// reads `bannerResources[index]` for the row at the same index. A banner
+		// with no resolvable timeline keeps its zeroed slot instead of shifting
+		// every later row's result onto the wrong card.
+		const results: BannerResources[] = userPlannedBannerData.map(() => ({
+			carats: 0,
+			maxPossiblePulls: 0,
+			umaTickets: 0,
+			supportTickets: 0,
+		}))
 
 		// Anchor the whole projection to the START of today (local midnight),
 		// computed once. Using a live `new Date()` here meant every recompute
@@ -151,15 +160,44 @@ export function useBannerResources({
 			(rank) => rank.id === userStatsData.league_of_heroes_rank
 		)
 
-		for (const banner of plannedBanners) {
-			const timeline =
-				banner.banner_uma?.banner_timeline ??
-				banner.banner_support?.banner_timeline
-			const endDateStr = timeline?.end_date
-			if (!endDateStr) continue
+		// THE WALK ORDER — deliberately NOT the display order.
+		//
+		// This loop is a single pass down the calendar carrying one cursor
+		// (`lastEndDate`). Each banner is a checkpoint keyed on its END date:
+		// "advance the cursor to this banner's end, collecting income on the
+		// way, and snapshot the balance there". A date cursor can only move
+		// forward — that is what makes the windows tile — so the checkpoints
+		// have to be visited in ascending end-date order.
+		//
+		// The display list is sorted by START date (see CaratCalculator), which
+		// is what a reader expects but is NOT the same ordering: a banner can
+		// open later and still close sooner than the row above it (a short
+		// banner nested inside a long one — 14 such pairs exist in the current
+		// schedule). Walking in display order gave those rows a backwards
+		// window, so they collected nothing and reported the balance from the
+		// PREVIOUS banner's later end date — overstating a real case by ~2,300
+		// carats. Results are written back to each banner's display slot, so
+		// nothing about the on-screen ordering changes.
+		//
+		// The sort is stable (guaranteed since ES2019), so banners sharing an
+		// end date — every uma/support pair does — keep their display order and
+		// therefore their existing spend priority.
+		const walkOrder = userPlannedBannerData
+			.map((banner, index) => {
+				const timeline =
+					banner.banner_uma?.banner_timeline ??
+					banner.banner_support?.banner_timeline
+				return {
+					banner,
+					index,
+					timeline,
+					endDate: timeline?.end_date ? new Date(timeline.end_date) : null,
+				}
+			})
+			.filter((entry): entry is typeof entry & { endDate: Date } => entry.endDate !== null)
+			.sort((a, b) => a.endDate.getTime() - b.endDate.getTime())
 
-			const endDate = new Date(endDateStr)
-
+		for (const { banner, index, timeline, endDate } of walkOrder) {
 			for (const ge of parsedGameEvents) {
 				if (ge.parsedStart && ge.parsedStart > lastEndDate && ge.parsedStart <= endDate) {
 					freeCarats += ge.carat_amount
@@ -327,18 +365,24 @@ export function useBannerResources({
 				fullPricePaidPulls: userStatsData.full_price_paid_pulls,
 			})
 
-			results.push({
+			// Write back to the banner's DISPLAY position, not the walk position,
+			// so the row on screen gets its own checkpoint's numbers.
+			results[index] = {
 				carats: freeCarats + paidCarats,
 				maxPossiblePulls: strategy.maxPossiblePulls,
 				umaTickets,
 				supportTickets,
-			})
+			}
 
 			freeCarats = strategy.freeCarats
 			paidCarats = strategy.paidCarats
 			umaTickets = strategy.umaTickets
 			supportTickets = strategy.supportTickets
 
+			// The walk order guarantees endDate never goes backwards between
+			// checkpoints, but a banner that ALREADY ENDED still sits before
+			// `today`. Keep the guard so the cursor never retreats behind the
+			// projection's anchor.
 			if (endDate > lastEndDate) {
 				lastEndDate = endDate
 			}
