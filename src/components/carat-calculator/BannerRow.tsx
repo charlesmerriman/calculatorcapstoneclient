@@ -15,7 +15,8 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
-import { getFreePulls } from "../../utils/bannerHelpers"
+import { getFreePulls, getPullCountStatus } from "../../utils/bannerHelpers"
+import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 
 interface BannerRowProps {
@@ -150,23 +151,32 @@ export const BannerRow = ({
 	}
 
 	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-		// The number input's `max`/`min` attributes only style the field and
-		// drive the spinner arrows — they do NOT clamp a value the user types.
-		// So we sanitise here: a whole number of pulls, never below 0, and never
-		// above what's affordable. Without the floor, a typed decimal like "2.5"
-		// would flow into getExactProbability (which assumes integer trials) and
-		// into the carat deduction, corrupting both.
+		// Sanitise to a whole, non-negative number of pulls. The floor matters:
+		// a typed decimal like "2.5" would flow into getExactProbability (which
+		// assumes integer trials) and into the carat deduction, corrupting both.
+		//
+		// Deliberately NOT capped at maxPossiblePulls. Planning past what you can
+		// afford is a legitimate thing to want to see — applyPullStrategy turns
+		// the shortfall into a negative carat balance that carries to later
+		// banners, and pullStatus below surfaces it as a red field rather than
+		// silently rewriting what the user typed.
 		const parsed = Math.floor(Number(e.target.value))
 		const nonNegative = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
-		const upperBound = typeof maxPossiblePulls === "number" ? maxPossiblePulls : 0
-		const clamped = Math.min(nonNegative, upperBound)
 
 		const updated = updateBannerInList((banner) => ({
 			...banner,
-			number_of_pulls: clamped
+			number_of_pulls: nonNegative
 		}))
 		setUserPlannedBannerData(updated)
 	}
+
+	// A banner that has already ended can fund nothing, so its bound is 0 — any
+	// leftover pulls on it correctly read as unachievable.
+	const pullUpperBound = typeof maxPossiblePulls === "number" ? maxPossiblePulls : 0
+	const pullStatus = getPullCountStatus(
+		plannedBanner.number_of_pulls,
+		pullUpperBound
+	)
 
 	const hasBanner = plannedBanner.banner_uma || plannedBanner.banner_support
 
@@ -251,13 +261,24 @@ export const BannerRow = ({
 		</div>
 	)
 
+	// WCAG 1.4.1 — color can't be the only carrier of this state. The same
+	// information goes out as a tooltip and, for the failure case, as
+	// aria-invalid, so it survives colorblindness and screen readers.
+	const pullStatusHint =
+		pullStatus === "over"
+			? `More pulls than you can afford here (max ${pullUpperBound})`
+			: pullStatus === "ok"
+			? "On a pity threshold — no carats stranded in a partial counter"
+			: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
+
 	const pullsInput = (
 		<input
 			type="number"
 			value={plannedBanner.number_of_pulls}
-			className="spin-arrows h-9 w-20 rounded border border-green-500 bg-gray-700 px-2 text-center text-sm text-green-400 focus:border-green-400 focus:outline-none"
-			max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
+			className={`spin-arrows pull-input pull-input--${pullStatus} w-20`}
 			min={0}
+			title={pullStatusHint}
+			aria-invalid={pullStatus === "over"}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -368,9 +389,10 @@ export const BannerRow = ({
 				<input
 					type="number"
 					value={plannedBanner.number_of_pulls}
-					className="spin-arrows w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none px-2"
-					max={maxPossiblePulls === "Passed" ? 0 : maxPossiblePulls}
+					className={`spin-arrows pull-input pull-input--${pullStatus} w-16`}
 					min={0}
+					title={pullStatusHint}
+					aria-invalid={pullStatus === "over"}
 					onChange={handlePullCountChange}
 				/>
 			</div>

@@ -1,4 +1,5 @@
 import { PULL_COST_CARATS, DISCOUNTED_PULL_COST_CARATS } from "../constants/gameConstants"
+import { PULLS_PER_PITY_COPY } from "./probabilityCalculations"
 import type { UserPlannedBanner } from "../types"
 
 /**
@@ -150,6 +151,43 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	}
 
 	return { freeCarats, paidCarats, umaTickets, supportTickets, maxPossiblePulls }
+}
+
+/**
+ * How a planned pull count should be presented to the user.
+ *
+ *   "over"    — more pulls than the banner's resources can pay for.
+ *   "ok"      — lands exactly on a pity threshold (every carat buys a full
+ *               guaranteed copy; nothing is stranded in a partial counter).
+ *   "neutral" — affordable, but stops part-way through a pity counter.
+ */
+export type PullCountStatus = "ok" | "neutral" | "over"
+
+/**
+ * Classifies a planned pull count for display.
+ *
+ * The input is deliberately NOT clamped to `maxPulls` anywhere — a user is
+ * allowed to plan beyond their means and see the shortfall (the deficit carries
+ * forward as a negative carat balance via applyPullStrategy). This function is
+ * what turns that into a visible signal instead of a silent one.
+ *
+ * "over" is checked FIRST because the two states can co-occur: 400 pulls when
+ * only 300 are affordable is both on a pity threshold and unaffordable, and
+ * "you can't pay for this" is the more actionable of the two.
+ *
+ * @param maxPulls Upper bound of affordable pulls. Pass `Infinity` where no
+ *   bound is known (e.g. a staged banner, which has no projection yet) to opt
+ *   out of the "over" state entirely.
+ */
+export function getPullCountStatus(
+	pulls: number,
+	maxPulls: number
+): PullCountStatus {
+	if (pulls > maxPulls) return "over"
+	// 0 is a multiple of the pity threshold, but an untouched row is not a
+	// planning achievement — greening every empty row would drain the signal.
+	if (pulls > 0 && pulls % PULLS_PER_PITY_COPY === 0) return "ok"
+	return "neutral"
 }
 
 /**

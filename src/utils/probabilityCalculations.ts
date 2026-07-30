@@ -2,8 +2,14 @@ const SINGLE_ATTEMPT_SUCCESS_RATE = 0.75
 const SUCCESS_RATE_DECIMAL = SINGLE_ATTEMPT_SUCCESS_RATE / 100
 const SINGLE_ATTEMPT_FAILURE_RATE = 1 - SUCCESS_RATE_DECIMAL
 
-/** Pulls required to earn one guaranteed copy from the pity exchange. */
-const PULLS_PER_PITY_COPY = 200
+/**
+ * Pulls required to earn one guaranteed copy from the pity exchange.
+ *
+ * Exported because the UI also keys off it: a planned pull count that lands
+ * exactly on a multiple of this spends nothing on a partial, unredeemable pity
+ * counter, which is what `getPullCountStatus` signals green.
+ */
+export const PULLS_PER_PITY_COPY = 200
 
 /**
  * 5 copies = MLB (the card itself plus 4 limit breaks). There is no 5LB, so

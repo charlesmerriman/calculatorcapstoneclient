@@ -11,6 +11,8 @@ import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
+import { getPullCountStatus } from "../../utils/bannerHelpers"
+import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 
 interface StagedBannerRowProps {
 	stagedBanner: UserPlannedBanner
@@ -77,6 +79,16 @@ export const StagedBannerRow = ({
 	}
 
 	const hasBanner = stagedBanner.banner_uma || stagedBanner.banner_support
+
+	// A staged banner isn't on the sheet yet, so useBannerResources hasn't
+	// projected an affordability bound for it. Infinity opts out of the "over"
+	// state rather than inventing a limit — the field still flags on/off pity,
+	// and the real red signal appears once the banner is added to the sheet.
+	const pullStatus = getPullCountStatus(stagedBanner.number_of_pulls, Infinity)
+	const pullStatusHint =
+		pullStatus === "ok"
+			? "On a pity threshold — no carats stranded in a partial counter"
+			: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
 
 	const images = stagedBanner.banner_uma
 		? stagedBanner.banner_uma.umas
@@ -157,8 +169,9 @@ export const StagedBannerRow = ({
 		<input
 			type="number"
 			value={stagedBanner.number_of_pulls}
-			className="spin-arrows h-9 w-20 rounded border border-green-500 bg-gray-700 px-2 text-center text-sm text-green-400 focus:border-green-400 focus:outline-none"
+			className={`spin-arrows pull-input pull-input--${pullStatus} w-20`}
 			min={0}
+			title={pullStatusHint}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -265,8 +278,9 @@ export const StagedBannerRow = ({
 				<input
 					type="number"
 					value={stagedBanner.number_of_pulls}
-					className="spin-arrows w-16 h-9 text-center text-sm border border-green-500 rounded bg-gray-700 text-green-400 focus:border-green-400 focus:outline-none px-2"
+					className={`spin-arrows pull-input pull-input--${pullStatus} w-16`}
 					min={0}
+					title={pullStatusHint}
 					onChange={handlePullCountChange}
 				/>
 			</div>

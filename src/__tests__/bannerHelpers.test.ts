@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyPullStrategy } from '../utils/bannerHelpers'
+import { applyPullStrategy, getPullCountStatus } from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,5 +133,46 @@ describe('applyPullStrategy — spend', () => {
     // 1 discount (50) + 2 full price (300) = 350 paid spent.
     expect(r.paidCarats).toBe(500 - 350)
     expect(r.freeCarats).toBe(0)
+  })
+})
+
+// ── getPullCountStatus ────────────────────────────────────────────────────────
+
+describe('getPullCountStatus', () => {
+  it('flags a count above the affordable max as "over"', () => {
+    expect(getPullCountStatus(31, 30)).toBe('over')
+  })
+
+  it('treats exactly the max as affordable, not over', () => {
+    expect(getPullCountStatus(30, 30)).toBe('neutral')
+  })
+
+  it('returns "ok" on a pity threshold', () => {
+    expect(getPullCountStatus(200, 1_000)).toBe('ok')
+    expect(getPullCountStatus(400, 1_000)).toBe('ok')
+  })
+
+  it('returns "neutral" one pull either side of a threshold', () => {
+    expect(getPullCountStatus(199, 1_000)).toBe('neutral')
+    expect(getPullCountStatus(201, 1_000)).toBe('neutral')
+  })
+
+  it('keeps 0 neutral even though it divides evenly', () => {
+    // Every untouched row sits at 0; greening them would drain the signal.
+    expect(getPullCountStatus(0, 1_000)).toBe('neutral')
+  })
+
+  it('prefers "over" when a count is both on-pity and unaffordable', () => {
+    expect(getPullCountStatus(400, 300)).toBe('over')
+  })
+
+  it('never reports "over" when the bound is Infinity (staged banner)', () => {
+    expect(getPullCountStatus(9_999, Infinity)).toBe('neutral')
+    expect(getPullCountStatus(200, Infinity)).toBe('ok')
+  })
+
+  it('flags any pulls on an ended banner, whose bound is 0', () => {
+    expect(getPullCountStatus(1, 0)).toBe('over')
+    expect(getPullCountStatus(0, 0)).toBe('neutral')
   })
 })

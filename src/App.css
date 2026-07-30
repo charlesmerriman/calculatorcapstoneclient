@@ -106,6 +106,88 @@
 	@apply text-sm font-semibold text-gray-100 leading-tight;
 }
 
+/* ===== PULL COUNT INPUT =====
+   The "# Pulls" field. Its border/text/fill encode whether the planned count
+   is on a pity threshold, off it, or beyond what the user can afford — see
+   getPullCountStatus in utils/bannerHelpers.ts. Shared by BannerRow and
+   StagedBannerRow across both breakpoints, so the states are defined once.
+   Width stays on the element (mobile and desktop differ). */
+.pull-input {
+	@apply h-9 rounded border px-2 text-center text-sm
+		transition-colors focus:outline-none;
+}
+
+/* Off-pity but affordable: the on-pity green with the colour drained out of it.
+   Same family, lower intensity — the field still says "this is fine", just not
+   "this is optimal". Its fill is tinted more weakly than the other two states
+   (8% vs 12%) so it recedes even where the border tones are close. */
+.pull-input--neutral {
+	border-color: var(--color-pull-neutral-border);
+	color: var(--color-pull-neutral);
+	background-color: var(--color-gray-700);
+}
+
+.pull-input--neutral:focus {
+	border-color: var(--color-pull-neutral);
+}
+
+/* The two status states below reference their CSS variables directly instead of
+   going through @apply. This is REQUIRED, not a style choice: the `@reference
+   "tailwindcss"` at the top of this file loads only Tailwind's stock theme, so
+   @apply here can't resolve the --color-pull-* tokens declared in index.css's
+   @theme block — `@apply border-pull-ok-border` fails the build outright with
+   "Cannot apply unknown utility class". (The gray/green utilities elsewhere in
+   this file work because those names also exist in the stock theme; the custom
+   values get substituted later, at runtime, via the same variables.)
+
+   The fills are mixed into the theme's OWN gray-700 rather than set as a flat
+   tint, so the box stays a lit version of the surrounding input surface on
+   every theme instead of a fixed wash that only suits one. Mixing rather than
+   using an alpha tint keeps the fill opaque, so text contrast doesn't drift
+   with whatever sits behind the field — the mobile card and the desktop row put
+   different surfaces there. */
+.pull-input--ok {
+	border-color: var(--color-pull-ok-border);
+	color: var(--color-pull-ok);
+	background-color: var(--color-gray-700);
+}
+
+.pull-input--ok:focus {
+	border-color: var(--color-pull-ok);
+}
+
+.pull-input--over {
+	border-color: var(--color-pull-over-border);
+	color: var(--color-pull-over);
+	background-color: var(--color-gray-700);
+}
+
+.pull-input--over:focus {
+	border-color: var(--color-pull-over);
+}
+
+/* The tint is applied behind an @supports guard rather than inline above, and
+   that guard is load-bearing. Both color-mix operands are CSS variables, so the
+   build's CSS downleveller cannot evaluate the mix ahead of time; asked to
+   support browsers without color-mix, it emits a fallback of just the FIRST
+   operand — i.e. a solid green (or red) fill sitting under same-colored text.
+   Declaring the plain gray-700 fill above and layering the mix only where it is
+   actually supported means the untinted case degrades to an ordinary input that
+   still signals through its border and text, instead of an unreadable block. */
+@supports (background-color: color-mix(in srgb, red 12%, blue)) {
+	.pull-input--ok {
+		background-color: color-mix(in srgb, var(--color-pull-ok-border) 12%, var(--color-gray-700));
+	}
+
+	.pull-input--neutral {
+		background-color: color-mix(in srgb, var(--color-pull-neutral-border) 8%, var(--color-gray-700));
+	}
+
+	.pull-input--over {
+		background-color: color-mix(in srgb, var(--color-pull-over-border) 12%, var(--color-gray-700));
+	}
+}
+
 /* Icon-only delete button on the right edge */
 .banner-delete-btn {
 	@apply w-10 shrink-0 flex items-center justify-center
@@ -187,4 +269,12 @@ input[type="number"].spin-arrows {
 	-moz-appearance: auto;
 	color-scheme: dark;
 	position: relative; /* containing block for the absolute spin button */
+}
+
+/* The arrows are painted by the browser, not by us, so `color-scheme` is the
+   only lever on them. Left at `dark` they render as light glyphs, which vanish
+   against the light theme's pale input fill — the one part of this field CSS
+   can't recolor directly. */
+[data-theme="light"] input[type="number"].spin-arrows {
+	color-scheme: light;
 }

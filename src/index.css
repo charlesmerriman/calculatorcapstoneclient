@@ -13,6 +13,34 @@
 	--color-gray-800: #1a1a22;
 	--color-gray-900: #101014;
 	--color-gray-950: #08080c;
+
+	/* ── Pull-count status colors ──────────────────────────────────────────
+	   Used by the .pull-input classes in App.css to flag a planned pull count
+	   as on-pity (ok) or unaffordable (over).
+
+	   These have to be theme tokens rather than plain Tailwind palette classes:
+	   the theme blocks below only override --color-brand and the gray ramp, so
+	   a literal `text-green-400` would stay the same bright green on EVERY
+	   theme — which measures 1.35:1 against the light theme's input background
+	   and is effectively invisible there. Declaring them here lets the light
+	   theme swap in deep variants the same way it inverts the gray ramp.
+
+	   Values below are the dark-theme set (all four dark themes share them);
+	   see [data-theme="light"] for the light counterparts.
+
+	   The three states are a deliberate progression rather than three unrelated
+	   hues: "neutral" is the SAME green as "ok", drained of most of its chroma
+	   (0.182 -> 0.043 in OKLab) and given a weaker fill, so an off-pity count
+	   reads as a dimmed version of the on-pity one instead of a different
+	   signal. The gap is wide enough to tell apart at a glance (OKLab dE 16 on
+	   the text, 18 on the border) while staying unmistakably green, and the
+	   muted green sits ~17 dE from the red so the two never blur together. */
+	--color-pull-ok: #4ade80;
+	--color-pull-ok-border: #22c55e;
+	--color-pull-neutral: #8fae9c;
+	--color-pull-neutral-border: #6f8f7c;
+	--color-pull-over: #fb8f8f;
+	--color-pull-over-border: #ef4444;
 }
 
 /* ===== THEME OVERRIDES =====
@@ -98,4 +126,24 @@
 	--color-gray-800: #ededf1; /* cards / panels */
 	--color-gray-900: #f6f6f9; /* page background */
 	--color-gray-950: #ffffff; /* deepest recess — white */
+
+	/* Pull-count status colors, deepened for light surfaces. The dark defaults
+	   are bright mid-tones meant for a near-black input fill and collapse to
+	   1.35:1 (green) and 2.14:1 (red) here; these hit 4.77:1 and 5.32:1 against
+	   the tinted fill, clearing WCAG AA while still reading green/red.
+	   Any future LIGHT theme needs its own copy of these six; a future dark
+	   theme inherits the @theme defaults and needs nothing.
+
+	   The muted green inverts on this theme: on a dark surface "dimmer" means
+	   darker, but here the vivid green is already deep, so a darker grey-green
+	   would read as MORE prominent, not less. The light muted tone is therefore
+	   LIGHTER than its vivid counterpart (while still clearing AA at 4.81:1) —
+	   same intent, opposite direction, for the same reason the gray ramp above
+	   is inverted rather than re-picked. */
+	--color-pull-ok: #166534;
+	--color-pull-ok-border: #15803d;
+	--color-pull-neutral: #4c6057;
+	--color-pull-neutral-border: #5f7a6a;
+	--color-pull-over: #991b1b;
+	--color-pull-over-border: #b91c1c;
 }

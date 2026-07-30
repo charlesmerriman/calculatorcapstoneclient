@@ -238,11 +238,32 @@ order — cheapest resource first, so your expensive carats last as long as poss
 5. **Paid carats at 150 each.** *(Your toggle; on by default.)*
 
 If you plan more pulls than you can pay for, the balance goes negative — that's the
-calculator's way of telling you the plan doesn't fit.
+calculator's way of telling you the plan doesn't fit. Nothing stops you from planning
+that way on purpose: the "# Pulls" field accepts any number, and the shortfall carries
+forward into the banners after it.
 
 **"Max Pulls"** answers a different question: *if I threw absolutely everything I have
 at this one banner, how many pulls would that buy?* It uses the same order and the same
 prices, it just ignores the number you actually planned.
+
+### What the colour of the "# Pulls" box means
+
+The field colours itself to tell you how the number you typed is doing:
+
+| Colour | Meaning |
+|---|---|
+| **Bright green** | The number lands exactly on a pity threshold (a multiple of 200). Nothing is stranded in a part-finished pity counter. |
+| **Faded green** | Affordable, but part-way through a pity counter — the pulls past the last multiple of 200 don't contribute a guaranteed copy. |
+| **Red** | More pulls than "Max Pulls" says you can afford. The number is kept as typed; it just won't be paid for. |
+
+The first two are the same green at different strengths on purpose: a faded box
+isn't a warning, it just means there are carats sitting in a pity counter you
+haven't finished. Nudge the number up to the next multiple of 200 and it
+brightens.
+
+Red wins when both apply — 400 pulls with only 300 affordable is red, not green,
+because not being able to pay is the more useful thing to know. A banner that has
+already ended can afford nothing, so any pulls left on it read as red too.
 
 ---
 
