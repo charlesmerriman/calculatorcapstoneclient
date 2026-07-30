@@ -70,6 +70,35 @@ export function calculateDailyIncome(
 }
 
 /**
+ * Number of days in the half-open window (start, end] — the start day is
+ * EXCLUDED, the end day is included. This is the day count for any income that
+ * pays out once per calendar day (the Daily Carat Pack's drip, for example).
+ *
+ * Use this rather than date-fns' `differenceInDays`. The two disagree whenever
+ * the window's endpoints are not at the same time of day, which for banner
+ * windows is nearly always: the projection's cursor starts at local midnight
+ * and banner timelines end at `21:59:59Z`-style instants. `differenceInDays`
+ * measures ELAPSED 24-HOUR SPANS and truncates the remainder, so a window from
+ * Aug 10 21:59 to Aug 14 17:11 measures 3 (3 d 19 h truncated) when the player
+ * actually logs in on 4 days — Aug 11, 12, 13, 14.
+ *
+ * That truncation is per-window, so it does NOT tile: chaining (a,b] and (b,c]
+ * loses up to a day at each internal boundary, which made every added banner
+ * shave ~50 carats off all downstream estimates and every deleted banner hand
+ * them back. Counting day boundaries instead makes the count additive —
+ * (a,b] + (b,c] = (a,c] — which is the invariant the whole projection rests on.
+ *
+ * Also returns 0 rather than a negative for a backwards window, so an
+ * out-of-order checkpoint can never subtract income.
+ */
+export function countDaysInWindow(start: Date, end: Date): number {
+	if (end <= start) return 0
+	// eachDayOfInterval is inclusive of both endpoints; dropping one turns the
+	// count into the half-open (start, end] the windows are built from.
+	return eachDayOfInterval({ start, end }).length - 1
+}
+
+/**
  * Count of Mondays in the half-open window (start, end] — the start day is
  * EXCLUDED, the end day is included. Used for Team Trials payouts. Half-open
  * for the same reason as calculateDailyIncome: a Monday landing exactly on a

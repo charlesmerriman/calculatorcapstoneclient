@@ -1764,6 +1764,43 @@ describe('useBannerResources', () => {
       expect(withMiddle.result.current[0].carats).toBe(withoutMiddle.result.current[0].carats)
     })
 
+    it('tiles across banner ends that fall at different times of day', () => {
+      // The tests above all use daysFromNow(), which yields midnight-aligned
+      // boundaries — and differenceInDays happens to tile perfectly when every
+      // endpoint shares a time of day, which is why the Daily Carat Pack drift
+      // hid here for so long. REAL banner timelines end at ragged instants
+      // (21:59:59Z, 17:11:59Z, ...), and differenceInDays truncated each
+      // window's leftover hours independently, losing up to a day of pack
+      // carats per banner. Adding a banner shaved ~50 carats off every
+      // downstream row; deleting one handed them back.
+      const stats: UserStats = { ...zeroStats, daily_carat: true }
+
+      const chained = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [
+            makeUmaBanner(1, `${daysFromNow(10)}T21:59:59Z`, 0),
+            makeUmaBanner(2, `${daysFromNow(14)}T17:11:59Z`, 0),
+            makeUmaBanner(3, `${daysFromNow(20)}T07:35:59Z`, 0),
+          ],
+          ...noIncome,
+        })
+      )
+      const single = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [makeUmaBanner(3, `${daysFromNow(20)}T07:35:59Z`, 0)],
+          ...noIncome,
+        })
+      )
+
+      // Nothing is spent anywhere, so the last checkpoint must land on exactly
+      // the same balance however many checkpoints precede it.
+      expect(chained.result.current.at(-1)!.carats).toBe(
+        single.result.current[0].carats
+      )
+    })
+
     it('splitting one window into two contiguous windows yields the same end total', () => {
       // One banner ending day 20 vs. two banners ending day 10 and day 20.
       // The shared day-10 boundary must not be counted twice.

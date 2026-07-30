@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getTrainingPassIncome, calculateDayOfMonthOccurrences, calculateMonthlyOccurrences, calculateAnnualDateOccurrences } from '../utils/incomeCalculationUtils'
+import { getTrainingPassIncome, calculateDayOfMonthOccurrences, calculateMonthlyOccurrences, calculateAnnualDateOccurrences, countDaysInWindow } from '../utils/incomeCalculationUtils'
 import {
   TRAINING_PASS_START_DATE,
   TRAINING_PASS_REWARD_DAY,
@@ -135,5 +135,62 @@ describe('calculateAnnualDateOccurrences', () => {
     const d = new Date(2027, 5, 1)
     expect(calculateAnnualDateOccurrences(d, d, FEB, VDAY)).toBe(0)
     expect(calculateAnnualDateOccurrences(d, new Date(2027, 0, 1), FEB, VDAY)).toBe(0)
+  })
+})
+
+describe('countDaysInWindow', () => {
+  // Regression guard for the Daily Carat Pack drift. This helper replaced
+  // date-fns' differenceInDays at the pack's call site because the two disagree
+  // whenever a window's endpoints sit at different times of day — which real
+  // banner timelines always do (they end at 21:59:59Z-style instants while the
+  // projection's cursor starts at local midnight).
+
+  it('counts calendar days in the half-open window (start, end]', () => {
+    // Aug 11, 12, 13, 14 — four login days after the Aug 10 start day.
+    const start = new Date(2026, 7, 10, 21, 59, 59)
+    const end = new Date(2026, 7, 14, 17, 11, 59)
+    expect(countDaysInWindow(start, end)).toBe(4)
+  })
+
+  it('excludes the start day and includes the end day', () => {
+    const start = new Date(2026, 7, 10, 0, 0, 0)
+    const end = new Date(2026, 7, 11, 0, 0, 0)
+    expect(countDaysInWindow(start, end)).toBe(1)
+  })
+
+  it('tiles: (a,b] + (b,c] equals (a,c] even with ragged times of day', () => {
+    // The property the projection depends on. differenceInDays FAILS this —
+    // it truncates each window's fractional remainder independently, so the
+    // sliced total came out short by a day at every internal boundary.
+    const a = new Date(2026, 6, 29, 0, 0, 0)
+    const b = new Date(2026, 7, 10, 21, 59, 59)
+    const c = new Date(2026, 7, 14, 17, 11, 59)
+
+    expect(countDaysInWindow(a, b) + countDaysInWindow(b, c)).toBe(
+      countDaysInWindow(a, c)
+    )
+  })
+
+  it('tiles across many ragged slices', () => {
+    const edges = [
+      new Date(2026, 6, 29, 0, 0, 0),
+      new Date(2026, 7, 10, 21, 59, 59),
+      new Date(2026, 7, 14, 17, 11, 59),
+      new Date(2026, 7, 21, 7, 35, 59),
+      new Date(2026, 7, 30, 14, 47, 59),
+    ]
+    const sliced = edges
+      .slice(1)
+      .reduce((sum, edge, i) => sum + countDaysInWindow(edges[i], edge), 0)
+
+    expect(sliced).toBe(countDaysInWindow(edges[0], edges.at(-1)!))
+  })
+
+  it('returns 0 for an empty or backwards window', () => {
+    // A backwards window happens when a banner ends before the running cursor.
+    // Returning a negative here would SUBTRACT pack carats from the projection.
+    const d = new Date(2026, 7, 10, 12, 0, 0)
+    expect(countDaysInWindow(d, d)).toBe(0)
+    expect(countDaysInWindow(d, new Date(2026, 7, 6, 12, 0, 0))).toBe(0)
   })
 })

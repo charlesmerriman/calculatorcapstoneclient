@@ -30,6 +30,7 @@ import {
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
+	countDaysInWindow,
 	getThroughoutCaratsInWindow,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
@@ -188,7 +189,10 @@ export function useBannerResources({
 				}
 			}
 
-			const days = differenceInDays(endDate, lastEndDate)
+			// Calendar days in (lastEndDate, endDate] — NOT elapsed 24-hour spans.
+			// See countDaysInWindow: differenceInDays truncates each window's
+			// fractional remainder, which doesn't tile across the banner chain.
+			const days = countDaysInWindow(lastEndDate, endDate)
 			const mondays = calculateMondaysBetween(lastEndDate, endDate)
 			const months = calculateMonthlyOccurrences(lastEndDate, endDate)
 
