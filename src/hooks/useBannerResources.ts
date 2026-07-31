@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from "react"
-import { differenceInDays, max, startOfDay } from "date-fns"
+import { differenceInDays, startOfDay } from "date-fns"
 import {
 	DAILY_CARAT_PACK_PER_DAY,
 	DAILY_CARAT_PACK_PAID_CARATS,
@@ -321,8 +321,18 @@ export function useBannerResources({
 			supportTickets += trainingPass.supportTickets
 
 			// Discounted pulls are a once-per-day feature, so the cap is the
-			// number of days this banner is still active (from today onward).
-			// This uses the banner's OWN window, not the income-tiling window.
+			// number of days in this banner's OWN window (not the income-tiling
+			// window), measured from the banner's START — NOT from today, even
+			// when the banner is already live.
+			//
+			// Anchoring to today was the obvious reading ("you can't take a
+			// discount on a day that already happened"), but it made the cap
+			// shrink by one every day a banner was running: a plan the user
+			// tuned on the banner's opening day silently became unaffordable a
+			// few days later, forcing them to re-tune pull counts mid-banner for
+			// no decision-relevant reason. Keying off the fixed window length
+			// makes a banner's discount allowance — and therefore its Max Pulls
+			// — stable for as long as it is on screen.
 			//
 			// Counted as INCLUSIVE CALENDAR DAYS, which needs both the
 			// `startOfDay` normalisation and the `+ 1`. Banner windows are stored
@@ -338,11 +348,15 @@ export function useBannerResources({
 			// kills #1. Working in LOCAL days is deliberate: the banner card
 			// renders its Start/End in local time, so the cap now matches the
 			// dates the user can see and count on screen.
+			//
+			// The `?? today` fallback only fires for a timeline with no start
+			// date (rows with no END date are already dropped from the walk); it
+			// degrades to the days-remaining count rather than inventing a
+			// window length out of nothing.
 			const bannerStart = timeline?.start_date ? new Date(timeline.start_date) : today
-			const discountAnchor = max([today, startOfDay(bannerStart)])
 			const discountDays = Math.max(
 				0,
-				differenceInDays(startOfDay(endDate), discountAnchor) + 1
+				differenceInDays(startOfDay(endDate), startOfDay(bannerStart)) + 1
 			)
 
 			const isUmaBanner = !!banner.banner_uma

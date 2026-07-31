@@ -231,9 +231,11 @@ order — cheapest resource first, so your expensive carats last as long as poss
 1. **Free pulls the banner itself gives you.** Costs nothing.
 2. **Matching tickets.** Uma tickets on uma banners, support tickets on support
    banners. They don't cross over.
-3. **Discounted paid pulls** — 50 paid carats each, but only **one per day the banner
-   is live**. A 13-day banner allows at most 13 of these, and only if you have the paid
-   carats. *(Your toggle; off by default.)*
+3. **Discounted paid pulls** — 50 paid carats each, but only **one per day of the
+   banner's run**. A 13-day banner allows at most 13 of these, and only if you have the
+   paid carats. The count is the banner's full length, so it stays the same whether you
+   plan the banner a month early or halfway through its run — your numbers don't move
+   under you. *(Your toggle; off by default.)*
 4. **Free carats at 150 each.**
 5. **Paid carats at 150 each.** *(Your toggle; on by default.)*
 

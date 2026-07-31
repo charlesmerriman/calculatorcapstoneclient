@@ -245,14 +245,23 @@ order — the single source of truth for both the actual spend and `maxPossibleP
 
 1. **Matching tickets** (uma tickets for uma banners, support tickets for support banners).
 2. **Discounted paid pulls** *(if `discounted_paid_pulls`)*: 50 `paidCarats` per pull, capped
-   at one pull per active banner day and by the paid balance — the discount stops the instant
-   `paidCarats` can't cover another 50. The day cap counts **inclusive local calendar days**:
+   at one pull per day of the banner's window and by the paid balance — the discount stops the
+   instant `paidCarats` can't cover another 50. The day cap counts **inclusive local calendar
+   days** across the whole window:
 
    ```js
-   differenceInDays(startOfDay(endDate), max([today, startOfDay(bannerStart)])) + 1
+   differenceInDays(startOfDay(endDate), startOfDay(bannerStart)) + 1
    ```
 
-   Both parts matter. Banner windows are stored as `<start>T22:00:00Z` → `<end>T21:59:59Z`, and
+   The anchor is the banner's **start**, not `today`, even for a banner that is already live.
+   Clamping to `today` shrank the cap by one every elapsed day, so a plan tuned on the banner's
+   opening day drifted into "unaffordable" a few days later and had to be re-tuned mid-banner.
+   Window length is a fixed property of the banner, so the allowance — and the `maxPossiblePulls`
+   built on it — now holds still for as long as the banner is on screen. The trade-off is that a
+   banner whose window has already **closed** still reports its full allowance rather than zero;
+   it is unpullable anyway, and the app doesn't model expiry anywhere else.
+
+   The inclusive counting matters too. Banner windows are stored as `<start>T22:00:00Z` → `<end>T21:59:59Z`, and
    the discount is claimable on the opening and closing days even though both are partial. A
    bare `differenceInDays(endDate, bannerStart)` undercounted by **two**: it measures the gaps
    between days rather than the days themselves, and it then truncated again because the window

@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import { differenceInDays, max, startOfDay } from 'date-fns'
+import { differenceInDays, startOfDay } from 'date-fns'
 import { useBannerResources } from '../hooks/useBannerResources'
 import {
   DAILY_CARAT_PACK_PER_DAY,
@@ -969,11 +969,11 @@ describe('useBannerResources', () => {
       )
     })
 
-    it('caps discounted pulls at one per active day of the banner window', () => {
+    it('caps discounted pulls at one per day of the banner window', () => {
       // Short window: the day count (not the 5 planned pulls or the 1000/50 = 20
-      // paid capacity) is what limits discounts. The banner's active days are
-      // derived the same way the hook does (inclusive calendar days over the
-      // window from today) so the assertion is timezone-robust.
+      // paid capacity) is what limits discounts. The banner's days are derived
+      // the same way the hook does — inclusive calendar days across the whole
+      // window — so the assertion is timezone-robust.
       const endStr = daysFromNow(3)
       const banners = [makeUmaBanner(1, endStr, 5), makeUmaBanner(2, daysFromNow(4), 0)]
       const stats = { ...zeroStats, current_paid_carat: 1000, full_price_paid_pulls: true }
@@ -987,7 +987,7 @@ describe('useBannerResources', () => {
         0,
         differenceInDays(
           startOfDay(new Date(endStr)),
-          max([startOfDay(new Date()), startOfDay(new Date(daysFromNow(0)))])
+          startOfDay(new Date(daysFromNow(0))) // makeUmaBanner's window start
         ) + 1
       )
       // The day count is the binding cap here (< 5 pulls, < 20 paid capacity).
@@ -1032,6 +1032,40 @@ describe('useBannerResources', () => {
         useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: [banner], ...noIncome })
       )
       expect(on.current[0].maxPossiblePulls - off.current[0].maxPossiblePulls).toBe(13)
+    })
+
+    it('counts the full window of a banner that has already started', () => {
+      // Regression for the shrinking cap. The allowance used to be measured
+      // from TODAY, so a live banner lost one discounted pull per elapsed day
+      // and the user had to keep re-tuning pull counts mid-banner. This window
+      // opened 5 days ago and closes 4 days from now — 10 inclusive calendar
+      // days — and all 10 must count even though half have already passed.
+      //
+      // Both endpoints carry the same UTC offset, so the number of local
+      // calendar days they span is the same in every timezone.
+      const start = new Date()
+      start.setDate(start.getDate() - 5)
+      const startStr = `${start.toISOString().split('T')[0]}T22:00:00Z`
+      const end = new Date(start)
+      end.setDate(end.getDate() + 9)
+      const endStr = `${end.toISOString().split('T')[0]}T21:59:59Z`
+
+      const banner = makeUmaBanner(1, endStr, 0)
+      banner.banner_uma!.banner_timeline.start_date = startStr
+      banner.banner_uma!.banner_timeline.global_start_date = startStr
+
+      // Same isolation as the test above: full price off plus a paid balance
+      // generous enough (2,000 funds 40 discounts) that the DAY CAP is the only
+      // binding limit, so the assertion catches an over-count as well as an
+      // under-count.
+      const stats = { ...zeroStats, current_paid_carat: 2_000, full_price_paid_pulls: false }
+      const { result: on } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: true }, userPlannedBannerData: [banner], ...noIncome })
+      )
+      const { result: off } = renderHook(() =>
+        useBannerResources({ userStatsData: { ...stats, discounted_paid_pulls: false }, userPlannedBannerData: [banner], ...noIncome })
+      )
+      expect(on.current[0].maxPossiblePulls - off.current[0].maxPossiblePulls).toBe(10)
     })
   })
 
