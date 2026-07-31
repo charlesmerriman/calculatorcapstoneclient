@@ -165,6 +165,36 @@ export function calculateIntervalOccurrences(
 }
 
 /**
+ * Number of days in the half-open window (start, end] that fall after a ramp-in
+ * period of `delayDays` counted from `anchor` (today, in practice). This is the
+ * day count for an income that drips DAILY but only once the user has played
+ * for a while — misc earnings is currently the only one.
+ *
+ * The clamp is what makes it tile. `anchor + delayDays` is an ABSOLUTE instant:
+ * it doesn't move with the window, so pushing each window's start forward to it
+ * neither double-counts nor skips, and (a,b] + (b,c] = (a,c] holds wherever the
+ * clamp point falls relative to a, b and c — the same property
+ * calculateIntervalOccurrences gets from absolute payout instants. Counting the
+ * ramp-in off each window's own start instead would restart it at every banner,
+ * so a densely-planned timeline would earn almost nothing.
+ *
+ * Delegates the counting to countDaysInWindow, so it inherits calendar-day
+ * counting rather than elapsed 24-hour spans — see that function for why the
+ * distinction matters.
+ */
+export function countDaysAfterDelay(
+	start: Date,
+	end: Date,
+	anchor: Date,
+	delayDays: number
+): number {
+	const firstEarningDay = addDays(anchor, delayDays)
+	// Whichever is later: the window's own start, or the day the drip begins.
+	const clampedStart = start > firstEarningDay ? start : firstEarningDay
+	return countDaysInWindow(clampedStart, end)
+}
+
+/**
  * Count of times a specific day-of-month occurs strictly after start and up to end.
  * Used for Training Pass rewards (delivered on the 24th each month).
  */

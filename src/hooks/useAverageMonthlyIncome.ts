@@ -9,8 +9,8 @@ import {
 	DAILY_CARAT_PACK_PER_DAY,
 	DAILY_CARAT_PACK_PAID_CARATS,
 	DAILY_CARAT_PACK_CYCLE_DAYS,
-	MISC_EARNINGS_PER_CYCLE,
-	MISC_EARNINGS_CYCLE_DAYS,
+	MISC_EARNINGS_PER_DAY,
+	MISC_EARNINGS_DELAY_DAYS,
 	FIFTY_DAY_LOGIN_PER_CYCLE,
 	FIFTY_DAY_LOGIN_CYCLE_DAYS,
 	VALENTINES_CARATS,
@@ -28,6 +28,7 @@ import {
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
+	countDaysAfterDelay,
 	getThroughoutCaratsInWindow,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
@@ -156,13 +157,13 @@ export function useAverageMonthlyIncome({
 		carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 		carats += calculateDailyIncome(start, end, referenceDate)
 
-		// Misc earnings (toggle-gated): a rolling 30-day cycle anchored to the
-		// window start (= today), so the first payout falls on day 30 and the
-		// first 30 days earn none of it. See useBannerResources.
+		// Misc earnings (toggle-gated): a daily drip that starts after a 30-day
+		// ramp-in counted from the window start (= today), so the first 30 days
+		// earn none of it and every day after earns 60. See useBannerResources.
 		if (userStatsData.misc_earnings) {
 			carats +=
-				MISC_EARNINGS_PER_CYCLE *
-				calculateIntervalOccurrences(start, end, start, MISC_EARNINGS_CYCLE_DAYS)
+				MISC_EARNINGS_PER_DAY *
+				countDaysAfterDelay(start, end, start, MISC_EARNINGS_DELAY_DAYS)
 		}
 
 		// 50-day login campaign (universal): same rolling-cycle treatment,

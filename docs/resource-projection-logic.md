@@ -118,8 +118,8 @@ in `freeCarats` like everything else. The **500-carat purchase bonus** is bought
 so it lands in `paidCarats` — the only income source that does, and therefore the only thing
 that keeps discounted paid pulls funded on a long horizon.
 
-The bonus uses the same rolling-cycle machinery as Misc Earnings (step 6b): anchored to
-`today`, so the first payout is the day-30 repurchase, then day 60, day 90, … A banner ending
+The bonus uses the same rolling-cycle machinery as the 50-Day Login Bonus (step 6b):
+anchored to `today`, so the first payout is the day-30 repurchase, then day 60, day 90, … A banner ending
 inside the first 30 days gets none of it. Day 0 never pays out — the pack the user holds right
 now is assumed already counted in the `current_paid_carat` they entered. Because the payout
 instants are absolute rather than relative to each window, the totals tile: slicing a timeline
@@ -135,9 +135,9 @@ carats += ClubRank.income_amount * months
 
 ```
 if misc_earnings:
-    // toggle-gated, 1800 per completed 30-day cycle counted from today
-    freeCarats += MISC_EARNINGS_PER_CYCLE *
-                  calculateIntervalOccurrences(windowStart, windowEnd, today, 30)
+    // toggle-gated, 60 per day for every day past a 30-day ramp-in from today
+    freeCarats += MISC_EARNINGS_PER_DAY *
+                  countDaysAfterDelay(windowStart, windowEnd, today, 30)
 
 // always on, 150 per completed 50-day cycle counted from today
 freeCarats += FIFTY_DAY_LOGIN_PER_CYCLE *
@@ -154,16 +154,20 @@ freeCarats += WHITE_DAY_CARATS *
 
 **Misc Earnings** (gifts / Team Trials extras / careers) mirrors the source sheet's figure
 and is gated behind the user's `misc_earnings` toggle (on by default, surfaced in the
-navbar Settings menu). It does **not** use the `months` count: it accrues over a rolling
-30-day cycle anchored to `today`, so the first payout lands on day 30 (a banner ending
-before then gets nothing) and one more lands every 30 days after. Anchoring the schedule
-to `today` instead of to each window's start is what makes it tile — `calculateIntervalOccurrences`
-counts absolute payout instants, so `(a,b] ∪ (b,c]` credits exactly what `(a,c]` would,
-and planning more banners never inflates the total.
+navbar Settings menu). It does **not** use the `months` count, and it does not arrive in
+lumps: after a 30-day ramp-in counted from `today` it credits 60 carats **every day**. A
+banner ending inside the ramp-in gets nothing. `countDaysAfterDelay` clamps each window's
+start forward to the absolute instant `today + 30` before counting days, which is what
+makes it tile — `(a,b] ∪ (b,c]` credits exactly what `(a,c]` would, wherever the ramp-in
+boundary falls, so planning more banners never changes the total.
 
-The **50-Day Login Bonus** is universal login-campaign income with no toggle. It uses the
-same rolling-cycle machinery as Misc Earnings, just with a 50-day interval: first payout on
-day 50, nothing credited before then.
+> The drip replaced an 1,800-per-30-days lump. Same long-run rate (60 × 30 = 1,800) and the
+> same treatment the source sheet uses, but without the sawtooth: a banner's estimate no
+> longer jumps by 1,800 when its end date crosses a cycle boundary.
+
+The **50-Day Login Bonus** is universal login-campaign income with no toggle. It *does*
+pay in lumps, on a rolling 50-day cycle anchored to `today` via
+`calculateIntervalOccurrences`: first payout on day 50, nothing credited before then.
 
 The **annual gifts** — Valentine's Day (500 on February 14) and White Day (500 on March 14)
 — are universal too, but they are fixed calendar dates rather than rolling cycles, so they

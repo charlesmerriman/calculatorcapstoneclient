@@ -14,8 +14,8 @@ import {
 	DAILY_CARAT_PACK_PER_DAY,
 	DAILY_CARAT_PACK_PAID_CARATS,
 	DAILY_CARAT_PACK_CYCLE_DAYS,
-	MISC_EARNINGS_PER_CYCLE,
-	MISC_EARNINGS_CYCLE_DAYS,
+	MISC_EARNINGS_PER_DAY,
+	MISC_EARNINGS_DELAY_DAYS,
 	FIFTY_DAY_LOGIN_PER_CYCLE,
 	FIFTY_DAY_LOGIN_CYCLE_DAYS,
 	VALENTINES_CARATS,
@@ -34,6 +34,7 @@ import {
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
 	countDaysInWindow,
+	countDaysAfterDelay,
 	getThroughoutCaratsInWindow,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
@@ -241,9 +242,10 @@ export function useBannerResources({
 			// The pack's second half: each repurchase grants a 500 PAID carat
 			// lump. The daily drip above is ordinary earned currency, but this
 			// is bought — so it goes to the paid balance, where it can fund
-			// discounted pulls. It uses the same rolling-cycle machinery as misc
-			// earnings (anchored to `today`, first payout on day 30), so the
-			// payout instants are absolute and the banner windows still tile.
+			// discounted pulls. It uses the same rolling-cycle machinery as the
+			// 50-day login bonus (anchored to `today`, first payout on day 30),
+			// so the payout instants are absolute and the banner windows still
+			// tile.
 			if (userStatsData.daily_carat) {
 				paidCarats +=
 					DAILY_CARAT_PACK_PAID_CARATS *
@@ -259,27 +261,28 @@ export function useBannerResources({
 			freeCarats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
 			// Misc earnings (gifts, team trials, careers) is a flat approximation
-			// gated behind the user's toggle. It accrues on a rolling 30-day
-			// cycle anchored to `today` rather than on month boundaries: the
-			// first payout lands 30 days out, so a banner ending sooner than
-			// that earns none of it. Anchoring to `today` (not to lastEndDate)
-			// keeps the schedule identical no matter how the timeline is sliced
-			// into banner windows.
+			// gated behind the user's toggle. It drips DAILY rather than landing
+			// as a periodic lump, but only after a 30-day ramp-in counted from
+			// `today`: days 1..30 earn nothing, then every day earns 60. A banner
+			// ending inside the ramp-in still gets none of it. Anchoring to
+			// `today` (not to lastEndDate) keeps the drip's start instant
+			// absolute, so the day counts tile no matter how the timeline is
+			// sliced into banner windows.
 			if (userStatsData.misc_earnings) {
 				freeCarats +=
-					MISC_EARNINGS_PER_CYCLE *
-					calculateIntervalOccurrences(
+					MISC_EARNINGS_PER_DAY *
+					countDaysAfterDelay(
 						lastEndDate,
 						endDate,
 						today,
-						MISC_EARNINGS_CYCLE_DAYS
+						MISC_EARNINGS_DELAY_DAYS
 					)
 			}
 
-			// The 50-day login campaign is universal (no toggle) and runs on the
-			// same rolling-cycle machinery as misc earnings above: anchored to
-			// `today`, so the first payout lands 50 days out and a banner ending
-			// sooner earns none of it.
+			// The 50-day login campaign is universal (no toggle) and pays as a
+			// lump on a rolling cycle anchored to `today` (unlike misc earnings
+			// above, which drips daily), so the first payout lands 50 days out
+			// and a banner ending sooner earns none of it.
 			freeCarats +=
 				FIFTY_DAY_LOGIN_PER_CYCLE *
 				calculateIntervalOccurrences(

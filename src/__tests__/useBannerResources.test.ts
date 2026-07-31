@@ -6,7 +6,8 @@ import {
   DAILY_CARAT_PACK_PAID_CARATS,
   PULL_COST_CARATS,
   DISCOUNTED_PULL_COST_CARATS,
-  MISC_EARNINGS_PER_CYCLE,
+  MISC_EARNINGS_PER_DAY,
+  MISC_EARNINGS_DELAY_DAYS,
   FIFTY_DAY_LOGIN_PER_CYCLE,
   FIFTY_DAY_LOGIN_CYCLE_DAYS,
   VALENTINES_CARATS,
@@ -32,6 +33,7 @@ import {
   calculateDayOfMonthOccurrences,
   calculateIntervalOccurrences,
   calculateAnnualDateOccurrences,
+  countDaysAfterDelay,
   getTrainingPassIncome,
 } from '../utils/incomeCalculationUtils'
 import type {
@@ -716,7 +718,7 @@ describe('useBannerResources', () => {
     })
   })
 
-  describe('misc earnings (rolling 30-day cycle, toggle-gated)', () => {
+  describe('misc earnings (daily drip after a 30-day ramp-in, toggle-gated)', () => {
     /**
      * Runs one plan twice — misc_earnings on and off — and returns the carat
      * totals for the banner at `index`. Diffing the two isolates misc earnings
@@ -740,31 +742,50 @@ describe('useBannerResources', () => {
       return on.current[index].carats - off.current[index].carats
     }
 
-    it('credits nothing before the first cycle completes', () => {
-      // Day 25 is inside the first 30-day cycle, so no payout has landed yet
-      // and the toggle must make no difference at all.
+    it('credits nothing during the ramp-in', () => {
+      // Day 25 is inside the 30-day ramp-in, so nothing has accrued yet and the
+      // toggle must make no difference at all.
       expect(miscDiff([makeUmaBanner(1, daysFromNow(25), 0)])).toBe(0)
     })
 
-    it('adds one MISC_EARNINGS_PER_CYCLE payout once a full cycle has elapsed', () => {
-      // Day 50 clears the day-30 payout; the next one (day 60) is past the end.
-      expect(miscDiff([makeUmaBanner(1, daysFromNow(50), 0)])).toBe(
-        MISC_EARNINGS_PER_CYCLE
+    it('credits MISC_EARNINGS_PER_DAY for every day past the ramp-in', () => {
+      // Asserted against the day count the projection's own window arithmetic
+      // produces rather than a hard-coded number: daysFromNow() returns a UTC
+      // midnight, so exactly which local day a horizon lands on depends on the
+      // runner's timezone. The RATE and the RAMP-IN are what these pin down.
+      const endStr = daysFromNow(80)
+      const today = startOfDay(new Date())
+      const drippingDays = countDaysAfterDelay(
+        today,
+        new Date(endStr),
+        today,
+        MISC_EARNINGS_DELAY_DAYS
+      )
+      expect(drippingDays).toBeGreaterThan(45) // sanity: the ramp-in is long past
+
+      expect(miscDiff([makeUmaBanner(1, endStr, 0)])).toBe(
+        MISC_EARNINGS_PER_DAY * drippingDays
       )
     })
 
-    it('adds one payout per completed cycle over a longer window', () => {
-      // Day 80 clears the day-30 and day-60 payouts, but not day 90.
-      expect(miscDiff([makeUmaBanner(1, daysFromNow(80), 0)])).toBe(
-        MISC_EARNINGS_PER_CYCLE * 2
-      )
+    it('accrues smoothly — one extra day is worth exactly MISC_EARNINGS_PER_DAY', () => {
+      // The regression guard for the change away from 1,800-per-30-days. Under
+      // the lump model these three consecutive horizons differed by 0, 0 and
+      // 1,800 depending on where the cycle boundary fell; a plan tuned either
+      // side of a boundary read very differently for no real reason.
+      const day60 = miscDiff([makeUmaBanner(1, daysFromNow(60), 0)])
+      const day61 = miscDiff([makeUmaBanner(1, daysFromNow(61), 0)])
+      const day62 = miscDiff([makeUmaBanner(1, daysFromNow(62), 0)])
+
+      expect(day61 - day60).toBe(MISC_EARNINGS_PER_DAY)
+      expect(day62 - day61).toBe(MISC_EARNINGS_PER_DAY)
     })
 
-    it('anchors the cycle to today, so slicing the timeline into more banners does not change the total', () => {
-      // The payout schedule is absolute (today+30, today+60, ...), so the total
-      // by day 80 must be the same whether the run-up is one window or three.
-      // If the cycle restarted at each banner's start, the sliced plan would
-      // over-credit.
+    it('anchors the ramp-in to today, so slicing the timeline into more banners does not change the total', () => {
+      // The drip's start instant is absolute (today+30), so the total by day 80
+      // must be the same whether the run-up is one window or three. If the
+      // ramp-in restarted at each banner's start, the sliced plan would
+      // under-credit.
       const sliced = [
         makeUmaBanner(1, daysFromNow(20), 0),
         makeUmaBanner(2, daysFromNow(45), 0),

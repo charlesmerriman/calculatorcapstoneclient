@@ -36,11 +36,11 @@ export const DAILY_CARAT_PACK_PER_DAY = 50
 export const DAILY_CARAT_PACK_PAID_CARATS = 500
 
 /**
- * Length of one Daily Carat Pack purchase cycle, in days. Like misc earnings
- * (and unlike the month-boundary incomes), this is a rolling cycle anchored to
- * today: the pack the user holds right now is assumed already reflected in
- * their current paid-carat balance, so the first *modeled* payout is the
- * repurchase 30 days out, then one every 30 days after.
+ * Length of one Daily Carat Pack purchase cycle, in days. Like the 50-day login
+ * bonus (and unlike the month-boundary incomes), this is a rolling cycle
+ * anchored to today: the pack the user holds right now is assumed already
+ * reflected in their current paid-carat balance, so the first *modeled* payout
+ * is the repurchase 30 days out, then one every 30 days after.
  */
 export const DAILY_CARAT_PACK_CYCLE_DAYS = 30
 
@@ -51,27 +51,35 @@ export const DAILY_CARAT_PACK_CYCLE_DAYS = 30
  * career mode) — mirrors the source sheet's "Misc Earnings" figure. Gated
  * behind the user's `misc_earnings` toggle (on by default).
  *
- * Unlike the other flat incomes below, this is NOT credited on calendar-month
- * boundaries: it accrues over a rolling 30-day cycle anchored to today, so the
- * first payout lands MISC_EARNINGS_CYCLE_DAYS from now (nothing is earned
- * before then) and one more lands every cycle after that.
+ * A DAILY DRIP, not a periodic lump: once the ramp-in below has elapsed, this
+ * amount is credited every single day. 60/day is the same long-run rate as the
+ * 1,800-per-30-days lump this replaced, and matches how the source sheet
+ * models it. The drip is what stops a banner's estimate from jumping by 1,800
+ * the moment its end date crosses a cycle boundary — a plan tuned one day
+ * either side of a boundary used to read very differently for no real reason.
  */
-export const MISC_EARNINGS_PER_CYCLE = 1800
+export const MISC_EARNINGS_PER_DAY = 60
 
 /**
- * Length of one misc-earnings accrual cycle, in days. The user has to play a
- * full cycle before the first payout, which is why nothing is credited for the
- * first 30 days of the projection.
+ * Days of play before misc earnings start accruing at all, counted from today.
+ * Days 1..30 of the projection earn nothing and the first 60 lands on day 31 —
+ * the same "you have to play a full cycle first" assumption the lump model
+ * made, kept so a short banner still can't collect misc income the user
+ * hasn't plausibly earned.
+ *
+ * Anchored to today rather than to each banner's window, so the instant the
+ * drip starts is absolute and the per-window day counts tile (see
+ * countDaysAfterDelay).
  */
-export const MISC_EARNINGS_CYCLE_DAYS = 30
+export const MISC_EARNINGS_DELAY_DAYS = 30
 
 /**
  * Carats granted by each completion of the game's recurring 50-day login
  * campaign. Universal income (like the base daily carats), so it is always
  * applied — there is no toggle.
  *
- * Like misc earnings and the Daily Carat Pack (and UNLIKE the month-boundary
- * incomes), this is a rolling cycle anchored to today: the campaign the user is
+ * Like the Daily Carat Pack (and UNLIKE the month-boundary incomes), this is a
+ * rolling cycle anchored to today: the campaign the user is
  * partway through right now is assumed already reflected in the balance they
  * entered, so the first modeled payout is the one FIFTY_DAY_LOGIN_CYCLE_DAYS
  * out, then one every cycle after.

@@ -129,10 +129,12 @@ Events (anniversaries, story campaigns, collabs) can pay two ways, and many pay 
 
 ### Misc Earnings — *your toggle, on by default*
 
-A flat **1,800 carats per 30 days** standing in for all the small stuff the calculator
-doesn't model individually: gifts, career mode clears, odd bits of Team Trials, and so
-on. Like the Carat Pack bonus, the first one lands **30 days out** — you have to play
-a full cycle to earn it.
+A flat **60 carats a day** standing in for all the small stuff the calculator doesn't
+model individually: gifts, career mode clears, odd bits of Team Trials, and so on.
+
+It doesn't start straight away — you have to play for **30 days** first, so nothing is
+credited before then and the drip begins on day 31. After that every extra day in your
+plan is worth another 60, with no jumps.
 
 ### 50-Day Login Campaign — always on
 
@@ -199,7 +201,7 @@ That's a 14-day window: 30 July through 12 August.
 | Daily Carat Pack (500 paid bonus) | first one is due 28 Aug — after the window | 0 |
 | Club rank B+ | one 1st-of-month crossed (1 Aug) | 1,800 |
 | Team Trials Class 5 | two Mondays (3 Aug, 10 Aug) | 450 |
-| Misc Earnings | first one due 28 Aug — after the window | 0 |
+| Misc Earnings | drip doesn't start until 29 Aug — after the window | 0 |
 | 50-Day Login | first one due 17 Sep — after the window | 0 |
 | Valentine's / Training Pass | not in range | 0 |
 
@@ -328,8 +330,8 @@ The calculator is a projection, not a promise. The main sources of difference:
 
 - **Your starting balance is whatever you typed.** Nothing is read from the game — if
   it's stale, everything downstream is off by the same amount.
-- **Misc Earnings is a flat approximation.** 1,800 per 30 days is a reasonable average,
-  not your actual gifts and career clears.
+- **Misc Earnings is a flat approximation.** 60 a day is a reasonable average, not your
+  actual gifts and career clears.
 - **Rank income assumes you hold your rank.** Get promoted, or slip, and reality
   diverges from the plan.
 - **Future dates for unannounced banners are predictions**, based on the Japanese
