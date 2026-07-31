@@ -35,7 +35,7 @@ import {
 	calculateAnnualDateOccurrences,
 	countDaysInWindow,
 	countDaysAfterDelay,
-	getThroughoutCaratsInWindow,
+	sumRemainingThroughoutCarats,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import { applyPullStrategy } from "../utils/bannerHelpers"
@@ -124,13 +124,26 @@ export function useBannerResources({
 		// Anchor the whole projection to the START of today (local midnight),
 		// computed once. Using a live `new Date()` here meant every recompute
 		// (add/remove a banner, edit a stat, autosave round-trip) grabbed a
-		// slightly later instant, so any event's front-loaded `carats_throughout`
-		// — the only fractional income source — had "melted" a few more seconds
-		// and credited a hair less, drifting the estimates down by ~1/100th of a
-		// carat each update. A stable start-of-day makes recomputes on the same
-		// calendar day produce identical numbers.
+		// slightly later instant, so any income measured in elapsed time had
+		// "melted" a few more seconds, drifting the estimates on every update.
+		// A stable start-of-day makes recomputes on the same calendar day
+		// produce identical numbers.
 		const today = startOfDay(new Date())
+
+		// The throughout filter needs the current UTC DATE, which is not the same
+		// thing. `today` above is LOCAL midnight, and for anyone east of Greenwich
+		// that instant still falls on the PREVIOUS UTC day — which would hand them
+		// an extra day's worth of undecayed carats for most of their day. The raw
+		// instant carries the right UTC date, and passing it live is safe here
+		// because the result is quantised to whole UTC days and then rounded to
+		// the nearest 10, so it cannot drift between recomputes.
+		const nowUtc = new Date()
+
 		let lastEndDate = today
+		// Throughout carats already credited by an earlier checkpoint. They are
+		// tracked separately from `lastEndDate` because their filter is absolute
+		// rather than window-tiled — see where this is used below.
+		let creditedThroughout = 0
 
 		// Pre-parse all event/meeting/LoH dates once so we don't reconstruct
 		// Date objects on every iteration of the inner loops.
@@ -208,12 +221,23 @@ export function useBannerResources({
 					umaTickets += ge.uma_ticket_amount
 					supportTickets += ge.support_ticket_amount
 				}
-				freeCarats += getThroughoutCaratsInWindow(
-					{ carats_throughout: ge.carats_throughout, start_date: ge.parsedStart, end_date: ge.parsedEnd },
-					lastEndDate,
-					endDate
-				)
 			}
+
+			// Throughout carats are the one income that does NOT tile window by
+			// window: each event's contribution is fixed as of today, and the
+			// filter that decides which banners can reach it runs absolutely from
+			// today rather than from the previous checkpoint (see
+			// sumRemainingThroughoutCarats). So take the running total at this
+			// checkpoint and credit only what it added over the last one. The
+			// qualifying set only grows as the cursor advances, so this delta is
+			// never negative.
+			const throughoutToDate = sumRemainingThroughoutCarats(
+				parsedGameEvents,
+				nowUtc,
+				endDate
+			)
+			freeCarats += throughoutToDate - creditedThroughout
+			creditedThroughout = throughoutToDate
 
 			for (const meet of parsedMeetings) {
 				if (meet.parsedDate > lastEndDate && meet.parsedDate <= endDate) {

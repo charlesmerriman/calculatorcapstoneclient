@@ -3,11 +3,14 @@
  * Used by both useBannerResources and useAverageMonthlyIncome.
  */
 
-import { addDays, differenceInDays, eachDayOfInterval, getDay } from "date-fns"
+import { addDays, differenceInDays, eachDayOfInterval, getDay, subDays } from "date-fns"
 import {
 	DAILY_BASE_CARATS,
 	WEEKDAY_BONUS_CARATS,
 	WEEKEND_BONUS_CARATS,
+	GAME_EVENT_END_DATE_BUFFER_DAYS,
+	THROUGHOUT_END_OFFSET_DAYS,
+	THROUGHOUT_FILTER_GRACE_DAYS,
 	TRAINING_PASS_START_DATE,
 	TRAINING_PASS_MONTHLY_FREE_CARATS,
 	TRAINING_PASS_MONTHLY_PAID_CARATS,
@@ -334,60 +337,146 @@ export function getTrainingPassIncome(
 const THROUGHOUT_DECAY_K = 2 // steepness of the early exponential leg
 const THROUGHOUT_DECAY_LINEAR_SLOPE = 0.8 // slope of the linear fallback leg
 const E_NEG_K = Math.exp(-THROUGHOUT_DECAY_K)
+const MS_PER_DAY = 86_400_000
+
+/** Minimal shape the throughout helpers need — a GameEvent, or anything like one. */
+export interface ThroughoutEventLike {
+	carats_throughout: number
+	start_date: string | Date | null
+	end_date: string | Date | null
+}
+
+const toDate = (value: string | Date): Date =>
+	value instanceof Date ? value : new Date(value)
 
 /**
- * Fraction of an event's carats_throughout still uncredited at instant `t`
- * (1 = none earned yet, 0 = fully earned by end_date). Blends a fast
- * exponential early decay with a slower linear tail by taking whichever leg
- * has MORE left at a given moment -- that's what makes the exponential
- * dominate right after start_date (front-loading the reward) and the linear
- * leg take over for the rest, reaching exactly 0 at end_date. Self-clamps to
- * [0, 1] outside the event's span: before start_date both legs exceed 1 so
- * MIN(1, ...) caps it at 1; after end_date both legs go negative so
- * MAX(0, ...) floors it at 0.
+ * Whole calendar days between two instants, measured in UTC — the equivalent of
+ * the source sheet's `DATEDIF(from, to, "D")`.
+ *
+ * Deliberately NOT date-fns' differenceInDays, which measures elapsed 24-hour
+ * spans. Banner windows are stored as `<start>T22:00:00Z` -> `<end>T21:59:59Z`,
+ * so an elapsed-span measure reads a 9-day gap as 8 and shifts the whole decay
+ * curve by a day. UTC rather than local for the same reason: the sheet works in
+ * UTC throughout, and a local reading would make the projection depend on the
+ * viewer's timezone.
  */
-function remainingShare(t: Date, eventStart: Date, eventEnd: Date): number {
-	const totalMs = eventEnd.getTime() - eventStart.getTime()
-	if (totalMs <= 0) return 0
-
-	const fraction = (t.getTime() - eventStart.getTime()) / totalMs
-	const exponential = (Math.exp(-THROUGHOUT_DECAY_K * fraction) - E_NEG_K) / (1 - E_NEG_K)
-	const linear = 1 - fraction
-
-	return Math.max(0, Math.min(1, exponential), Math.min(1, linear * THROUGHOUT_DECAY_LINEAR_SLOPE))
+function utcDaysBetween(from: Date, to: Date): number {
+	const midnight = (d: Date) =>
+		Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+	return Math.round((midnight(to) - midnight(from)) / MS_PER_DAY)
 }
 
 /**
- * Share of a GameEvent's carats_throughout earned within [windowStart, windowEnd].
- * Front-loaded: more of the pool is credited earlier in the event's life than
- * later (see remainingShare above) -- not a flat per-millisecond rate. Computed
- * as the drop in "remaining share" between the window's two edges, which is
- * why this composes correctly across a chain of contiguous banner windows:
- * summing (remainingShare(a) - remainingShare(b)) + (remainingShare(b) -
- * remainingShare(c)) + ... telescopes to (remainingShare(a) - remainingShare(z))
- * no matter how many windows the event's span is chopped into. The outer
- * Math.max(0, ...) guards against a "backwards" window (windowEnd before
- * windowStart -- possible when an overlapping banner's own end date is
- * earlier than the running cutoff from a longer banner before it); without
- * it, a non-increasing remainingShare could produce a small negative credit.
+ * Rounds UP to the nearest 10, as the sheet's `CEILING(..., 10)` does.
  *
- * For an event already in progress "now" (windowStart clipped to today), this
- * still only credits the remaining share as of "now" -- whatever had already
- * decayed away before "now" is treated as already banked/spent, not
- * redistributed onto what's left.
+ * The toFixed pass is NOT cosmetic. The share is built from fractions like
+ * 9/15, and `(1 - 9/15) * 0.8` evaluates to 0.32000000000000006 — enough to
+ * push an exact 1,120 over the boundary and out as 1,130. The sheet's own cell
+ * for that banner reads 1120, and matching it exactly is what confirmed the
+ * rest of this model, so the noise has to be cleared before the ceiling.
  */
-export function getThroughoutCaratsInWindow(
-	event: { carats_throughout: number; start_date: string | Date | null; end_date: string | Date | null },
-	windowStart: Date,
-	windowEnd: Date
+function ceilToTen(value: number): number {
+	return Math.ceil(Number(value.toFixed(6)) / 10) * 10
+}
+
+/**
+ * Recovers a banner's own end date from the event row the API returns, which
+ * pads it by GAME_EVENT_END_DATE_BUFFER_DAYS.
+ */
+export function bannerEndFromEventEnd(eventEnd: Date): Date {
+	return subDays(eventEnd, GAME_EVENT_END_DATE_BUFFER_DAYS)
+}
+
+/**
+ * How many of an event's `carats_throughout` are still to be collected as of
+ * `today` — a SINGLE figure per event, independent of any banner window.
+ *
+ * That independence is the whole point, and it is what this replaces. The old
+ * model spread each pool proportionally across every banner window it
+ * overlapped, which made a banner's estimate depend on how the user happened to
+ * have sliced their plan. The source sheet instead evaluates the curve once,
+ * from today, and credits the result whole to a single banner (see
+ * sumRemainingThroughoutCarats) — so the same event contributes the same amount
+ * no matter what else is planned.
+ *
+ * The curve blends a fast exponential early decay with a slower linear tail,
+ * taking whichever leg has MORE left at a given moment. That makes the
+ * exponential dominate just after the banner opens (front-loading the reward)
+ * and the linear leg take over for the rest. It self-clamps outside the span:
+ * before the banner starts both legs exceed 1 so MIN caps at 1 (nothing
+ * collected yet, full pool remains), after it both go negative so MAX floors at
+ * 0 (pool exhausted).
+ *
+ * Note the curve runs over the BANNER's window shortened by
+ * THROUGHOUT_END_OFFSET_DAYS, not over the event's padded span — see those
+ * constants. Getting this window wrong is silent: it just quietly over-credits.
+ */
+export function getRemainingThroughoutCarats(
+	event: ThroughoutEventLike,
+	today: Date
 ): number {
 	if (!event.carats_throughout || !event.start_date || !event.end_date) return 0
 
-	const eventStart = event.start_date instanceof Date ? event.start_date : new Date(event.start_date)
-	const eventEnd = event.end_date instanceof Date ? event.end_date : new Date(event.end_date)
+	const bannerStart = toDate(event.start_date)
+	const curveEnd = subDays(
+		bannerEndFromEventEnd(toDate(event.end_date)),
+		THROUGHOUT_END_OFFSET_DAYS
+	)
 
-	const startShare = remainingShare(windowStart, eventStart, eventEnd)
-	const endShare = remainingShare(windowEnd, eventStart, eventEnd)
+	const span = utcDaysBetween(bannerStart, curveEnd)
+	// A banner shorter than the trim has no curve to walk; treat it as spent
+	// rather than dividing by zero or a negative.
+	if (span <= 0) return 0
 
-	return Math.max(0, (startShare - endShare) * event.carats_throughout)
+	const fraction = Math.min(Math.max(utcDaysBetween(bannerStart, today) / span, 0), 1)
+	const exponential =
+		(Math.exp(-THROUGHOUT_DECAY_K * fraction) - E_NEG_K) / (1 - E_NEG_K)
+	const linear = 1 - fraction
+
+	const share = Math.max(
+		0,
+		Math.min(1, exponential),
+		Math.min(1, linear * THROUGHOUT_DECAY_LINEAR_SLOPE)
+	)
+
+	return ceilToTen(share * event.carats_throughout)
+}
+
+/**
+ * Total throughout carats collectable by `checkpoint`, counting from today.
+ *
+ * This is an ABSOLUTE total, not a per-window one — which is the second half of
+ * the departure described on getRemainingThroughoutCarats. The sheet re-runs
+ * this filter from today for every banner rather than chaining windows, so
+ * callers that carry a running balance should credit the DIFFERENCE between
+ * consecutive checkpoints (see useBannerResources). The qualifying set only
+ * grows as `checkpoint` advances, so that difference is never negative.
+ *
+ * An event qualifies when both hold:
+ *   - its banner has not already finished (`bannerEnd >= today`) — carats from a
+ *     closed banner are gone, not bankable;
+ *   - its banner ends within THROUGHOUT_FILTER_GRACE_DAYS after the checkpoint.
+ *
+ * Note there is deliberately NO exclusion for banners already running: any
+ * number of them can be in flight at once and all of them count, each
+ * contributing only what it has left.
+ */
+export function sumRemainingThroughoutCarats(
+	events: ThroughoutEventLike[],
+	today: Date,
+	checkpoint: Date
+): number {
+	let total = 0
+
+	for (const event of events) {
+		if (!event.carats_throughout || !event.end_date) continue
+
+		const bannerEnd = bannerEndFromEventEnd(toDate(event.end_date))
+		if (bannerEnd < today) continue
+		if (subDays(bannerEnd, THROUGHOUT_FILTER_GRACE_DAYS) > checkpoint) continue
+
+		total += getRemainingThroughoutCarats(event, today)
+	}
+
+	return total
 }

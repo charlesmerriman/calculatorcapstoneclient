@@ -121,6 +121,47 @@ export const WHITE_DAY_CARATS = 500
 export const WHITE_DAY_MONTH = 2
 export const WHITE_DAY_DAY = 14
 
+// ── Game event "throughout" carats ────────────────────────────────────────────
+//
+// A GameEvent's `carats_throughout` is a pool the event pays out gradually over
+// its banner's run rather than as a lump. All three offsets below exist to
+// reconstruct the BANNER's window from the event row the API hands us, because
+// the source sheet's decay curve runs over the banner, not the event.
+
+/**
+ * Days an event's `end_date` trails its banner's own end date.
+ *
+ * MUST match `GAME_EVENT_END_DATE_BUFFER` in `calculatorapi/predictions.py` —
+ * the API adds this padding when it resolves an event's dates, and the
+ * throughout curve has to strip it back off to recover the banner window. The
+ * API does not serialise the banner's dates on the event, which is the only
+ * reason this is duplicated here; if that ever changes, read them directly and
+ * delete this.
+ */
+export const GAME_EVENT_END_DATE_BUFFER_DAYS = 4
+
+/**
+ * Extra days trimmed off the banner's end before the decay curve is measured,
+ * so the pool reaches zero slightly BEFORE the banner closes rather than
+ * exactly on its last second.
+ *
+ * Mirrors the source sheet's `end_date - ('Carat Calculator'!$G$25 + 1)`, where
+ * G25 is its "Filter End Date / Days" setting (3, so the offset is 4).
+ */
+export const THROUGHOUT_END_OFFSET_DAYS = 4
+
+/**
+ * Grace period on the crediting filter: a banner's throughout carats count
+ * toward a projection checkpoint if the banner ends no more than this many days
+ * AFTER it. Mirrors the sheet's `>= rowEnd - $AQ$32`, described there as
+ * letting the filter "get data from other banners with similar end dates".
+ *
+ * Fitted to 4 by matching the sheet's published per-banner figures; its own
+ * settings cell reads 3, so one of the offsets above may be absorbing a day.
+ * Confirm before treating this as authoritative.
+ */
+export const THROUGHOUT_FILTER_GRACE_DAYS = 4
+
 // ── Pull costs ────────────────────────────────────────────────────────────────
 
 /** Carat cost of a single standard pull (after free pulls are consumed). */

@@ -29,7 +29,7 @@ import {
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
 	countDaysAfterDelay,
-	getThroughoutCaratsInWindow,
+	sumRemainingThroughoutCarats,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import type {
@@ -112,8 +112,12 @@ export function useAverageMonthlyIncome({
 				ssrShards += ge.ssr_shard_amount
 				srShards += ge.sr_shard_amount
 			}
-			carats += getThroughoutCaratsInWindow(ge, start, end)
 		}
+
+		// `start` is today here, so the absolute filter total IS this window's
+		// throughout income — no delta needed (unlike useBannerResources, which
+		// carries one balance across several checkpoints).
+		carats += sumRemainingThroughoutCarats(gameEventsData, start, end)
 
 		// Champions Meeting payouts
 		for (const meet of championsMeetingData) {

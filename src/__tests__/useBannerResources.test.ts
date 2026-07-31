@@ -1569,12 +1569,16 @@ describe('useBannerResources', () => {
       expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(1_000)
     })
 
-    it('front-loads more of the split onto the earlier banner when the event spans a banner boundary', () => {
-      // Event runs day 5–15 (10-day span, 1000 carats). Banner 1 ends day 10
-      // (the event's midpoint, fraction=0.5) -- the decay curve credits 60%
-      // of the pool by the midpoint (not an even 50/50 split like a flat
-      // rate would give), because early accrual is front-loaded.
-      // Banner 2 ends day 20 (covers the remaining 40%).
+    it('lands the whole pool on ONE banner instead of splitting it across two', () => {
+      // Event runs day 5–15, so its BANNER closes day 11 (the API pads an
+      // event's end by GAME_EVENT_END_DATE_BUFFER_DAYS). The filter key is
+      // day 11 - THROUGHOUT_FILTER_GRACE_DAYS = day 7, so the day-10 banner is
+      // the first checkpoint that reaches it and collects the entire pool.
+      //
+      // The old model prorated the pool across every window it overlapped,
+      // which made a banner's estimate depend on how the user had sliced their
+      // plan. Banner 2's cumulative total carries the same 1000 forward -- it
+      // must not be credited a second time.
       const event = makeGameEvent(1, daysFromNow(5), daysFromNow(15), 0, 1_000)
       const banners = [
         makeUmaBanner(1, daysFromNow(10), 0),
@@ -1596,10 +1600,33 @@ describe('useBannerResources', () => {
           gameEventsData: [],
         })
       )
-      // Banner 1 earns 60% of the event's pool by its midpoint.
-      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(600)
-      // Banner 2's cumulative total picks up the remaining 40% (carried over, not doubled).
+      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(1_000)
       expect(withEvent.current[1].carats - withoutEvent.current[1].carats).toBe(1_000)
+    })
+
+    it("gives an event the same value however the user slices their plan", () => {
+      // The headline property of the new model: an event's contribution is
+      // fixed as of today, so adding an unrelated banner in front of it cannot
+      // move the number. Under the old proration it could and did.
+      const event = makeGameEvent(1, daysFromNow(10), daysFromNow(30), 0, 1_000)
+      const render = (banners: ReturnType<typeof makeUmaBanner>[]) =>
+        renderHook(() =>
+          useBannerResources({
+            userStatsData: zeroStats,
+            userPlannedBannerData: banners,
+            ...noIncome,
+            gameEventsData: [event],
+          })
+        ).result
+
+      const alone = render([makeUmaBanner(1, daysFromNow(40), 0)])
+      const sliced = render([
+        makeUmaBanner(1, daysFromNow(25), 0),
+        makeUmaBanner(2, daysFromNow(40), 0),
+      ])
+
+      // Same final balance either way, and the extra banner does not double it.
+      expect(sliced.current[1].carats).toBe(alone.current[0].carats)
     })
 
     it('contributes 0 when the event has unresolved (null) dates', () => {
@@ -1629,15 +1656,15 @@ describe('useBannerResources', () => {
     })
 
     it('only projects the remaining share of an event already in progress', () => {
-      // Event started 5 days ago and ends 5 days from now (10-day span, 1000 carats).
-      // The banner window starts "now", partway through the event, so only the
-      // remaining (not yet elapsed) share should be projected -- strictly less
-      // than the full 1000, but still more than 0 since 5 days remain.
-      // (With the front-loaded decay curve this comes out to ~400, down from
-      // the ~500 a flat rate would give at this same 50%-elapsed point --
-      // front-loading means more than half the pool is already "spent" by
-      // the midpoint, so less remains for later windows.)
-      const event = makeGameEvent(1, daysFromNow(-5), daysFromNow(5), 0, 1_000)
+      // Banner ran day -10 to day 6 (event end day 10, minus the 4-day pad), so
+      // the curve runs day -10 to day 2 and today sits 10/12 of the way along.
+      // The linear leg wins there at 0.8 * (1 - 10/12) = 0.1333, giving 133.3
+      // carats, which the sheet's CEILING(..., 10) rounds up to 140.
+      //
+      // Exact rather than a range: this is the case the whole model turns on
+      // (how much a RUNNING event still owes you), and the rounding step only
+      // shows up here.
+      const event = makeGameEvent(1, daysFromNow(-10), daysFromNow(10), 0, 1_000)
       const { result: withEvent } = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
@@ -1655,8 +1682,7 @@ describe('useBannerResources', () => {
         })
       )
       const diff = withEvent.current[0].carats - withoutEvent.current[0].carats
-      expect(diff).toBeGreaterThan(0)
-      expect(diff).toBeLessThan(1_000)
+      expect(diff).toBe(140)
     })
 
     it('sums carat_amount and carats_throughout on the same event', () => {
@@ -1682,88 +1708,48 @@ describe('useBannerResources', () => {
       expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(1_200)
     })
 
-    it('front-loads more than a flat rate would credit early in the event', () => {
-      // Event runs day 5–15 (10-day span, 1000 carats). Banner 1 ends day 7,
-      // just 2 of the event's 10 days in (fraction=0.2) -- a flat rate would
-      // credit 20% (200 carats) by this point, but the decay curve credits
-      // 36% (360), proving early accrual is front-loaded.
-      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(15), 0, 1_000)
-      const banners = [
-        makeUmaBanner(1, daysFromNow(7), 0),
-        makeUmaBanner(2, daysFromNow(15), 0),
-      ]
-      const { result: withEvent } = renderHook(() =>
-        useBannerResources({
-          userStatsData: zeroStats,
-          userPlannedBannerData: banners,
-          ...noIncome,
-          gameEventsData: [event],
-        })
-      )
-      const { result: withoutEvent } = renderHook(() =>
-        useBannerResources({
-          userStatsData: zeroStats,
-          userPlannedBannerData: banners,
-          ...noIncome,
-          gameEventsData: [],
-        })
-      )
-      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBeCloseTo(360, 5)
-      // Cumulative total by the event's true end is still the full pool.
-      expect(withEvent.current[1].carats - withoutEvent.current[1].carats).toBe(1_000)
-    })
-
-    it('still credits carats on the last day of the event -- no dead zone before end_date', () => {
-      // Same event (day 5–15, 1000 carats). Banner 1 ends day 14 (one day
-      // before the event's true end), banner 2 ends day 15 (the true end).
-      // Banner 2's own marginal contribution is the last day's worth of
-      // carats -- it must be strictly positive, proving accrual doesn't stop
-      // early the way the original (incorrect) offset-based reading would have.
-      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(15), 0, 1_000)
-      const banners = [
-        makeUmaBanner(1, daysFromNow(14), 0),
-        makeUmaBanner(2, daysFromNow(15), 0),
-      ]
-      const { result: withEvent } = renderHook(() =>
-        useBannerResources({
-          userStatsData: zeroStats,
-          userPlannedBannerData: banners,
-          ...noIncome,
-          gameEventsData: [event],
-        })
-      )
-      const { result: withoutEvent } = renderHook(() =>
-        useBannerResources({
-          userStatsData: zeroStats,
-          userPlannedBannerData: banners,
-          ...noIncome,
-          gameEventsData: [],
-        })
-      )
-      const banner1Diff = withEvent.current[0].carats - withoutEvent.current[0].carats
-      const banner2Diff = withEvent.current[1].carats - withoutEvent.current[1].carats
-      const lastDayMarginal = banner2Diff - banner1Diff
-      expect(lastDayMarginal).toBeCloseTo(80, 5)
-      expect(lastDayMarginal).toBeGreaterThan(0)
-    })
-
-    it('checkpoints a nested banner at its OWN end date, not the running cutoff', () => {
-      // Banner 1 is a long-running banner ending day 30. Banner 2 is nested
-      // inside it (listed second because it starts later, but it closes on day
-      // 10) -- a realistic overlapping-banner scenario, and one the live
-      // schedule contains 14 times.
+    it('reaches an event whose banner closes just AFTER the checkpoint, within the grace window', () => {
+      // The sheet's filter lets a checkpoint pick up banners ending shortly
+      // after it ("similar end dates"), worth THROUGHOUT_FILTER_GRACE_DAYS.
       //
-      // The walk visits checkpoints in ascending END-date order, so banner 2 is
-      // evaluated first over (now, day10] and banner 1 second over (day10,
-      // day30]. Before that ordering existed the walk followed the display list,
-      // banner 2 got a backwards window (day30 -> day10) and collected nothing,
-      // so it reported banner 1's day-30 balance on a banner that closes on
-      // day 10 -- a large overstatement.
-      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(20), 0, 1_000)
+      //   near: event ends day 17 -> banner closes day 13 -> key day 9  (<= 10, in reach)
+      //   far:  event ends day 20 -> banner closes day 16 -> key day 12 (>  10, out of reach)
+      //
+      // Both are still in the future, so each contributes its whole pool once
+      // a checkpoint reaches it.
+      const near = makeGameEvent(1, daysFromNow(5), daysFromNow(17), 0, 1_000)
+      const far = makeGameEvent(2, daysFromNow(5), daysFromNow(20), 0, 1_000)
       const banners = [
-        makeUmaBanner(1, daysFromNow(30), 0),
-        makeUmaBanner(2, daysFromNow(10), 0),
+        makeUmaBanner(1, daysFromNow(10), 0),
+        makeUmaBanner(2, daysFromNow(30), 0),
       ]
+      const { result: withEvents } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+          gameEventsData: [near, far],
+        })
+      )
+      const { result: withoutEvents } = renderHook(() =>
+        useBannerResources({
+          userStatsData: zeroStats,
+          userPlannedBannerData: banners,
+          ...noIncome,
+          gameEventsData: [],
+        })
+      )
+      expect(withEvents.current[0].carats - withoutEvents.current[0].carats).toBe(1_000)
+      expect(withEvents.current[1].carats - withoutEvents.current[1].carats).toBe(2_000)
+    })
+
+    it('credits nothing for an event whose banner has already closed', () => {
+      // Banner ran day -30 to day -6 (event end day -2 minus the pad). Its
+      // carats are gone, not bankable, so no checkpoint may pick them up --
+      // the sheet's `today <= rowEnd` condition. Note this is about the
+      // EVENT's banner being over, not the user's own planned banner.
+      const event = makeGameEvent(1, daysFromNow(-30), daysFromNow(-2), 0, 1_000)
+      const banners = [makeUmaBanner(1, daysFromNow(30), 0)]
       const { result: withEvent } = renderHook(() =>
         useBannerResources({
           userStatsData: zeroStats,
@@ -1780,30 +1766,39 @@ describe('useBannerResources', () => {
           gameEventsData: [],
         })
       )
-      const longBanner = withEvent.current[0].carats - withoutEvent.current[0].carats
-      const nestedBanner = withEvent.current[1].carats - withoutEvent.current[1].carats
+      expect(withEvent.current[0].carats - withoutEvent.current[0].carats).toBe(0)
+    })
 
-      // Day 30 is past the event's end, so the whole pool has been paid out.
-      expect(longBanner).toBe(1_000)
+    it('counts every in-flight banner, not just one', () => {
+      // Several banners can be running at once and all of them contribute
+      // whatever they have left -- there is deliberately no "only the current
+      // one" rule. Two identical in-progress events must therefore credit
+      // exactly double a single one.
+      const one = makeGameEvent(1, daysFromNow(-10), daysFromNow(10), 0, 1_000)
+      const two = makeGameEvent(2, daysFromNow(-10), daysFromNow(10), 0, 1_000)
+      const banners = [makeUmaBanner(1, daysFromNow(30), 0)]
+      const render = (events: GameEvent[]) =>
+        renderHook(() =>
+          useBannerResources({
+            userStatsData: zeroStats,
+            userPlannedBannerData: banners,
+            ...noIncome,
+            gameEventsData: events,
+          })
+        ).result
 
-      // Day 10 is mid-event, so the nested banner sees only the front-loaded
-      // share earned so far -- strictly some of the pool, never all of it and
-      // never a negative amount.
-      expect(nestedBanner).toBeGreaterThan(0)
-      expect(nestedBanner).toBeLessThan(1_000)
+      const none = render([])
+      const single = render([one])
+      const both = render([one, two])
 
-      // Results stay in DISPLAY order: index 0 is still the day-30 banner even
-      // though the walk evaluated it second.
-      expect(nestedBanner).toBeLessThan(longBanner)
+      expect(single.current[0].carats - none.current[0].carats).toBe(140)
+      expect(both.current[0].carats - none.current[0].carats).toBe(280)
     })
 
     it('never credits negative carats for a banner that has already ended', () => {
-      // Sorting the walk by end date removes backwards windows BETWEEN
-      // checkpoints, but not for a banner whose end date is already in the
-      // past: the cursor starts at today and must not retreat behind it, so
-      // that banner's window is (today, day-5] -- backwards. Since
-      // remainingShare is non-increasing, this would subtract carats without
-      // the outer Math.max(0, ...) guard in getThroughoutCaratsInWindow.
+      // The walk's cursor starts at today and must not retreat behind it, so a
+      // planned banner already in the past gets a backwards window. It must
+      // collect exactly nothing rather than subtracting from the balance.
       const event = makeGameEvent(1, daysFromNow(-10), daysFromNow(20), 0, 1_000)
       const banners = [
         makeUmaBanner(1, daysFromNow(-5), 0), // already over
