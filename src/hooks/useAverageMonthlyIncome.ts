@@ -16,6 +16,9 @@ import {
 	VALENTINES_CARATS,
 	VALENTINES_MONTH,
 	VALENTINES_DAY,
+	WHITE_DAY_CARATS,
+	WHITE_DAY_MONTH,
+	WHITE_DAY_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
@@ -168,14 +171,18 @@ export function useAverageMonthlyIncome({
 			FIFTY_DAY_LOGIN_PER_CYCLE *
 			calculateIntervalOccurrences(start, end, start, FIFTY_DAY_LOGIN_CYCLE_DAYS)
 
-		// Valentine's Day gift. Note this only contributes when the fixed
-		// WINDOW_MONTHS window happens to span February 14 — the averaged figure
-		// therefore rises when the window covers it and is absent otherwise,
-		// which is inherent to averaging a fixed forward window over incomes that
-		// only occur once a year.
+		// Valentine's Day and White Day gifts. Note these only contribute when
+		// the fixed WINDOW_MONTHS window happens to span February 14 / March 14 —
+		// the averaged figure therefore rises when the window covers them and is
+		// absent otherwise, which is inherent to averaging a fixed forward window
+		// over incomes that only occur once a year. The two dates are a month
+		// apart, so a 5-month window usually picks up both or neither.
 		carats +=
 			VALENTINES_CARATS *
 			calculateAnnualDateOccurrences(start, end, VALENTINES_MONTH, VALENTINES_DAY)
+		carats +=
+			WHITE_DAY_CARATS *
+			calculateAnnualDateOccurrences(start, end, WHITE_DAY_MONTH, WHITE_DAY_DAY)
 
 		// Monthly shop tickets: fixed uma/support bundle each month (no carat cost).
 		if (userStatsData.monthly_shop_tickets) {

@@ -131,7 +131,7 @@ into more banners can't inflate them.
 carats += ClubRank.income_amount * months
 ```
 
-**6b. Add Misc Earnings + 50-Day Login Bonus + Valentine's Day**
+**6b. Add Misc Earnings + 50-Day Login Bonus + annual gifts**
 
 ```
 if misc_earnings:
@@ -146,6 +146,10 @@ freeCarats += FIFTY_DAY_LOGIN_PER_CYCLE *
 // always on, 500 on every February 14 in the window
 freeCarats += VALENTINES_CARATS *
               calculateAnnualDateOccurrences(windowStart, windowEnd, 1, 14)
+
+// always on, 500 on every March 14 in the window
+freeCarats += WHITE_DAY_CARATS *
+              calculateAnnualDateOccurrences(windowStart, windowEnd, 2, 14)
 ```
 
 **Misc Earnings** (gifts / Team Trials extras / careers) mirrors the source sheet's figure
@@ -161,12 +165,14 @@ The **50-Day Login Bonus** is universal login-campaign income with no toggle. It
 same rolling-cycle machinery as Misc Earnings, just with a 50-day interval: first payout on
 day 50, nothing credited before then.
 
-The **Valentine's Day gift** is universal too, but it is a fixed calendar date rather than
-a rolling cycle, so it uses `calculateAnnualDateOccurrences` — the annual analogue of the
-1st-of-month counting. Its payout instants are absolute calendar dates, which gives it the
-same tiling property: a February 14 landing exactly on a banner boundary is credited by one
-window, never both. The month argument is 0-indexed to match `Date.getMonth()`, so `1` is
-February.
+The **annual gifts** — Valentine's Day (500 on February 14) and White Day (500 on March 14)
+— are universal too, but they are fixed calendar dates rather than rolling cycles, so they
+use `calculateAnnualDateOccurrences` — the annual analogue of the 1st-of-month counting.
+Their payout instants are absolute calendar dates, which gives them the same tiling
+property: a February 14 landing exactly on a banner boundary is credited by one window,
+never both. The month argument is 0-indexed to match `Date.getMonth()`, so `1` is February
+and `2` is March. See `backend/docs/income-calculation.md` for where White Day's 500 is
+derived from — the source sheet does not expose it as a settings cell.
 
 **6c. Add Monthly Shop Tickets** (if enabled)
 

@@ -94,6 +94,25 @@ export const VALENTINES_CARATS = 500
 export const VALENTINES_MONTH = 1
 export const VALENTINES_DAY = 14
 
+/**
+ * Carats gifted on White Day (March 14) — the reciprocal gift the game pairs
+ * with Valentine's a month later. Universal income with no toggle, same
+ * treatment as Valentine's above.
+ *
+ * The 500 amount is derived from the source sheet rather than read off a
+ * settings cell: the sheet buckets both gifts into its "50 Day Login Bonus"
+ * column, which reads 150 over a 62-day window (one 50-day payout, no gift
+ * dates in range) and 2,050 over a 366-day window (seven 50-day payouts = 1,050,
+ * plus Valentine's 500 and White Day 500). Its changelog entry 4.44 confirms the
+ * two gifts are modelled as a pair. If a primary source ever gives a different
+ * figure, this is the one number to change.
+ *
+ * Month is 0-indexed like VALENTINES_MONTH above — 2 is March.
+ */
+export const WHITE_DAY_CARATS = 500
+export const WHITE_DAY_MONTH = 2
+export const WHITE_DAY_DAY = 14
+
 // ── Pull costs ────────────────────────────────────────────────────────────────
 
 /** Carat cost of a single standard pull (after free pulls are consumed). */

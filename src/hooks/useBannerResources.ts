@@ -21,6 +21,9 @@ import {
 	VALENTINES_CARATS,
 	VALENTINES_MONTH,
 	VALENTINES_DAY,
+	WHITE_DAY_CARATS,
+	WHITE_DAY_MONTH,
+	WHITE_DAY_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
@@ -286,9 +289,9 @@ export function useBannerResources({
 					FIFTY_DAY_LOGIN_CYCLE_DAYS
 				)
 
-			// Valentine's Day gift — a fixed calendar date rather than a rolling
-			// cycle, so it uses absolute annual occurrences (like the 1st-of-month
-			// incomes) instead of an anchor.
+			// Valentine's Day and White Day gifts — fixed calendar dates rather
+			// than rolling cycles, so they use absolute annual occurrences (like
+			// the 1st-of-month incomes) instead of an anchor.
 			freeCarats +=
 				VALENTINES_CARATS *
 				calculateAnnualDateOccurrences(
@@ -296,6 +299,14 @@ export function useBannerResources({
 					endDate,
 					VALENTINES_MONTH,
 					VALENTINES_DAY
+				)
+			freeCarats +=
+				WHITE_DAY_CARATS *
+				calculateAnnualDateOccurrences(
+					lastEndDate,
+					endDate,
+					WHITE_DAY_MONTH,
+					WHITE_DAY_DAY
 				)
 
 			// Monthly shop tickets: a fixed uma/support ticket bundle buyable

@@ -12,6 +12,9 @@ import {
   VALENTINES_CARATS,
   VALENTINES_MONTH,
   VALENTINES_DAY,
+  WHITE_DAY_CARATS,
+  WHITE_DAY_MONTH,
+  WHITE_DAY_DAY,
   MONTHLY_SHOP_UMA_TICKETS,
   MONTHLY_SHOP_SUPPORT_TICKETS,
   TRAINING_PASS_START_DATE,
@@ -53,8 +56,24 @@ function daysFromNow(n: number): string {
 }
 
 /**
+ * The always-on annual gifts (Valentine's, White Day) earned in a window — the
+ * part of the baseline that depends on fixed calendar dates rather than day
+ * offsets. Split out because the gift-specific tests need to strip the *other*
+ * gift from their totals, which would otherwise mean re-deriving it inline.
+ */
+function annualGifts(today: Date, end: Date): number {
+  return (
+    VALENTINES_CARATS *
+      calculateAnnualDateOccurrences(today, end, VALENTINES_MONTH, VALENTINES_DAY) +
+    WHITE_DAY_CARATS *
+      calculateAnnualDateOccurrences(today, end, WHITE_DAY_MONTH, WHITE_DAY_DAY)
+  )
+}
+
+/**
  * Carats a projection earns regardless of the user's toggles: base daily income
- * plus the two universal bonuses (50-day login campaign, Valentine's gift).
+ * plus the universal bonuses (50-day login campaign, Valentine's and White Day
+ * gifts).
  *
  * Tests that isolate a single income source build their expectation as this
  * baseline plus the one term under test. Centralising it means adding another
@@ -66,8 +85,7 @@ function alwaysOnBaseline(today: Date, end: Date): number {
     calculateDailyIncome(today, end, today) +
     FIFTY_DAY_LOGIN_PER_CYCLE *
       calculateIntervalOccurrences(today, end, today, FIFTY_DAY_LOGIN_CYCLE_DAYS) +
-    VALENTINES_CARATS *
-      calculateAnnualDateOccurrences(today, end, VALENTINES_MONTH, VALENTINES_DAY)
+    annualGifts(today, end)
   )
 }
 
@@ -787,8 +805,7 @@ describe('useBannerResources', () => {
       return (
         result.current[0].carats -
         calculateDailyIncome(today, end, today) -
-        VALENTINES_CARATS *
-          calculateAnnualDateOccurrences(today, end, VALENTINES_MONTH, VALENTINES_DAY)
+        annualGifts(today, end)
       )
     }
 
@@ -833,13 +850,18 @@ describe('useBannerResources', () => {
     })
   })
 
-  describe("Valentine's Day bonus (always on)", () => {
+  describe('annual gift bonuses (always on)', () => {
     /**
-     * Valentine's is a fixed calendar date, so unlike the rolling-cycle incomes
-     * these tests can't use day offsets — how far away February 14 is depends on
-     * when the suite runs. Instead they assert the relationship between the
-     * projection and calculateAnnualDateOccurrences over the same window, which
-     * holds on any run date.
+     * Valentine's (Feb 14) and White Day (Mar 14) are fixed calendar dates, so
+     * unlike the rolling-cycle incomes these tests can't use day offsets — how
+     * far away each date is depends on when the suite runs. Instead they assert
+     * the relationship between the projection and calculateAnnualDateOccurrences
+     * over the same window, which holds on any run date.
+     *
+     * Both gifts get the same treatment, so the cases are shared: each one
+     * strips the OTHER gift out of the total via annualGifts() minus its own
+     * term, which keeps the two from masking each other (crediting White Day
+     * twice and Valentine's not at all would still pass a combined assertion).
      */
     const caratsTo = (endStr: string) => {
       const { result } = renderHook(() =>
@@ -852,48 +874,47 @@ describe('useBannerResources', () => {
       return result.current[0].carats
     }
 
-    it('credits VALENTINES_CARATS for each February 14 in the window', () => {
-      // Three years out is guaranteed to span at least two Valentine's Days
+    const gifts = [
+      { label: "Valentine's Day", carats: VALENTINES_CARATS, month: VALENTINES_MONTH, day: VALENTINES_DAY },
+      { label: 'White Day', carats: WHITE_DAY_CARATS, month: WHITE_DAY_MONTH, day: WHITE_DAY_DAY },
+    ]
+
+    it.each(gifts)('credits $label for each occurrence in the window', ({ carats, month, day }) => {
+      // Three years out is guaranteed to span at least two of each gift date
       // whatever today's date is.
       const endStr = daysFromNow(365 * 3)
       const today = startOfDay(new Date())
       const end = new Date(endStr)
-      const occurrences = calculateAnnualDateOccurrences(
-        today,
-        end,
-        VALENTINES_MONTH,
-        VALENTINES_DAY
-      )
+      const occurrences = calculateAnnualDateOccurrences(today, end, month, day)
       expect(occurrences).toBeGreaterThanOrEqual(2)
 
-      // Strip every other income the window picks up so only the Valentine's
-      // term remains. A window this long reaches past TRAINING_PASS_START_DATE,
-      // so the free-tier pass contributes too — computed with the same helper
-      // the hook uses rather than re-deriving its month math here.
-      const valentinesOnly =
+      // Strip every other income the window picks up — including the sibling
+      // gift — so only this gift's term remains. A window this long reaches past
+      // TRAINING_PASS_START_DATE, so the free-tier pass contributes too;
+      // computed with the same helper the hook uses rather than re-deriving its
+      // month math here.
+      const otherGifts =
+        annualGifts(today, end) - carats * occurrences
+
+      const giftOnly =
         caratsTo(endStr) -
         calculateDailyIncome(today, end, today) -
         FIFTY_DAY_LOGIN_PER_CYCLE *
           calculateIntervalOccurrences(today, end, today, FIFTY_DAY_LOGIN_CYCLE_DAYS) -
-        getTrainingPassIncome(today, end, false).freeCarats
+        getTrainingPassIncome(today, end, false).freeCarats -
+        otherGifts
 
-      expect(valentinesOnly).toBe(VALENTINES_CARATS * occurrences)
+      expect(giftOnly).toBe(carats * occurrences)
     })
 
-    it('credits nothing over a window too short to reach a February 14', () => {
-      // A 10-day window can only contain Feb 14 if today is within 10 days of
-      // it; skip on those few days rather than assert something false.
+    it('credits nothing over a window too short to reach either gift date', () => {
+      // A 10-day window can only contain Feb 14 or Mar 14 if today is within 10
+      // days of one; skip on those few days rather than assert something false.
       const endStr = daysFromNow(10)
       const today = startOfDay(new Date())
       const end = new Date(endStr)
-      const occurrences = calculateAnnualDateOccurrences(
-        today,
-        end,
-        VALENTINES_MONTH,
-        VALENTINES_DAY
-      )
 
-      if (occurrences === 0) {
+      if (annualGifts(today, end) === 0) {
         expect(caratsTo(endStr)).toBe(calculateDailyIncome(today, end, today))
       }
     })
