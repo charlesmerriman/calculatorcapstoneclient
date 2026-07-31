@@ -15,7 +15,8 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
-import { getFreePulls, getPullCountStatus } from "../../utils/bannerHelpers"
+import { bannerKey, getFreePulls, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
+import type { BannerKey } from "../../utils/bannerHelpers"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 
@@ -55,11 +56,12 @@ export const BannerRow = ({
 	const bannerType: "Uma" | "Support" = plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
 	const targetBannerData: BannerUma[] | BannerSupport[] = bannerType === "Uma" ? umaBannerData : supportBannerData
 
-	const currentBanner = targetBannerData.find(
-		(banner) =>
-			banner.id === plannedBanner.banner_uma?.id ||
-			banner.id === plannedBanner.banner_support?.id
-	)
+	// Match within the type namespace only. targetBannerData is already scoped to
+	// bannerType, and uma/support ids are independent — comparing against the
+	// other type's id could resolve to an unrelated banner of the same number.
+	const selectedBannerId =
+		bannerType === "Uma" ? plannedBanner.banner_uma?.id : plannedBanner.banner_support?.id
+	const currentBanner = targetBannerData.find((banner) => banner.id === selectedBannerId)
 
 	const currentDate = new Date()
 
@@ -113,8 +115,11 @@ export const BannerRow = ({
 		setUserPlannedBannerData(updated)
 	}
 
-	// IDs of banners already on the sheet, excluding this row's own current selection.
-	const alreadyPlannedBannerIds = new Set(
+	// Keys of banners already on the sheet, excluding this row's own current selection.
+	// Keyed by type+id, never by bare id — uma and support banners have independent
+	// primary keys, so a bare id would make an uma banner block its same-date
+	// support counterpart (see plannedBannerKey).
+	const alreadyPlannedBannerKeys = new Set(
 		userPlannedBannerData
 			.filter((b) => {
 				const isCurrentRow =
@@ -122,13 +127,17 @@ export const BannerRow = ({
 					(b.tempId !== undefined && b.tempId === plannedBanner.tempId)
 				return !isCurrentRow
 			})
-			.map((b) => b.banner_uma?.id ?? b.banner_support?.id)
-			.filter((id): id is number => id !== undefined)
+			.map(plannedBannerKey)
+			.filter((key): key is BannerKey => key !== null)
 	)
+
+	/** This row's select only ever offers banners of its own type. */
+	const optionKey = (option: BannerOption): BannerKey =>
+		bannerKey(bannerType, option.value.id)
 
 	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
 		if (!option) return
-		if (alreadyPlannedBannerIds.has(option.value.id)) {
+		if (alreadyPlannedBannerKeys.has(optionKey(option))) {
 			toast.error("This banner is already on your sheet.")
 			return
 		}
@@ -213,9 +222,9 @@ export const BannerRow = ({
 			}
 			onChange={handleBannerSelect}
 			formatOptionLabel={(option) => (
-				<span className={alreadyPlannedBannerIds.has(option.value.id) ? "text-gray-500" : ""}>
+				<span className={alreadyPlannedBannerKeys.has(optionKey(option)) ? "text-gray-500" : ""}>
 					{option.label}
-					{alreadyPlannedBannerIds.has(option.value.id) && (
+					{alreadyPlannedBannerKeys.has(optionKey(option)) && (
 						<span className="ml-1 text-xs">(on sheet)</span>
 					)}
 				</span>

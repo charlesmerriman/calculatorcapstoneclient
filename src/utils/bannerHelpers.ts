@@ -213,3 +213,42 @@ export function getFreePulls(
 	if (plannedBanner.banner_uma) return plannedBanner.banner_uma.free_pulls
 	return ""
 }
+
+/**
+ * Identity key for a planned banner.
+ *
+ * BannerUma and BannerSupport are SEPARATE Django tables with independent
+ * autoincrement primary keys, so a bare `id` is ambiguous across the two —
+ * uma #1 and support #1 are unrelated banners. Worse, the seed data was
+ * populated in lockstep, so matching ids very often point at the same
+ * BannerTimeline and therefore the same dates. Comparing planned banners by
+ * bare id made "add the uma banner" wrongly mark the same-date support banner
+ * as already planned, and vice versa.
+ *
+ * Every identity comparison must therefore carry the banner's type alongside
+ * its id, which is what this key encodes.
+ *
+ * TYPESCRIPT CONCEPT: Template Literal Types
+ *
+ * Typing this as `` `uma:${number}` | `support:${number}` `` rather than plain
+ * `string` is deliberate: it makes passing a bare id where a key is expected a
+ * compile error, which is precisely the mistake this helper exists to prevent.
+ */
+export type BannerKey = `uma:${number}` | `support:${number}`
+
+export function bannerKey(type: "Uma" | "Support", id: number): BannerKey {
+	return type === "Uma" ? `uma:${id}` : `support:${id}`
+}
+
+/**
+ * Key for a planned/staged row, or null when the row has no banner selected
+ * yet. Callers comparing two rows must treat null as "never equal" — two blank
+ * rows are not duplicates of each other.
+ */
+export function plannedBannerKey(
+	plannedBanner: Pick<UserPlannedBanner, "banner_uma" | "banner_support">
+): BannerKey | null {
+	if (plannedBanner.banner_uma) return bannerKey("Uma", plannedBanner.banner_uma.id)
+	if (plannedBanner.banner_support) return bannerKey("Support", plannedBanner.banner_support.id)
+	return null
+}
