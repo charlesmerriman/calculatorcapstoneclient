@@ -23,8 +23,11 @@ export interface PullStrategyInput {
 	 */
 	paidCarats: number
 	/**
-	 * Number of days this banner is active (from today onward). Caps the
-	 * discounted-pull count, since the discount is a once-per-day feature.
+	 * Length of the banner's window in calendar days (start through end,
+	 * inclusive). Caps the discounted-pull count, since the discount is a
+	 * once-per-day feature. Deliberately the FULL window length rather than the
+	 * days remaining, so the cap can't shrink under a user while the banner is
+	 * live — see the derivation in useBannerResources.
 	 */
 	discountDays: number
 	/** Whether the once-per-day 50-paid-carat discounted pull is enabled. */
@@ -57,7 +60,7 @@ export interface PullStrategyResult {
  *      everything on this banner.
  *
  * Spend order (per the product decision): free pulls → matching tickets →
- * discounted paid pulls (50 paid carats each, one per active day) → free carats
+ * discounted paid pulls (50 paid carats each, one per banner day) → free carats
  * at 150 → full-price paid carats at 150. Free carats are spent before paid so
  * that more daily discounts stay available for later banners.
  *
@@ -81,6 +84,8 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	const matchingTickets = isUmaBanner ? input.umaTickets : input.supportTickets
 
 	// ── maxPossiblePulls (greedy; ignores plannedPulls) ──────────────────────
+	// NOTE: `discountDays` is the banner's full window length, so this figure is
+	// stable for the life of the banner rather than decaying day by day.
 	// Discounted pulls are strictly the cheapest use of paid carats, so use as
 	// many as the day cap and paid balance allow, then feed the leftover paid
 	// carats into the full-price pool.
@@ -123,7 +128,7 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 		remaining -= use
 	}
 
-	// 3. Discounted paid pulls (paid carats only, one per active day).
+	// 3. Discounted paid pulls (paid carats only, one per banner-window day).
 	if (discountedPaidPulls && remaining > 0) {
 		const capacity = Math.min(
 			discountDays,

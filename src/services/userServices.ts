@@ -1,6 +1,11 @@
 /**
  * User authentication API services.
  *
+ * Sign-in itself lives in socialAuth.ts — accounts are created and
+ * authenticated through Google/Discord, so there is no password login or
+ * registration call here any more. What remains is logout (shared by every
+ * kind of account) and the ApiError class both services throw.
+ *
  * TYPESCRIPT CONCEPT: File Extensions (.ts vs .tsx)
  *
  * This file was originally .tsx but contains no JSX — only fetch calls
@@ -13,11 +18,11 @@
 const API_URL = import.meta.env.VITE_API_URL
 
 /**
- * Custom error that carries field-level validation errors from the API.
- * Used so components can call setError(fieldName, ...) on specific form fields
- * rather than always falling back to a generic root error.
+ * Error type shared by the auth services, carrying a user-safe message.
  *
- * Example: { username: "A user with that username already exists." }
+ * `fieldErrors` dates from the registration form's per-field validation. No
+ * current caller populates it (social sign-in has no form fields to attach
+ * errors to), but it is kept so the shape stays stable for any future form.
  */
 export class ApiError extends Error {
 	fieldErrors: Partial<Record<string, string>>
@@ -39,115 +44,8 @@ export class ApiError extends Error {
  *   3. New team members can read the types to understand the API shape
  */
 
-interface LoginCredentials {
-	username: string
-	password: string
-}
-
-interface LoginResponse {
-	token?: string
-	user?: {
-		id: number
-		username: string
-		email: string
-	}
-	error?: string
-}
-
-interface RegisterCredentials {
-	username: string
-	password: string
-	email: string
-	first_name: string
-	last_name: string
-}
-
-interface RegisterResponse {
-	token?: string
-	user?: {
-		id: number
-		username: string
-		email: string
-	}
-	error?: string
-}
-
 interface LogoutResponse {
 	message: string
-}
-
-export async function userLogin(
-	credentials: LoginCredentials
-): Promise<LoginResponse> {
-	/**
-	 * TYPESCRIPT CONCEPT: `as` Assertions at API Boundaries
-	 *
-	 * `response.json()` returns Promise<any>. We assign the result to a
-	 * typed variable so the rest of the function gets type checking.
-	 * This is one of the few places where an implicit `any` is unavoidable
-	 * (fetch doesn't know your API shape). The typed variable acts as a
-	 * trust boundary — "from here on, treat this as LoginResponse."
-	 *
-	 * For stronger guarantees, you'd validate with a library like Zod:
-	 *   const data = LoginResponseSchema.parse(await response.json())
-	 */
-	const response = await fetch(`${API_URL}/login`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json"
-		},
-		body: JSON.stringify(credentials)
-	})
-
-	const data: LoginResponse = await response.json()
-
-	if (!response.ok) {
-		throw new Error(data.error ?? "Login failed")
-	}
-
-	if (data.token) {
-		localStorage.setItem("authToken", data.token)
-	}
-
-	return data
-}
-
-export async function userRegister(
-	credentials: RegisterCredentials
-): Promise<RegisterResponse> {
-	const response = await fetch(`${API_URL}/register`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json"
-		},
-		body: JSON.stringify(credentials)
-	})
-
-	const data: RegisterResponse = await response.json()
-
-	if (!response.ok) {
-		// DRF returns field validation errors as { fieldName: ["message", ...], ... }
-		// Parse them so the form can show errors inline on the right fields.
-		const raw = data as unknown as Record<string, unknown>
-		const fieldErrors: Partial<Record<string, string>> = {}
-		let firstMessage = ""
-
-		for (const [key, val] of Object.entries(raw)) {
-			const msg = Array.isArray(val) && typeof val[0] === "string" ? val[0] : null
-			if (msg) {
-				fieldErrors[key] = msg
-				if (!firstMessage) firstMessage = msg
-			}
-		}
-
-		throw new ApiError(firstMessage || "Registration failed. Please try again.", fieldErrors)
-	}
-
-	if (data.token) {
-		localStorage.setItem("authToken", data.token)
-	}
-
-	return data
 }
 
 export async function userLogout(): Promise<LogoutResponse> {

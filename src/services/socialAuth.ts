@@ -1,0 +1,166 @@
+/**
+ * Google / Discord sign-in.
+ *
+ * The OAuth2 authorization-code flow, from this side:
+ *
+ *   1. startSocialLogin()   — ask our API for the provider's consent URL,
+ *                             remember the `state` it minted, send the browser
+ *                             to the provider.
+ *   2. ...user approves on accounts.google.com / discord.com...
+ *   3. Provider redirects back to /auth/callback?code=…&state=…
+ *   4. completeSocialLogin() — check the returned state matches what we saved,
+ *                              hand the code to our API, store the token.
+ *
+ * The `code` in step 3 travels through the browser, which is safe: it is
+ * single-use, expires in seconds, and cannot be redeemed without the client
+ * secret, which only ever exists on the Django side.
+ */
+
+import { ApiError } from "./userServices"
+
+const API_URL = import.meta.env.VITE_API_URL
+
+export const SOCIAL_PROVIDERS = ["google", "discord"] as const
+export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
+
+/**
+ * Where the pending login's `state` is parked while the browser is away at the
+ * provider. sessionStorage (not localStorage) so it is tab-scoped and cleared
+ * when the tab closes — and, unlike a cookie, it survives the cross-origin
+ * round trip without needing SameSite=None, which plain http://localhost in
+ * dev can't do.
+ */
+const STATE_KEY = "oauthState.v1"
+
+/** Matches OAUTH_STATE_MAX_AGE_SECONDS on the backend. Purely a UX guard —
+ *  the backend's signed timestamp is the real enforcement. */
+const STATE_MAX_AGE_MS = 10 * 60 * 1000
+
+interface PendingLogin {
+	provider: SocialProvider
+	state: string
+	createdAt: number
+}
+
+interface StartResponse {
+	authorize_url: string
+	state: string
+}
+
+export function isSocialProvider(value: unknown): value is SocialProvider {
+	return (
+		typeof value === "string" &&
+		(SOCIAL_PROVIDERS as readonly string[]).includes(value)
+	)
+}
+
+/**
+ * Reads and validates the pending login, clearing it either way.
+ *
+ * Single-use by design: a `state` must never be accepted twice, so it is
+ * removed the moment it's read, before any validation can fail and return
+ * early. Wrapped in try/catch because sessionStorage throws in some
+ * private-browsing modes.
+ */
+function takePendingLogin(): PendingLogin | null {
+	let raw: string | null = null
+	try {
+		raw = sessionStorage.getItem(STATE_KEY)
+		sessionStorage.removeItem(STATE_KEY)
+	} catch {
+		return null
+	}
+	if (!raw) return null
+
+	try {
+		const parsed = JSON.parse(raw) as Partial<PendingLogin>
+		if (
+			!isSocialProvider(parsed.provider) ||
+			typeof parsed.state !== "string" ||
+			typeof parsed.createdAt !== "number" ||
+			Date.now() - parsed.createdAt > STATE_MAX_AGE_MS
+		) {
+			return null
+		}
+		return parsed as PendingLogin
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Step 1: fetch the provider's consent URL and redirect the browser to it.
+ * Does not return in the success case — the page navigates away.
+ */
+export async function startSocialLogin(provider: SocialProvider): Promise<void> {
+	const response = await fetch(`${API_URL}/auth/${provider}/start`)
+
+	if (!response.ok) {
+		throw new ApiError("Sign in is unavailable right now. Please try again later.")
+	}
+
+	const data = (await response.json()) as StartResponse
+	if (!data.authorize_url || !data.state) {
+		throw new ApiError("Sign in is unavailable right now. Please try again later.")
+	}
+
+	// Must be written BEFORE navigating — once assign() runs, no further code
+	// in this tab executes.
+	try {
+		const pending: PendingLogin = {
+			provider,
+			state: data.state,
+			createdAt: Date.now()
+		}
+		sessionStorage.setItem(STATE_KEY, JSON.stringify(pending))
+	} catch {
+		// Private browsing with storage disabled. Without the saved state we
+		// can't verify the callback, so fail here rather than send the user on
+		// a round trip that is guaranteed to be rejected on return.
+		throw new ApiError("Sign in needs browser storage enabled to work.")
+	}
+
+	window.location.assign(data.authorize_url)
+}
+
+/**
+ * Step 4: verify the callback and trade the code for an API token.
+ *
+ * The state comparison is what stops login CSRF — an attacker can craft a
+ * callback URL but cannot write to this tab's sessionStorage, so a forged
+ * callback has nothing to match against.
+ */
+export async function completeSocialLogin(
+	provider: string,
+	code: string,
+	state: string
+): Promise<void> {
+	const pending = takePendingLogin()
+
+	if (
+		!pending ||
+		!isSocialProvider(provider) ||
+		pending.provider !== provider ||
+		pending.state !== state ||
+		!code
+	) {
+		throw new ApiError("This sign-in link is no longer valid. Please try again.")
+	}
+
+	const response = await fetch(`${API_URL}/auth/social`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ provider, code, state })
+	})
+
+	if (!response.ok) {
+		throw new ApiError("Could not complete sign in. Please try again.")
+	}
+
+	const data = (await response.json()) as { token?: string }
+	if (!data.token) {
+		throw new ApiError("Could not complete sign in. Please try again.")
+	}
+
+	localStorage.setItem("authToken", data.token)
+}

@@ -133,10 +133,10 @@ export const HomePage = () => {
 								Open the Calculator
 							</Link>
 							<Link
-								to="/register"
+								to="/login"
 								className="rounded-lg border border-gray-600 px-5 py-2 font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-800"
 							>
-								Create an account
+								Sign in to save a plan
 							</Link>
 						</div>
 					</motion.section>

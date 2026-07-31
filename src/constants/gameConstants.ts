@@ -101,8 +101,9 @@ export const PULL_COST_CARATS = 150
 
 /**
  * Carat cost of a single "discounted paid pull" — a once-per-day option that
- * spends PAID carats only. Modeled as one discounted pull per active banner day
- * (see useBannerResources / applyPullStrategy).
+ * spends PAID carats only. Modeled as one discounted pull per day of the
+ * banner's window, counted from the banner's start regardless of how much of
+ * the window has already elapsed (see useBannerResources / applyPullStrategy).
  */
 export const DISCOUNTED_PULL_COST_CARATS = 50
 
