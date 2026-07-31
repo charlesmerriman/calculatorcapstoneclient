@@ -15,6 +15,8 @@ import {
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import PredictedBadge from "../PredictedBadge"
+import { bannerKey, plannedBannerKey } from "../../utils/bannerHelpers"
+import type { BannerKey } from "../../utils/bannerHelpers"
 import type {
 	ChampionsMeeting,
 	LeagueOfHeroes,
@@ -196,11 +198,14 @@ export const Timeline = () => {
 
 	const today = new Date()
 
-	// Set of banner IDs already on the planner sheet — used for duplicate checks and button state.
-	const plannedBannerIds = new Set(
+	// Keys of banners already on the planner sheet — used for duplicate checks and button state.
+	// Keyed by type+id, never by bare id: uma and support banners have independent
+	// primary keys, so a bare id would make an uma banner block its same-date
+	// support counterpart (see plannedBannerKey).
+	const plannedBannerKeys = new Set(
 		userPlannedBannerData
-			.map((b) => b.banner_uma?.id ?? b.banner_support?.id)
-			.filter((id): id is number => id !== undefined)
+			.map(plannedBannerKey)
+			.filter((key): key is BannerKey => key !== null)
 	)
 
 	// Banners nested inside BannerTimelineForViewing have banner_timeline omitted by the API serializer.
@@ -379,8 +384,8 @@ export const Timeline = () => {
 
 					const umaExpired     = !umaBanner     || new Date(bannerEvent.end_date) <= today
 					const supportExpired = !supportBanner || new Date(bannerEvent.end_date) <= today
-					const umaPlanned     = umaBanner     ? plannedBannerIds.has(umaBanner.id)                    : false
-					const supportPlanned = supportBanner ? plannedBannerIds.has(supportBanner.id)                : false
+					const umaPlanned     = umaBanner     ? plannedBannerKeys.has(bannerKey("Uma", umaBanner.id))         : false
+					const supportPlanned = supportBanner ? plannedBannerKeys.has(bannerKey("Support", supportBanner.id)) : false
 					const umaStaged      = umaBanner     ? stagedBanners.some((b) => b.banner_uma?.id === umaBanner.id)         : false
 					const supportStaged  = supportBanner ? stagedBanners.some((b) => b.banner_support?.id === supportBanner.id) : false
 					const umaStatus = getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)

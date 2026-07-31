@@ -5,6 +5,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { useBannerResources } from "../../hooks/useBannerResources"
+import { plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
 export const CaratCalculator: React.FC = () => {
@@ -82,10 +83,15 @@ export const CaratCalculator: React.FC = () => {
 			toast.error("Please select a banner before adding it to the sheet.")
 			return
 		}
-		const stagedId = banner.banner_uma?.id ?? banner.banner_support?.id
-		const isDuplicate = userPlannedBannerData.some(
-			(b) => (b.banner_uma?.id ?? b.banner_support?.id) === stagedId
-		)
+		// Compare by type+id, never by bare id — uma and support banners have
+		// independent primary keys, so a bare id would reject the same-date support
+		// counterpart of an already-planned uma banner (see plannedBannerKey).
+		// The null guard matters here too: two rows with no banner selected are not
+		// duplicates of each other.
+		const stagedKey = plannedBannerKey(banner)
+		const isDuplicate =
+			stagedKey !== null &&
+			userPlannedBannerData.some((b) => plannedBannerKey(b) === stagedKey)
 		if (isDuplicate) {
 			toast.error("This banner is already on your sheet.")
 			return

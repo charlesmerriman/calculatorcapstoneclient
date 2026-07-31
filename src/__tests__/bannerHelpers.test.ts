@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { applyPullStrategy, getPullCountStatus } from '../utils/bannerHelpers'
+import {
+  applyPullStrategy,
+  bannerKey,
+  getPullCountStatus,
+  plannedBannerKey,
+} from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
+import type { BannerSupport, BannerUma } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -174,5 +180,83 @@ describe('getPullCountStatus', () => {
   it('flags any pulls on an ended banner, whose bound is 0', () => {
     expect(getPullCountStatus(1, 0)).toBe('over')
     expect(getPullCountStatus(0, 0)).toBe('neutral')
+  })
+})
+
+// ── bannerKey / plannedBannerKey ──────────────────────────────────────────────
+
+describe('bannerKey / plannedBannerKey', () => {
+  // The seed data populates BannerUma and BannerSupport in lockstep, so an uma
+  // banner and a support banner sharing an id usually also share a
+  // BannerTimeline — and therefore a date. These two stand in for that pairing.
+  const timeline = {
+    id: 1,
+    name: 'Shared Window',
+    start_date: '2099-01-01T22:00:00Z',
+    end_date: '2099-02-01T21:59:59Z',
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: '2099-01-01T22:00:00Z',
+    global_end_date: '2099-02-01T21:59:59Z',
+    image: '',
+  }
+
+  const umaBanner: BannerUma = {
+    id: 1,
+    banner_timeline: timeline,
+    name: 'Uma Banner',
+    admin_comments: '',
+    umas: [],
+    free_pulls: 0,
+  }
+
+  const supportBanner: BannerSupport = {
+    id: 1,
+    banner_timeline: timeline,
+    name: 'Support Banner',
+    admin_comments: '',
+    support_cards: [],
+    free_pulls: 0,
+  }
+
+  it('never collides an uma banner with a support banner of the same id', () => {
+    // The whole reason this key exists. BannerUma and BannerSupport are separate
+    // tables with independent autoincrement PKs, so id alone is ambiguous.
+    expect(bannerKey('Uma', 1)).not.toBe(bannerKey('Support', 1))
+  })
+
+  it('is stable for the same type and id', () => {
+    expect(bannerKey('Uma', 7)).toBe(bannerKey('Uma', 7))
+    expect(bannerKey('Support', 7)).toBe(bannerKey('Support', 7))
+  })
+
+  it('distinguishes different ids within a type', () => {
+    expect(bannerKey('Uma', 1)).not.toBe(bannerKey('Uma', 2))
+  })
+
+  it('keys a planned row by whichever banner it holds', () => {
+    expect(plannedBannerKey({ banner_uma: umaBanner })).toBe(bannerKey('Uma', 1))
+    expect(plannedBannerKey({ banner_support: supportBanner })).toBe(
+      bannerKey('Support', 1)
+    )
+  })
+
+  it('gives same-date uma and support rows distinct keys', () => {
+    // The regression: planning the uma banner must not mark the support banner
+    // from the same window as already planned.
+    const planned = [{ banner_uma: umaBanner }, { banner_support: supportBanner }]
+    const keys = new Set(planned.map(plannedBannerKey))
+    expect(keys.size).toBe(2)
+  })
+
+  it('still catches a genuine same-type duplicate', () => {
+    expect(plannedBannerKey({ banner_uma: umaBanner })).toBe(
+      plannedBannerKey({ banner_uma: { ...umaBanner } })
+    )
+  })
+
+  it('returns null for a row with no banner selected yet', () => {
+    expect(plannedBannerKey({})).toBeNull()
   })
 })

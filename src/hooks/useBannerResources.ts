@@ -14,13 +14,16 @@ import {
 	DAILY_CARAT_PACK_PER_DAY,
 	DAILY_CARAT_PACK_PAID_CARATS,
 	DAILY_CARAT_PACK_CYCLE_DAYS,
-	MISC_EARNINGS_PER_CYCLE,
-	MISC_EARNINGS_CYCLE_DAYS,
+	MISC_EARNINGS_PER_DAY,
+	MISC_EARNINGS_DELAY_DAYS,
 	FIFTY_DAY_LOGIN_PER_CYCLE,
 	FIFTY_DAY_LOGIN_CYCLE_DAYS,
 	VALENTINES_CARATS,
 	VALENTINES_MONTH,
 	VALENTINES_DAY,
+	WHITE_DAY_CARATS,
+	WHITE_DAY_MONTH,
+	WHITE_DAY_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
@@ -31,7 +34,8 @@ import {
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
 	countDaysInWindow,
-	getThroughoutCaratsInWindow,
+	countDaysAfterDelay,
+	sumRemainingThroughoutCarats,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import { applyPullStrategy } from "../utils/bannerHelpers"
@@ -120,13 +124,26 @@ export function useBannerResources({
 		// Anchor the whole projection to the START of today (local midnight),
 		// computed once. Using a live `new Date()` here meant every recompute
 		// (add/remove a banner, edit a stat, autosave round-trip) grabbed a
-		// slightly later instant, so any event's front-loaded `carats_throughout`
-		// — the only fractional income source — had "melted" a few more seconds
-		// and credited a hair less, drifting the estimates down by ~1/100th of a
-		// carat each update. A stable start-of-day makes recomputes on the same
-		// calendar day produce identical numbers.
+		// slightly later instant, so any income measured in elapsed time had
+		// "melted" a few more seconds, drifting the estimates on every update.
+		// A stable start-of-day makes recomputes on the same calendar day
+		// produce identical numbers.
 		const today = startOfDay(new Date())
+
+		// The throughout filter needs the current UTC DATE, which is not the same
+		// thing. `today` above is LOCAL midnight, and for anyone east of Greenwich
+		// that instant still falls on the PREVIOUS UTC day — which would hand them
+		// an extra day's worth of undecayed carats for most of their day. The raw
+		// instant carries the right UTC date, and passing it live is safe here
+		// because the result is quantised to whole UTC days and then rounded to
+		// the nearest 10, so it cannot drift between recomputes.
+		const nowUtc = new Date()
+
 		let lastEndDate = today
+		// Throughout carats already credited by an earlier checkpoint. They are
+		// tracked separately from `lastEndDate` because their filter is absolute
+		// rather than window-tiled — see where this is used below.
+		let creditedThroughout = 0
 
 		// Pre-parse all event/meeting/LoH dates once so we don't reconstruct
 		// Date objects on every iteration of the inner loops.
@@ -204,12 +221,23 @@ export function useBannerResources({
 					umaTickets += ge.uma_ticket_amount
 					supportTickets += ge.support_ticket_amount
 				}
-				freeCarats += getThroughoutCaratsInWindow(
-					{ carats_throughout: ge.carats_throughout, start_date: ge.parsedStart, end_date: ge.parsedEnd },
-					lastEndDate,
-					endDate
-				)
 			}
+
+			// Throughout carats are the one income that does NOT tile window by
+			// window: each event's contribution is fixed as of today, and the
+			// filter that decides which banners can reach it runs absolutely from
+			// today rather than from the previous checkpoint (see
+			// sumRemainingThroughoutCarats). So take the running total at this
+			// checkpoint and credit only what it added over the last one. The
+			// qualifying set only grows as the cursor advances, so this delta is
+			// never negative.
+			const throughoutToDate = sumRemainingThroughoutCarats(
+				parsedGameEvents,
+				nowUtc,
+				endDate
+			)
+			freeCarats += throughoutToDate - creditedThroughout
+			creditedThroughout = throughoutToDate
 
 			for (const meet of parsedMeetings) {
 				if (meet.parsedDate > lastEndDate && meet.parsedDate <= endDate) {
@@ -238,9 +266,10 @@ export function useBannerResources({
 			// The pack's second half: each repurchase grants a 500 PAID carat
 			// lump. The daily drip above is ordinary earned currency, but this
 			// is bought — so it goes to the paid balance, where it can fund
-			// discounted pulls. It uses the same rolling-cycle machinery as misc
-			// earnings (anchored to `today`, first payout on day 30), so the
-			// payout instants are absolute and the banner windows still tile.
+			// discounted pulls. It uses the same rolling-cycle machinery as the
+			// 50-day login bonus (anchored to `today`, first payout on day 30),
+			// so the payout instants are absolute and the banner windows still
+			// tile.
 			if (userStatsData.daily_carat) {
 				paidCarats +=
 					DAILY_CARAT_PACK_PAID_CARATS *
@@ -256,27 +285,28 @@ export function useBannerResources({
 			freeCarats += calculateDailyIncome(lastEndDate, endDate, referenceDate)
 
 			// Misc earnings (gifts, team trials, careers) is a flat approximation
-			// gated behind the user's toggle. It accrues on a rolling 30-day
-			// cycle anchored to `today` rather than on month boundaries: the
-			// first payout lands 30 days out, so a banner ending sooner than
-			// that earns none of it. Anchoring to `today` (not to lastEndDate)
-			// keeps the schedule identical no matter how the timeline is sliced
-			// into banner windows.
+			// gated behind the user's toggle. It drips DAILY rather than landing
+			// as a periodic lump, but only after a 30-day ramp-in counted from
+			// `today`: days 1..30 earn nothing, then every day earns 60. A banner
+			// ending inside the ramp-in still gets none of it. Anchoring to
+			// `today` (not to lastEndDate) keeps the drip's start instant
+			// absolute, so the day counts tile no matter how the timeline is
+			// sliced into banner windows.
 			if (userStatsData.misc_earnings) {
 				freeCarats +=
-					MISC_EARNINGS_PER_CYCLE *
-					calculateIntervalOccurrences(
+					MISC_EARNINGS_PER_DAY *
+					countDaysAfterDelay(
 						lastEndDate,
 						endDate,
 						today,
-						MISC_EARNINGS_CYCLE_DAYS
+						MISC_EARNINGS_DELAY_DAYS
 					)
 			}
 
-			// The 50-day login campaign is universal (no toggle) and runs on the
-			// same rolling-cycle machinery as misc earnings above: anchored to
-			// `today`, so the first payout lands 50 days out and a banner ending
-			// sooner earns none of it.
+			// The 50-day login campaign is universal (no toggle) and pays as a
+			// lump on a rolling cycle anchored to `today` (unlike misc earnings
+			// above, which drips daily), so the first payout lands 50 days out
+			// and a banner ending sooner earns none of it.
 			freeCarats +=
 				FIFTY_DAY_LOGIN_PER_CYCLE *
 				calculateIntervalOccurrences(
@@ -286,9 +316,9 @@ export function useBannerResources({
 					FIFTY_DAY_LOGIN_CYCLE_DAYS
 				)
 
-			// Valentine's Day gift — a fixed calendar date rather than a rolling
-			// cycle, so it uses absolute annual occurrences (like the 1st-of-month
-			// incomes) instead of an anchor.
+			// Valentine's Day and White Day gifts — fixed calendar dates rather
+			// than rolling cycles, so they use absolute annual occurrences (like
+			// the 1st-of-month incomes) instead of an anchor.
 			freeCarats +=
 				VALENTINES_CARATS *
 				calculateAnnualDateOccurrences(
@@ -296,6 +326,14 @@ export function useBannerResources({
 					endDate,
 					VALENTINES_MONTH,
 					VALENTINES_DAY
+				)
+			freeCarats +=
+				WHITE_DAY_CARATS *
+				calculateAnnualDateOccurrences(
+					lastEndDate,
+					endDate,
+					WHITE_DAY_MONTH,
+					WHITE_DAY_DAY
 				)
 
 			// Monthly shop tickets: a fixed uma/support ticket bundle buyable

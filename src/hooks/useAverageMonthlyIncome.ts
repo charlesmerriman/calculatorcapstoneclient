@@ -9,13 +9,16 @@ import {
 	DAILY_CARAT_PACK_PER_DAY,
 	DAILY_CARAT_PACK_PAID_CARATS,
 	DAILY_CARAT_PACK_CYCLE_DAYS,
-	MISC_EARNINGS_PER_CYCLE,
-	MISC_EARNINGS_CYCLE_DAYS,
+	MISC_EARNINGS_PER_DAY,
+	MISC_EARNINGS_DELAY_DAYS,
 	FIFTY_DAY_LOGIN_PER_CYCLE,
 	FIFTY_DAY_LOGIN_CYCLE_DAYS,
 	VALENTINES_CARATS,
 	VALENTINES_MONTH,
 	VALENTINES_DAY,
+	WHITE_DAY_CARATS,
+	WHITE_DAY_MONTH,
+	WHITE_DAY_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 } from "../constants/gameConstants"
@@ -25,7 +28,8 @@ import {
 	calculateMonthlyOccurrences,
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
-	getThroughoutCaratsInWindow,
+	countDaysAfterDelay,
+	sumRemainingThroughoutCarats,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import type {
@@ -108,8 +112,12 @@ export function useAverageMonthlyIncome({
 				ssrShards += ge.ssr_shard_amount
 				srShards += ge.sr_shard_amount
 			}
-			carats += getThroughoutCaratsInWindow(ge, start, end)
 		}
+
+		// `start` is today here, so the absolute filter total IS this window's
+		// throughout income — no delta needed (unlike useBannerResources, which
+		// carries one balance across several checkpoints).
+		carats += sumRemainingThroughoutCarats(gameEventsData, start, end)
 
 		// Champions Meeting payouts
 		for (const meet of championsMeetingData) {
@@ -153,13 +161,13 @@ export function useAverageMonthlyIncome({
 		carats += (userTeamTrialsRank?.income_amount ?? 0) * mondays
 		carats += calculateDailyIncome(start, end, referenceDate)
 
-		// Misc earnings (toggle-gated): a rolling 30-day cycle anchored to the
-		// window start (= today), so the first payout falls on day 30 and the
-		// first 30 days earn none of it. See useBannerResources.
+		// Misc earnings (toggle-gated): a daily drip that starts after a 30-day
+		// ramp-in counted from the window start (= today), so the first 30 days
+		// earn none of it and every day after earns 60. See useBannerResources.
 		if (userStatsData.misc_earnings) {
 			carats +=
-				MISC_EARNINGS_PER_CYCLE *
-				calculateIntervalOccurrences(start, end, start, MISC_EARNINGS_CYCLE_DAYS)
+				MISC_EARNINGS_PER_DAY *
+				countDaysAfterDelay(start, end, start, MISC_EARNINGS_DELAY_DAYS)
 		}
 
 		// 50-day login campaign (universal): same rolling-cycle treatment,
@@ -168,14 +176,18 @@ export function useAverageMonthlyIncome({
 			FIFTY_DAY_LOGIN_PER_CYCLE *
 			calculateIntervalOccurrences(start, end, start, FIFTY_DAY_LOGIN_CYCLE_DAYS)
 
-		// Valentine's Day gift. Note this only contributes when the fixed
-		// WINDOW_MONTHS window happens to span February 14 — the averaged figure
-		// therefore rises when the window covers it and is absent otherwise,
-		// which is inherent to averaging a fixed forward window over incomes that
-		// only occur once a year.
+		// Valentine's Day and White Day gifts. Note these only contribute when
+		// the fixed WINDOW_MONTHS window happens to span February 14 / March 14 —
+		// the averaged figure therefore rises when the window covers them and is
+		// absent otherwise, which is inherent to averaging a fixed forward window
+		// over incomes that only occur once a year. The two dates are a month
+		// apart, so a 5-month window usually picks up both or neither.
 		carats +=
 			VALENTINES_CARATS *
 			calculateAnnualDateOccurrences(start, end, VALENTINES_MONTH, VALENTINES_DAY)
+		carats +=
+			WHITE_DAY_CARATS *
+			calculateAnnualDateOccurrences(start, end, WHITE_DAY_MONTH, WHITE_DAY_DAY)
 
 		// Monthly shop tickets: fixed uma/support bundle each month (no carat cost).
 		if (userStatsData.monthly_shop_tickets) {

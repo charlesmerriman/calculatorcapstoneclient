@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getTrainingPassIncome, calculateDayOfMonthOccurrences, calculateMonthlyOccurrences, calculateAnnualDateOccurrences, countDaysInWindow } from '../utils/incomeCalculationUtils'
+import { getTrainingPassIncome, calculateDayOfMonthOccurrences, calculateMonthlyOccurrences, calculateAnnualDateOccurrences, countDaysInWindow, countDaysAfterDelay } from '../utils/incomeCalculationUtils'
 import {
   TRAINING_PASS_START_DATE,
   TRAINING_PASS_REWARD_DAY,
@@ -192,5 +192,66 @@ describe('countDaysInWindow', () => {
     const d = new Date(2026, 7, 10, 12, 0, 0)
     expect(countDaysInWindow(d, d)).toBe(0)
     expect(countDaysInWindow(d, new Date(2026, 7, 6, 12, 0, 0))).toBe(0)
+  })
+})
+
+describe('countDaysAfterDelay', () => {
+  // Drives misc earnings: a daily drip that only starts after a ramp-in period
+  // counted from an anchor outside the window (today, in practice).
+  const anchor = new Date(2026, 6, 31, 0, 0, 0) // 31 Jul 2026, local midnight
+  const DELAY = 30
+  // The drip's first EARNING day is the day after this instant, since the
+  // window it feeds is half-open: (anchor + 30, end].
+  const dripStarts = new Date(2026, 7, 30, 0, 0, 0) // 30 Aug 2026
+
+  it('counts nothing while the whole window sits inside the ramp-in', () => {
+    const end = new Date(2026, 7, 25, 21, 59, 59) // day 25
+    expect(countDaysAfterDelay(anchor, end, anchor, DELAY)).toBe(0)
+  })
+
+  it('counts nothing on the ramp-in boundary day itself', () => {
+    // Day 30 closes the ramp-in; the first 60 carats land on day 31.
+    expect(countDaysAfterDelay(anchor, dripStarts, anchor, DELAY)).toBe(0)
+  })
+
+  it('counts only the days past the ramp-in', () => {
+    const end = new Date(2026, 8, 19, 21, 59, 59) // 19 Sep = day 50
+    // Days 31..50 inclusive.
+    expect(countDaysAfterDelay(anchor, end, anchor, DELAY)).toBe(20)
+  })
+
+  it('adds exactly one day per extra day once the drip is running', () => {
+    // The whole point of the change: no clumping. Every additional calendar day
+    // past the ramp-in is worth the same, so an estimate can never jump.
+    const a = new Date(2026, 8, 19, 21, 59, 59)
+    const b = new Date(2026, 8, 20, 21, 59, 59)
+    const c = new Date(2026, 8, 21, 21, 59, 59)
+    const at = (end: Date) => countDaysAfterDelay(anchor, end, anchor, DELAY)
+
+    expect(at(b) - at(a)).toBe(1)
+    expect(at(c) - at(b)).toBe(1)
+  })
+
+  it('tiles across slices, wherever the ramp-in boundary falls', () => {
+    // The property the projection depends on. The clamp point is absolute, so
+    // slicing a window at any point — before, on, or after the boundary — must
+    // give the same total.
+    const edges = [
+      anchor,
+      new Date(2026, 7, 12, 21, 59, 59), // inside the ramp-in
+      dripStarts,                        // exactly on the boundary
+      new Date(2026, 8, 8, 17, 11, 59),  // after it
+      new Date(2026, 9, 3, 7, 35, 59),
+    ]
+    const sliced = edges
+      .slice(1)
+      .reduce((sum, edge, i) => sum + countDaysAfterDelay(edges[i], edge, anchor, DELAY), 0)
+
+    expect(sliced).toBe(countDaysAfterDelay(edges[0], edges.at(-1)!, anchor, DELAY))
+  })
+
+  it('returns 0 for a backwards window rather than a negative', () => {
+    const end = new Date(2026, 8, 19, 0, 0, 0)
+    expect(countDaysAfterDelay(end, new Date(2026, 8, 1, 0, 0, 0), anchor, DELAY)).toBe(0)
   })
 })
