@@ -1,109 +1,115 @@
-import { useForm } from "react-hook-form"
-import { userLogin } from "../../services/userServices"
-import { Link, useNavigate } from "react-router-dom"
+import { useState } from "react"
 import type React from "react"
+import { Link } from "react-router-dom"
 import { Footer } from "../footer/Footer"
 import { readGuestPlanStash } from "../../services/guestMigration"
+import { startSocialLogin, type SocialProvider } from "../../services/socialAuth"
+import { ApiError } from "../../services/userServices"
 
-interface LoginFormData {
-	username: string
-	password: string
-}
+/** Google's four-colour "G". Inline because a strict CSP blocks remote assets
+ *  and lucide-react (our icon set) deliberately ships no brand marks. */
+const GoogleMark: React.FC = () => (
+	<svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true" focusable="false">
+		<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+		<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+		<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+		<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+	</svg>
+)
 
-const inputCls =
-	"w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2.5 " +
-	"text-sm text-gray-100 focus:border-brand focus:outline-none transition"
-
-const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5"
+const DiscordMark: React.FC = () => (
+	<svg viewBox="0 0 127.14 96.36" className="h-5 w-5" fill="currentColor" aria-hidden="true" focusable="false">
+		<path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+	</svg>
+)
 
 export const Login: React.FC = () => {
-	const {
-		register,
-		handleSubmit,
-		setError,
-		formState: { errors, isSubmitting }
-	} = useForm<LoginFormData>()
-	const navigate = useNavigate()
+	// Which provider is mid-redirect, so only that button shows a pending state.
+	const [pendingProvider, setPendingProvider] = useState<SocialProvider | null>(null)
+	const [error, setError] = useState<string | null>(null)
 
-	const handleLoginSubmit = async (data: LoginFormData): Promise<void> => {
+	// Called during render (as before) — safe because readGuestPlanStash only
+	// clears entries that are already expired or malformed.
+	const hasGuestPlan = !!readGuestPlanStash()
+
+	const handleSignIn = async (provider: SocialProvider): Promise<void> => {
+		setError(null)
+		setPendingProvider(provider)
 		try {
-			await userLogin(data)
-			navigate("/app")
-		} catch {
-			setError("root", { message: "Invalid username or password." })
+			// On success the browser navigates away and nothing below runs.
+			await startSocialLogin(provider)
+		} catch (e: unknown) {
+			setError(
+				e instanceof ApiError
+					? e.message
+					: "Could not start sign in. Please try again."
+			)
+			setPendingProvider(null)
 		}
 	}
 
+	const buttonBase =
+		"flex w-full items-center justify-center gap-3 rounded-lg py-2.5 text-sm font-semibold " +
+		"transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+
 	return (
 		<div className="flex min-h-screen flex-col bg-gray-900 p-4">
-			<div className="m-auto w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+			<div className="m-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gray-700 bg-gray-800 shadow-2xl">
 				{/* Brand header strip */}
-				<div className="border-b border-gray-700 px-8 py-4 flex justify-center">
+				<div className="flex justify-center border-b border-gray-700 px-8 py-4">
 					<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-28 w-auto" />
 				</div>
 
 				<div className="px-8 py-7">
-					<h2 className="text-xl font-semibold text-gray-100 mb-6">Sign In</h2>
+					<h2 className="mb-6 text-xl font-semibold text-gray-100">Sign In</h2>
 
 					{/* Shown when the user arrived via "Sign in to save" with a guest plan pending migration */}
-					{readGuestPlanStash() && (
-						<div className="mb-5 px-3 py-2.5 bg-brand/10 border border-brand/30 rounded-lg">
-							<p className="text-brand text-sm">
+					{hasGuestPlan && (
+						<div className="mb-5 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2.5">
+							<p className="text-sm text-brand">
 								Your current plan will be saved to your account after you sign in.
 							</p>
 						</div>
 					)}
 
-					<form onSubmit={handleSubmit(handleLoginSubmit)} noValidate>
-						<div className="mb-4">
-							<label htmlFor="username" className={labelCls}>Username</label>
-							<input
-								type="text"
-								id="username"
-								{...register("username", { required: "Username is required." })}
-								autoComplete="username"
-								className={inputCls}
-							/>
-							{errors.username && (
-								<p className="text-red-400 text-xs mt-1.5">{errors.username.message}</p>
-							)}
+					{error && (
+						<div
+							role="alert"
+							className="mb-5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5"
+						>
+							<p className="text-sm text-red-400">{error}</p>
 						</div>
+					)}
 
-						<div className="mb-6">
-							<label htmlFor="password" className={labelCls}>Password</label>
-							<input
-								type="password"
-								id="password"
-								{...register("password", { required: "Password is required." })}
-								autoComplete="current-password"
-								className={inputCls}
-							/>
-							{errors.password && (
-								<p className="text-red-400 text-xs mt-1.5">{errors.password.message}</p>
-							)}
-						</div>
-
-						{errors.root && (
-							<div className="mb-5 px-3 py-2.5 bg-red-500/10 border border-red-500/30 rounded-lg">
-								<p className="text-red-400 text-sm">{errors.root.message}</p>
-							</div>
-						)}
+					<div className="flex flex-col gap-3">
+						<button
+							type="button"
+							onClick={() => void handleSignIn("google")}
+							disabled={pendingProvider !== null}
+							className={`${buttonBase} bg-white text-[#1f1f1f] hover:bg-gray-100`}
+						>
+							<GoogleMark />
+							{pendingProvider === "google" ? "Redirecting…" : "Continue with Google"}
+						</button>
 
 						<button
-							type="submit"
-							disabled={isSubmitting}
-							className="w-full py-2.5 rounded-lg font-bold text-sm bg-brand text-black
-								hover:bg-brand/85 transition cursor-pointer
-								disabled:opacity-50 disabled:cursor-not-allowed"
+							type="button"
+							onClick={() => void handleSignIn("discord")}
+							disabled={pendingProvider !== null}
+							className={`${buttonBase} bg-[#5865F2] text-white hover:bg-[#4752C4]`}
 						>
-							{isSubmitting ? "Signing in…" : "Sign In"}
+							<DiscordMark />
+							{pendingProvider === "discord" ? "Redirecting…" : "Continue with Discord"}
 						</button>
-					</form>
+					</div>
 
-					<p className="text-center text-sm text-gray-500 mt-6">
-						Don't have an account?{" "}
-						<Link to="/register" className="text-brand hover:text-brand/75 transition font-medium">
-							Create one
+					{/* The point of the whole flow — worth saying out loud, since
+					    "sign in with Google" usually implies handing over an email. */}
+					<p className="mt-6 text-center text-xs leading-relaxed text-gray-500">
+						We never see your password, and we don't store your email address or
+						name — only an anonymous ID from your provider.{" "}
+						<Link to="/privacy-policy" className="text-gray-400 underline hover:text-gray-300">
+							Privacy policy
 						</Link>
 					</p>
 				</div>
