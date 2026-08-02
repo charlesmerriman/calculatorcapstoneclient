@@ -4,6 +4,7 @@ import { Toaster } from "sonner"
 import { ApplicationViews } from "./views/ApplicationViews.js"
 import { Login } from "./components/auth/Login.js"
 import { OAuthCallback } from "./components/auth/OAuthCallback.js"
+import { BetaGate } from "./components/auth/BetaGate.js"
 import { CalculatorProvider } from "./services/CalculatorProvider.js"
 import { ErrorBoundary } from "./components/ErrorBoundary.js"
 import { ThemeProvider } from "./services/ThemeProvider.js"
@@ -30,13 +31,23 @@ function App() {
 					<Route path="/faq" element={<Faq />} />
 					<Route path="/feedback" element={<Feedback />} />
 					{/* Public since guest mode: the calculator works without an
-					    account; logging in is only needed to save a plan. */}
+					    account; logging in is only needed to save a plan.
+
+					    BetaGate is the closed-beta passcode wall, and it sits
+					    OUTSIDE CalculatorProvider so no API fetch fires before
+					    the passcode is accepted. It renders its children
+					    untouched once VITE_BETA_PASSCODE_HASH is unset, so
+					    retiring the beta means deleting that variable — and
+					    deleting this wrapper plus its import when you want the
+					    code gone too. */}
 					<Route
 						path="/app/*"
 						element={
-							<CalculatorProvider>
-								<ApplicationViews />
-							</CalculatorProvider>
+							<BetaGate>
+								<CalculatorProvider>
+									<ApplicationViews />
+								</CalculatorProvider>
+							</BetaGate>
 						}
 					/>
 					{/* Redirect any unmatched path to the home page */}
