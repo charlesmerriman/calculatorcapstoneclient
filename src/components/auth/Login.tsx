@@ -2,6 +2,7 @@ import { useState } from "react"
 import type React from "react"
 import { Link } from "react-router-dom"
 import { Footer } from "../footer/Footer"
+import { Wordmark } from "../Wordmark"
 import { readGuestPlanStash } from "../../services/guestMigration"
 import { startSocialLogin, type SocialProvider } from "../../services/socialAuth"
 import { ApiError } from "../../services/userServices"
@@ -57,7 +58,7 @@ export const Login: React.FC = () => {
 			<div className="m-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gray-700 bg-gray-800 shadow-2xl">
 				{/* Brand header strip */}
 				<div className="flex justify-center border-b border-gray-700 px-8 py-4">
-					<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-28 w-auto" />
+					<Wordmark size="card" />
 				</div>
 
 				<div className="px-8 py-7">

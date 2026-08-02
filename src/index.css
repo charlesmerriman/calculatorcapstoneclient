@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 @theme {
+	/* Display face for the brand wordmark only — body text stays on the default
+	   system stack. The font itself is imported in main.tsx (@fontsource-variable),
+	   so it is bundled rather than fetched from a CDN. Exposed as a theme token so
+	   it compiles to the `font-display` utility class. */
+	--font-display: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+
 	--color-brand: #E6D28A;
 	--color-gray-50:  #f7f7fa;
 	--color-gray-100: #eeeeef;

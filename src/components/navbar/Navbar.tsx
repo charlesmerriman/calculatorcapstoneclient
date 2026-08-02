@@ -7,6 +7,7 @@ import { userLogout } from "../../services/userServices"
 import { toBannerPayload } from "../../services/calculatorFetchCalls"
 import { stashGuestPlan } from "../../services/guestMigration"
 import { IncomeForm } from "../carat-calculator/IncomeForm"
+import { Wordmark } from "../Wordmark"
 import { ThemePicker } from "./ThemePicker"
 import { SettingsMenu } from "./SettingsMenu"
 
@@ -112,11 +113,7 @@ export const Navbar = () => {
 		}`
 
 	// Shared logo element used in both mobile and desktop navs
-	const logo = (
-		<Link to="/">
-			<img src="/s-blob-v1-IMAGE-uNksC9QIwoUwerewrewrew.png" alt="Henry Handsome Derby" className="h-12 w-auto" />
-		</Link>
-	)
+	const logo = <Wordmark size="nav" />
 
 	// Guest affordance shown in app mode instead of the save icon + Logout.
 	// Passive by design — it never interrupts planning.
