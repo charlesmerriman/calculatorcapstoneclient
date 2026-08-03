@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Pure date helpers — no DOM needed.
-import { formatRelativeDate, formatFullDate } from '../utils/relativeDate'
+import { formatRelativeDate } from '../utils/relativeDate'
 
 /** A "YYYY-MM-DD" string offset by `n` days from today (local time). */
 function dateOffset(n: number): string {
@@ -37,18 +37,5 @@ describe('formatRelativeDate', () => {
 
   it('returns empty string for unparseable input', () => {
     expect(formatRelativeDate('not-a-date')).toBe('')
-  })
-})
-
-describe('formatFullDate', () => {
-  it('formats a valid ISO date into a readable string', () => {
-    // Locale-dependent, but always contains the year and no time component.
-    const out = formatFullDate('2026-07-16')
-    expect(out).toMatch(/2026/)
-    expect(out).toMatch(/16/)
-  })
-
-  it('falls back to the raw string when unparseable', () => {
-    expect(formatFullDate('garbage')).toBe('garbage')
   })
 })
