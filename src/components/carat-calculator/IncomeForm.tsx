@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import Select from "react-select"
 import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select"
-import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Gem, Dumbbell, Ticket, Star, Sparkles } from "lucide-react"
+import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Carrot, Dumbbell, Ticket, Star, Sparkles } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
@@ -122,7 +122,7 @@ export const IncomeForm = () => {
 	)
 
 	const monthlyItems = [
-		{ label: "Carats", value: monthlyStats.carats, icon: <Gem className={iconCls} /> },
+		{ label: "Carats", value: monthlyStats.carats, icon: <Carrot className={iconCls} /> },
 		{ label: "Uma Tickets", value: monthlyStats.umaTickets, icon: <Ticket className={iconCls} /> },
 		{ label: "Support Tickets", value: monthlyStats.supportTickets, icon: <Ticket className={iconCls} /> },
 		{ label: "SSR Shards", value: monthlyStats.ssrShards, icon: <Star className={iconCls} /> },
@@ -276,7 +276,7 @@ export const IncomeForm = () => {
 								</h3>
 								<div className="flex-1 flex items-center justify-center">
 									<div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-3 sm:w-auto sm:grid-cols-[auto_auto_auto_auto] sm:gap-x-4 sm:gap-y-4">
-										<Gem className="w-8 h-8 shrink-0 text-brand" />
+										<Carrot className="w-8 h-8 shrink-0 text-brand" />
 										<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Daily Carat Pack:</span>
 										<ToggleSwitch
 											ariaLabel="Daily Carat Pack"

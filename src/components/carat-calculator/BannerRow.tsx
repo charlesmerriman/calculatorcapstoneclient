@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
+import { formatDate } from "../../utils/dateFormat"
 import { bannerKey, getFreePulls, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
@@ -200,11 +201,6 @@ export const BannerRow = ({
 	const bannerTimeline =
 		plannedBanner.banner_uma?.banner_timeline ??
 		plannedBanner.banner_support?.banner_timeline
-
-	const formatDate = (dateStr: string): string => {
-		const date = new Date(dateStr)
-		return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-	}
 
 	const bannerSelect = (
 		<Select<BannerOption>

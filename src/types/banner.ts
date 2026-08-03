@@ -25,6 +25,14 @@ export interface BannerTimeline {
 	jp_end_date: string | null
 	global_start_date: string | null
 	global_end_date: string | null
+	// Manual correction applied on top of the prediction, for when global slips
+	// its schedule. `schedule_offset_days` is this row's own value (set in the
+	// Django admin); `applied_offset_days` is the running total — its own plus
+	// every offset earlier in the calendar — already baked into start_date and
+	// end_date above. Both are 0 on confirmed rows. Diagnostic only: the dates
+	// are complete without them.
+	schedule_offset_days: number
+	applied_offset_days: number
 	image: string
 }
 
@@ -81,6 +89,9 @@ export interface BannerTimelineForViewing {
 	jp_end_date: string | null
 	global_start_date: string | null
 	global_end_date: string | null
+	// See BannerTimeline for what these two mean.
+	schedule_offset_days: number
+	applied_offset_days: number
 	// Null when a banner has no art uploaded yet (common for far-future,
 	// still-predicted banners); the DRF ImageField serializes empty as null.
 	image: string | null
