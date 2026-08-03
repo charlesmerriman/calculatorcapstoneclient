@@ -27,6 +27,8 @@ export interface GameEvent {
 	start_date: string | null
 	end_date: string | null
 	is_predicted: boolean
+	// Inherited from the linked banner — a GameEvent has no offset of its own.
+	applied_offset_days: number
 	banner_timeline: number | null
 	carat_amount: number
 	carats_throughout: number
@@ -55,6 +57,9 @@ export interface ChampionsMeeting {
 	jp_end_date: string | null
 	global_start_date: string | null
 	global_end_date: string | null
+	// See BannerTimeline for what these two mean.
+	schedule_offset_days: number
+	applied_offset_days: number
 	// Null when no art is uploaded yet; DRF serializes an empty ImageField as null.
 	image: string | null
 	track: string
@@ -88,5 +93,8 @@ export interface LeagueOfHeroes {
 	jp_end_date: string | null
 	global_start_date: string | null
 	global_end_date: string | null
+	// See BannerTimeline for what these two mean.
+	schedule_offset_days: number
+	applied_offset_days: number
 	image: string | null
 }
