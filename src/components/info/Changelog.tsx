@@ -4,7 +4,7 @@ import { motion } from "framer-motion"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
 import { changelogFetch } from "../../services/changelogFetchCalls"
-import { formatFullDate } from "../../utils/relativeDate"
+import { formatDate } from "../../utils/dateFormat"
 import type { ChangeCategory, ChangelogEntry } from "../../types"
 
 /** Subtle fade/slide-up on mount — matches the motion used elsewhere in the app. */
@@ -111,7 +111,7 @@ export const Changelog: React.FC = () => {
 								<motion.article key={entry.id} {...fadeUp} className={card}>
 									<div className="flex flex-wrap items-center gap-3">
 										<time className="text-sm font-medium text-gray-400">
-											{formatFullDate(entry.date)}
+											{formatDate(entry.date)}
 										</time>
 										{entry.version && (
 											<span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">

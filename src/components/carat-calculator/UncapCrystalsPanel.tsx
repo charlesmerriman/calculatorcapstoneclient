@@ -5,6 +5,7 @@ import { Gem } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useUncapCrystals } from "../../hooks/useUncapCrystals"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
+import { formatDate } from "../../utils/dateFormat"
 import type { BannerTimelineForViewing } from "../../types"
 
 interface DateOption {
@@ -67,7 +68,7 @@ export const UncapCrystalsPanel = () => {
 		.filter((t) => new Date(t.end_date) >= now)
 		.map((t) => ({
 			value: t.end_date,
-			label: new Date(t.end_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }),
+			label: formatDate(t.end_date),
 		}))
 
 	const selectedOption = bannerOptions.find((o) => o.value === selectedEndDate) ?? null
