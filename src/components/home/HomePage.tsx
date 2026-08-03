@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
 import {
-	Gem,
+	Carrot,
 	Trophy,
 	CalendarPlus,
 	Ticket,
@@ -41,7 +41,7 @@ const card = "rounded-xl border border-gray-700 bg-gray-800 p-5 shadow-md"
 // hook expects: resources + income ranks in, pull plan out, projections read back.
 const steps = [
 	{
-		icon: Gem,
+		icon: Carrot,
 		title: "Enter your current resources",
 		body: "Start with the carats, tickets, and other resources you have right now.",
 	},
