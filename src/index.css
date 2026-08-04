@@ -162,6 +162,23 @@
 	--color-gray-950: #030b15;
 }
 
+/* Race Day — a crisp, high-energy dark theme built around racing blue rather
+   than a warm metallic or jewel-tone accent. */
+[data-theme="race-day"] {
+	--color-brand: #7cc8ff;
+	--color-gray-50:  #f5faff;
+	--color-gray-100: #e2f0fc;
+	--color-gray-200: #c4daed;
+	--color-gray-300: #9bbbd5;
+	--color-gray-400: #7896b0;
+	--color-gray-500: #536f89;
+	--color-gray-600: #334a61;
+	--color-gray-700: #1b2b3b;
+	--color-gray-800: #101d2b;
+	--color-gray-900: #07121f;
+	--color-gray-950: #030a12;
+}
+
 [data-theme="violet"] {
 	/* A midnight-violet palette with a clearer surface ladder. The previous
 	   neutral purple ramp made panels read like one uninterrupted dark block. */
@@ -353,6 +370,40 @@
 
 [data-theme="midnight"] .bg-gray-800.border-b {
 	border-color: color-mix(in srgb, var(--color-brand) 14%, var(--color-gray-600));
+}
+
+/* Race Day's cool illumination is deliberately compact: it gives the chrome a
+   confident track-light feel without washing out the calculator's data rows. */
+[data-theme="race-day"] body,
+[data-theme="race-day"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 8% -12%, rgb(14 165 233 / 24%), transparent 30rem),
+		radial-gradient(circle at 96% 4%, rgb(37 99 235 / 15%), transparent 24rem);
+	background-attachment: fixed;
+}
+
+[data-theme="race-day"] .card-panel,
+[data-theme="race-day"] .shadow-md,
+[data-theme="race-day"] .shadow-sm,
+[data-theme="race-day"] .shadow-lg,
+[data-theme="race-day"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 1px 0 rgb(124 200 255 / 6%) inset;
+}
+
+[data-theme="race-day"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 20%, var(--color-gray-600));
+}
+
+[data-theme="race-day"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 16%, var(--color-gray-600));
+}
+
+[data-theme="race-day"] button:focus-visible,
+[data-theme="race-day"] a:focus-visible,
+[data-theme="race-day"] input:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: 2px;
 }
 
 /* Gilded's burnished gold atmosphere stops well short of the content area so

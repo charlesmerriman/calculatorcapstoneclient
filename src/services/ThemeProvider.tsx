@@ -11,6 +11,7 @@ const THEMES: ThemeConfig[] = [
 	{ id: "gold",     label: "Default",  swatch: "#E6D28A" },
 	{ id: "gilded",   label: "Gilded",   swatch: "#f1cf75" },
 	{ id: "midnight", label: "Midnight", swatch: "#F6C84F" },
+	{ id: "race-day", label: "Pace",     swatch: "#7cc8ff" },
 	{ id: "violet",   label: "Violet",   swatch: "#C4B5FD" },
 	{ id: "teal",     label: "Teal",     swatch: "#5EEAD4" },
 	{ id: "light",    label: "Light",    swatch: "#fbf2ed" },
