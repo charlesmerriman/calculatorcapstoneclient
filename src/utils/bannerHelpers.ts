@@ -36,6 +36,29 @@ export interface PullStrategyInput {
 	fullPricePaidPulls: boolean
 }
 
+/**
+ * Decomposition of `maxPossiblePulls` by which resource pays for each pull.
+ * Purely for display — the row shows "Free/Tickets/Paid" so a user can see where
+ * their pulls come from instead of just how many there are.
+ *
+ * Normally these four sum exactly to `maxPossiblePulls`. The one exception is a
+ * carat DEFICIT (negative `freeCarats`, cascaded from over-planning an earlier
+ * banner): each part is clamped at 0 here while the total keeps its own clamp,
+ * so the parts can sum HIGHER than the total. That is deliberate — free pulls
+ * and tickets really are still available; the deficit is a carat debt, and
+ * zeroing the ticket count to make the arithmetic tidy would be a lie.
+ */
+export interface MaxPullBreakdown {
+	/** Free pulls the banner grants. */
+	freePulls: number
+	/** Matching-type tickets available (uma tickets on uma banners, and vice versa). */
+	tickets: number
+	/** Pulls funded by PAID carats: discounted (50 each) + the paid share of full-price. */
+	paidPulls: number
+	/** Pulls funded by FREE carats at full price. */
+	freeCaratPulls: number
+}
+
 export interface PullStrategyResult {
 	/** Balances remaining after actually spending `plannedPulls`. */
 	freeCarats: number
@@ -48,6 +71,8 @@ export interface PullStrategyResult {
 	 * "Max Pulls" display.
 	 */
 	maxPossiblePulls: number
+	/** Where those max pulls come from. See MaxPullBreakdown. */
+	maxPullBreakdown: MaxPullBreakdown
 }
 
 /**
@@ -107,6 +132,25 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 		freePulls + matchingTickets + discountMaxPulls + fullPriceMaxPulls
 	)
 
+	// ── Attributing full-price pulls to free vs paid carats ──────────────────
+	// The full-price pool deliberately merges free and paid carats (see the
+	// doc comment above), so "how many of those pulls did paid carats buy?" has
+	// no answer until we pick a rule. Use the MARGINAL contribution: how many
+	// pulls exist *because* paid carats were added to the pool. That matches the
+	// documented spend order — free carats are spent before full-price paid
+	// carats — and puts the boundary pull (part free remainder, part paid) in
+	// the paid bucket, which is honest: without the paid carats it wouldn't
+	// exist at all.
+	const freeOnlyPulls = Math.floor(input.freeCarats / PULL_COST_CARATS)
+	const maxPullBreakdown: MaxPullBreakdown = {
+		freePulls,
+		tickets: matchingTickets,
+		paidPulls: discountMaxPulls + Math.max(0, fullPriceMaxPulls - freeOnlyPulls),
+		// Clamped because a carat deficit makes freeOnlyPulls negative; see the
+		// deficit note on MaxPullBreakdown.
+		freeCaratPulls: Math.max(0, freeOnlyPulls),
+	}
+
 	// ── Actual spend of plannedPulls ─────────────────────────────────────────
 	let freeCarats = input.freeCarats
 	let paidCarats = input.paidCarats
@@ -155,7 +199,14 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 		freeCarats -= cost
 	}
 
-	return { freeCarats, paidCarats, umaTickets, supportTickets, maxPossiblePulls }
+	return {
+		freeCarats,
+		paidCarats,
+		umaTickets,
+		supportTickets,
+		maxPossiblePulls,
+		maxPullBreakdown,
+	}
 }
 
 /**

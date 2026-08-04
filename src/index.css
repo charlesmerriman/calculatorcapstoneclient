@@ -45,11 +45,23 @@
 	   measured after the page's max-width, margins and borders have taken their
 	   cut, so nobody has to re-derive that arithmetic when the shell changes.
 
-	   The value is the sum of .banner-grid's fixed tracks (908px = 56.75rem) plus
+	   The value is the sum of .banner-grid's fixed tracks (968px = 60.5rem) plus
 	   the MLB column's 14rem floor. ADDING A COLUMN MEANS BUMPING THIS — add the
 	   track to .banner-grid, then add its width here. Nothing else moves: the
-	   switch point follows automatically. */
-	--container-banner-table: 70.75rem;
+	   switch point follows automatically.
+
+	   THE CEILING IS 1214px (75.875rem), and it is a hard one. The shell gives
+	   the table `.page-container`'s lg:max-w-7xl (1280px) minus mx-4 (32), the
+	   panel border (2) and mx-4 again (32). Set this token above that and the
+	   container query can NEVER match at any viewport width, so every row falls
+	   back to MobileBannerCard and the table silently disappears — which is what
+	   a 76rem value did, missing by 2px.
+
+	   Raising it also moves the switch point: at 74.5rem the table needs a
+	   ~1258px window, where 70.75rem needed ~1198px. Windows in that band get
+	   cards. Prefer reclaiming measured slack from existing tracks (see the
+	   comment on .banner-grid) and spend this token only for the remainder. */
+	--container-banner-table: 74.5rem;
 
 	/* Display face for the brand wordmark only — body text stays on the default
 	   system stack. The font itself is imported in main.tsx (@fontsource-variable),

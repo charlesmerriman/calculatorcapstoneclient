@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { toast } from 'sonner'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
 import type { BannerSupport, BannerUma, UserPlannedBanner, UserStats } from '../types'
+import { EMPTY_BANNER_RESOURCES } from '../hooks/useBannerResources'
 
 // Render each option through the component's own formatOptionLabel so the
 // "(on sheet)" marker is observable, and expose onChange as a click. The
@@ -127,8 +128,7 @@ function renderEmptyRow(bannerType: 'Uma' | 'Support') {
       umaBannerData={[umaBanner]}
       supportBannerData={[supportBanner]}
       setUserPlannedBannerData={setUserPlannedBannerData}
-      caratsAvailableForThisBanner={0}
-      maxPossiblePullsForThisBanner={100}
+      resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: 100 }}
       initialBannerType={bannerType}
     />,
   )

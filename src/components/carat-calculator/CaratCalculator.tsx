@@ -5,7 +5,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
 import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
-import { useBannerResources } from "../../hooks/useBannerResources"
+import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
 import { plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
@@ -219,12 +219,7 @@ export const CaratCalculator: React.FC = () => {
 							<div className="space-y-3 @banner-table:space-y-0 @banner-table:divide-y @banner-table:divide-gray-700">
 								<AnimatePresence initial={false}>
 									{userPlannedBannerData.map((plannedBanner, index) => {
-										const resources = bannerResources[index] ?? {
-											carats: 0,
-											maxPossiblePulls: 0,
-											umaTickets: 0,
-											supportTickets: 0
-										}
+										const resources = bannerResources[index] ?? EMPTY_BANNER_RESOURCES
 
 										return (
 											<motion.div
@@ -245,8 +240,7 @@ export const CaratCalculator: React.FC = () => {
 													umaBannerData={umaBannerData}
 													supportBannerData={supportBannerData}
 													setUserPlannedBannerData={setUserPlannedBannerData}
-													caratsAvailableForThisBanner={resources.carats}
-													maxPossiblePullsForThisBanner={resources.maxPossiblePulls}
+													resources={resources}
 													initialBannerType={plannedBanner.initialBannerType}
 												/>
 											</motion.div>

@@ -104,7 +104,7 @@ page exists for.
 That guarantee is enforced by a single token in `index.css`:
 
 ```css
---container-banner-table: 70.75rem;   /* 908px of fixed tracks + the MLB column's 14rem floor */
+--container-banner-table: 74.5rem;   /* 968px of fixed tracks + the MLB column's 14rem floor */
 ```
 
 Both sides of the switch read it, so they cannot disagree:
@@ -124,6 +124,23 @@ one per section, around the header **and** its rows.
 `--container-banner-table`, add one `<div>` to each header and one cell to each row body.
 The switch point then moves on its own — the table simply starts yielding to cards a
 little sooner.
+
+**There is a hard ceiling of 1214px (75.875rem) on that token**, and overshooting it does
+not degrade gracefully — it makes the table *disappear*. The shell can only ever hand the
+table `.page-container`'s `lg:max-w-7xl` (1280px) minus `mx-4` (32), the panel border (2)
+and `mx-4` again (32). Set the token above 1214px and the container query can never match
+at any viewport width, so every row silently falls back to `MobileBannerCard`. A 76rem
+value did exactly this, missing by 2px.
+
+So prefer **reclaiming measured slack from existing tracks** over raising the token. When
+the derived-stats strip grew to four boxes, most of its 5.25rem came from the images track
+(144px holding two `h-14` thumbnails that need 126) and the select track; only the
+remainder went onto the token, which moved 70.75rem → 74.5rem. Measure before you trim —
+the type badge needs 72px for "SUPPORT" and the date cell 123px for `Start: 2026/12/31`.
+
+**Don't fund a track from the MLB column's `14rem` floor.** Six cells of `100.0%` want
+~305px, so 14rem is already a deliberate squeeze, and it is also the only track that
+absorbs surplus width above the switch point.
 
 ### Portaled `react-select` menus need `menuPosition="fixed"`
 
