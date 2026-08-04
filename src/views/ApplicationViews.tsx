@@ -10,11 +10,11 @@ export const ApplicationViews = () => {
 			<Route
 				path="/"
 				element={
-					<div className="flex min-h-dvh flex-col bg-gray-900 md:h-dvh md:overflow-hidden">
+					<div className="flex min-h-dvh flex-col bg-gray-900 app-shell:h-dvh app-shell:overflow-hidden">
 						<Navbar />
 						{/* The footer sits INSIDE the scroll region, not as a sibling of it: on
-						    desktop this shell is a fixed-height, no-scroll frame (md:h-dvh
-						    md:overflow-hidden), so a footer outside the scroller would be
+						    desktop this shell is a fixed-height, no-scroll frame (app-shell:h-dvh
+						    app-shell:overflow-hidden), so a footer outside the scroller would be
 						    permanently pinned to the bottom of the screen. Inside, it scrolls
 						    away with the calculator/timeline content like on every other page.
 

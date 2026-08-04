@@ -70,8 +70,43 @@
 /* ===== BANNER ROW ===== */
 
 /* The colored type indicator block on the left side of a banner row */
+/* ===== BANNER TABLE GRID =====
+
+   The desktop banner table's column widths live here and ONLY here. Both header
+   rows (CaratCalculator) and both row bodies (BannerRow, StagedBannerRow) apply
+   .banner-grid, so adding or resizing a column is a one-line change and the
+   headers can never drift out of alignment with the rows they label. They were
+   previously four hand-copied sets of w-* utilities.
+
+   Display is deliberately NOT set here — the callers pair `hidden` with
+   `@banner-table:grid` so the mobile-card/desktop-table switch stays in one
+   place.
+
+   min-width is the sum of the fixed tracks (70+144+176+128+260+90+40 = 908px)
+   plus the MLB column's 14rem floor, and it reads the SAME token that generates
+   the `@banner-table:` container-query variant deciding whether this row renders
+   at all (see index.css). That shared token is the guarantee the table is only
+   ever shown at a width that fits it, so it never needs to scroll sideways.
+
+   The 14rem floor is not cosmetic. With a bare `1fr` the MLB column collapsed to
+   zero and pushed the # Pulls input and delete button past the container's
+   clipped right edge — unreachable, on the two controls the page exists for. */
+.banner-grid {
+	grid-template-columns:
+		70px               /* type badge                     */
+		9rem               /* images                         */
+		11rem              /* banner select                  */
+		8rem               /* start / end date               */
+		16.25rem           /* derived stats / confirm button */
+		5.625rem           /* # pulls                        */
+		minmax(14rem, 1fr) /* MLB chance                     */
+		2.5rem;            /* delete / discard               */
+	min-width: var(--container-banner-table);
+}
+
+/* Sized by .banner-grid's first track, not by itself — this is a table cell. */
 .banner-type-tab {
-	@apply flex flex-col items-center justify-center gap-1 w-[70px] shrink-0
+	@apply flex flex-col items-center justify-center gap-1
 		py-2 px-1 text-white font-bold select-none;
 }
 
@@ -188,9 +223,10 @@
 	}
 }
 
-/* Icon-only delete button on the right edge */
+/* Icon-only delete button on the right edge. Width comes from .banner-grid's
+   last track — this is a table cell, not a free-standing button. */
 .banner-delete-btn {
-	@apply w-10 shrink-0 flex items-center justify-center
+	@apply flex items-center justify-center
 		bg-gray-800 border-l border-gray-700 text-red-400
 		hover:bg-gray-700 hover:text-red-400 transition
 		cursor-pointer select-none;

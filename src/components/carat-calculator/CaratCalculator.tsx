@@ -163,28 +163,34 @@ export const CaratCalculator: React.FC = () => {
 										<div className="flex-1 h-px bg-amber-400/20" />
 									</div>
 								)}
-								<div className="hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 md:flex">
-									<div className="w-17.5 shrink-0 text-center">Type</div>
-									<div className="w-36 shrink-0 text-center">Images</div>
-									<div className="w-44 shrink-0 text-center">Banner</div>
-									<div className="w-32 shrink-0 text-center">Start / End Date</div>
-									<div className="w-65 shrink-0 text-center">Confirm</div>
-									<div className="w-22.5 shrink-0 text-center"># Pulls</div>
-									<div className="flex-1 text-center">% Chance to MLB (5x Copies)</div>
-									<div className="w-10 shrink-0 text-center"></div>
+								{/* @container: the card/table switch inside is keyed to THIS box's
+								    width, not the viewport's, so the table is only ever shown at a
+								    width that fits it and never has to scroll sideways. See
+								    --container-banner-table in index.css. */}
+								<div className="@container">
+									<div className="banner-grid hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
+										<div className="text-center">Type</div>
+										<div className="text-center">Images</div>
+										<div className="text-center">Banner</div>
+										<div className="text-center">Start / End Date</div>
+										<div className="text-center">Confirm</div>
+										<div className="text-center"># Pulls</div>
+										<div className="text-center">% Chance to MLB (5x Copies)</div>
+										<div className="text-center"></div>
+									</div>
+									{stagedBanners.map((banner) => (
+										<StagedBannerRow
+											key={banner.tempId}
+											stagedBanner={banner}
+											setStagedBanner={handleUpdateStagedBanner}
+											onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
+											onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
+											umaBannerData={umaBannerData}
+											supportBannerData={supportBannerData}
+											userPlannedBannerData={userPlannedBannerData}
+										/>
+									))}
 								</div>
-								{stagedBanners.map((banner) => (
-									<StagedBannerRow
-										key={banner.tempId}
-										stagedBanner={banner}
-										setStagedBanner={handleUpdateStagedBanner}
-										onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
-										onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
-										umaBannerData={umaBannerData}
-										supportBannerData={supportBannerData}
-										userPlannedBannerData={userPlannedBannerData}
-									/>
-								))}
 							</motion.div>
 						)}
 					</AnimatePresence>
@@ -198,17 +204,19 @@ export const CaratCalculator: React.FC = () => {
 									<div className="flex-1 h-px bg-brand/20" />
 								</div>
 							)}
-							<div className="hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 md:flex">
-								<div className="w-17.5 shrink-0 text-center">Type</div>
-								<div className="w-36 shrink-0 text-center">Images</div>
-								<div className="w-44 shrink-0 text-center">Banner</div>
-								<div className="w-32 shrink-0 text-center">Start / End Date</div>
-								<div className="w-65 shrink-0 text-center">Derived Stats (Auto-Calculated)</div>
-								<div className="w-22.5 shrink-0 text-center"># Pulls</div>
-								<div className="flex-1 text-center">% Chance to MLB (5x Copies)</div>
-								<div className="w-10 shrink-0 text-center"></div>
-							</div>
-							<div className="space-y-3 md:space-y-0 md:divide-y md:divide-gray-700">
+							{/* Own @container, as in the staging area above. */}
+							<div className="@container">
+								<div className="banner-grid hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
+									<div className="text-center">Type</div>
+									<div className="text-center">Images</div>
+									<div className="text-center">Banner</div>
+									<div className="text-center">Start / End Date</div>
+									<div className="text-center">Derived Stats (Auto-Calculated)</div>
+									<div className="text-center"># Pulls</div>
+									<div className="text-center">% Chance to MLB (5x Copies)</div>
+									<div className="text-center"></div>
+								</div>
+							<div className="space-y-3 @banner-table:space-y-0 @banner-table:divide-y @banner-table:divide-gray-700">
 								<AnimatePresence initial={false}>
 									{userPlannedBannerData.map((plannedBanner, index) => {
 										const resources = bannerResources[index] ?? {
@@ -245,6 +253,7 @@ export const CaratCalculator: React.FC = () => {
 										)
 									})}
 								</AnimatePresence>
+							</div>
 							</div>
 						</div>
 					)}

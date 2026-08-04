@@ -62,6 +62,76 @@ Reference such tokens as plain `var(--color-…)` instead.
 (Stock names like `bg-gray-700` still work because the name exists upstream — the custom
 value is substituted at runtime via the variable.)
 
+The same limitation applies to the custom **variants** below: `@apply desktop-nav:…` in
+`App.css` fails for exactly the same reason. Put those utilities in the JSX.
+
+### Responsive: `desktop-nav:` / `app-shell:` for the chrome, `md:` only for cosmetics
+
+Two custom variants are declared at the top of `index.css`. They exist because a
+width-only breakpoint cannot tell a small laptop from **a phone in landscape
+(~844×390) or a tablet in portrait (~820×1180)** — both clear `md:` (768px) while
+being unable to hold either desktop layout.
+
+| Variant | Condition | Governs |
+|---|---|---|
+| `desktop-nav:` | `min-width: 64rem` | mobile ⇄ desktop navbar, and the `SettingsMenu` panel's anchoring, which must track the navbar |
+| `app-shell:` | `min-width: 64rem` **and** `min-height: 32rem` | the fixed-height, internally-scrolling app shell in `ApplicationViews` |
+
+The height half of `app-shell:` is the load-bearing part. Applied to a landscape phone,
+the shell gives a ~330px scroll viewport *and* stops the document body from scrolling,
+so the mobile browser's URL bar never auto-collapses — the cause of the "the calculator
+won't scroll" reports. 32rem clears every phone in landscape (tallest ≈430px) while
+staying below any real desktop or tablet window.
+
+Plain `md:` is still fine for cosmetic tweaks (padding, font size, a 1-col → 2-col grid).
+Use a named variant for anything that switches a whole layout.
+
+The banner table is **not** on this list — see below.
+
+### The banner table: one width token, and it must never scroll
+
+`.banner-grid` in `App.css` owns every column width in the desktop banner table. Both
+header rows (`CaratCalculator`) and both row bodies (`BannerRow`, `StagedBannerRow`)
+apply it. **Never re-declare a width on a cell** — that is what this class replaced, and
+four hand-copied sets of `w-*` utilities are how headers drift out of alignment with the
+rows they label.
+
+**The table is never horizontally scrollable.** The moment it doesn't fit, every row
+falls back to `MobileBannerCard`. A row whose `# Pulls` input and delete button sit past
+a scroll fold is the bug this design exists to prevent — those are the two controls the
+page exists for.
+
+That guarantee is enforced by a single token in `index.css`:
+
+```css
+--container-banner-table: 70.75rem;   /* 908px of fixed tracks + the MLB column's 14rem floor */
+```
+
+Both sides of the switch read it, so they cannot disagree:
+
+- `.banner-grid` sets `min-width: var(--container-banner-table)`
+- Tailwind generates the `@banner-table:` **container-query** variant from it, because
+  `--container-*` is the namespace container-query variants come from
+
+A container query, not a media query, because the question is *"does the table's own box
+fit the table"* — measured after the page's `max-width`, margins, borders and any
+scrollbar have taken their cut. Deriving the equivalent viewport width by hand is easy to
+get wrong (it lands near 1213px, not the ~1198px the arithmetic suggests, because a
+classic scrollbar moves it). The wrapper carrying `@container` is in `CaratCalculator`,
+one per section, around the header **and** its rows.
+
+**Adding a column:** add the track to `.banner-grid`, add its width to
+`--container-banner-table`, add one `<div>` to each header and one cell to each row body.
+The switch point then moves on its own — the table simply starts yielding to cards a
+little sooner.
+
+### Portaled `react-select` menus need `menuPosition="fixed"`
+
+Every select using `menuPortalTarget={document.body}` also sets `menuPosition="fixed"`.
+The portal attaches to `<body>`, but the control can live inside the app shell's vertical
+scroller; with the default absolute positioning the menu is placed against the body and
+visibly detaches from its control as soon as that container scrolls.
+
 ### Animation
 
 Framer Motion handles UI animations: the collapsible income section at the top of the

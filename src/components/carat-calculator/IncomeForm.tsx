@@ -201,6 +201,7 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
+										menuPosition="fixed"
 										// Controlled, not defaultValue: userStatsData can be replaced
 										// from outside this component (guest→account migration, a save
 										// round-trip), and an uncontrolled select would keep showing the
@@ -230,6 +231,7 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
+										menuPosition="fixed"
 										value={
 											clubRank
 												? { value: clubRank, label: clubRank.name, key: clubRank.id }
@@ -255,6 +257,7 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
+										menuPosition="fixed"
 										value={
 											championsMeetingRank
 												? {
@@ -288,6 +291,7 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
+										menuPosition="fixed"
 										value={
 											leagueOfHeroesRank
 												? {

@@ -112,7 +112,7 @@ export const Navbar = () => {
 	return (
 		<div className="z-50 shrink-0">
 			{/* Mobile nav */}
-			<nav className="bg-gray-800 border-b border-gray-600 md:hidden">
+			<nav className="bg-gray-800 border-b border-gray-600 desktop-nav:hidden">
 				<div className="flex h-14 items-center justify-between gap-3 px-3">
 					<div className="flex min-w-0 items-center">
 						{logo}
@@ -168,8 +168,11 @@ export const Navbar = () => {
 				</div>
 			</nav>
 
-			{/* Desktop nav — always three-column; center links always visible */}
-			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 md:grid">
+			{/* Desktop nav — always three-column; center links always visible.
+			    Switches on desktop-nav rather than md: this layout is already over-full
+			    below ~900px (the "Sign in to save" button wraps to 2-3 lines), which
+			    is precisely the landscape-phone / portrait-tablet band. */}
+			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 desktop-nav:grid">
 				{/* Left: Branding */}
 				<div className="flex items-center">
 					{logo}

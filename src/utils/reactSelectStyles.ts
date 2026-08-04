@@ -75,6 +75,12 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 	// menuPortal controls the z-index of the body-attached portal wrapper when
 	// menuPortalTarget={document.body} is set. Without this, the portal renders
 	// at the default stacking level and gets buried behind other elements.
+	//
+	// Call sites pair the portal with menuPosition="fixed". The portal attaches to
+	// <body>, but the control can sit inside a scroll container (the app shell's
+	// vertical scroller, or the banner table's horizontal one) — with the default
+	// absolute positioning the menu is placed against the body and visibly detaches
+	// from its control the moment that container scrolls.
 	menuPortal: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		zIndex: 9999,

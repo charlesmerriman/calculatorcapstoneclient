@@ -80,7 +80,13 @@ export const SettingsMenu = () => {
 				// rather than at the screen edge, so anchoring the panel to the button
 				// (as on desktop) runs its w-72 width off the side of a narrow viewport.
 				// Centering on the viewport avoids that regardless of where the button sits.
-				<div className="fixed left-1/2 top-16 z-50 w-72 max-w-[calc(100vw-1.5rem)] -translate-x-1/2 rounded border border-gray-600 bg-gray-800 p-3 shadow-lg md:absolute md:left-auto md:top-full md:right-0 md:mt-1.5 md:max-w-none md:translate-x-0">
+				// The breakpoint must match the one Navbar switches on (desktop-nav,
+				// md:) — anchoring the panel to its button is only correct while the
+				// desktop nav is the one being rendered.
+				// max-h + scroll is for landscape phones: this panel is fixed at top-16
+				// in a viewport barely 390px tall, so unbounded its lower toggles fall
+				// off the bottom of the screen with no way to reach them.
+				<div className="fixed left-1/2 top-16 z-50 max-h-[calc(100dvh-5rem)] w-72 max-w-[calc(100vw-1.5rem)] -translate-x-1/2 overflow-y-auto rounded border border-gray-600 bg-gray-800 p-3 shadow-lg desktop-nav:absolute desktop-nav:left-auto desktop-nav:top-full desktop-nav:right-0 desktop-nav:mt-1.5 desktop-nav:max-w-none desktop-nav:translate-x-0">
 					<h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-brand">
 						Projection Settings
 					</h3>

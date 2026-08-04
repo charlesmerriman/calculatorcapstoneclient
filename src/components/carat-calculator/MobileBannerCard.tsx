@@ -34,7 +34,7 @@ export const MobileBannerCard = ({
 	const thumbTileRadius = bannerType === "Uma" ? "rounded-md" : "rounded-none"
 
 	return (
-		<div className="md:hidden overflow-hidden rounded-lg border border-gray-600 bg-gray-800 shadow-sm">
+		<div className="@banner-table:hidden overflow-hidden rounded-lg border border-gray-600 bg-gray-800 shadow-sm">
 			<div className={`relative flex min-h-[88px] items-stretch ${typeClass}`}>
 				<div className="flex w-[74px] shrink-0 items-center justify-center bg-black/15 px-2">
 					<span className="text-xs font-bold text-white">
