@@ -91,16 +91,29 @@
    The 14rem floor is not cosmetic. With a bare `1fr` the MLB column collapsed to
    zero and pushed the # Pulls input and delete button past the container's
    clipped right edge — unreachable, on the two controls the page exists for. */
+/* The fixed tracks sum to 968px (= 60.5rem), which is half of what
+   --container-banner-table is built from — keep the two in step.
+
+   The derived-stats track carries four stat boxes, and headless measurement of
+   its worst-case content ("Paid Carat Est." over "123,450", "Free/Tickets/Paid"
+   over "12/34/56") put the strip at 337px, so it gets 21.5rem. Most of that was
+   paid for by trimming measured slack from its neighbours rather than by
+   growing the table: the images track held 144px for two h-14 thumbnails that
+   need 126, and the select held 176px. Only the remainder went onto the token.
+
+   Do NOT shrink the MLB floor to fund a track. Six cells of "100.0%" want
+   ~305px and the 14rem floor is already a deliberate squeeze; it is also the
+   only track that absorbs extra width above the switch point. */
 .banner-grid {
 	grid-template-columns:
-		70px               /* type badge                     */
-		9rem               /* images                         */
-		11rem              /* banner select                  */
-		8rem               /* start / end date               */
-		16.25rem           /* derived stats / confirm button */
-		5.625rem           /* # pulls                        */
-		minmax(14rem, 1fr) /* MLB chance                     */
-		2.5rem;            /* delete / discard               */
+		70px               /* type badge   (needs 72 worst case) */
+		8rem               /* images       (needs 126)           */
+		10.5rem            /* banner select                      */
+		8rem               /* start / end date (needs 123)       */
+		21.5rem            /* derived stats / confirm button     */
+		5.625rem           /* # pulls      (input is w-20)       */
+		minmax(14rem, 1fr) /* MLB chance                         */
+		2.5rem;            /* delete / discard                   */
 	min-width: var(--container-banner-table);
 }
 

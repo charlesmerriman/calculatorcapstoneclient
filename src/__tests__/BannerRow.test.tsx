@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
 import type { BannerUma, UserPlannedBanner, UserStats } from '../types'
+import { EMPTY_BANNER_RESOURCES } from '../hooks/useBannerResources'
 
 // react-select renders a portal-based combobox that contributes nothing to what
 // these tests assert (the pull-count field); stub it so the DOM stays small and
@@ -74,8 +75,7 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
       umaBannerData={[umaBanner]}
       supportBannerData={[]}
       setUserPlannedBannerData={setUserPlannedBannerData}
-      caratsAvailableForThisBanner={0}
-      maxPossiblePullsForThisBanner={maxPulls}
+      resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: maxPulls }}
       initialBannerType="Uma"
     />,
   )

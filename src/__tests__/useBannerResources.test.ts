@@ -344,6 +344,21 @@ describe('useBannerResources', () => {
       // Combined starting balance is 5000; daily income is additive, so >= 5000
       expect(result.current[0].carats).toBeGreaterThanOrEqual(5_000)
     })
+
+    it('exposes the two balances separately, still summing to `carats`', () => {
+      // The row shows free and paid in their own boxes, so the split has to
+      // survive to the snapshot — but it must not disagree with the total.
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: { ...zeroStats, current_carat: 3_000, current_paid_carat: 2_000 },
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(1), 0)],
+          ...noIncome,
+        })
+      )
+      const snapshot = result.current[0]
+      expect(snapshot.paidCarats).toBe(2_000) // no income source credits paid here
+      expect(snapshot.freeCarats + snapshot.paidCarats).toBe(snapshot.carats)
+    })
   })
 
   describe('pull cost deduction', () => {
