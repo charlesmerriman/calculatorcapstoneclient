@@ -201,6 +201,17 @@ a search box.
 the opt-in value that restores the original 10-per-page view. Anything else (including a
 blocked or absent store) falls back to infinite.
 
+**The paged view's current page is remembered too**, in
+`sessionStorage["uma-planner-timeline-page"]` — the route unmounts on every trip to the
+calculator, so without it the reader was thrown back to page 1 each time. Session, not
+local, storage: a page index is a position within one visit, and the list is date-filtered,
+so restoring page 12 days later would point at unrelated events. `goToPage` is the only
+writer, so the filter resets clear it as well. A restored page that now exceeds
+`totalPages` is clamped in render (`effectivePage`) rather than corrected from an effect —
+the fetch hasn't resolved on the first render, and resetting state there would both flash
+the wrong list and permanently discard the saved position. Search text and the past/future
+toggle deliberately do *not* persist.
+
 ### Infinite scroll — the `visibleCount` dependency is intentional
 
 The list reveals `INFINITE_CHUNK_SIZE` more cards each time a 1px sentinel `div` at the
