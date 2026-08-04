@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
-import { compactSelectStyles } from "../../utils/reactSelectStyles"
+import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
 import { bannerKey, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
@@ -110,11 +110,11 @@ export const StagedBannerRow = ({
 		stagedBanner.banner_uma?.banner_timeline ??
 		stagedBanner.banner_support?.banner_timeline
 
-	const bannerSelect = (
+	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
 			className="w-full"
 			styles={{
-				...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
+				...styles,
 				menuPortal: (base) => ({ ...base, zIndex: 9999 })
 			}}
 			menuPortalTarget={document.body}
@@ -148,8 +148,15 @@ export const StagedBannerRow = ({
 		/>
 	)
 
+	const bannerSelect = renderBannerSelect(
+		compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+	const mobileBannerSelect = renderBannerSelect(
+		mobileBannerSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+
 	const dateDisplay = bannerTimeline ? (
-		<div className="space-y-0.5 text-xs text-gray-400">
+		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
@@ -196,7 +203,7 @@ export const StagedBannerRow = ({
 		<MobileBannerCard
 			bannerType={bannerType}
 			images={images}
-			bannerSelect={bannerSelect}
+			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={confirmButton}
 			pullsInput={pullsInput}

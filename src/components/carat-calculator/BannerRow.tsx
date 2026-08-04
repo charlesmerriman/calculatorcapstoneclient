@@ -20,7 +20,7 @@ import { bannerKey, getFreePulls, getPullCountStatus, plannedBannerKey } from ".
 import type { BannerKey } from "../../utils/bannerHelpers"
 import type { BannerResources } from "../../hooks/useBannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
-import { compactSelectStyles } from "../../utils/reactSelectStyles"
+import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -218,11 +218,11 @@ export const BannerRow = ({
 		plannedBanner.banner_uma?.banner_timeline ??
 		plannedBanner.banner_support?.banner_timeline
 
-	const bannerSelect = (
+	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
 			className="w-full"
 			styles={{
-				...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
+				...styles,
 				menuPortal: (base) => ({ ...base, zIndex: 9999 })
 			}}
 			menuPortalTarget={document.body}
@@ -256,8 +256,15 @@ export const BannerRow = ({
 		/>
 	)
 
+	const bannerSelect = renderBannerSelect(
+		compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+	const mobileBannerSelect = renderBannerSelect(
+		mobileBannerSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+
 	const dateDisplay = bannerTimeline ? (
-		<div className="space-y-0.5 text-xs text-gray-400">
+		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
@@ -305,17 +312,58 @@ export const BannerRow = ({
 		},
 	]
 
-	// Mobile: 2x2 rather than 4 across — four 10px labels on a phone-width card
-	// clip. `divide-*` draws the interior borders, which a per-cell `border-x`
-	// can't do for a grid that wraps.
+	const mobileStatCell = (stat: typeof derivedStats[number], index: number) => (
+		<div
+			key={stat.label}
+			title={stat.title}
+			className={`flex flex-col items-center justify-center px-2 py-2${index % 2 === 0 ? " border-r border-gray-600" : ""}${index < 2 ? " border-b border-gray-600" : ""}`}
+		>
+			<span className="banner-stat-box-label">{stat.label}</span>
+			<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
+		</div>
+	)
+
+	// Phone cards use a true 2x2 estimate grid, so "Paid Carat Est." and
+	// "Max Pulls" share the second row. Once the card is wide enough, the
+	// reference-style three-across strip returns and shares its lower row with
+	// the odds display.
 	const statsDisplay = (
-		<div className="grid grid-cols-2 divide-x divide-y divide-gray-600 overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
-			{derivedStats.map((stat) => (
-				<div key={stat.label} title={stat.title} className="flex flex-col items-center justify-center px-2 py-2">
-					<span className="banner-stat-box-label">{stat.label}</span>
-					<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
+		<div className="overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
+			<div className="sm:hidden">
+				<div className="grid grid-cols-2">
+					{derivedStats.map(mobileStatCell)}
 				</div>
-			))}
+				<div className="border-t border-gray-600 p-2">
+					{hasBanner ? (
+						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} />
+					) : (
+						<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
+					)}
+				</div>
+			</div>
+			<div className="hidden sm:block">
+				<div className="grid grid-cols-3 divide-x divide-gray-600">
+					{derivedStats.slice(0, 3).map((stat) => (
+						<div key={stat.label} title={stat.title} className="flex flex-col items-center justify-center px-2 py-2">
+						<span className="banner-stat-box-label">{stat.label}</span>
+						<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
+					</div>
+				))}
+				</div>
+				<div className="grid grid-cols-3 border-t border-gray-600">
+					<div title={derivedStats[3].title} className="flex flex-col items-center justify-center border-r border-gray-600 px-2 py-2">
+						<span className="banner-stat-box-label">{derivedStats[3].label}</span>
+						<span className={`banner-stat-box-value ${derivedStats[3].valueClass ?? ""}`}>{derivedStats[3].value}</span>
+					</div>
+					<div className="col-span-2 p-2">
+						{hasBanner ? (
+							<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} />
+						) : (
+							<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
+						)}
+					</div>
+				</div>
+			</div>
 		</div>
 	)
 
@@ -341,25 +389,16 @@ export const BannerRow = ({
 		/>
 	)
 
-	const chanceDisplay = hasBanner ? (
-		<MLBChanceDisplay
-			pulls={plannedBanner.number_of_pulls}
-			plannedBanner={plannedBanner}
-		/>
-	) : (
-		<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
-	)
-
 	return (
 		<>
 		<MobileBannerCard
 			bannerType={bannerType}
 			images={images}
-			bannerSelect={bannerSelect}
+			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={statsDisplay}
 			pullsInput={pullsInput}
-			chanceDisplay={chanceDisplay}
+			chanceDisplay={null}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
 		/>

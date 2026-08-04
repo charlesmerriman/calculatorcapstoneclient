@@ -97,3 +97,63 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
 		width: "100%"
 	})
 }
+
+/**
+ * The banner selector when a row has fallen back to its card layout.  The
+ * selected banner belongs in the coloured card header alongside its artwork,
+ * rather than looking like a second, unrelated form field beneath it.
+ *
+ * Menu styles intentionally inherit from compactSelectStyles so the portaled
+ * menu remains consistent with the desktop selector and every active theme.
+ */
+export const mobileBannerSelectStyles: StylesConfig<unknown, false> = {
+	...compactSelectStyles,
+	control: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		height: "auto",
+		minHeight: "40px",
+		width: "100%",
+		backgroundColor: "transparent",
+		borderColor: "transparent",
+		boxShadow: "none",
+		"&:hover": { borderColor: "transparent" },
+	}),
+	valueContainer: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		height: "40px",
+		padding: "0",
+		justifyContent: "flex-start",
+	}),
+	indicatorsContainer: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		height: "40px",
+	}),
+	indicatorSeparator: () => ({ display: "none" }),
+	dropdownIndicator: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		padding: "4px",
+		color: "var(--color-gray-300)",
+	}),
+	singleValue: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		maxWidth: "100%",
+		margin: 0,
+		color: "var(--color-gray-100)",
+		fontSize: "clamp(0.875rem, 2vw, 1rem)",
+		fontWeight: 500,
+		textAlign: "left",
+		whiteSpace: "nowrap",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+	}),
+	placeholder: (provided: CSSObjectWithLabel) => ({
+		...provided,
+		margin: 0,
+		color: "var(--color-gray-200)",
+		fontSize: "clamp(0.875rem, 2vw, 1rem)",
+		textAlign: "left",
+		whiteSpace: "nowrap",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+	}),
+}
