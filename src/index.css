@@ -170,29 +170,29 @@
 	--color-gray-950: #040c0b;
 }
 
-/* Light theme. The app treats the gray ramp as "50 = lightest, 950 = darkest"
-   and pairs dark surfaces (bg-gray-900/800/700) with light text (text-gray-100/
-   300/400). To flip to a light theme without editing a single component, we
-   INVERT the ramp: gray-950 becomes pure white, gray-900 the page bg, and the
-   low numbers become the dark text tones. Every existing utility class keeps
-   working — a dark surface just resolves to a light one and vice versa.
+/* Light theme. The app uses the gray ramp semantically: 900/800/700 are page,
+   card, and inset surfaces, while 100/300/400 are progressively quieter text.
+   Keep that relationship, but use a warm canvas, bright card, and plum-ink
+   system rather than a flat mechanical gray inversion.
 
-   Brand is deepened to #8f6b12 (a bronzed gold): the default pale gold fails
-   contrast on white, whereas this hits ~4.5:1 as text on the light surfaces
-   (WCAG AA) while still reading as gold and keeping black button labels legible. */
+   Brand is deepened to burnished bronze so it remains legible on light surfaces
+   while retaining strong contrast for black labels on filled buttons. */
 [data-theme="light"] {
-	--color-brand: #8f6b12;
-	--color-gray-50:  #17171b; /* darkest — primary text */
-	--color-gray-100: #26262d; /* primary text */
-	--color-gray-200: #3b3b44;
-	--color-gray-300: #55555f; /* secondary text */
-	--color-gray-400: #71717c; /* muted text (AA on light bg) */
-	--color-gray-500: #82828d; /* de-emphasized text / tracks */
-	--color-gray-600: #c7c7cf; /* borders / dividers */
-	--color-gray-700: #e2e2e8; /* controls, inputs, hover surface */
-	--color-gray-800: #ededf1; /* cards / panels */
-	--color-gray-900: #f6f6f9; /* page background */
-	--color-gray-950: #ffffff; /* deepest recess — white */
+	/* A warm, editorial light theme — intentionally not a mechanical inversion of
+	   the dark gray ramp. The old cool-grey scale made every panel blend into the
+	   page, leaving the interface visually flat and unexpectedly clinical. */
+	--color-brand: #9a5d12;
+	--color-gray-50:  #261a28; /* darkest — primary plum ink */
+	--color-gray-100: #352438; /* primary text */
+	--color-gray-200: #513e50;
+	--color-gray-300: #6d5969; /* secondary text */
+	--color-gray-400: #806f7c; /* muted text */
+	--color-gray-500: #a08c97; /* de-emphasized text / tracks */
+	--color-gray-600: #decfd0; /* warm dividers */
+	--color-gray-700: #f3e7e2; /* controls and inset surfaces */
+	--color-gray-800: #fffaf7; /* raised cards */
+	--color-gray-900: #fbf2ed; /* page canvas */
+	--color-gray-950: #fffdfb; /* brightest surface */
 
 	/* Pull-count status colors, deepened for light surfaces. The dark defaults
 	   are bright mid-tones meant for a near-black input fill and collapse to
@@ -213,4 +213,37 @@
 	--color-pull-neutral-border: #5f7a6a;
 	--color-pull-over: #991b1b;
 	--color-pull-over-border: #b91c1c;
+}
+
+/* Light-theme polish lives here rather than in each component so every existing
+   card, form, timeline entry, and auth view gains the same sense of hierarchy.
+   The two low-opacity glows keep large empty areas intentional without competing
+   with planner data. */
+[data-theme="light"] {
+	color-scheme: light;
+}
+
+[data-theme="light"] body,
+[data-theme="light"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 10% -10%, rgb(210 142 53 / 18%), transparent 28rem),
+		radial-gradient(circle at 94% 8%, rgb(129 73 114 / 10%), transparent 25rem);
+	background-attachment: fixed;
+}
+
+[data-theme="light"] .card-panel,
+[data-theme="light"] .shadow-md,
+[data-theme="light"] .shadow-sm,
+[data-theme="light"] .shadow-lg,
+[data-theme="light"] .shadow-2xl {
+	box-shadow: 0 12px 30px rgb(70 37 47 / 9%);
+}
+
+[data-theme="light"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 18%, var(--color-gray-600));
+}
+
+[data-theme="light"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 16%, var(--color-gray-600));
 }
