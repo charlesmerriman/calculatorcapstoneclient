@@ -449,7 +449,7 @@ export const BannerRow = ({
 			</div>
 
 			{/* === Start / End Date === */}
-			<div className="flex min-w-0 flex-col items-start justify-center gap-0.5 py-2 px-2 text-xs text-gray-400 relative">
+			<div className="flex min-w-0 flex-col items-start justify-center gap-0.5 py-2 px-1 text-xs text-gray-400 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{bannerTimeline ? (
 					<>
@@ -462,8 +462,8 @@ export const BannerRow = ({
 			</div>
 
 			{/* === Derived Stats section === */}
-			{/* px-1, not px-3: the four boxes need 334 of the track's 344px, so the
-			    cell's own gutter is the difference between fitting and clipping. */}
+			{/* px-1 and compact stat padding keep the four boxes within this tighter
+			    track without clipping their labels. */}
 			<div className="flex min-w-0 items-center justify-center px-1 py-2">
 				{/* Same `derivedStats` list as the mobile card above — one strip
 				    instead of 2x2, with rule dividers between the boxes. */}
@@ -471,7 +471,7 @@ export const BannerRow = ({
 					{derivedStats.map((stat, statIndex) => (
 						<React.Fragment key={stat.label}>
 							{statIndex > 0 && <div className="w-px bg-gray-600 self-stretch" />}
-							<div title={stat.title} className="flex flex-col items-center justify-center px-1.5 py-1.5 flex-1">
+							<div title={stat.title} className="flex flex-col items-center justify-center px-1 py-1.5 flex-1">
 								<span className="banner-stat-box-label">{stat.label}</span>
 								<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
 							</div>
@@ -481,7 +481,7 @@ export const BannerRow = ({
 			</div>
 
 			{/* === # Pulls section === */}
-			<div className="flex items-center justify-center py-2 px-2 relative">
+			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				<input

@@ -133,10 +133,10 @@ at any viewport width, so every row silently falls back to `MobileBannerCard`. A
 value did exactly this, missing by 2px.
 
 So prefer **reclaiming measured slack from existing tracks** over raising the token. When
-the derived-stats strip grew to four boxes, most of its 5.25rem came from the images track
-(144px holding two `h-14` thumbnails that need 126) and the select track; only the
-remainder went onto the token, which moved 70.75rem → 74.5rem. Measure before you trim —
-the type badge needs 72px for "SUPPORT" and the date cell 123px for `Start: 2026/12/31`.
+the derived-stats strip grew to four boxes, most of its space came from the images track
+(144px holding two `h-14` thumbnails that need 126) and the select track. Measure before
+you trim — the type badge needs 72px for "SUPPORT" and the date cell needs 108px with its
+compact gutter for `Start: 2026/12/31`.
 
 **Don't fund a track from the MLB column's `14rem` floor.** Six cells of `100.0%` want
 ~305px, so 14rem is already a deliberate squeeze, and it is also the only track that

@@ -259,7 +259,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === Start / End Date === */}
-			<div className="flex min-w-0 flex-col items-start justify-center gap-0.5 py-2 px-2 text-xs text-gray-400 relative">
+			<div className="flex min-w-0 flex-col items-start justify-center gap-0.5 py-2 px-1 text-xs text-gray-400 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{bannerTimeline ? (
 					<>
@@ -287,7 +287,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === # Pulls section === */}
-			<div className="flex items-center justify-center py-2 px-2 relative">
+			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				<input

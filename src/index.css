@@ -45,7 +45,7 @@
 	   measured after the page's max-width, margins and borders have taken their
 	   cut, so nobody has to re-derive that arithmetic when the shell changes.
 
-	   The value is the sum of .banner-grid's fixed tracks (968px = 60.5rem) plus
+	   The value is the sum of .banner-grid's fixed tracks (922px = 57.625rem) plus
 	   the MLB column's 14rem floor. ADDING A COLUMN MEANS BUMPING THIS — add the
 	   track to .banner-grid, then add its width here. Nothing else moves: the
 	   switch point follows automatically.
@@ -57,11 +57,10 @@
 	   back to MobileBannerCard and the table silently disappears — which is what
 	   a 76rem value did, missing by 2px.
 
-	   Raising it also moves the switch point: at 74.5rem the table needs a
-	   ~1258px window, where 70.75rem needed ~1198px. Windows in that band get
-	   cards. Prefer reclaiming measured slack from existing tracks (see the
-	   comment on .banner-grid) and spend this token only for the remainder. */
-	--container-banner-table: 74.5rem;
+	   Raising it also moves the switch point. Prefer reclaiming measured slack
+	   from existing tracks (see the comment on .banner-grid) and spend this token
+	   only for the remainder. */
+	--container-banner-table: 71.625rem;
 
 	/* Display face for the brand wordmark only — body text stays on the default
 	   system stack. The font itself is imported in main.tsx (@fontsource-variable),
