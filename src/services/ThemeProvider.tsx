@@ -9,6 +9,7 @@ const DEFAULT_THEME = "gold"
 // To add a new theme: add one entry here AND add a [data-theme="x"] block in index.css
 const THEMES: ThemeConfig[] = [
 	{ id: "gold",     label: "Default",  swatch: "#E6D28A" },
+	{ id: "gilded",   label: "Gilded",   swatch: "#f1cf75" },
 	{ id: "midnight", label: "Midnight", swatch: "#F6C84F" },
 	{ id: "violet",   label: "Violet",   swatch: "#C4B5FD" },
 	{ id: "teal",     label: "Teal",     swatch: "#5EEAD4" },

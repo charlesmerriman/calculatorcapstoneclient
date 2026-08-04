@@ -68,6 +68,9 @@
 	   it compiles to the `font-display` utility class. */
 	--font-display: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
 
+	/* Default / Gold stays deliberately familiar: a neutral dark interface with
+	   the creator's yellow as its signature accent. Expressive alternatives live
+	   in their own named themes below. */
 	--color-brand: #E6D28A;
 	--color-gray-50:  #f7f7fa;
 	--color-gray-100: #eeeeef;
@@ -123,6 +126,23 @@
 [data-theme="gold"] {
 	/* Default palette — grays inherit from @theme above */
 	--color-brand: #E6D28A;
+}
+
+/* Gilded deliberately turns the warmth up: it retains the cinematic, amber-lit
+   approach that is too decorative for the default planning experience. */
+[data-theme="gilded"] {
+	--color-brand: #f1cf75;
+	--color-gray-50:  #fffaf0;
+	--color-gray-100: #f5eddf;
+	--color-gray-200: #ded2bf;
+	--color-gray-300: #bcae98;
+	--color-gray-400: #998a73;
+	--color-gray-500: #766750;
+	--color-gray-600: #51463a;
+	--color-gray-700: #302a25;
+	--color-gray-800: #211d1a;
+	--color-gray-900: #151210;
+	--color-gray-950: #0d0b0a;
 }
 
 [data-theme="midnight"] {
@@ -333,4 +353,60 @@
 
 [data-theme="midnight"] .bg-gray-800.border-b {
 	border-color: color-mix(in srgb, var(--color-brand) 14%, var(--color-gray-600));
+}
+
+/* Gilded's burnished gold atmosphere stops well short of the content area so
+   projection data remains effortless to scan. */
+[data-theme="gilded"] body,
+[data-theme="gilded"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 7% -12%, rgb(211 154 48 / 25%), transparent 31rem),
+		radial-gradient(circle at 97% 4%, rgb(151 88 33 / 15%), transparent 25rem);
+	background-attachment: fixed;
+}
+
+[data-theme="gilded"] .card-panel,
+[data-theme="gilded"] .shadow-md,
+[data-theme="gilded"] .shadow-sm,
+[data-theme="gilded"] .shadow-lg,
+[data-theme="gilded"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 1px 0 rgb(241 207 117 / 6%) inset;
+}
+
+[data-theme="gilded"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 21%, var(--color-gray-600));
+}
+
+[data-theme="gilded"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 17%, var(--color-gray-600));
+}
+
+[data-theme="gilded"] .font-display .text-brand {
+	text-shadow: 0 0 1.25rem rgb(241 207 117 / 20%);
+}
+
+/* Default is intentionally restrained. These are small hierarchy and interaction
+   improvements on the familiar palette, not a reinterpretation of the theme. */
+[data-theme="gold"] .card-panel,
+[data-theme="gold"] .shadow-md,
+[data-theme="gold"] .shadow-sm,
+[data-theme="gold"] .shadow-lg,
+[data-theme="gold"] .shadow-2xl {
+	box-shadow: 0 8px 20px rgb(0 0 0 / 20%), 0 1px 0 rgb(255 255 255 / 3%) inset;
+}
+
+[data-theme="gold"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 8%, var(--color-gray-600));
+}
+
+[data-theme="gold"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 7%, var(--color-gray-600));
+}
+
+[data-theme="gold"] button:focus-visible,
+[data-theme="gold"] a:focus-visible,
+[data-theme="gold"] input:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: 2px;
 }
