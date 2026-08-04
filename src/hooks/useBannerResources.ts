@@ -26,11 +26,13 @@ import {
 	WHITE_DAY_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
+	MONTHLY_SHOP_TICKET_DAY,
 } from "../constants/gameConstants"
 import {
 	calculateDailyIncome,
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
+	calculateDayOfMonthOccurrences,
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
 	countDaysInWindow,
@@ -39,6 +41,7 @@ import {
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
 import { applyPullStrategy } from "../utils/bannerHelpers"
+import type { MaxPullBreakdown } from "../utils/bannerHelpers"
 import type {
 	UserStats,
 	ClubRank,
@@ -52,15 +55,43 @@ import type {
 } from "../types"
 
 export interface BannerResources {
+	/** Combined free + paid carats available before this banner's spend. */
 	carats: number
+	/** The free (earned) half of `carats`. Drives the "Carats (Est.)" box. */
+	freeCarats: number
+	/** The paid (purchased) half of `carats`. Drives the "Paid (Est.)" box. */
+	paidCarats: number
 	/**
 	 * Max pulls this banner could support if all available resources were spent
 	 * on it (accounts for the paid-carat pull strategy). Drives "Max Pulls".
 	 */
 	maxPossiblePulls: number
+	/** Which resources those max pulls come from. Drives "Free/Tickets/Paid". */
+	maxPullBreakdown: MaxPullBreakdown
 	umaTickets: number
 	supportTickets: number
 }
+
+/**
+ * The zeroed snapshot used wherever a banner has no projection yet — the
+ * pre-filled result slots below, and the consumer's fallback for an index with
+ * no entry. Exported so those two can't drift apart when a field is added.
+ * Frozen because it's shared by reference across every such slot.
+ */
+export const EMPTY_BANNER_RESOURCES: BannerResources = Object.freeze({
+	carats: 0,
+	freeCarats: 0,
+	paidCarats: 0,
+	maxPossiblePulls: 0,
+	maxPullBreakdown: Object.freeze({
+		freePulls: 0,
+		tickets: 0,
+		paidPulls: 0,
+		freeCaratPulls: 0,
+	}),
+	umaTickets: 0,
+	supportTickets: 0,
+})
 
 interface BannerResourcesParams {
 	userStatsData: UserStats | null
@@ -114,12 +145,9 @@ export function useBannerResources({
 		// reads `bannerResources[index]` for the row at the same index. A banner
 		// with no resolvable timeline keeps its zeroed slot instead of shifting
 		// every later row's result onto the wrong card.
-		const results: BannerResources[] = userPlannedBannerData.map(() => ({
-			carats: 0,
-			maxPossiblePulls: 0,
-			umaTickets: 0,
-			supportTickets: 0,
-		}))
+		const results: BannerResources[] = userPlannedBannerData.map(
+			() => EMPTY_BANNER_RESOURCES
+		)
 
 		// Anchor the whole projection to the START of today (local midnight),
 		// computed once. Using a live `new Date()` here meant every recompute
@@ -337,10 +365,17 @@ export function useBannerResources({
 				)
 
 			// Monthly shop tickets: a fixed uma/support ticket bundle buyable
-			// each month (with an untracked currency), so no carat cost.
+			// each month (with an untracked currency), so no carat cost. The shop
+			// stocks it on the 2nd, not on the month boundary Club Rank uses, so
+			// this counts its own day-of-month occurrences rather than `months`.
 			if (userStatsData.monthly_shop_tickets) {
-				umaTickets += MONTHLY_SHOP_UMA_TICKETS * months
-				supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * months
+				const shopMonths = calculateDayOfMonthOccurrences(
+					lastEndDate,
+					endDate,
+					MONTHLY_SHOP_TICKET_DAY
+				)
+				umaTickets += MONTHLY_SHOP_UMA_TICKETS * shopMonths
+				supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * shopMonths
 			}
 
 			// Training Pass (paid and free tiers) only exists from August 15, 2027;
@@ -421,7 +456,12 @@ export function useBannerResources({
 			// so the row on screen gets its own checkpoint's numbers.
 			results[index] = {
 				carats: freeCarats + paidCarats,
+				// The same two balances kept apart, so the row can show the
+				// purchased share instead of only the merged total.
+				freeCarats,
+				paidCarats,
 				maxPossiblePulls: strategy.maxPossiblePulls,
+				maxPullBreakdown: strategy.maxPullBreakdown,
 				umaTickets,
 				supportTickets,
 			}

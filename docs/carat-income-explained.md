@@ -161,8 +161,8 @@ carats on the 1st but its tickets on the 24th.
 
 ### Monthly Shop Tickets — *your toggle, off by default*
 
-**4 uma + 4 support tickets each month.** These cost no carats, because in-game you buy
-them with a currency this calculator doesn't track.
+**4 uma + 4 support tickets on the 2nd of each month.** These cost no carats, because
+in-game you buy them with a currency this calculator doesn't track.
 
 ---
 

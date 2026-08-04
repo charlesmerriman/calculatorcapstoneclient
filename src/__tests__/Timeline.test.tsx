@@ -127,6 +127,9 @@ function scrollToSentinel(): void {
 
 beforeEach(() => {
   localStorage.clear()
+  // The paged view persists its page here; without this a test that pages
+  // forward leaks its position into every test that renders afterwards.
+  sessionStorage.clear()
   resetObservers()
 })
 
@@ -226,6 +229,62 @@ describe('Timeline view mode', () => {
 
     expect(cardCount()).toBe(5)
     expect(screen.getByText(/2099\/1\/25 through/)).toBeInTheDocument()
+  })
+})
+
+// Navigating to the calculator unmounts this route entirely, so "keeping your
+// place" is really "surviving an unmount" — which is what unmount/re-render
+// stands in for here.
+describe('Timeline paged position', () => {
+  beforeEach(() => {
+    localStorage.setItem('uma-planner-timeline-view', 'paged')
+  })
+
+  /** The indicator renders twice (above and below the list); both read the same. */
+  function pageIndicator(): HTMLElement {
+    return screen.getAllByText(/Page/)[0]
+  }
+
+  it('returns to the page the user left, not page 1', () => {
+    const view = render(<Timeline />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: /next/i })[0])
+    expect(pageIndicator()).toHaveTextContent('Page 2 of 3')
+
+    view.unmount()
+    render(<Timeline />)
+
+    expect(pageIndicator()).toHaveTextContent('Page 2 of 3')
+    // Page 2 of 25 events is windows 11-20.
+    expect(screen.getByText(/2099\/1\/11 through/)).toBeInTheDocument()
+    expect(screen.queryByText(/2099\/1\/1 through/)).not.toBeInTheDocument()
+  })
+
+  it('clamps a stored page that now exceeds the list instead of rendering empty', () => {
+    // As if the user left from a longer list — 25 events only reach page 3.
+    sessionStorage.setItem('uma-planner-timeline-page', '9')
+    render(<Timeline />)
+
+    expect(pageIndicator()).toHaveTextContent('Page 3 of 3')
+    expect(cardCount()).toBe(5)
+  })
+
+  it('ignores a corrupt stored page', () => {
+    sessionStorage.setItem('uma-planner-timeline-page', 'not-a-page')
+    render(<Timeline />)
+
+    expect(pageIndicator()).toHaveTextContent('Page 1 of 3')
+  })
+
+  it('drops the stored position when the filter changes, so it cannot be restored stale', () => {
+    render(<Timeline />)
+    fireEvent.click(screen.getAllByRole('button', { name: /next/i })[0])
+
+    fireEvent.change(screen.getByPlaceholderText('Search characters or events...'), {
+      target: { value: 'Window 0' },
+    })
+
+    expect(sessionStorage.getItem('uma-planner-timeline-page')).toBe('1')
   })
 })
 

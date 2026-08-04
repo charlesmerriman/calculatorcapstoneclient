@@ -60,13 +60,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
-	const [isDropdown, setIsDropdown] = useState(true)
 	const [isLoading, setIsLoading] = useState(true)
 	const [fetchError, setFetchError] = useState(false)
-
-	const handleDropDownToggle = (): void => {
-		setIsDropdown((prev) => !prev)
-	}
 
 	// The response→request shape conversion lives in toBannerPayload (a pure
 	// function) so the guest-migration flow can also run it on data that
@@ -269,11 +264,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		championsMeetingData,
 		leagueOfHeroesData,
 		timerIsGoing,
-		isDropdown,
 		organizedTimelineData,
-		handleDropDownToggle,
 		saveNow,
-		setIsDropdown,
 		setUserPlannedBannerData,
 		setStagedBanners,
 		setUserStatsData

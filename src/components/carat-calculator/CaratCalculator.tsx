@@ -3,8 +3,9 @@ import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
+import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
-import { useBannerResources } from "../../hooks/useBannerResources"
+import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
 import { plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
@@ -122,6 +123,11 @@ export const CaratCalculator: React.FC = () => {
 	return (
 		<div className="page-container">
 			<div className="flex mx-2 flex-col items-center gap-1.5 sm:mx-4">
+				{/* Income inputs first, then the banner sheet they feed. IncomeForm
+				    owns its own collapse state — it is a zero-prop panel like every
+				    other one here, reading everything from the calculator context. */}
+				<IncomeForm />
+
 				<div className="w-full border border-gray-600 rounded-lg shadow-sm overflow-hidden mt-2 pb-4">
 					{/* Add banner buttons */}
 					<div className="flex w-full flex-col gap-3 px-3 py-4 sm:flex-row sm:gap-4 sm:px-4">
@@ -157,28 +163,34 @@ export const CaratCalculator: React.FC = () => {
 										<div className="flex-1 h-px bg-amber-400/20" />
 									</div>
 								)}
-								<div className="hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 md:flex">
-									<div className="w-17.5 shrink-0 text-center">Type</div>
-									<div className="w-36 shrink-0 text-center">Images</div>
-									<div className="w-44 shrink-0 text-center">Banner</div>
-									<div className="w-32 shrink-0 text-center">Start / End Date</div>
-									<div className="w-65 shrink-0 text-center">Confirm</div>
-									<div className="w-22.5 shrink-0 text-center"># Pulls</div>
-									<div className="flex-1 text-center">% Chance to MLB (5x Copies)</div>
-									<div className="w-10 shrink-0 text-center"></div>
+								{/* @container: the card/table switch inside is keyed to THIS box's
+								    width, not the viewport's, so the table is only ever shown at a
+								    width that fits it and never has to scroll sideways. See
+								    --container-banner-table in index.css. */}
+								<div className="@container">
+									<div className="banner-grid hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
+										<div className="text-center">Type</div>
+										<div className="text-center">Images</div>
+										<div className="text-center">Banner</div>
+										<div className="text-center">Start / End Date</div>
+										<div className="text-center">Confirm</div>
+										<div className="text-center"># Pulls</div>
+										<div className="text-center">% Chance to MLB (5x Copies)</div>
+										<div className="text-center"></div>
+									</div>
+									{stagedBanners.map((banner) => (
+										<StagedBannerRow
+											key={banner.tempId}
+											stagedBanner={banner}
+											setStagedBanner={handleUpdateStagedBanner}
+											onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
+											onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
+											umaBannerData={umaBannerData}
+											supportBannerData={supportBannerData}
+											userPlannedBannerData={userPlannedBannerData}
+										/>
+									))}
 								</div>
-								{stagedBanners.map((banner) => (
-									<StagedBannerRow
-										key={banner.tempId}
-										stagedBanner={banner}
-										setStagedBanner={handleUpdateStagedBanner}
-										onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
-										onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
-										umaBannerData={umaBannerData}
-										supportBannerData={supportBannerData}
-										userPlannedBannerData={userPlannedBannerData}
-									/>
-								))}
 							</motion.div>
 						)}
 					</AnimatePresence>
@@ -192,25 +204,22 @@ export const CaratCalculator: React.FC = () => {
 									<div className="flex-1 h-px bg-brand/20" />
 								</div>
 							)}
-							<div className="hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 md:flex">
-								<div className="w-17.5 shrink-0 text-center">Type</div>
-								<div className="w-36 shrink-0 text-center">Images</div>
-								<div className="w-44 shrink-0 text-center">Banner</div>
-								<div className="w-32 shrink-0 text-center">Start / End Date</div>
-								<div className="w-65 shrink-0 text-center">Derived Stats (Auto-Calculated)</div>
-								<div className="w-22.5 shrink-0 text-center"># Pulls</div>
-								<div className="flex-1 text-center">% Chance to MLB (5x Copies)</div>
-								<div className="w-10 shrink-0 text-center"></div>
-							</div>
-							<div className="space-y-3 md:space-y-0 md:divide-y md:divide-gray-700">
+							{/* Own @container, as in the staging area above. */}
+							<div className="@container">
+								<div className="banner-grid hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
+									<div className="text-center">Type</div>
+									<div className="text-center">Images</div>
+									<div className="text-center">Banner</div>
+									<div className="text-center">Start / End Date</div>
+									<div className="text-center">Derived Stats (Auto-Calculated)</div>
+									<div className="text-center"># Pulls</div>
+									<div className="text-center">% Chance to MLB (5x Copies)</div>
+									<div className="text-center"></div>
+								</div>
+							<div className="space-y-3 @banner-table:space-y-0 @banner-table:divide-y @banner-table:divide-gray-700">
 								<AnimatePresence initial={false}>
 									{userPlannedBannerData.map((plannedBanner, index) => {
-										const resources = bannerResources[index] ?? {
-											carats: 0,
-											maxPossiblePulls: 0,
-											umaTickets: 0,
-											supportTickets: 0
-										}
+										const resources = bannerResources[index] ?? EMPTY_BANNER_RESOURCES
 
 										return (
 											<motion.div
@@ -231,14 +240,14 @@ export const CaratCalculator: React.FC = () => {
 													umaBannerData={umaBannerData}
 													supportBannerData={supportBannerData}
 													setUserPlannedBannerData={setUserPlannedBannerData}
-													caratsAvailableForThisBanner={resources.carats}
-													maxPossiblePullsForThisBanner={resources.maxPossiblePulls}
+													resources={resources}
 													initialBannerType={plannedBanner.initialBannerType}
 												/>
 											</motion.div>
 										)
 									})}
 								</AnimatePresence>
+							</div>
 							</div>
 						</div>
 					)}

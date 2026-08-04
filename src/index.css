@@ -1,12 +1,76 @@
 @import "tailwindcss";
 
+/* ===== LAYOUT CAPABILITY VARIANTS =====
+   Two named variants replace bare `md:` for the decisions that are about "does
+   this viewport have room for the desktop layout", not "is this screen wider
+   than 768px". The distinction is load-bearing: a phone in landscape is ~844x390
+   and a tablet in portrait is ~820x1180 — both clear `md:` (768px) while being
+   unable to hold either desktop layout below.
+
+   desktop-nav — the navbar's three-column desktop layout, which is already
+   over-full below ~900px (the "Sign in to save" button wraps to 2-3 lines).
+   That is exactly the landscape-phone band. SettingsMenu anchors its panel to a
+   navbar button, so it must switch on this same variant and no other.
+
+   app-shell — the fixed-height, internally-scrolling desktop shell. It needs
+   width AND real vertical room. Applied at 844x390 it produces a ~330px scroll
+   viewport, and because the document body then never scrolls, the mobile
+   browser's URL bar never auto-collapses — costing another ~70px and producing
+   the "it won't scroll properly" reports. The 32rem height floor clears every
+   phone in landscape (the tallest is ~430px) while staying below any real
+   desktop or tablet window.
+
+   The banner table's card/table switch is deliberately NOT here — it is a
+   container query keyed to the table's own width. See --container-banner-table
+   below. */
+@custom-variant desktop-nav (@media (min-width: 64rem));
+@custom-variant app-shell (@media (min-width: 64rem) and (min-height: 32rem));
+
 @theme {
+	/* The exact width at which the banner table stops fitting, and therefore the
+	   single number governing the card/table switch. Both sides of that switch
+	   read THIS token, so they cannot disagree:
+
+	     - .banner-grid (App.css) sets `min-width: var(--container-banner-table)`
+	     - the `@banner-table:` container-query variant is generated from it by
+	       Tailwind, because --container-* is the namespace those variants use
+
+	   So the table renders only when its container is genuinely wide enough to
+	   hold it, and the moment it isn't, every row falls back to MobileBannerCard.
+	   The table must never scroll horizontally — a row whose pull input and
+	   delete button sit past a scroll fold is how this went wrong before.
+
+	   A container query rather than a media query because the question is "does
+	   the table's own box fit the table", not "how wide is the screen". It is
+	   measured after the page's max-width, margins and borders have taken their
+	   cut, so nobody has to re-derive that arithmetic when the shell changes.
+
+	   The value is the sum of .banner-grid's fixed tracks (922px = 57.625rem) plus
+	   the MLB column's 14rem floor. ADDING A COLUMN MEANS BUMPING THIS — add the
+	   track to .banner-grid, then add its width here. Nothing else moves: the
+	   switch point follows automatically.
+
+	   THE CEILING IS 1214px (75.875rem), and it is a hard one. The shell gives
+	   the table `.page-container`'s lg:max-w-7xl (1280px) minus mx-4 (32), the
+	   panel border (2) and mx-4 again (32). Set this token above that and the
+	   container query can NEVER match at any viewport width, so every row falls
+	   back to MobileBannerCard and the table silently disappears — which is what
+	   a 76rem value did, missing by 2px.
+
+	   Raising it also moves the switch point. Prefer reclaiming measured slack
+	   from existing tracks (see the comment on .banner-grid) and spend this token
+	   only for the remainder. */
+	--container-banner-table: 71.625rem;
+
 	/* Display face for the brand wordmark only — body text stays on the default
 	   system stack. The font itself is imported in main.tsx (@fontsource-variable),
 	   so it is bundled rather than fetched from a CDN. Exposed as a theme token so
 	   it compiles to the `font-display` utility class. */
 	--font-display: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
 
+	/* Default / Gold stays deliberately familiar: a neutral dark interface with
+	   the creator's yellow as its signature accent. Expressive alternatives live
+	   in their own named themes below. */
 	--color-brand: #E6D28A;
 	--color-gray-50:  #f7f7fa;
 	--color-gray-100: #eeeeef;
@@ -64,74 +128,114 @@
 	--color-brand: #E6D28A;
 }
 
+/* Gilded deliberately turns the warmth up: it retains the cinematic, amber-lit
+   approach that is too decorative for the default planning experience. */
+[data-theme="gilded"] {
+	--color-brand: #f1cf75;
+	--color-gray-50:  #fffaf0;
+	--color-gray-100: #f5eddf;
+	--color-gray-200: #ded2bf;
+	--color-gray-300: #bcae98;
+	--color-gray-400: #998a73;
+	--color-gray-500: #766750;
+	--color-gray-600: #51463a;
+	--color-gray-700: #302a25;
+	--color-gray-800: #211d1a;
+	--color-gray-900: #151210;
+	--color-gray-950: #0d0b0a;
+}
+
 [data-theme="midnight"] {
-	--color-brand: #F6C84F;
-	--color-gray-50:  #f4f7fb;
-	--color-gray-100: #e8edf5;
-	--color-gray-200: #cfd8e6;
-	--color-gray-300: #aebbd0;
-	--color-gray-400: #7f8da8;
-	--color-gray-500: #556276;
-	--color-gray-600: #354154;
-	--color-gray-700: #20293a;
-	--color-gray-800: #121a2a;
-	--color-gray-900: #08111f;
-	--color-gray-950: #040a14;
+	/* A blue-black night palette with a crisp gold accent. The larger gaps between
+	   surfaces keep dense planner rows legible without making the screen glow. */
+	--color-brand: #f5ca63;
+	--color-gray-50:  #f5f8ff;
+	--color-gray-100: #e5edf9;
+	--color-gray-200: #cad6e9;
+	--color-gray-300: #a3b2cc;
+	--color-gray-400: #788ba9;
+	--color-gray-500: #536984;
+	--color-gray-600: #344960;
+	--color-gray-700: #1d3148;
+	--color-gray-800: #101f33;
+	--color-gray-900: #071425;
+	--color-gray-950: #030b15;
+}
+
+/* Race Day — a crisp, high-energy dark theme built around racing blue rather
+   than a warm metallic or jewel-tone accent. */
+[data-theme="race-day"] {
+	--color-brand: #7cc8ff;
+	--color-gray-50:  #f5faff;
+	--color-gray-100: #e2f0fc;
+	--color-gray-200: #c4daed;
+	--color-gray-300: #9bbbd5;
+	--color-gray-400: #7896b0;
+	--color-gray-500: #536f89;
+	--color-gray-600: #334a61;
+	--color-gray-700: #1b2b3b;
+	--color-gray-800: #101d2b;
+	--color-gray-900: #07121f;
+	--color-gray-950: #030a12;
 }
 
 [data-theme="violet"] {
-	--color-brand: #C4B5FD;
-	--color-gray-50:  #f5f4fa;
-	--color-gray-100: #eeedf5;
-	--color-gray-200: #d6d4e4;
-	--color-gray-300: #b5b2cc;
-	--color-gray-400: #8a86a8;
-	--color-gray-500: #5e5a7c;
-	--color-gray-600: #3a364f;
-	--color-gray-700: #252235;
-	--color-gray-800: #18162a;
-	--color-gray-900: #0e0c1a;
-	--color-gray-950: #070510;
+	/* A midnight-violet palette with a clearer surface ladder. The previous
+	   neutral purple ramp made panels read like one uninterrupted dark block. */
+	--color-brand: #d8c1ff;
+	--color-gray-50:  #fbf8ff;
+	--color-gray-100: #eee8ff;
+	--color-gray-200: #d9cdf7;
+	--color-gray-300: #b6a4dd;
+	--color-gray-400: #9384b9;
+	--color-gray-500: #6d5f91;
+	--color-gray-600: #42375f;
+	--color-gray-700: #24203c;
+	--color-gray-800: #17132d;
+	--color-gray-900: #0d0a1c;
+	--color-gray-950: #070511;
 }
 
 [data-theme="teal"] {
-	--color-brand: #5EEAD4;
-	--color-gray-50:  #f2faf9;
-	--color-gray-100: #e6f4f2;
-	--color-gray-200: #c9e7e3;
-	--color-gray-300: #a0cfc9;
-	--color-gray-400: #6aada5;
-	--color-gray-500: #3d7d77;
-	--color-gray-600: #254d4a;
-	--color-gray-700: #183432;
-	--color-gray-800: #102221;
-	--color-gray-900: #091514;
-	--color-gray-950: #040c0b;
+	/* A deep ocean treatment with cool green highlights and enough contrast to
+	   distinguish the planner's canvas, raised panels, and inset controls. */
+	--color-brand: #71e6d3;
+	--color-gray-50:  #effffb;
+	--color-gray-100: #d5f6ee;
+	--color-gray-200: #afdfd4;
+	--color-gray-300: #82bcb2;
+	--color-gray-400: #60958f;
+	--color-gray-500: #40716f;
+	--color-gray-600: #28504f;
+	--color-gray-700: #163938;
+	--color-gray-800: #0d292a;
+	--color-gray-900: #061a1d;
+	--color-gray-950: #031012;
 }
 
-/* Light theme. The app treats the gray ramp as "50 = lightest, 950 = darkest"
-   and pairs dark surfaces (bg-gray-900/800/700) with light text (text-gray-100/
-   300/400). To flip to a light theme without editing a single component, we
-   INVERT the ramp: gray-950 becomes pure white, gray-900 the page bg, and the
-   low numbers become the dark text tones. Every existing utility class keeps
-   working — a dark surface just resolves to a light one and vice versa.
+/* Light theme. The app uses the gray ramp semantically: 900/800/700 are page,
+   card, and inset surfaces, while 100/300/400 are progressively quieter text.
+   Keep that relationship, but use a warm canvas, bright card, and plum-ink
+   system rather than a flat mechanical gray inversion.
 
-   Brand is deepened to #8f6b12 (a bronzed gold): the default pale gold fails
-   contrast on white, whereas this hits ~4.5:1 as text on the light surfaces
-   (WCAG AA) while still reading as gold and keeping black button labels legible. */
+   Brand is deepened to burnished bronze so it remains legible on light surfaces
+   while retaining strong contrast for black labels on filled buttons. */
 [data-theme="light"] {
-	--color-brand: #8f6b12;
-	--color-gray-50:  #17171b; /* darkest — primary text */
-	--color-gray-100: #26262d; /* primary text */
-	--color-gray-200: #3b3b44;
-	--color-gray-300: #55555f; /* secondary text */
-	--color-gray-400: #71717c; /* muted text (AA on light bg) */
-	--color-gray-500: #82828d; /* de-emphasized text / tracks */
-	--color-gray-600: #c7c7cf; /* borders / dividers */
-	--color-gray-700: #e2e2e8; /* controls, inputs, hover surface */
-	--color-gray-800: #ededf1; /* cards / panels */
-	--color-gray-900: #f6f6f9; /* page background */
-	--color-gray-950: #ffffff; /* deepest recess — white */
+	/* A warm, editorial light theme — intentionally not a mechanical inversion of
+	   the dark gray ramp. The old cool-grey scale made every panel blend into the
+	   page, leaving the interface visually flat and unexpectedly clinical. */
+	--color-brand: #9a5d12;
+	--color-gray-50:  #261a28; /* darkest — primary plum ink */
+	--color-gray-100: #352438; /* primary text */
+	--color-gray-200: #513e50;
+	--color-gray-300: #6d5969; /* secondary text */
+	--color-gray-400: #806f7c; /* muted text */
+	--color-gray-500: #a08c97; /* de-emphasized text / tracks */
+	--color-gray-600: #decfd0; /* warm dividers */
+	--color-gray-700: #f3e7e2; /* controls and inset surfaces */
+	--color-gray-800: #fffaf7; /* raised cards */
+	--color-gray-900: #fbf2ed; /* page canvas */
+	--color-gray-950: #fffdfb; /* brightest surface */
 
 	/* Pull-count status colors, deepened for light surfaces. The dark defaults
 	   are bright mid-tones meant for a near-black input fill and collapse to
@@ -152,4 +256,208 @@
 	--color-pull-neutral-border: #5f7a6a;
 	--color-pull-over: #991b1b;
 	--color-pull-over-border: #b91c1c;
+}
+
+/* Light-theme polish lives here rather than in each component so every existing
+   card, form, timeline entry, and auth view gains the same sense of hierarchy.
+   The two low-opacity glows keep large empty areas intentional without competing
+   with planner data. */
+[data-theme="light"] {
+	color-scheme: light;
+}
+
+[data-theme="light"] body,
+[data-theme="light"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 10% -10%, rgb(210 142 53 / 18%), transparent 28rem),
+		radial-gradient(circle at 94% 8%, rgb(129 73 114 / 10%), transparent 25rem);
+	background-attachment: fixed;
+}
+
+[data-theme="light"] .card-panel,
+[data-theme="light"] .shadow-md,
+[data-theme="light"] .shadow-sm,
+[data-theme="light"] .shadow-lg,
+[data-theme="light"] .shadow-2xl {
+	box-shadow: 0 12px 30px rgb(70 37 47 / 9%);
+}
+
+[data-theme="light"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 18%, var(--color-gray-600));
+}
+
+[data-theme="light"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 16%, var(--color-gray-600));
+}
+
+/* Violet gets depth from coloured light rather than brighter flat panels. This
+   keeps the calculator data-first while making the selected theme unmistakable. */
+[data-theme="violet"] body,
+[data-theme="violet"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 8% -12%, rgb(124 58 237 / 30%), transparent 30rem),
+		radial-gradient(circle at 96% 4%, rgb(217 70 239 / 14%), transparent 24rem);
+	background-attachment: fixed;
+}
+
+[data-theme="violet"] .card-panel,
+[data-theme="violet"] .shadow-md,
+[data-theme="violet"] .shadow-sm,
+[data-theme="violet"] .shadow-lg,
+[data-theme="violet"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 28%), 0 1px 0 rgb(216 193 255 / 5%) inset;
+}
+
+[data-theme="violet"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 24%, var(--color-gray-600));
+}
+
+[data-theme="violet"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 20%, var(--color-gray-600));
+}
+
+/* Teal uses low, underwater colour blooms for depth. Their placement keeps the
+   calculator surface quiet while stopping the large dark canvas from feeling flat. */
+[data-theme="teal"] body,
+[data-theme="teal"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 6% -10%, rgb(20 184 166 / 24%), transparent 29rem),
+		radial-gradient(circle at 96% 2%, rgb(14 116 144 / 19%), transparent 25rem);
+	background-attachment: fixed;
+}
+
+[data-theme="teal"] .card-panel,
+[data-theme="teal"] .shadow-md,
+[data-theme="teal"] .shadow-sm,
+[data-theme="teal"] .shadow-lg,
+[data-theme="teal"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 26%), 0 1px 0 rgb(113 230 211 / 5%) inset;
+}
+
+[data-theme="teal"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 22%, var(--color-gray-600));
+}
+
+[data-theme="teal"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 18%, var(--color-gray-600));
+}
+
+/* Midnight's illumination is cooler and more restrained than Violet or Teal:
+   a subtle horizon glow makes the page feel spacious while data remains dominant. */
+[data-theme="midnight"] body,
+[data-theme="midnight"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 10% -14%, rgb(37 99 235 / 22%), transparent 31rem),
+		radial-gradient(circle at 96% 3%, rgb(14 165 233 / 12%), transparent 25rem);
+	background-attachment: fixed;
+}
+
+[data-theme="midnight"] .card-panel,
+[data-theme="midnight"] .shadow-md,
+[data-theme="midnight"] .shadow-sm,
+[data-theme="midnight"] .shadow-lg,
+[data-theme="midnight"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 1px 0 rgb(229 237 249 / 4%) inset;
+}
+
+[data-theme="midnight"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 17%, var(--color-gray-600));
+}
+
+[data-theme="midnight"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 14%, var(--color-gray-600));
+}
+
+/* Race Day's cool illumination is deliberately compact: it gives the chrome a
+   confident track-light feel without washing out the calculator's data rows. */
+[data-theme="race-day"] body,
+[data-theme="race-day"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 8% -12%, rgb(14 165 233 / 24%), transparent 30rem),
+		radial-gradient(circle at 96% 4%, rgb(37 99 235 / 15%), transparent 24rem);
+	background-attachment: fixed;
+}
+
+[data-theme="race-day"] .card-panel,
+[data-theme="race-day"] .shadow-md,
+[data-theme="race-day"] .shadow-sm,
+[data-theme="race-day"] .shadow-lg,
+[data-theme="race-day"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 1px 0 rgb(124 200 255 / 6%) inset;
+}
+
+[data-theme="race-day"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 20%, var(--color-gray-600));
+}
+
+[data-theme="race-day"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 16%, var(--color-gray-600));
+}
+
+[data-theme="race-day"] button:focus-visible,
+[data-theme="race-day"] a:focus-visible,
+[data-theme="race-day"] input:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: 2px;
+}
+
+/* Gilded's burnished gold atmosphere stops well short of the content area so
+   projection data remains effortless to scan. */
+[data-theme="gilded"] body,
+[data-theme="gilded"] #root > .bg-gray-900 {
+	background-color: var(--color-gray-900);
+	background-image:
+		radial-gradient(circle at 7% -12%, rgb(211 154 48 / 25%), transparent 31rem),
+		radial-gradient(circle at 97% 4%, rgb(151 88 33 / 15%), transparent 25rem);
+	background-attachment: fixed;
+}
+
+[data-theme="gilded"] .card-panel,
+[data-theme="gilded"] .shadow-md,
+[data-theme="gilded"] .shadow-sm,
+[data-theme="gilded"] .shadow-lg,
+[data-theme="gilded"] .shadow-2xl {
+	box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 1px 0 rgb(241 207 117 / 6%) inset;
+}
+
+[data-theme="gilded"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 21%, var(--color-gray-600));
+}
+
+[data-theme="gilded"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 17%, var(--color-gray-600));
+}
+
+[data-theme="gilded"] .font-display .text-brand {
+	text-shadow: 0 0 1.25rem rgb(241 207 117 / 20%);
+}
+
+/* Default is intentionally restrained. These are small hierarchy and interaction
+   improvements on the familiar palette, not a reinterpretation of the theme. */
+[data-theme="gold"] .card-panel,
+[data-theme="gold"] .shadow-md,
+[data-theme="gold"] .shadow-sm,
+[data-theme="gold"] .shadow-lg,
+[data-theme="gold"] .shadow-2xl {
+	box-shadow: 0 8px 20px rgb(0 0 0 / 20%), 0 1px 0 rgb(255 255 255 / 3%) inset;
+}
+
+[data-theme="gold"] .card-panel {
+	border-color: color-mix(in srgb, var(--color-brand) 8%, var(--color-gray-600));
+}
+
+[data-theme="gold"] .bg-gray-800.border-b {
+	border-color: color-mix(in srgb, var(--color-brand) 7%, var(--color-gray-600));
+}
+
+[data-theme="gold"] button:focus-visible,
+[data-theme="gold"] a:focus-visible,
+[data-theme="gold"] input:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: 2px;
 }

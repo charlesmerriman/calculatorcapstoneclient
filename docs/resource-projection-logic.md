@@ -182,12 +182,16 @@ derived from — the source sheet does not expose it as a settings cell.
 
 ```
 if monthly_shop_tickets:
-    umaTickets     += 4 * months
-    supportTickets += 4 * months
+    shopMonths      = calculateDayOfMonthOccurrences(start, end, 2)
+    umaTickets     += 4 * shopMonths
+    supportTickets += 4 * shopMonths
 ```
 
 The in-game monthly shop bundle (4 uma + 4 support tickets) is bought with an untracked
-currency, so it's credited on month boundaries at no carat cost. Off by default.
+currency, so it's credited at no carat cost. Off by default. It stocks on the **2nd** of
+each month, so it counts its own day-of-month occurrences rather than reusing `months`
+(the 1st-of-month count Club Rank uses) — a banner ending on the 1st would otherwise be
+credited a bundle the player can't buy yet.
 
 **7. Add Team Trials payout**
 
@@ -236,17 +240,39 @@ Note that a free-tier account draws its carats on the 1st but its tickets on the
 
 ```
 results.push({
-    carats: freeCarats + paidCarats,   // combined total for display
+    carats: freeCarats + paidCarats,   // combined total
+    freeCarats,                        // "Carat Est." box
+    paidCarats,                        // "Paid Carat Est." box
     maxPossiblePulls,                  // greedy max under the pull strategy
+    maxPullBreakdown,                  // "Free/Tickets/Paid" box
     umaTickets,
     supportTickets,
 })
 ```
 
-`carats` is the value the UI displays for this banner — resources available at banner end.
+`carats` is the combined total — resources available at banner end. The row does **not**
+display it: `freeCarats` and `paidCarats` are shown as two separate boxes ("Carat Est."
+and "Paid Carat Est.", matching the source spreadsheet's wording), because the two behave
+differently and only paid carats can buy discounted pulls. `carats` is kept because it is
+the projection's headline figure and what the test suite pins.
+
 `maxPossiblePulls` is the "Max Pulls" figure: the most pulls this banner could support if
 *all* available resources were thrown at it (computed by the same strategy as the actual
 spend, see step 11).
+
+`maxPullBreakdown` decomposes that figure by funding source — `{ freePulls, tickets,
+paidPulls, freeCaratPulls }` — and the row shows the first three as `Free/Tickets/Paid`.
+Two things to know about it:
+
+- **`paidPulls` covers every pull paid for with paid carats**, not just discounted ones:
+  the discounted pulls plus the *marginal* share of full-price pulls. Full-price pulls
+  draw on a deliberately fungible free+paid pool (step 11), so the paid share is defined
+  as `fullPriceMaxPulls - floor(freeCarats / 150)` — the pulls that exist only because
+  paid carats were in the pool. That rule follows the spend order, which puts free carats
+  ahead of full-price paid carats, so the boundary pull lands in the paid bucket.
+- **Under a carat deficit the four parts can sum to more than `maxPossiblePulls`.** Each
+  part is clamped at 0 while the total keeps its own clamp. That is intentional — free
+  pulls and tickets really do remain available; the deficit is a carat debt.
 
 **11. Deduct pull cost** (`applyPullStrategy` in `utils/bannerHelpers.ts`)
 

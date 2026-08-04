@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import PredictedBadge from "../PredictedBadge"
-import { compactSelectStyles } from "../../utils/reactSelectStyles"
+import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
 import { bannerKey, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
@@ -110,14 +110,15 @@ export const StagedBannerRow = ({
 		stagedBanner.banner_uma?.banner_timeline ??
 		stagedBanner.banner_support?.banner_timeline
 
-	const bannerSelect = (
+	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
 			className="w-full"
 			styles={{
-				...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
+				...styles,
 				menuPortal: (base) => ({ ...base, zIndex: 9999 })
 			}}
 			menuPortalTarget={document.body}
+			menuPosition="fixed"
 			placeholder={`Target ${bannerType} Banner`}
 			value={
 				currentBanner
@@ -147,8 +148,15 @@ export const StagedBannerRow = ({
 		/>
 	)
 
+	const bannerSelect = renderBannerSelect(
+		compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+	const mobileBannerSelect = renderBannerSelect(
+		mobileBannerSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+
 	const dateDisplay = bannerTimeline ? (
-		<div className="space-y-0.5 text-xs text-gray-400">
+		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
@@ -195,7 +203,7 @@ export const StagedBannerRow = ({
 		<MobileBannerCard
 			bannerType={bannerType}
 			images={images}
-			bannerSelect={bannerSelect}
+			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={confirmButton}
 			pullsInput={pullsInput}
@@ -205,7 +213,9 @@ export const StagedBannerRow = ({
 			removeIcon="discard"
 		/>
 
-		<div className="hidden w-full items-stretch bg-gray-800 h-[64px] md:flex">
+		{/* Column widths come from .banner-grid (App.css), shared with the header
+		    row and BannerRow — never re-declare a width on a cell here. */}
+		<div className="banner-grid hidden w-full items-stretch bg-gray-800 h-16 @banner-table:grid">
 			{/* === Type badge === */}
 			<div
 				className={`banner-type-tab ${
@@ -232,7 +242,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === Images section === */}
-			<div className="w-36 shrink-0 flex items-center justify-center gap-1.5 py-1 px-1">
+			<div className="flex items-center justify-center gap-1.5 py-1 px-1">
 				{images.slice(0, 2).map((img) => (
 					<img
 						key={img.name}
@@ -244,12 +254,12 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === Banner select === */}
-			<div className="w-44 shrink-0 flex items-center justify-center py-2 px-2">
+			<div className="flex items-center justify-center py-2 px-2">
 				{bannerSelect}
 			</div>
 
 			{/* === Start / End Date === */}
-			<div className="w-32 shrink-0 flex flex-col items-start justify-center gap-0.5 py-2 px-2 text-xs text-gray-400 relative">
+			<div className="flex min-w-0 flex-col items-start justify-center gap-0.5 py-2 px-1 text-xs text-gray-400 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{bannerTimeline ? (
 					<>
@@ -263,7 +273,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === Add to sheet button (replaces Derived Stats) === */}
-			<div className="w-65 shrink-0 flex items-center justify-center px-3 py-2">
+			<div className="flex min-w-0 items-center justify-center px-3 py-2">
 				<button
 					onClick={onConfirm}
 					disabled={!hasBanner}
@@ -277,7 +287,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === # Pulls section === */}
-			<div className="w-22.5 shrink-0 flex items-center justify-center py-2 px-2 relative">
+			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				<input
@@ -291,7 +301,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === MLB chance grid === */}
-			<div className="flex-1 flex items-center justify-center py-2 px-2 min-w-0">
+			<div className="flex items-center justify-center py-2 px-2 min-w-0">
 				{hasBanner ? (
 					<MLBChanceDisplay
 						pulls={stagedBanner.number_of_pulls}

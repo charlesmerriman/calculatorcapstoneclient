@@ -1,12 +1,9 @@
-import { useEffect, useLayoutEffect, useState } from "react"
-import { motion } from "framer-motion"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { CalendarDays, Calculator as CalculatorIcon, ChevronDown, LogIn, LogOut, Save, UserRound } from "lucide-react"
+import { CalendarDays, Calculator as CalculatorIcon, LogIn, LogOut, Save, UserRound } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
 import { userLogout } from "../../services/userServices"
 import { toBannerPayload } from "../../services/calculatorFetchCalls"
 import { stashGuestPlan } from "../../services/guestMigration"
-import { IncomeForm } from "../carat-calculator/IncomeForm"
 import { Wordmark } from "../Wordmark"
 import { ThemePicker } from "./ThemePicker"
 import { SettingsMenu } from "./SettingsMenu"
@@ -18,38 +15,6 @@ export const Navbar = () => {
 	const calculatorData = useCalculatorDataSafe()
 
 	const isLoggedIn = !!localStorage.getItem("authToken")
-
-	const [isMobile, setIsMobile] = useState(() =>
-		typeof window !== "undefined"
-			? window.matchMedia("(max-width: 767px)").matches
-			: false
-	)
-	// True only when the panel open/close was triggered by a user click — not by navigation
-	const [animatePanel, setAnimatePanel] = useState(false)
-
-	useEffect(() => {
-		const mediaQuery = window.matchMedia("(max-width: 767px)")
-		const handleChange = () => setIsMobile(mediaQuery.matches)
-
-		handleChange()
-		mediaQuery.addEventListener("change", handleChange)
-		return () => mediaQuery.removeEventListener("change", handleChange)
-	}, [])
-
-	// Pull the setter out of the context value. It's a useState setter, so its identity is stable
-	// across renders — unlike `calculatorData` itself, which is a fresh object literal every render.
-	// Depending on the stable setter (instead of the whole object) stops this effect from firing on
-	// every render and overwriting the user's Income toggle; it now re-syncs the default open/closed
-	// state only when the route or breakpoint actually changes.
-	const setIsDropdown = calculatorData?.setIsDropdown
-
-	// useLayoutEffect (not useEffect) so this runs before the browser paints —
-	// prevents a visible frame where the income form is missing on navigation to "/app"
-	useLayoutEffect(() => {
-		if (!setIsDropdown) return
-		setAnimatePanel(false)
-		setIsDropdown(location.pathname === "/app" && !isMobile)
-	}, [isMobile, location.pathname, setIsDropdown])
 
 	const handleLogout = async (): Promise<void> => {
 		try {
@@ -90,13 +55,6 @@ export const Navbar = () => {
 	const isCalculator = location.pathname === "/app"
 	const isTimeline = location.pathname === "/app/timeline"
 
-	const handleIncomeToggle = (): void => {
-		if (!calculatorData) return
-		setAnimatePanel(true)
-		calculatorData.handleDropDownToggle()
-	}
-
-	const isDropdown = calculatorData?.isDropdown ?? false
 	const timerIsGoing = calculatorData?.timerIsGoing ?? false
 
 	const mobileNavClass = (active: boolean) =>
@@ -154,7 +112,7 @@ export const Navbar = () => {
 	return (
 		<div className="z-50 shrink-0">
 			{/* Mobile nav */}
-			<nav className="bg-gray-800 border-b border-gray-600 md:hidden">
+			<nav className="bg-gray-800 border-b border-gray-600 desktop-nav:hidden">
 				<div className="flex h-14 items-center justify-between gap-3 px-3">
 					<div className="flex min-w-0 items-center">
 						{logo}
@@ -198,8 +156,7 @@ export const Navbar = () => {
 					</div>
 				</div>
 
-				{/* Calculator + Timeline always visible; Income tab only in app mode */}
-				<div className={`grid ${calculatorData ? "grid-cols-3" : "grid-cols-2"}`}>
+				<div className="grid grid-cols-2">
 					<Link to="/app" className={mobileNavClass(isCalculator)}>
 						<CalculatorIcon className="h-4 w-4 shrink-0" />
 						<span className="truncate">Calculator</span>
@@ -208,27 +165,20 @@ export const Navbar = () => {
 						<CalendarDays className="h-4 w-4 shrink-0" />
 						<span className="truncate">Timeline</span>
 					</Link>
-					{calculatorData && (
-						<button
-							onClick={handleIncomeToggle}
-							className={`${mobileNavClass(isDropdown)} cursor-pointer`}
-						>
-							<UserRound className="h-4 w-4 shrink-0" />
-							<span className="truncate">Income</span>
-							<ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${isDropdown ? "rotate-180" : ""}`} />
-						</button>
-					)}
 				</div>
 			</nav>
 
-			{/* Desktop nav — always three-column; center links always visible */}
-			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 md:grid">
+			{/* Desktop nav — always three-column; center links always visible.
+			    Switches on desktop-nav rather than md: this layout is already over-full
+			    below ~900px (the "Sign in to save" button wraps to 2-3 lines), which
+			    is precisely the landscape-phone / portrait-tablet band. */}
+			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 desktop-nav:grid">
 				{/* Left: Branding */}
 				<div className="flex items-center">
 					{logo}
 				</div>
 
-				{/* Center: Nav links — Calculator + Timeline always shown; Income only in app mode */}
+				{/* Center: Nav links */}
 				<div className="flex justify-center items-stretch h-full">
 					<Link to="/app" className={desktopNavClass(isCalculator)}>
 						<CalculatorIcon className="w-4 h-4" />
@@ -238,16 +188,6 @@ export const Navbar = () => {
 						<CalendarDays className="w-4 h-4" />
 						Timeline
 					</Link>
-					{calculatorData && (
-						<button
-							onClick={handleIncomeToggle}
-							className={`${desktopNavClass(isDropdown)} cursor-pointer`}
-						>
-							<UserRound className="w-4 h-4" />
-							Income
-							<ChevronDown className={`w-3 h-3 transition-transform ${isDropdown ? "rotate-180" : ""}`} />
-						</button>
-					)}
 				</div>
 
 				{/* Right: Save indicator + Theme Picker + Logout/Login */}
@@ -291,18 +231,6 @@ export const Navbar = () => {
 					)}
 				</div>
 			</nav>
-
-			{/* Income dropdown panel — only rendered in app mode */}
-			{calculatorData && (
-				<motion.div
-					initial={false}
-					animate={{ height: isDropdown ? "auto" : 0, opacity: isDropdown ? 1 : 0 }}
-					transition={animatePanel ? { duration: 0.2, ease: "easeInOut" } : { duration: 0 }}
-					style={{ overflow: "hidden" }}
-				>
-					<IncomeForm />
-				</motion.div>
-			)}
 		</div>
 	)
 }

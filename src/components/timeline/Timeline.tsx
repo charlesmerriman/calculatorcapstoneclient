@@ -20,7 +20,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import PredictedBadge from "../PredictedBadge"
 import { bannerKey, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
-import { formatDate } from "../../utils/dateFormat"
+import { formatDate, parseApiDate } from "../../utils/dateFormat"
 import type {
 	ChampionsMeeting,
 	LeagueOfHeroes,
@@ -75,6 +75,40 @@ function storeViewMode(mode: TimelineViewMode): void {
 		localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
 	} catch {
 		// Preference simply won't persist across reloads.
+	}
+}
+
+/**
+ * The paged view's current page, persisted so it survives an unmount.
+ *
+ * This route unmounts whenever the user switches to the calculator, which
+ * throws away every piece of local state — so without this, coming back always
+ * landed on page 1 no matter how far they'd paged in.
+ *
+ * `sessionStorage`, not `localStorage`: a page index is "where I am right now",
+ * not a preference like the view mode. It's meaningful for the length of a
+ * visit, but restoring page 12 in a browser opened a week later would point at
+ * completely different events, since the timeline is date-filtered.
+ */
+const PAGE_STORAGE_KEY = "uma-planner-timeline-page"
+
+function readStoredPage(): number {
+	try {
+		const stored = Number(sessionStorage.getItem(PAGE_STORAGE_KEY))
+		// Anything absent, non-numeric, or out of range falls back to page 1.
+		// The upper bound can't be checked here — the event list hasn't loaded
+		// yet at mount — so the render clamps against totalPages instead.
+		return Number.isInteger(stored) && stored > 0 ? stored : 1
+	} catch {
+		return 1
+	}
+}
+
+function storePage(page: number): void {
+	try {
+		sessionStorage.setItem(PAGE_STORAGE_KEY, String(page))
+	} catch {
+		// Position simply won't survive leaving the route.
 	}
 }
 const controlButtonClass =
@@ -213,8 +247,27 @@ function getBannerStatusClasses(status: BannerCardStatus): string {
 	return "border-gray-600 text-gray-500"
 }
 
-function getDurationDays(startDate: string, endDate: string): number {
-	return differenceInCalendarDays(new Date(endDate), new Date(startDate)) + 1
+// Countdown label for the badge in a banner card's header. Both dates are
+// parsed through parseApiDate so date-only strings land on *local* midnight —
+// `new Date("2026-08-10")` would parse as UTC and shift the day count by one
+// for anyone west of GMT. Comparing calendar days (not elapsed hours) means a
+// banner starting later today reads "Starts today" rather than "in 0 days".
+function getCountdownLabel(startDate: string, endDate: string, today: Date): string {
+	const start = parseApiDate(startDate)
+	const end = parseApiDate(endDate)
+	if (!start || !end) return ""
+
+	const daysUntilStart = differenceInCalendarDays(start, today)
+	if (daysUntilStart > 1) return `In ${daysUntilStart} Days`
+	if (daysUntilStart === 1) return "Starts Tomorrow"
+	if (daysUntilStart === 0) return "Starts Today"
+
+	// Already started — the countdown flips to how much of it is left.
+	const daysUntilEnd = differenceInCalendarDays(end, today)
+	if (daysUntilEnd > 1) return `Ends in ${daysUntilEnd} Days`
+	if (daysUntilEnd === 1) return "Ends Tomorrow"
+	if (daysUntilEnd === 0) return "Ends Today"
+	return "Ended"
 }
 
 // Champions Meeting details are entered by hand in the admin and are unknown
@@ -262,7 +315,7 @@ export const Timeline = () => {
 	} = useCalculatorData()
 	const [showPast, setShowPast] = useState(false)
 	const [searchQuery, setSearchQuery] = useState("")
-	const [currentPage, setCurrentPage] = useState(1)
+	const [currentPage, setCurrentPage] = useState(readStoredPage)
 	const [viewMode, setViewMode] = useState<TimelineViewMode>(readStoredViewMode)
 	const [visibleCount, setVisibleCount] = useState(INFINITE_CHUNK_SIZE)
 	const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -326,13 +379,28 @@ export const Timeline = () => {
 
 	const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE))
 
+	// The only writer of the page, so every path that moves it — the buttons, the
+	// filter resets — also persists it. Nothing sets `currentPage` directly.
+	const goToPage = useCallback((page: number): void => {
+		setCurrentPage(page)
+		storePage(page)
+	}, [])
+
+	// A restored page can outrun the list it's indexing: the events are fetched
+	// after mount (so totalPages is 1 for the first render or two), and the user
+	// may return with fewer matches than they left with. Clamping here — rather
+	// than correcting the state from an effect — means the list and the "Page X
+	// of Y" label are never briefly inconsistent, and the stored page is left
+	// intact so a slow fetch doesn't permanently knock the reader back to 1.
+	const effectivePage = Math.min(currentPage, totalPages)
+
 	// Paged mode windows by page; infinite mode reveals a prefix that only grows.
 	// Without an IntersectionObserver there is nothing to drive the growth, so
 	// that case skips windowing entirely rather than stranding the reader ten
 	// cards in with no way to reach the rest.
 	const visibleEvents =
 		viewMode === "paged"
-			? filteredEvents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+			? filteredEvents.slice((effectivePage - 1) * PAGE_SIZE, effectivePage * PAGE_SIZE)
 			: SUPPORTS_INTERSECTION_OBSERVER
 				? filteredEvents.slice(0, visibleCount)
 				: filteredEvents
@@ -351,7 +419,7 @@ export const Timeline = () => {
 	// re-renders over it — a visible flash of the wrong list, and what
 	// `react-hooks/set-state-in-effect` warns about.
 	const resetListWindow = (): void => {
-		setCurrentPage(1)
+		goToPage(1)
 		setVisibleCount(INFINITE_CHUNK_SIZE)
 	}
 
@@ -427,10 +495,10 @@ export const Timeline = () => {
 					</div>
 					{viewMode === "paged" && totalPages > 1 ? (
 						<PaginationControls
-							currentPage={currentPage}
+							currentPage={effectivePage}
 							totalPages={totalPages}
-							onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
-							onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+							onPrevious={() => goToPage(Math.max(1, effectivePage - 1))}
+							onNext={() => goToPage(Math.min(totalPages, effectivePage + 1))}
 						/>
 					) : viewMode === "infinite" && filteredEvents.length > 0 ? (
 						<span className={pageIndicatorClass}>
@@ -559,7 +627,7 @@ export const Timeline = () => {
 					const supportStaged  = supportBanner ? stagedBanners.some((b) => b.banner_support?.id === supportBanner.id) : false
 					const umaStatus = getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)
 					const supportStatus = getBannerCardStatus(!!supportBanner, supportExpired, supportPlanned, supportStaged)
-					const durationDays = getDurationDays(bannerEvent.start_date, bannerEvent.end_date)
+					const countdownLabel = getCountdownLabel(bannerEvent.start_date, bannerEvent.end_date, today)
 					const umaFeatureGridClass = umaBanner && umaBanner.umas.length === 1
 						? "grid-cols-1"
 						: "grid-cols-2"
@@ -586,7 +654,7 @@ export const Timeline = () => {
 										</div>
 									</div>
 									<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-semibold text-gray-100">
-										<span>{durationDays} Days</span>
+										<span>{countdownLabel}</span>
 										<Clock3 className="h-4 w-4 text-brand" />
 									</div>
 								</div>
@@ -751,10 +819,10 @@ export const Timeline = () => {
 			{viewMode === "paged" && totalPages > 1 && (
 				<div className="mx-auto mt-2 w-fit max-w-[calc(100%-1.5rem)] rounded-lg border border-gray-700/60 bg-gray-950/40 px-3 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
 					<PaginationControls
-						currentPage={currentPage}
+						currentPage={effectivePage}
 						totalPages={totalPages}
-						onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
-						onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+						onPrevious={() => goToPage(Math.max(1, effectivePage - 1))}
+						onNext={() => goToPage(Math.min(totalPages, effectivePage + 1))}
 					/>
 				</div>
 			)}

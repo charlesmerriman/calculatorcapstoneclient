@@ -10,17 +10,18 @@ export const ApplicationViews = () => {
 			<Route
 				path="/"
 				element={
-					<div className="flex min-h-dvh flex-col bg-gray-900 md:h-dvh md:overflow-hidden">
+					<div className="flex min-h-dvh flex-col bg-gray-900 app-shell:h-dvh app-shell:overflow-hidden">
 						<Navbar />
 						{/* The footer sits INSIDE the scroll region, not as a sibling of it: on
-						    desktop this shell is a fixed-height, no-scroll frame (md:h-dvh
-						    md:overflow-hidden), so a footer outside the scroller would be
+						    desktop this shell is a fixed-height, no-scroll frame (app-shell:h-dvh
+						    app-shell:overflow-hidden), so a footer outside the scroller would be
 						    permanently pinned to the bottom of the screen. Inside, it scrolls
 						    away with the calculator/timeline content like on every other page.
 
 						    The scroller is itself a flex column so the page wrapper below can
-						    absorb any leftover height: with the income panel collapsed and few
-						    banner rows, the slack goes ABOVE the footer instead of below it.
+						    absorb any leftover height: with the calculator's income section
+						    collapsed and few banner rows, the slack goes ABOVE the footer
+						    instead of below it.
 						    Otherwise that slack renders as gray-900 directly beneath a gray-900
 						    footer, and the footer's top border makes the whole band read as one
 						    enormous footer. */}

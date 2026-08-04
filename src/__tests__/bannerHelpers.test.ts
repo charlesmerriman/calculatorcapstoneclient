@@ -86,6 +86,71 @@ describe('applyPullStrategy — maxPossiblePulls', () => {
   })
 })
 
+// ── maxPullBreakdown ──────────────────────────────────────────────────────────
+
+describe('applyPullStrategy — maxPullBreakdown', () => {
+  it('decomposes the max without changing it', () => {
+    const { maxPossiblePulls, maxPullBreakdown: b } = strat({
+      freePulls: 3,
+      umaTickets: 2,
+      freeCarats: 1_000,
+    })
+    expect(b).toEqual({ freePulls: 3, tickets: 2, paidPulls: 0, freeCaratPulls: 6 })
+    expect(b.freePulls + b.tickets + b.paidPulls + b.freeCaratPulls).toBe(maxPossiblePulls)
+  })
+
+  it('reports the matching ticket type only (no cross-substitution)', () => {
+    expect(strat({ umaTickets: 5, supportTickets: 9 }).maxPullBreakdown.tickets).toBe(5)
+    expect(
+      strat({ isUmaBanner: false, umaTickets: 5, supportTickets: 9 }).maxPullBreakdown.tickets
+    ).toBe(9)
+  })
+
+  it('attributes a full-price pull that only exists thanks to paid carats to paid', () => {
+    // 100 free alone buys nothing; +500 paid makes 4 pulls. All 4 are marginal.
+    const b = strat({ freeCarats: 100, paidCarats: 500 }).maxPullBreakdown
+    expect(b).toMatchObject({ paidPulls: 4, freeCaratPulls: 0 })
+  })
+
+  it('puts the shared boundary pull in the paid bucket, not the free one', () => {
+    // 200 free + 100 paid = 2 pulls. Free alone affords 1, so the second pull —
+    // paid for by a free remainder plus paid carats — counts as paid.
+    const b = strat({ freeCarats: 200, paidCarats: 100 }).maxPullBreakdown
+    expect(b).toMatchObject({ paidPulls: 1, freeCaratPulls: 1 })
+  })
+
+  it('counts discounted pulls as paid', () => {
+    const b = strat({
+      paidCarats: 500,
+      discountDays: 10,
+      discountedPaidPulls: true,
+    }).maxPullBreakdown
+    expect(b).toMatchObject({ paidPulls: 10, freeCaratPulls: 0 })
+  })
+
+  it('reports 0 paid pulls when both paid-pull settings are off', () => {
+    const b = strat({
+      freeCarats: 900,
+      paidCarats: 500,
+      discountedPaidPulls: false,
+      fullPricePaidPulls: false,
+    }).maxPullBreakdown
+    expect(b).toMatchObject({ paidPulls: 0, freeCaratPulls: 6 })
+  })
+
+  it('clamps each part at 0 under a carat deficit, so the parts can exceed the total', () => {
+    // The total clamps to 0, but the free pulls and tickets really are still
+    // available — the deficit is a carat debt, not a lost ticket.
+    const { maxPossiblePulls, maxPullBreakdown: b } = strat({
+      freePulls: 5,
+      umaTickets: 3,
+      freeCarats: -5_000,
+    })
+    expect(maxPossiblePulls).toBe(0)
+    expect(b).toEqual({ freePulls: 5, tickets: 3, paidPulls: 0, freeCaratPulls: 0 })
+  })
+})
+
 // ── Actual spend (leftover balances) ────────────────────────────────────────────
 
 describe('applyPullStrategy — spend', () => {

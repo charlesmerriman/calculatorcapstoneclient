@@ -185,6 +185,14 @@ export const DISCOUNTED_PULL_COST_CARATS = 50
 export const MONTHLY_SHOP_UMA_TICKETS = 4
 export const MONTHLY_SHOP_SUPPORT_TICKETS = 4
 
+/**
+ * Day of the month the shop stocks the bundle. Deliberately NOT the 1st: these
+ * used to be counted with the same month-boundary helper as Club Rank income,
+ * which credited them a day early and could hand a banner ending on the 1st a
+ * bundle it can't actually buy yet.
+ */
+export const MONTHLY_SHOP_TICKET_DAY = 2
+
 // ── Training Pass monthly reward ──────────────────────────────────────────────
 
 /**

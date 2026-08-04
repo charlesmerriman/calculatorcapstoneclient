@@ -1,7 +1,8 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
+import { motion } from "framer-motion"
 import Select from "react-select"
 import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select"
-import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Carrot, Dumbbell, Ticket, Star, Sparkles } from "lucide-react"
+import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Carrot, Dumbbell, Ticket, Star, Sparkles, ChevronDown } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
@@ -110,6 +111,20 @@ export const IncomeForm = () => {
 		leagueOfHeroesData,
 	})
 
+	// Open by default on desktop, collapsed on mobile — this panel is roughly a
+	// screen and a half tall on a phone, and the banner sheet below it is what
+	// most visits are actually for.
+	//
+	// The breakpoint is read ONCE in the lazy initializer rather than subscribed
+	// to with a matchMedia listener: the default is a first-paint concern only.
+	// A live listener would re-force open/closed on every crossing of 767px,
+	// overriding whatever the user had toggled mid-session.
+	const [isOpen, setIsOpen] = useState(() =>
+		typeof window !== "undefined"
+			? !window.matchMedia("(max-width: 767px)").matches
+			: true
+	)
+
 	if (!userStatsData) return null
 
 	const teamTrialsRank = teamTrialsRankData.find((r) => r.id === userStatsData.team_trials_rank)
@@ -130,8 +145,39 @@ export const IncomeForm = () => {
 	]
 
 	return (
-		<div className="w-full bg-gray-900 px-3 py-3 sm:px-4">
-			<div className="max-w-7xl mx-auto space-y-4">
+		// No width/background/padding of its own: this renders inside the
+		// calculator page's .page-container (max width + bg-gray-900) and its
+		// mx-2/sm:mx-4 wrapper, which previously had to be duplicated here
+		// because the panel hung full-bleed off the navbar.
+		<div className="w-full pt-2">
+
+			{/* Collapse header — a full-width control so it remains an obvious entry
+			    point when the income form is closed on phones and desktop alike. */}
+			<button
+				type="button"
+				onClick={() => setIsOpen((v) => !v)}
+				aria-expanded={isOpen}
+				className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-600 bg-gray-900/40 px-4 py-1.5 text-left transition-colors hover:bg-gray-800/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+			>
+				<span className="text-base font-semibold text-brand uppercase tracking-wide">
+					Income &amp; Resources
+				</span>
+				<ChevronDown
+					className={`h-5 w-5 shrink-0 text-brand transition-transform ${isOpen ? "rotate-180" : ""}`}
+				/>
+			</button>
+
+			{/* initial={false} skips the mount animation, so a desktop load paints
+			    the panel already open instead of expanding into view. The rank
+			    selects portal their menus to document.body, so overflow:hidden
+			    here clips the panel without clipping an open dropdown. */}
+			<motion.div
+				initial={false}
+				animate={{ height: isOpen ? "auto" : 0, opacity: isOpen ? 1 : 0 }}
+				transition={{ duration: 0.2, ease: "easeInOut" }}
+				style={{ overflow: "hidden" }}
+			>
+				<div className="space-y-4 pt-2">
 
 				{/* ── Top row: Income Sources + Current Resources ── */}
 				<div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
@@ -153,7 +199,12 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
-										defaultValue={
+										menuPosition="fixed"
+										// Controlled, not defaultValue: userStatsData can be replaced
+										// from outside this component (guest→account migration, a save
+										// round-trip), and an uncontrolled select would keep showing the
+										// rank it mounted with.
+										value={
 											teamTrialsRank
 												? { value: teamTrialsRank, label: teamTrialsRank.name, key: teamTrialsRank.id }
 												: null
@@ -178,7 +229,8 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
-										defaultValue={
+										menuPosition="fixed"
+										value={
 											clubRank
 												? { value: clubRank, label: clubRank.name, key: clubRank.id }
 												: null
@@ -203,7 +255,8 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
-										defaultValue={
+										menuPosition="fixed"
+										value={
 											championsMeetingRank
 												? {
 														value: championsMeetingRank,
@@ -236,7 +289,8 @@ export const IncomeForm = () => {
 										className="col-span-2 min-w-0 sm:col-span-1"
 										styles={selectStyles}
 										menuPortalTarget={document.body}
-										defaultValue={
+										menuPosition="fixed"
+										value={
 											leagueOfHeroesRank
 												? {
 														value: leagueOfHeroesRank,
@@ -412,7 +466,8 @@ export const IncomeForm = () => {
 
 				</div>
 
-			</div>
+				</div>
+			</motion.div>
 		</div>
 	)
 }

@@ -10,7 +10,7 @@ import { Link } from "react-router-dom"
  * the footer — it shares bg-gray-900 with the page, so an empty strip underneath reads
  * as one enormous footer rather than as background.
  *
- * On the fixed-height app shell (`md:h-dvh md:overflow-hidden`) the footer therefore
+ * On the fixed-height app shell (`app-shell:h-dvh app-shell:overflow-hidden`) the footer therefore
  * lives inside the scroll container, not beside it — see ApplicationViews.
  *
  * Added per-layout rather than via a global wrapper: each route group sets its own

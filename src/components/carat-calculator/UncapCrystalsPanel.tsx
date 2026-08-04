@@ -83,6 +83,7 @@ export const UncapCrystalsPanel = () => {
 			<Select<DateOption>
 				styles={compactSelectStyles}
 				menuPortalTarget={document.body}
+				menuPosition="fixed"
 				placeholder="Select Banner Date for Estimate"
 				options={bannerOptions}
 				value={selectedOption}

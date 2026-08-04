@@ -18,8 +18,9 @@ import PredictedBadge from "../PredictedBadge"
 import { formatDate } from "../../utils/dateFormat"
 import { bannerKey, getFreePulls, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
+import type { BannerResources } from "../../hooks/useBannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
-import { compactSelectStyles } from "../../utils/reactSelectStyles"
+import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -30,8 +31,12 @@ interface BannerRowProps {
 	userPlannedBannerData: UserPlannedBanner[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
-	caratsAvailableForThisBanner: number
-	maxPossiblePullsForThisBanner: number
+	/**
+	 * This banner's projection snapshot (carats, max pulls, pull breakdown).
+	 * Passed whole rather than as individual scalars so adding a stat to the
+	 * derived-stats strip doesn't churn this signature every time.
+	 */
+	resources: BannerResources
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[]>
 	>
@@ -49,8 +54,7 @@ export const BannerRow = ({
 	userPlannedBannerData,
 	umaBannerData,
 	supportBannerData,
-	caratsAvailableForThisBanner,
-	maxPossiblePullsForThisBanner,
+	resources,
 	setUserPlannedBannerData,
 	initialBannerType
 }: BannerRowProps) => {
@@ -80,18 +84,30 @@ export const BannerRow = ({
 
 	const maxPossiblePulls: number | "Passed" = bannerHasEnded
 		? "Passed"
-		: maxPossiblePullsForThisBanner
+		: resources.maxPossiblePulls
 
-	// Round the *displayed* estimate DOWN to the nearest ten carats (ones place
-	// is always 0, never a decimal). Flooring rather than rounding to nearest
+	// Round a *displayed* carat estimate DOWN to the nearest ten (ones place is
+	// always 0, never a decimal). Flooring rather than rounding to nearest
 	// avoids overstating: rounding 145 up to 150 would imply a pull is
 	// affordable while "Max Pulls" (which floors 145/150 to 0) says it isn't.
-	// Presentation-only — the raw caratsAvailableForThisBanner still drives the
-	// max-pulls math above, so this never affects how many pulls are allowed.
-	const displayCarats =
+	// Presentation-only — the raw balances still drive the max-pulls math, so
+	// this never affects how many pulls are allowed. A passed banner shows 0:
+	// its resources were spent or expired, so an estimate would be misleading.
+	const toDisplayCarats = (carats: number): number =>
+		maxPossiblePulls === "Passed" ? 0 : Math.floor(carats / 10) * 10
+
+	const displayFreeCarats = toDisplayCarats(resources.freeCarats)
+	const displayPaidCarats = toDisplayCarats(resources.paidCarats)
+
+	// Ticket and paid-pull counts come straight from the strategy's breakdown
+	// rather than being re-derived here: it already resolved which ticket type
+	// matches this banner, and picking uma-vs-support again in the component
+	// would be a second place to get the no-cross-substitution rule wrong.
+	// Zeroed for a passed banner, mirroring the carat boxes above.
+	const { tickets: ticketPulls, paidPulls } =
 		maxPossiblePulls === "Passed"
-			? 0
-			: Math.floor(caratsAvailableForThisBanner / 10) * 10
+			? { tickets: 0, paidPulls: 0 }
+			: resources.maxPullBreakdown
 
 	const updateBannerInList = (
 		updater: (banner: UserPlannedBanner) => UserPlannedBanner
@@ -202,14 +218,15 @@ export const BannerRow = ({
 		plannedBanner.banner_uma?.banner_timeline ??
 		plannedBanner.banner_support?.banner_timeline
 
-	const bannerSelect = (
+	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
 			className="w-full"
 			styles={{
-				...(compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>),
+				...styles,
 				menuPortal: (base) => ({ ...base, zIndex: 9999 })
 			}}
 			menuPortalTarget={document.body}
+			menuPosition="fixed"
 			placeholder={`Target ${bannerType} Banner`}
 			value={
 				currentBanner
@@ -239,8 +256,15 @@ export const BannerRow = ({
 		/>
 	)
 
+	const bannerSelect = renderBannerSelect(
+		compactSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+	const mobileBannerSelect = renderBannerSelect(
+		mobileBannerSelectStyles as import("react-select").StylesConfig<BannerOption, false>
+	)
+
 	const dateDisplay = bannerTimeline ? (
-		<div className="space-y-0.5 text-xs text-gray-400">
+		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
@@ -249,19 +273,96 @@ export const BannerRow = ({
 		<span className="text-xs text-gray-600">—</span>
 	)
 
+	// Single source of truth for the derived-stats strip. Both the mobile card
+	// and the desktop grid render from this list, so a stat is added or reworded
+	// in ONE place — two hand-synced copies of the same boxes is exactly the
+	// drift that leaves one layout a stat behind the other.
+	// Labels follow the source spreadsheet this calculator is modelled on
+	// ("Carat Est.", "Paid Carat Est.", "Free/Tickets/Paid"), so users coming
+	// from the sheet read the same vocabulary. `title` carries the long form.
+	const derivedStats: {
+		label: string
+		value: string
+		title: string
+		valueClass?: string
+	}[] = [
+		{
+			// Unspaced slashes, matching formatDate's a/b/c. No thousands separators
+			// here — these are small counts and commas would collide with the slashes.
+			label: "Free/Tickets/Paid",
+			value: `${freePulls || 0}/${ticketPulls}/${paidPulls}`,
+			title: "Pulls you don't pay free carats for: the banner's free pulls, matching tickets, and pulls funded by paid carats",
+		},
+		{
+			label: "Carat Est.",
+			value: displayFreeCarats.toLocaleString(),
+			title: "Estimated free (earned) carats available for this banner",
+			valueClass: "text-brand",
+		},
+		{
+			label: "Paid Carat Est.",
+			value: displayPaidCarats.toLocaleString(),
+			title: "Estimated paid (purchased) carats available for this banner",
+			valueClass: "text-brand",
+		},
+		{
+			label: "Max Pulls",
+			value: String(maxPossiblePulls),
+			title: "The most pulls this banner could support if every available resource went into it",
+		},
+	]
+
+	const mobileStatCell = (stat: typeof derivedStats[number], index: number) => (
+		<div
+			key={stat.label}
+			title={stat.title}
+			className={`flex flex-col items-center justify-center px-2 py-2${index % 2 === 0 ? " border-r border-gray-600" : ""}${index < 2 ? " border-b border-gray-600" : ""}`}
+		>
+			<span className="banner-stat-box-label">{stat.label}</span>
+			<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
+		</div>
+	)
+
+	// Phone cards use a true 2x2 estimate grid, so "Paid Carat Est." and
+	// "Max Pulls" share the second row. Once the card is wide enough, the
+	// reference-style three-across strip returns and shares its lower row with
+	// the odds display.
 	const statsDisplay = (
-		<div className="grid grid-cols-3 overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
-			<div className="flex flex-col items-center justify-center px-2 py-2">
-				<span className="banner-stat-box-label">Free Pulls</span>
-				<span className="banner-stat-box-value">{freePulls}</span>
+		<div className="overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
+			<div className="sm:hidden">
+				<div className="grid grid-cols-2">
+					{derivedStats.map(mobileStatCell)}
+				</div>
+				<div className="border-t border-gray-600 p-2">
+					{hasBanner ? (
+						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} />
+					) : (
+						<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
+					)}
+				</div>
 			</div>
-			<div className="flex flex-col items-center justify-center border-x border-gray-600 px-2 py-2">
-				<span className="banner-stat-box-label">Carats (Est.)</span>
-				<span className="banner-stat-box-value text-brand">{displayCarats.toLocaleString()}</span>
-			</div>
-			<div className="flex flex-col items-center justify-center px-2 py-2">
-				<span className="banner-stat-box-label">Max Pulls</span>
-				<span className="banner-stat-box-value">{maxPossiblePulls}</span>
+			<div className="hidden sm:block">
+				<div className="grid grid-cols-3 divide-x divide-gray-600">
+					{derivedStats.slice(0, 3).map((stat) => (
+						<div key={stat.label} title={stat.title} className="flex flex-col items-center justify-center px-2 py-2">
+						<span className="banner-stat-box-label">{stat.label}</span>
+						<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
+					</div>
+				))}
+				</div>
+				<div className="grid grid-cols-3 border-t border-gray-600">
+					<div title={derivedStats[3].title} className="flex flex-col items-center justify-center border-r border-gray-600 px-2 py-2">
+						<span className="banner-stat-box-label">{derivedStats[3].label}</span>
+						<span className={`banner-stat-box-value ${derivedStats[3].valueClass ?? ""}`}>{derivedStats[3].value}</span>
+					</div>
+					<div className="col-span-2 p-2">
+						{hasBanner ? (
+							<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} />
+						) : (
+							<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
+						)}
+					</div>
+				</div>
 			</div>
 		</div>
 	)
@@ -288,30 +389,23 @@ export const BannerRow = ({
 		/>
 	)
 
-	const chanceDisplay = hasBanner ? (
-		<MLBChanceDisplay
-			pulls={plannedBanner.number_of_pulls}
-			plannedBanner={plannedBanner}
-		/>
-	) : (
-		<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
-	)
-
 	return (
 		<>
 		<MobileBannerCard
 			bannerType={bannerType}
 			images={images}
-			bannerSelect={bannerSelect}
+			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={statsDisplay}
 			pullsInput={pullsInput}
-			chanceDisplay={chanceDisplay}
+			chanceDisplay={null}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
 		/>
 
-		<div className="hidden w-full items-stretch bg-gray-800 h-16 md:flex">
+		{/* Column widths come from .banner-grid (App.css), shared with the header
+		    row and StagedBannerRow — never re-declare a width on a cell here. */}
+		<div className="banner-grid hidden w-full items-stretch bg-gray-800 h-16 @banner-table:grid">
 			{/* === Type badge (square block on left) === */}
 			<div
 				className={`banner-type-tab ${
@@ -338,7 +432,7 @@ export const BannerRow = ({
 			</div>
 
 			{/* === Images section === */}
-			<div className="w-36 shrink-0 flex items-center justify-center gap-1.5 py-1 px-1">
+			<div className="flex items-center justify-center gap-1.5 py-1 px-1">
 				{images.slice(0, 2).map((img) => (
 					<img
 						key={img.name}
@@ -350,12 +444,12 @@ export const BannerRow = ({
 			</div>
 
 			{/* === Banner select === */}
-			<div className="w-44 shrink-0 flex items-center justify-center py-2 px-2">
+			<div className="flex items-center justify-center py-2 px-2">
 				{bannerSelect}
 			</div>
 
 			{/* === Start / End Date === */}
-			<div className="w-32 shrink-0 flex flex-col items-start justify-center gap-0.5 py-2 px-2 text-xs text-gray-400 relative">
+			<div className="flex min-w-0 flex-col items-start justify-center gap-0.5 py-2 px-1 text-xs text-gray-400 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{bannerTimeline ? (
 					<>
@@ -368,27 +462,26 @@ export const BannerRow = ({
 			</div>
 
 			{/* === Derived Stats section === */}
-			<div className="w-65 shrink-0 flex items-center justify-center px-3 py-2">
+			{/* px-1 and compact stat padding keep the four boxes within this tighter
+			    track without clipping their labels. */}
+			<div className="flex min-w-0 items-center justify-center px-1 py-2">
+				{/* Same `derivedStats` list as the mobile card above — one strip
+				    instead of 2x2, with rule dividers between the boxes. */}
 				<div className="flex items-stretch rounded-lg bg-gray-700 border border-gray-600 overflow-hidden w-full">
-					<div className="flex flex-col items-center justify-center px-3 py-1.5 flex-1">
-						<span className="banner-stat-box-label">Free Pulls</span>
-						<span className="banner-stat-box-value">{freePulls}</span>
-					</div>
-					<div className="w-px bg-gray-600 self-stretch" />
-					<div className="flex flex-col items-center justify-center px-3 py-1.5 flex-1">
-						<span className="banner-stat-box-label">Carats (Est.)</span>
-						<span className="banner-stat-box-value text-brand">{displayCarats.toLocaleString()}</span>
-					</div>
-					<div className="w-px bg-gray-600 self-stretch" />
-					<div className="flex flex-col items-center justify-center px-3 py-1.5 flex-1">
-						<span className="banner-stat-box-label">Max Pulls</span>
-						<span className="banner-stat-box-value">{maxPossiblePulls}</span>
-					</div>
+					{derivedStats.map((stat, statIndex) => (
+						<React.Fragment key={stat.label}>
+							{statIndex > 0 && <div className="w-px bg-gray-600 self-stretch" />}
+							<div title={stat.title} className="flex flex-col items-center justify-center px-1 py-1.5 flex-1">
+								<span className="banner-stat-box-label">{stat.label}</span>
+								<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
+							</div>
+						</React.Fragment>
+					))}
 				</div>
 			</div>
 
 			{/* === # Pulls section === */}
-			<div className="w-22.5 shrink-0 flex items-center justify-center py-2 px-2 relative">
+			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				<input
@@ -403,7 +496,7 @@ export const BannerRow = ({
 			</div>
 
 			{/* === MLB chance grid === */}
-			<div className="flex-1 flex items-center justify-center py-2 px-2 min-w-0">
+			<div className="flex items-center justify-center py-2 px-2 min-w-0">
 				{hasBanner ? (
 					<MLBChanceDisplay
 						pulls={plannedBanner.number_of_pulls}

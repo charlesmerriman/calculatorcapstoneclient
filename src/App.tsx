@@ -8,17 +8,23 @@ import { BetaGate } from "./components/auth/BetaGate.js"
 import { CalculatorProvider } from "./services/CalculatorProvider.js"
 import { ErrorBoundary } from "./components/ErrorBoundary.js"
 import { ThemeProvider } from "./services/ThemeProvider.js"
+import { useTheme } from "./services/ThemeContext.js"
 import { HomePage } from "./components/home/HomePage.js"
 import { PrivacyPolicy } from "./components/legal/PrivacyPolicy.js"
 import { Changelog } from "./components/info/Changelog.js"
 import { Faq } from "./components/info/Faq.js"
 import { Feedback } from "./components/info/Feedback.js"
 
+const ThemedToaster = () => {
+	const { activeTheme } = useTheme()
+	return <Toaster theme={activeTheme === "light" ? "light" : "dark"} position="bottom-right" richColors />
+}
+
 function App() {
 	return (
 		<ThemeProvider>
 			<ErrorBoundary>
-				<Toaster theme="dark" position="bottom-right" richColors />
+				<ThemedToaster />
 				<Routes>
 					<Route path="/" element={<HomePage />} />
 					<Route path="/login" element={<Login />} />
