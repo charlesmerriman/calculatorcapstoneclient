@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
+import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { useBannerResources } from "../../hooks/useBannerResources"
 import { plannedBannerKey } from "../../utils/bannerHelpers"
@@ -122,6 +123,11 @@ export const CaratCalculator: React.FC = () => {
 	return (
 		<div className="page-container">
 			<div className="flex mx-2 flex-col items-center gap-1.5 sm:mx-4">
+				{/* Income inputs first, then the banner sheet they feed. IncomeForm
+				    owns its own collapse state — it is a zero-prop panel like every
+				    other one here, reading everything from the calculator context. */}
+				<IncomeForm />
+
 				<div className="w-full border border-gray-600 rounded-lg shadow-sm overflow-hidden mt-2 pb-4">
 					{/* Add banner buttons */}
 					<div className="flex w-full flex-col gap-3 px-3 py-4 sm:flex-row sm:gap-4 sm:px-4">
