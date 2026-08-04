@@ -182,12 +182,16 @@ derived from — the source sheet does not expose it as a settings cell.
 
 ```
 if monthly_shop_tickets:
-    umaTickets     += 4 * months
-    supportTickets += 4 * months
+    shopMonths      = calculateDayOfMonthOccurrences(start, end, 2)
+    umaTickets     += 4 * shopMonths
+    supportTickets += 4 * shopMonths
 ```
 
 The in-game monthly shop bundle (4 uma + 4 support tickets) is bought with an untracked
-currency, so it's credited on month boundaries at no carat cost. Off by default.
+currency, so it's credited at no carat cost. Off by default. It stocks on the **2nd** of
+each month, so it counts its own day-of-month occurrences rather than reusing `months`
+(the 1st-of-month count Club Rank uses) — a banner ending on the 1st would otherwise be
+credited a bundle the player can't buy yet.
 
 **7. Add Team Trials payout**
 

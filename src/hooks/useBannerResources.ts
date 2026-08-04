@@ -26,11 +26,13 @@ import {
 	WHITE_DAY_DAY,
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
+	MONTHLY_SHOP_TICKET_DAY,
 } from "../constants/gameConstants"
 import {
 	calculateDailyIncome,
 	calculateMondaysBetween,
 	calculateMonthlyOccurrences,
+	calculateDayOfMonthOccurrences,
 	calculateIntervalOccurrences,
 	calculateAnnualDateOccurrences,
 	countDaysInWindow,
@@ -363,10 +365,17 @@ export function useBannerResources({
 				)
 
 			// Monthly shop tickets: a fixed uma/support ticket bundle buyable
-			// each month (with an untracked currency), so no carat cost.
+			// each month (with an untracked currency), so no carat cost. The shop
+			// stocks it on the 2nd, not on the month boundary Club Rank uses, so
+			// this counts its own day-of-month occurrences rather than `months`.
 			if (userStatsData.monthly_shop_tickets) {
-				umaTickets += MONTHLY_SHOP_UMA_TICKETS * months
-				supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * months
+				const shopMonths = calculateDayOfMonthOccurrences(
+					lastEndDate,
+					endDate,
+					MONTHLY_SHOP_TICKET_DAY
+				)
+				umaTickets += MONTHLY_SHOP_UMA_TICKETS * shopMonths
+				supportTickets += MONTHLY_SHOP_SUPPORT_TICKETS * shopMonths
 			}
 
 			// Training Pass (paid and free tiers) only exists from August 15, 2027;
