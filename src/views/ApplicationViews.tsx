@@ -19,8 +19,9 @@ export const ApplicationViews = () => {
 						    away with the calculator/timeline content like on every other page.
 
 						    The scroller is itself a flex column so the page wrapper below can
-						    absorb any leftover height: with the income panel collapsed and few
-						    banner rows, the slack goes ABOVE the footer instead of below it.
+						    absorb any leftover height: with the calculator's income section
+						    collapsed and few banner rows, the slack goes ABOVE the footer
+						    instead of below it.
 						    Otherwise that slack renders as gray-900 directly beneath a gray-900
 						    footer, and the footer's top border makes the whole band read as one
 						    enormous footer. */}
