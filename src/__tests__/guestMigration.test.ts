@@ -47,20 +47,20 @@ describe('statsAreDirty', () => {
 describe('stashGuestPlan / readGuestPlanStash', () => {
 	it('roundtrips dirty stats and banners', () => {
 		stashGuestPlan(dirtyStats, [
-			{ number_of_pulls: 10, banner_uma: 7, banner_support: null },
+			{ number_of_pulls: 10, reserved_copies: 0, banner_uma: 7, banner_support: null },
 		])
 
 		const stash = readGuestPlanStash()
 		expect(stash).not.toBeNull()
 		expect(stash!.stats).toEqual(dirtyStats)
 		expect(stash!.banners).toEqual([
-			{ number_of_pulls: 10, banner_uma: 7, banner_support: null },
+			{ number_of_pulls: 10, reserved_copies: 0, banner_uma: 7, banner_support: null },
 		])
 	})
 
 	it('omits stats that still equal the defaults (must not clobber account stats)', () => {
 		stashGuestPlan({ ...DEFAULT_GUEST_STATS }, [
-			{ number_of_pulls: 5, banner_uma: null, banner_support: 9 },
+			{ number_of_pulls: 5, reserved_copies: 0, banner_uma: null, banner_support: 9 },
 		])
 
 		expect(readGuestPlanStash()!.stats).toBeNull()
@@ -124,13 +124,13 @@ describe('toBannerPayload', () => {
 	it('reduces nested banner objects to FK ids and strips tempId', () => {
 		const local: UserPlannedBanner = {
 			tempId: 123,
-			number_of_pulls: 20,
+			number_of_pulls: 20, reserved_copies: 0,
 			banner_uma: umaBanner,
 			banner_support: null,
 		}
 
 		expect(toBannerPayload([local])).toEqual([
-			{ number_of_pulls: 20, banner_uma: 7, banner_support: null },
+			{ number_of_pulls: 20, reserved_copies: 0, banner_uma: 7, banner_support: null },
 		])
 	})
 
@@ -138,7 +138,7 @@ describe('toBannerPayload', () => {
 		const saved: UserPlannedBanner = {
 			id: 42,
 			user: 1,
-			number_of_pulls: 30,
+			number_of_pulls: 30, reserved_copies: 0,
 			banner_support: supportBanner,
 		}
 
@@ -151,7 +151,7 @@ describe('toBannerPayload', () => {
 	it('drops rows with neither an uma nor a support banner selected', () => {
 		const empty: UserPlannedBanner = {
 			tempId: 1,
-			number_of_pulls: 10,
+			number_of_pulls: 10, reserved_copies: 0,
 			banner_uma: null,
 			banner_support: null,
 		}

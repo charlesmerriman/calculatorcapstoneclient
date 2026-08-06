@@ -7,6 +7,8 @@
  * and can be extended later. Use `type` for unions, intersections, or aliases.
  */
 
+import type { AttachedAnniversaryEvent } from "./anniversary"
+
 /** Represents a time window during which banners are available for pulling.
  *
  * `start_date`/`end_date` are the RESOLVED global dates: the confirmed global
@@ -36,8 +38,20 @@ export interface BannerTimeline {
 	image: string
 }
 
+/**
+ * The card's earliest JP banner appearance, which is what selector eligibility
+ * is judged on: a selector may only take cards whose first_jp_date is on or
+ * before its cutoff. Derived server-side, never stored.
+ *
+ * Null means the card has never been featured on a banner in our data — treat
+ * that as UNKNOWN, not "ancient". Eligibility refuses null under a real cutoff.
+ */
+interface JpDated {
+	first_jp_date: string | null
+}
+
 /** An individual uma (horse girl character) that can appear on a banner */
-export interface Uma {
+export interface Uma extends JpDated {
 	id: number
 	name: string
 	image: string
@@ -46,7 +60,7 @@ export interface Uma {
 }
 
 /** A support card that can appear on a banner */
-export interface SupportCard {
+export interface SupportCard extends JpDated {
 	id: number
 	name: string
 	image: string
@@ -100,4 +114,11 @@ export interface BannerTimelineForViewing {
 	image: string | null
 	banner_umas: BannerUma[]
 	banner_supports: BannerSupport[]
+	/**
+	 * The campaign this banner is a part of, or null. A summary rather than the
+	 * whole campaign — the full record (with its products) arrives separately in
+	 * anniversary_event_data, and nesting it here would repeat the catalogue on
+	 * every part.
+	 */
+	anniversary_event: AttachedAnniversaryEvent | null
 }

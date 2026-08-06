@@ -1,14 +1,27 @@
 import type { UserPlannedBanner } from "../../types"
-import { calculateCopyDistribution } from "../../utils/probabilityCalculations"
+import {
+	calculateCopyDistribution,
+	shiftDistribution,
+} from "../../utils/probabilityCalculations"
 
 interface MLBChanceDisplayProps {
 	pulls: number
 	plannedBanner: UserPlannedBanner
+	/**
+	 * Copies already secured with a selector ticket or an SSR crystal. They are
+	 * certainties, so they shift the whole distribution right rather than
+	 * entering the binomial — see shiftDistribution.
+	 *
+	 * Only what the user can actually PAY for is passed in; an over-reserved row
+	 * would otherwise show odds it hasn't earned.
+	 */
+	reservedCopies?: number
 }
 
 export const MLBChanceDisplay = ({
 	pulls,
-	plannedBanner
+	plannedBanner,
+	reservedCopies = 0
 }: MLBChanceDisplayProps) => {
 	const isSupport = !!plannedBanner.banner_support
 
@@ -18,7 +31,7 @@ export const MLBChanceDisplay = ({
 
 	// Discrete odds per outcome — the six cells sum to 100%, so each one answers
 	// "how likely am I to finish here?" rather than "here or better?".
-	const values = calculateCopyDistribution(pulls)
+	const values = shiftDistribution(calculateCopyDistribution(pulls), reservedCopies)
 
 	// Bars are scaled against the tallest cell in this row rather than a fixed
 	// 0-100%. Spreading one whole distribution across six cells keeps every

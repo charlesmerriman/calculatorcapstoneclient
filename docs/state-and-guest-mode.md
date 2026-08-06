@@ -55,7 +55,12 @@ state is set**, so auto-save cannot race it:
 
 - account banners are preserved (sent **with** ids),
 - guest banners are appended (sent **without** ids),
+- planned **purchases** follow exactly the same rule, in their own `purchases` key,
 - guest stats are sent only if edited away from the defaults (`statsAreDirty`).
+
+`purchases` is optional on `GuestPlanStash` so a stash written before the Selectors page
+existed still validates — the version stays `1` because an absent key degrades to "no
+purchases", which is correct rather than a reason to discard the whole plan.
 
 The guest stash survives the OAuth round trip unchanged — sessionStorage persists across a
 same-tab navigation to the provider and back — so social sign-in reuses this machinery

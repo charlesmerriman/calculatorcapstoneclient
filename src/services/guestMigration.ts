@@ -12,7 +12,10 @@
  */
 
 import type { UserStats } from "../types"
-import type { PlannedBannerPayload } from "./calculatorFetchCalls"
+import type {
+	PlannedBannerPayload,
+	PlannedPurchasePayload
+} from "./calculatorFetchCalls"
 
 /**
  * The stats a guest session starts with. Also the baseline for
@@ -24,6 +27,8 @@ export const DEFAULT_GUEST_STATS: UserStats = {
 	current_paid_carat: 0,
 	uma_ticket: 0,
 	support_ticket: 0,
+	uma_selector_ticket: 0,
+	support_selector_ticket: 0,
 	daily_carat: false,
 	training_pass: false,
 	// On by default to mirror the source sheet (and the backend model default),
@@ -34,6 +39,10 @@ export const DEFAULT_GUEST_STATS: UserStats = {
 	monthly_shop_tickets: false,
 	discounted_paid_pulls: false,
 	full_price_paid_pulls: true,
+	// Off so planned purchases stay budgeting-only until explicitly opted into,
+	// and estimates never move on their own.
+	include_purchases_in_projection: false,
+	webstore_bonus: false,
 	club_rank: null,
 	team_trials_rank: null,
 	champions_meeting_rank: null,
@@ -57,6 +66,12 @@ export interface GuestPlanStash {
 	stats: UserStats | null
 	/** Already in PATCH shape (FK ids, no id/tempId) — directly mergeable */
 	banners: PlannedBannerPayload[]
+	/**
+	 * Optional so a stash written before this field existed still validates —
+	 * the version stays 1 because an absent key degrades to "no purchases",
+	 * which is exactly right rather than a reason to discard the whole plan.
+	 */
+	purchases?: PlannedPurchasePayload[]
 }
 
 /**
@@ -78,11 +93,12 @@ export function statsAreDirty(stats: UserStats | null): boolean {
  */
 export function stashGuestPlan(
 	stats: UserStats | null,
-	banners: PlannedBannerPayload[]
+	banners: PlannedBannerPayload[],
+	purchases: PlannedPurchasePayload[] = []
 ): void {
 	try {
 		const dirtyStats = statsAreDirty(stats) ? stats : null
-		if (!dirtyStats && banners.length === 0) {
+		if (!dirtyStats && banners.length === 0 && purchases.length === 0) {
 			sessionStorage.removeItem(STASH_KEY)
 			return
 		}
@@ -90,7 +106,8 @@ export function stashGuestPlan(
 			version: 1,
 			createdAt: Date.now(),
 			stats: dirtyStats,
-			banners
+			banners,
+			purchases
 		}
 		sessionStorage.setItem(STASH_KEY, JSON.stringify(stash))
 	} catch {

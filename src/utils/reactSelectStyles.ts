@@ -1,7 +1,21 @@
 import type { CSSObjectWithLabel, StylesConfig } from "react-select"
 
+/**
+ * react-select parameterises StylesConfig by option type, but none of the
+ * callbacks below read the option — they only ever style. Declaring them as
+ * StylesConfig<unknown, false> made them unassignable to any concretely-typed
+ * <Select<Option>>, because the props are contravariant in Option (a
+ * `readonly Option[]` can't flow into a `readonly unknown[]` parameter).
+ *
+ * `any` here is the narrow, deliberate escape hatch for that variance: these
+ * objects are genuinely option-agnostic, and the alternative — a generic
+ * factory — would add a call-site ceremony that buys no real safety.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyOptionStyles = StylesConfig<any, false>
+
 /** Standard dark text override for react-select options */
-export const darkTextStyles: StylesConfig<unknown, false> = {
+export const darkTextStyles: AnyOptionStyles = {
 	option: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		color: "#000"
@@ -20,7 +34,7 @@ export const darkTextStyles: StylesConfig<unknown, false> = {
  *   gray-500 = control hover border, gray-400 = indicator/placeholder,
  *   gray-100 = value/option text.
  */
-export const compactSelectStyles: StylesConfig<unknown, false> = {
+export const compactSelectStyles: AnyOptionStyles = {
 	control: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		// Fixed height (not minHeight) so all dropdowns are identical regardless of content
@@ -106,7 +120,7 @@ export const compactSelectStyles: StylesConfig<unknown, false> = {
  * Menu styles intentionally inherit from compactSelectStyles so the portaled
  * menu remains consistent with the desktop selector and every active theme.
  */
-export const mobileBannerSelectStyles: StylesConfig<unknown, false> = {
+export const mobileBannerSelectStyles: AnyOptionStyles = {
 	...compactSelectStyles,
 	control: (provided: CSSObjectWithLabel) => ({
 		...provided,

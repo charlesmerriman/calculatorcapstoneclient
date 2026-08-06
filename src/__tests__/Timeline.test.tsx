@@ -89,7 +89,7 @@ const events: BannerTimelineForViewing[] = Array.from(
       applied_offset_days: 0,
       image: null,
       banner_umas: [],
-      banner_supports: [],
+      banner_supports: [], anniversary_event: null,
     }
   },
 )

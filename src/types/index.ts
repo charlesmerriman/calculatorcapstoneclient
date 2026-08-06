@@ -60,3 +60,20 @@ export type {
 	ChangelogChange,
 	ChangelogEntry
 } from "./changelog"
+
+export type {
+	AnniversaryEvent,
+	AnniversaryEventType,
+	AnniversaryEventProduct,
+	AnniversaryEventPart,
+	AttachedAnniversaryEvent,
+	UserPlannedPurchase,
+	SavedPlannedPurchase,
+	LocalPlannedPurchase
+} from "./anniversary"
+
+export {
+	isSavedPurchase,
+	isLocalPurchase,
+	isSelectorProduct
+} from "./anniversary"

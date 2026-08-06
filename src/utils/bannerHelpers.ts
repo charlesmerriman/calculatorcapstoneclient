@@ -1,5 +1,7 @@
 import { PULL_COST_CARATS, DISCOUNTED_PULL_COST_CARATS } from "../constants/gameConstants"
 import { PULLS_PER_PITY_COPY } from "./probabilityCalculations"
+import { spendSelectorTickets } from "./selectorTickets"
+import type { SelectorTicketBucket } from "./selectorTickets"
 import type { UserPlannedBanner } from "../types"
 
 /**
@@ -243,6 +245,108 @@ export function getPullCountStatus(
 	// 0 is a multiple of the pity threshold, but an untouched row is not a
 	// planning achievement — greening every empty row would drain the signal.
 	if (pulls > 0 && pulls % PULLS_PER_PITY_COPY === 0) return "ok"
+	return "neutral"
+}
+
+/**
+ * How the copies reserved on a banner were paid for.
+ *
+ * `unfunded` is what the user asked for and could not cover. It is reported, not
+ * clamped — the same choice the pull-count input makes, so an over-ambitious
+ * plan stays visible instead of silently shrinking.
+ */
+export interface ReservedFunding {
+	selectors: number
+	crystals: number
+	unfunded: number
+}
+
+export interface ReservedCopiesInput {
+	/** Copies the user wants outside of pulling. */
+	reservedCopies: number
+	isUmaBanner: boolean
+	/**
+	 * Earliest JP appearance of the NEWEST featured card on this banner. A
+	 * selector must clear the newest to be able to guarantee whichever card the
+	 * user actually wants — we don't track which one, so this is the strict
+	 * reading. Null means unknown, which selectors refuse under a real cutoff.
+	 */
+	newestFeaturedJpDate: string | null
+	umaSelectorTickets: SelectorTicketBucket[]
+	supportSelectorTickets: SelectorTicketBucket[]
+	/** SSR crystals available. Support banners only — there is no uma crystal. */
+	ssrCrystals: number
+}
+
+export interface ReservedCopiesResult {
+	funding: ReservedFunding
+	umaSelectorTickets: SelectorTicketBucket[]
+	supportSelectorTickets: SelectorTicketBucket[]
+	ssrCrystals: number
+}
+
+/**
+ * Decide which resources pay for a banner's reserved copies, and spend them.
+ *
+ * Selectors go FIRST, then crystals. Selectors are the constrained resource —
+ * they are cutoff-gated and can only ever take older cards — while an SSR
+ * crystal takes anything. Spending the constrained one while it happens to
+ * qualify preserves the flexible one for a banner where nothing else works.
+ * Within selectors the weakest qualifying ticket goes first, for the same reason
+ * one level down (see utils/selectorTickets).
+ *
+ * On an UMA banner only selectors apply: crystals are a support-card currency
+ * and this data model has no ★3 equivalent.
+ *
+ * Pure and total — never throws, never returns negatives. The caller owns what
+ * an unfunded remainder means for display.
+ */
+export function allocateReservedCopies(
+	input: ReservedCopiesInput
+): ReservedCopiesResult {
+	const wanted = Math.max(0, Math.floor(input.reservedCopies))
+	const result: ReservedCopiesResult = {
+		funding: { selectors: 0, crystals: 0, unfunded: 0 },
+		umaSelectorTickets: input.umaSelectorTickets,
+		supportSelectorTickets: input.supportSelectorTickets,
+		ssrCrystals: input.ssrCrystals,
+	}
+	if (wanted === 0) return result
+
+	const pool = input.isUmaBanner
+		? input.umaSelectorTickets
+		: input.supportSelectorTickets
+	const { buckets, spent } = spendSelectorTickets(
+		pool,
+		wanted,
+		input.newestFeaturedJpDate
+	)
+	result.funding.selectors = spent
+	if (input.isUmaBanner) {
+		result.umaSelectorTickets = buckets
+	} else {
+		result.supportSelectorTickets = buckets
+	}
+
+	let remaining = wanted - spent
+	if (remaining > 0 && !input.isUmaBanner) {
+		const fromCrystals = Math.min(remaining, Math.max(0, input.ssrCrystals))
+		result.funding.crystals = fromCrystals
+		result.ssrCrystals = input.ssrCrystals - fromCrystals
+		remaining -= fromCrystals
+	}
+
+	result.funding.unfunded = remaining
+	return result
+}
+
+/**
+ * Classifies a reserved-copy count for display, mirroring getPullCountStatus.
+ * "over" whenever any part of the request can't be paid for.
+ */
+export function getReservedStatus(funding: ReservedFunding): PullCountStatus {
+	if (funding.unfunded > 0) return "over"
+	if (funding.selectors + funding.crystals > 0) return "ok"
 	return "neutral"
 }
 
