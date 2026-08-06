@@ -22,20 +22,14 @@ export const Selectors = () => {
 		userPlannedPurchaseData,
 		setUserPlannedPurchaseData,
 		setUserStatsData,
-		organizedTimelineData,
+		umaBannerData,
+		supportBannerData,
 	} = useCalculatorData()
 
 	const plan = useSelectorPlanner(
 		anniversaryEventData,
 		userPlannedPurchaseData,
 		userStatsData
-	)
-
-	// The target picker needs every card that has ever been featured, which the
-	// timeline array already carries. Narrowed on the backend's event_type tag,
-	// never on shape — Champions Meetings are structurally assignable otherwise.
-	const timelineData = organizedTimelineData.filter(
-		(event) => event.event_type === "banner_timeline"
 	)
 
 	if (!userStatsData) return null
@@ -167,7 +161,8 @@ export const Selectors = () => {
 						<CampaignCard
 							key={campaign.event.id}
 							campaign={campaign}
-							timelineData={timelineData}
+							umaBannerData={umaBannerData}
+							supportBannerData={supportBannerData}
 							onQuantityChange={handleQuantityChange}
 							onTargetChange={handleTargetChange}
 						/>

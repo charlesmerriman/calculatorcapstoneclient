@@ -279,7 +279,9 @@ USD budgeting, and the two toggles that govern whether any of it reaches the pro
 - **`CampaignCard.tsx`** — one campaign: packs with quantity steppers, selectors with a
   target picker, and the per-campaign / cumulative footer.
 - **`SelectorTargetPicker.tsx`** — the card picker, filtered by the selector's JP cutoff.
-  Candidates come from the timeline array the app already holds, not a new endpoint.
+  Candidates come from the calculator's past and upcoming gacha-banner catalogue, not a
+  new endpoint. Spreadsheet catch-all rows such as `(All)` are excluded from the selector
+  list.
 - **`timeline/AnniversaryEventStrip.tsx`** — the band that sits flush on top of a banner
   card when that banner is part of a campaign. It keeps only its **top** corners rounded
   and the caller squares the card's top corners (`rounded-b-xl rounded-t-none`) so the

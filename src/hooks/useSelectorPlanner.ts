@@ -8,6 +8,7 @@
  */
 
 import { useMemo } from "react"
+import { parseApiDate } from "../utils/dateFormat"
 import type {
 	AnniversaryEvent,
 	AnniversaryEventProduct,
@@ -34,8 +35,6 @@ export interface PlannedCampaign {
 	/** Running totals through this campaign, in date order — the sheet's "Cumulative". */
 	cumulativePaidCarats: number
 	cumulativeUsd: number
-	/** True once the campaign's window has closed; it can no longer be planned. */
-	hasPassed: boolean
 	/** True when the campaign has no linked banner parts to take dates from. */
 	isUndated: boolean
 }
@@ -80,12 +79,20 @@ export function useSelectorPlanner(
 		// Undated campaigns sort last. They can't be projected (see the projection
 		// hook — no honest instant to credit them at), so they belong out of the
 		// way rather than at the top where a null date would otherwise put them.
-		const ordered = [...anniversaryEventData].sort((a, b) => {
-			if (!a.start_date && !b.start_date) return a.name.localeCompare(b.name)
-			if (!a.start_date) return 1
-			if (!b.start_date) return -1
-			return new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-		})
+		const ordered = [...anniversaryEventData]
+			// A campaign stops being actionable the instant its final banner closes.
+			// Keeping it out of this view model also means the summary is a useful
+			// total for upcoming purchases, rather than a mixture of history and plan.
+			.filter((event) => {
+				const endDate = event.end_date ? parseApiDate(event.end_date) : null
+				return !endDate || endDate.getTime() > today.getTime()
+			})
+			.sort((a, b) => {
+				if (!a.start_date && !b.start_date) return a.name.localeCompare(b.name)
+				if (!a.start_date) return 1
+				if (!b.start_date) return -1
+				return new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+			})
 
 		let cumulativePaidCarats = 0
 		let cumulativeUsd = 0
@@ -133,7 +140,6 @@ export function useSelectorPlanner(
 				usd,
 				cumulativePaidCarats,
 				cumulativeUsd,
-				hasPassed: !!event.end_date && new Date(event.end_date) < today,
 				isUndated: !event.start_date,
 			})
 		}
