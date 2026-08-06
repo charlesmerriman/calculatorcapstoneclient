@@ -14,7 +14,6 @@ import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
-import PredictedBadge from "../PredictedBadge"
 import { formatDate } from "../../utils/dateFormat"
 import { bannerKey, getFreePulls, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
@@ -267,7 +266,6 @@ export const BannerRow = ({
 		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
-			{bannerTimeline.is_predicted && <PredictedBadge className="mt-0.5" />}
 		</div>
 	) : (
 		<span className="text-xs text-gray-600">—</span>
@@ -388,6 +386,15 @@ export const BannerRow = ({
 			onChange={handlePullCountChange}
 		/>
 	)
+	const reservedInput = (
+		<input
+			type="text"
+			disabled
+			placeholder="—"
+			aria-label="Reserved future banner input"
+			className="w-20 cursor-not-allowed rounded border border-dashed border-gray-600 bg-gray-900/50 py-1 text-center text-sm text-gray-500"
+		/>
+	)
 
 	return (
 		<>
@@ -398,6 +405,7 @@ export const BannerRow = ({
 			dates={dateDisplay}
 			summary={statsDisplay}
 			pullsInput={pullsInput}
+			reservedInput={reservedInput}
 			chanceDisplay={null}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
@@ -487,11 +495,23 @@ export const BannerRow = ({
 				<input
 					type="number"
 					value={plannedBanner.number_of_pulls}
-					className={`spin-arrows pull-input pull-input--${pullStatus} w-16`}
+					className={`spin-arrows pull-input pull-input--${pullStatus} w-14`}
 					min={0}
 					title={pullStatusHint}
 					aria-invalid={pullStatus === "over"}
 					onChange={handlePullCountChange}
+				/>
+			</div>
+
+			{/* === Reserved future input === */}
+			<div className="flex items-center justify-center py-2 px-1 relative">
+				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
+				<input
+					type="text"
+					disabled
+					placeholder="—"
+					aria-label="Reserved future banner input"
+					className="w-14 cursor-not-allowed rounded border border-dashed border-gray-600 bg-gray-900/50 py-1 text-center text-sm text-gray-500"
 				/>
 			</div>
 

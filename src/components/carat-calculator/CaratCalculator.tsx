@@ -121,8 +121,12 @@ export const CaratCalculator: React.FC = () => {
 	const showSectionLabels = stagedBanners.length > 0 && userPlannedBannerData.length > 0
 
 	return (
-		<div className="page-container">
-			<div className="flex mx-2 flex-col items-center gap-1.5 sm:mx-4">
+		<div className="w-full bg-gray-900">
+			{/* The calculator gets a wider desktop canvas without changing Timeline's
+			    shared .page-container. Income & Resources and the banner sheet share
+			    this same width so their edges stay aligned. */}
+			<div className="mx-auto w-full max-w-[96rem]">
+				<div className="flex mx-2 flex-col items-center gap-1.5 sm:mx-4">
 				{/* Income inputs first, then the banner sheet they feed. IncomeForm
 				    owns its own collapse state — it is a zero-prop panel like every
 				    other one here, reading everything from the calculator context. */}
@@ -175,6 +179,7 @@ export const CaratCalculator: React.FC = () => {
 										<div className="text-center">Start / End Date</div>
 										<div className="text-center">Confirm</div>
 										<div className="text-center"># Pulls</div>
+										<div className="text-center" title="Reserved for a future banner input">Reserved</div>
 										<div className="text-center">% Chance to MLB (5x Copies)</div>
 										<div className="text-center"></div>
 									</div>
@@ -213,6 +218,7 @@ export const CaratCalculator: React.FC = () => {
 									<div className="text-center">Start / End Date</div>
 									<div className="text-center">Derived Stats (Auto-Calculated)</div>
 									<div className="text-center"># Pulls</div>
+									<div className="text-center" title="Reserved for a future banner input">Reserved</div>
 									<div className="text-center">% Chance to MLB (5x Copies)</div>
 									<div className="text-center"></div>
 								</div>
@@ -251,6 +257,7 @@ export const CaratCalculator: React.FC = () => {
 							</div>
 						</div>
 					)}
+				</div>
 				</div>
 			</div>
 		</div>

@@ -146,9 +146,9 @@ export const IncomeForm = () => {
 
 	return (
 		// No width/background/padding of its own: this renders inside the
-		// calculator page's .page-container (max width + bg-gray-900) and its
-		// mx-2/sm:mx-4 wrapper, which previously had to be duplicated here
-		// because the panel hung full-bleed off the navbar.
+		// calculator page's shared desktop canvas and its mx-2/sm:mx-4 gutter,
+		// which previously had to be duplicated here because the panel hung
+		// full-bleed off the navbar.
 		<div className="w-full pt-2">
 
 			{/* Collapse header — a full-width control so it remains an obvious entry

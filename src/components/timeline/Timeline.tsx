@@ -385,7 +385,7 @@ export const Timeline = () => {
 	return (
 		<div className="w-full bg-gray-900 pb-6">
 			<div className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
-				<div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
+				<div className="mx-auto grid w-full max-w-[96rem] grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
 					<div className="flex w-full flex-col gap-2 justify-self-start sm:flex-row sm:flex-wrap md:w-auto">
 						<button
 							type="button"
@@ -515,18 +515,18 @@ export const Timeline = () => {
 										)}
 									</div>
 
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
 										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 											<Sparkles className="h-4 w-4" />
 											<span>Featured Umamusume</span>
 										</div>
 										{umaBanner ? (
 											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
-												<div className={`grid grid-rows-1 flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
+												<div className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
 													{umaBanner.umas.map((uma, umaIndex) => (
 														<div
 															key={umaIndex}
-															className="flex h-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm"
+															className="flex w-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm 2xl:max-w-[13.5rem]"
 														>
 															<div className="relative shrink-0 overflow-hidden bg-gray-700">
 																{uma.recommendation && (
@@ -542,8 +542,8 @@ export const Timeline = () => {
 																	className="block h-auto w-full object-contain"
 																/>
 															</div>
-															<div className="flex flex-1 flex-col justify-center p-1.5">
-																<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
+															<div className="flex h-16 items-center justify-center p-2">
+																<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
 																	{uma.name}
 																</div>
 															</div>
@@ -572,18 +572,18 @@ export const Timeline = () => {
 										)}
 									</section>
 
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
 										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 											<Ticket className="h-4 w-4" />
 											<span>Featured Support Cards</span>
 										</div>
 										{supportBanner ? (
 											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
-												<div className={`grid grid-rows-1 flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
+												<div className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
 													{supportBanner.support_cards.map((card, cardIndex) => (
 														<div
 															key={cardIndex}
-															className="flex h-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm"
+															className="flex w-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm 2xl:max-w-[9.5rem]"
 														>
 															<div className="relative shrink-0 overflow-hidden bg-gray-700">
 																{card.recommendation && (
@@ -599,8 +599,8 @@ export const Timeline = () => {
 																	className="block h-auto w-full object-contain"
 																/>
 															</div>
-															<div className="flex flex-1 flex-col justify-center p-1.5">
-																<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
+															<div className="flex h-16 items-center justify-center p-2">
+																<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
 																	{card.name}
 																</div>
 															</div>
