@@ -6,7 +6,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { useUncapCrystals } from "../../hooks/useUncapCrystals"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
-import type { BannerTimelineForViewing } from "../../types"
+import { isBannerTimeline } from "../../types"
 
 interface DateOption {
 	value: string
@@ -61,10 +61,11 @@ export const UncapCrystalsPanel = () => {
 
 	const now = new Date()
 
-	// Filter organizedTimelineData to BannerTimelineForViewing entries only,
-	// using a structural type guard — "banner_umas" is unique to that interface.
+	// Filter organizedTimelineData to BannerTimelineForViewing entries only.
+	// This used to test for "banner_umas" structurally; it narrows on the
+	// backend's event_type tag now (see isBannerTimeline in types/calculator).
 	const bannerOptions: DateOption[] = organizedTimelineData
-		.filter((event): event is BannerTimelineForViewing => "banner_umas" in event)
+		.filter(isBannerTimeline)
 		.filter((t) => new Date(t.end_date) >= now)
 		.map((t) => ({
 			value: t.end_date,

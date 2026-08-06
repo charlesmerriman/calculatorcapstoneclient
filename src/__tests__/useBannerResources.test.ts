@@ -175,6 +175,7 @@ function makeChampionsMeeting(id: number, endDate: string): ChampionsMeeting {
   return {
     id,
     name: `CM ${id}`,
+    event_type: 'champions_meeting',
     cm_number: id,
     start_date: daysFromNow(0),
     end_date: endDate,
@@ -183,6 +184,8 @@ function makeChampionsMeeting(id: number, endDate: string): ChampionsMeeting {
     jp_end_date: null,
     global_start_date: daysFromNow(0),
     global_end_date: endDate,
+    schedule_offset_days: 0,
+    applied_offset_days: 0,
     image: '',
     track: 'Tokyo',
     surface_type: 'Turf',
@@ -200,10 +203,15 @@ function makeChampionsMeeting(id: number, endDate: string): ChampionsMeeting {
   }
 }
 
+// LoH carries the same course/stat data as a Champions Meeting; none of it
+// affects income, so the sentinels the backend defaults to are what's modelled
+// here rather than a second set of made-up track details.
 function makeLeagueOfHeroes(id: number, endDate: string): LeagueOfHeroes {
   return {
     id,
     name: `LoH ${id}`,
+    event_type: 'league_of_heroes',
+    loh_number: id,
     start_date: daysFromNow(0),
     end_date: endDate,
     is_predicted: false,
@@ -211,7 +219,22 @@ function makeLeagueOfHeroes(id: number, endDate: string): LeagueOfHeroes {
     jp_end_date: null,
     global_start_date: daysFromNow(0),
     global_end_date: endDate,
+    schedule_offset_days: 0,
+    applied_offset_days: 0,
     image: null,
+    track: 'TBD',
+    surface_type: 'TBD',
+    distance: 'TBD',
+    length: 'TBD',
+    track_condition: 'TBD',
+    season: 'TBD',
+    weather: 'TBD',
+    direction: 'TBD',
+    speed_recommendation: '0',
+    stamina_recommendation: '0',
+    power_recommendation: '0',
+    guts_recommendation: '0',
+    wit_recommendation: '0',
   }
 }
 

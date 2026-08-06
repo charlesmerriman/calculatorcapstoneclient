@@ -82,6 +82,9 @@ export interface BannerSupport {
 export interface BannerTimelineForViewing {
 	id: number
 	name: string
+	// Constant tag from the backend; see ChampionsMeeting in types/events.ts for
+	// why the merged timeline array narrows on this rather than on shape.
+	event_type: "banner_timeline"
 	start_date: string
 	end_date: string
 	is_predicted: boolean

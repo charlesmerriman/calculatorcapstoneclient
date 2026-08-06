@@ -75,6 +75,7 @@ const events: BannerTimelineForViewing[] = Array.from(
     return {
       id: i + 1,
       name: `Window ${day}`,
+      event_type: 'banner_timeline',
       start_date: `2099-01-${day}T22:00:00Z`,
       end_date: `2099-02-${day}T21:59:59Z`,
       is_predicted: false,
