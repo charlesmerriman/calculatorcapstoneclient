@@ -1953,6 +1953,141 @@ describe('useBannerResources', () => {
     })
   })
 
+  describe('walk order (same closing day, different closing instants)', () => {
+    // Regression guard for the bug where two banners the sheet shows as ending
+    // on the SAME DAY spent in the wrong order.
+    //
+    // Predicted timelines come off the backend as
+    // `anchor + jp_gap * PREDICTION_FACTOR`, a float times a timedelta, so each
+    // lands on an arbitrary time of day (07:24:28.800Z, 21:59:59Z, ...).
+    // formatDate prints local Y/M/D only, so the rows read as one date while
+    // their instants sit hours apart. Sorting the walk on the raw instant let a
+    // banner that merely drew an earlier time of day spend first and charge its
+    // pulls to a banner that had opened weeks earlier.
+
+    /** ISO instant at a given LOCAL time of day, N days out. Unambiguous about
+     *  which local calendar day it lands on, unlike the date-only strings the
+     *  shared fixtures use. */
+    function localInstant(daysAhead: number, hours: number, minutes = 0, seconds = 0): string {
+      const d = new Date()
+      d.setDate(d.getDate() + daysAhead)
+      d.setHours(hours, minutes, seconds, 0)
+      return d.toISOString()
+    }
+
+    /** Rewrites a fixture banner's timeline dates — the shared makers hardcode
+     *  `daysFromNow(0)` as the start, and these cases need distinct starts. */
+    function withDates(
+      banner: UserPlannedBanner,
+      startDate: string,
+      endDate: string
+    ): UserPlannedBanner {
+      const side = banner.banner_uma ?? banner.banner_support!
+      const banner_timeline = {
+        ...side.banner_timeline,
+        start_date: startDate,
+        end_date: endDate,
+        global_start_date: startDate,
+        global_end_date: endDate,
+      }
+      return banner.banner_uma
+        ? { ...banner, banner_uma: { ...banner.banner_uma, banner_timeline } }
+        : { ...banner, banner_support: { ...banner.banner_support!, banner_timeline } }
+    }
+
+    // Both close on local day 20. `earlyStart` opened on day 0 and closes at
+    // 21:59:59; `lateStart` opened on day 10 and closes at 07:24:28 — the
+    // earlier INSTANT, which is exactly what used to hand it spend priority.
+    const closeLate = localInstant(20, 21, 59, 59)
+    const closeEarly = localInstant(20, 7, 24, 28)
+    const earlyStart = (pulls: number) =>
+      withDates(makeSupportBanner(1, closeLate, pulls), localInstant(0, 12), closeLate)
+    const lateStart = (pulls: number) =>
+      withDates(makeSupportBanner(2, closeEarly, pulls), localInstant(10, 12), closeEarly)
+
+    const stats: UserStats = { ...zeroStats, current_carat: 200_000 }
+
+    it('does not charge the earlier-starting banner for the later one\'s pulls', () => {
+      const withSpend = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [earlyStart(0), lateStart(10)],
+          ...noIncome,
+        })
+      )
+      const withoutSpend = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [earlyStart(0), lateStart(0)],
+          ...noIncome,
+        })
+      )
+
+      // Index 0 is the day-0 banner. It is checkpointed first, so the pulls
+      // committed to a banner that opened ten days later cannot reach it.
+      expect(withSpend.result.current[0].carats).toBe(withoutSpend.result.current[0].carats)
+    })
+
+    it('charges the later-starting banner for the earlier one\'s pulls', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [earlyStart(10), lateStart(0)],
+          ...noIncome,
+        })
+      )
+
+      // The day-0 banner is snapshotted before its own spend; the day-10 banner
+      // closes the same day so it collects no further income and sees the
+      // balance after those pulls.
+      expect(result.current[0].carats - result.current[1].carats).toBe(10 * PULL_COST_CARATS)
+    })
+
+    it('spends the earlier-starting banner first whichever order the list is in', () => {
+      const asDisplayed = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [earlyStart(10), lateStart(0)],
+          ...noIncome,
+        })
+      )
+      const reversed = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [lateStart(0), earlyStart(10)],
+          ...noIncome,
+        })
+      )
+
+      // Same two banners, mirrored positions: each row's estimate must follow
+      // its own start date, never its slot in the array.
+      expect(reversed.result.current[1].carats).toBe(asDisplayed.result.current[0].carats)
+      expect(reversed.result.current[0].carats).toBe(asDisplayed.result.current[1].carats)
+    })
+
+    it('never refunds throughout carats when the walk steps back within a day', () => {
+      // sumRemainingThroughoutCarats filters on the raw instant, so the
+      // second checkpoint of a same-day pair queries a moment ~14h EARLIER than
+      // the first. Its running total can only shrink there, and an unclamped
+      // delta would subtract carats already credited.
+      const throughoutEvent = makeGameEvent(1, localInstant(0, 12), localInstant(20, 12), 0, 6_000)
+
+      const { result } = renderHook(() =>
+        useBannerResources({
+          userStatsData: stats,
+          userPlannedBannerData: [earlyStart(0), lateStart(0)],
+          ...noIncome,
+          gameEventsData: [throughoutEvent],
+        })
+      )
+
+      // Neither banner spends, and the second collects nothing new, so the two
+      // estimates must match exactly. A negative delta would drag the second
+      // below the first.
+      expect(result.current[1].carats).toBe(result.current[0].carats)
+    })
+  })
+
   describe('banner count invariance (no shared-boundary double-count)', () => {
     // Regression guard for the bug where each banner's income window was
     // inclusive of BOTH endpoints, so the day two adjacent banners share (one

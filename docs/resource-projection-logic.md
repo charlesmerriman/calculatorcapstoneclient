@@ -46,7 +46,15 @@ The loop below is a single pass down the calendar carrying one cursor (`lastEndD
 
 Those two orderings differ whenever a short banner is nested inside a longer one (it opens later but closes sooner). The live schedule contains 14 such pairs. So the hook sorts a copy of the list by end date for the walk, and writes each result back into that banner's **display slot**. Nothing about the on-screen ordering changes.
 
-The sort is stable, so banners sharing an end date — every uma/support pair does — keep their display order and therefore their spend priority.
+The walk comparator states its ordering explicitly, in three keys:
+
+1. **End day** ascending — the calendar order the cursor has to follow.
+2. **Start day** ascending — on a shared closing day the banner that *opened first* is checkpointed first, so its estimate is never charged for pulls committed to a banner that opened after it. A banner with no resolvable start sorts last.
+3. **Display position** — uma/support pairs share one timeline, so both keys above tie and the row listed first keeps spend priority.
+
+> **Compare closing *days*, not closing instants.** An earlier version sorted on `endDate.getTime()` and relied on `Array.prototype.sort` stability to keep same-end-date banners in display order. That guarantee never fired for predicted banners, because their end dates are not equal — only their *rendered* dates are. The backend derives predicted dates as `anchor + jp_gap * PREDICTION_FACTOR` (`backend/calculatorapi/predictions.py`), a float times a `timedelta`, so each lands on an arbitrary time of day — `2028-10-20T07:24:28.800000Z` next to a confirmed row's clean `21:59:59`. `formatDate` prints local `Y/M/D` only, so the sheet shows one date for both while `getTime()` puts them hours apart, and a banner that merely drew an earlier time of day spent first. Quantising both sort keys with `startOfDay` (local, matching `formatDate`) is what makes "same end date" actually tie.
+
+Only the *visit order* is day-quantised; every window still uses the raw `endDate` instant. The consequence is that two checkpoints on the same day can be visited slightly out of instant order, so the second opens a backwards window. Every income helper already clamps those to zero (`if (end <= start) return 0`), the cursor guard keeps `lastEndDate` from retreating, and the `carats_throughout` delta is floored at 0 so a backwards step cannot refund carats already credited.
 
 ---
 
@@ -334,6 +342,7 @@ The next banner's income window starts from here.
 - **The cutoff is `end_date`, not `start_date`.** A banner starting April 1 and ending April 14 captures income through April 14. The resources shown are what you'll have at the end of that banner's run.
 - **Uma tickets only offset uma banner pulls; support tickets only offset support banner pulls.** There is no cross-ticket substitution.
 - **The walk visits checkpoints in ascending end-date order; results are returned in display order.** The display list is sorted by timeline *start* date, which is not the same ordering when a short banner is nested inside a longer one. The hook sorts a copy by end date for the walk and writes each result back to its banner's display slot, so `bannerResources[i]` always belongs to `userPlannedBannerData[i]`. Walking in display order gave nested banners a backwards window, so they collected nothing and reported the *previous* banner's later balance — overstating one real case by ~2,300 carats.
+- **On a shared closing day, the banner that opened first spends first.** The walk comparator is `end day → start day → display position`, all quantised to local days with `startOfDay`. Comparing raw end *instants* instead let a predicted banner that drew an earlier time of day spend first and charge its pulls to a banner that had opened weeks earlier — the two rows read as the same date on screen, so the deduction looked like it came from nowhere.
 - **A banner's estimate depends only on its own end date**, never on its position in the list or on how many other banners are planned (given the same spending ahead of it). Guarded by the "walk order" and "banner count invariance" tests.
 
 ---
