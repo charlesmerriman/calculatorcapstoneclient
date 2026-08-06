@@ -94,24 +94,24 @@ describe('RaceEventCard', () => {
     expect(lohContainer.innerHTML).toBe(cmMarkup)
   })
 
-  it('shows the course details and stat recommendations for a League of Heroes event', () => {
+  it('shows course details without stat recommendations for a League of Heroes event', () => {
     render(<RaceEventCard event={leagueOfHeroes} today={TODAY} />)
 
     expect(screen.getByText('Course details')).toBeTruthy()
-    expect(screen.getByText('Recommended stats')).toBeTruthy()
     expect(screen.getByText('Nakayama')).toBeTruthy()
-    expect(screen.getByText('1100')).toBeTruthy()
+    expect(screen.queryByText('Recommended stats')).toBeNull()
+    expect(screen.queryByText('1100')).toBeNull()
   })
 
   it('falls back to the pending state when a League of Heroes event is unannounced', () => {
     render(<RaceEventCard event={unannouncedLoh} today={TODAY} />)
 
-    // Every slot is a sentinel, so neither section has anything to show and the
+    // Every course slot is a sentinel, so no details have anything to show and the
     // card collapses to art-only with the "coming soon" notice.
     expect(screen.queryByText('Course details')).toBeNull()
     expect(screen.queryByText('Recommended stats')).toBeNull()
     expect(
-      screen.getByText('Some course details and recommendations are coming soon.'),
+      screen.getByText('Some course details are coming soon.'),
     ).toBeTruthy()
   })
 })

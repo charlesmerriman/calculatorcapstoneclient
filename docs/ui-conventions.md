@@ -197,7 +197,7 @@ Heroes events merged into one date-sorted list (~250 rows) — filtered by past/
 a search box.
 
 **Two card shapes, three event types.** Champions Meetings and League of Heroes events
-carry the same data and share one card, `components/timeline/RaceEventCard.tsx`; banner
+share one course-details card, `components/timeline/RaceEventCard.tsx`; banner
 windows keep the wider three-column card inline in `Timeline.tsx`. `RaceEventCard` never
 branches on which of the two it has — if it ever needs to, they've stopped being the same
 card and should be split again. `RaceEventCard.test.tsx` renders one of each from the same
