@@ -39,6 +39,10 @@ const userStats: UserStats = {
   current_paid_carat: 0,
   uma_ticket: 0,
   support_ticket: 0,
+  uma_selector_ticket: 0,
+  support_selector_ticket: 0,
+  include_purchases_in_projection: false,
+  webstore_bonus: false,
   daily_carat: false,
   training_pass: false,
   misc_earnings: true,
@@ -58,7 +62,7 @@ const userStats: UserStats = {
 function renderRow(numberOfPulls: number, maxPulls: number) {
   const planned: UserPlannedBanner = {
     tempId: 1,
-    number_of_pulls: numberOfPulls,
+    number_of_pulls: numberOfPulls, reserved_copies: 0,
     banner_uma: umaBanner,
     initialBannerType: 'Uma',
   }
@@ -83,7 +87,13 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
   // The row renders the field twice (a mobile card and a desktop row, hidden
   // from each other by CSS breakpoints only). Both are in the DOM under jsdom,
   // so grab all of them and assert on the shared state.
-  const inputs = screen.getAllByRole('spinbutton') as HTMLInputElement[]
+  //
+  // Queried by accessible name, not by role alone: the Reserved column is a
+  // second spinbutton in the same row, and a bare role query would assert this
+  // suite's pull-count expectations against it too.
+  const inputs = screen.getAllByRole('spinbutton', {
+    name: 'Number of pulls',
+  }) as HTMLInputElement[]
   return { inputs, setUserPlannedBannerData }
 }
 

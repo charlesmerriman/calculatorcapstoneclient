@@ -27,6 +27,7 @@ import {
 	MONTHLY_SHOP_UMA_TICKETS,
 	MONTHLY_SHOP_SUPPORT_TICKETS,
 	MONTHLY_SHOP_TICKET_DAY,
+	SHARDS_PER_CRYSTAL,
 } from "../constants/gameConstants"
 import {
 	calculateDailyIncome,
@@ -38,10 +39,13 @@ import {
 	countDaysInWindow,
 	countDaysAfterDelay,
 	sumRemainingThroughoutCarats,
+	sumUncapAccrual,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
-import { applyPullStrategy } from "../utils/bannerHelpers"
-import type { MaxPullBreakdown } from "../utils/bannerHelpers"
+import { applyPullStrategy, allocateReservedCopies } from "../utils/bannerHelpers"
+import type { MaxPullBreakdown, ReservedFunding } from "../utils/bannerHelpers"
+import { addSelectorTickets } from "../utils/selectorTickets"
+import type { SelectorTicketBucket } from "../utils/selectorTickets"
 import type {
 	UserStats,
 	ClubRank,
@@ -51,7 +55,9 @@ import type {
 	UserPlannedBanner,
 	GameEvent,
 	ChampionsMeeting,
-	LeagueOfHeroes
+	LeagueOfHeroes,
+	AnniversaryEvent,
+	UserPlannedPurchase
 } from "../types"
 
 export interface BannerResources {
@@ -70,6 +76,21 @@ export interface BannerResources {
 	maxPullBreakdown: MaxPullBreakdown
 	umaTickets: number
 	supportTickets: number
+	/**
+	 * Selector tickets, bucketed by JP cutoff rather than summed — two tickets
+	 * with different cutoffs are different resources. Use totalSelectorTickets
+	 * for a display number. See utils/selectorTickets.
+	 */
+	umaSelectorTickets: SelectorTicketBucket[]
+	supportSelectorTickets: SelectorTicketBucket[]
+	/** SSR crystals available before this banner's reserved copies are paid for. */
+	ssrCrystals: number
+	/** Leftover SSR shards; SHARDS_PER_CRYSTAL of them make another crystal. */
+	ssrShards: number
+	/** Cumulative planned real-money spend as of this banner, in USD. */
+	usdSpent: number
+	/** Which resources paid for this banner's reserved copies. */
+	reservedFunding: ReservedFunding
 }
 
 /**
@@ -91,6 +112,15 @@ export const EMPTY_BANNER_RESOURCES: BannerResources = Object.freeze({
 	}),
 	umaTickets: 0,
 	supportTickets: 0,
+	// Plain empty arrays rather than frozen ones: every bucket operation returns
+	// a new array (see utils/selectorTickets), so these are never mutated, and
+	// freezing them would force a readonly type through the whole consumer chain.
+	umaSelectorTickets: [] as SelectorTicketBucket[],
+	supportSelectorTickets: [] as SelectorTicketBucket[],
+	ssrCrystals: 0,
+	ssrShards: 0,
+	usdSpent: 0,
+	reservedFunding: Object.freeze({ selectors: 0, crystals: 0, unfunded: 0 }),
 })
 
 interface BannerResourcesParams {
@@ -103,6 +133,8 @@ interface BannerResourcesParams {
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]
+	anniversaryEventData: AnniversaryEvent[]
+	userPlannedPurchaseData: UserPlannedPurchase[]
 }
 
 
@@ -115,7 +147,9 @@ export function useBannerResources({
 	gameEventsData,
 	championsMeetingData,
 	leagueOfHeroesData,
-	userPlannedBannerData
+	userPlannedBannerData,
+	anniversaryEventData,
+	userPlannedPurchaseData
 }: BannerResourcesParams): BannerResources[] {
 	return useMemo(() => {
 		/**
@@ -139,6 +173,27 @@ export function useBannerResources({
 		let paidCarats = userStatsData.current_paid_carat || 0
 		let umaTickets = userStatsData.uma_ticket || 0
 		let supportTickets = userStatsData.support_ticket || 0
+
+		// Selector tickets and uncap crystals ride alongside the carat balances:
+		// spent on reserved copies rather than pulls, so they never enter
+		// applyPullStrategy and can never inflate max pulls.
+		//
+		// The starting holdings enter as a single UNRESTRICTED bucket. We don't
+		// know which campaign a user's existing tickets came from, and assuming a
+		// cutoff we can't see would silently block cards they can actually pick.
+		let umaSelectorTickets = addSelectorTickets(
+			[],
+			null,
+			userStatsData.uma_selector_ticket || 0
+		)
+		let supportSelectorTickets = addSelectorTickets(
+			[],
+			null,
+			userStatsData.support_selector_ticket || 0
+		)
+		let ssrCrystals = userStatsData.ssr_crystals || 0
+		let ssrShards = userStatsData.ssr_shards || 0
+		let usdSpent = 0
 
 		// One result slot per planned banner, pre-filled so the array always
 		// lines up positionally with `userPlannedBannerData` — the consumer
@@ -188,6 +243,48 @@ export function useBannerResources({
 			...l,
 			parsedDate: new Date(l.end_date),
 		}))
+
+		// Planned purchases, resolved to a credit instant and grouped so the loop
+		// can ask "what got bought in this window?" without rescanning campaigns.
+		//
+		// The credit instant is the campaign's resolved START — packs go on sale
+		// when the campaign opens. It is an ABSOLUTE instant, which is what keeps
+		// the banner windows tiling: counting purchases per-window instead would
+		// inflate totals as soon as a user split their plan across more banners.
+		//
+		// Campaigns with no resolved date (no linked banner parts) are skipped
+		// rather than credited at some fallback — there is no honest instant to
+		// pick, and guessing one would move a user's estimate on a date we made up.
+		const productsById = new Map(
+			anniversaryEventData.flatMap((event) =>
+				event.products.map((product) => [product.id, { product, event }] as const)
+			)
+		)
+		const purchaseCredits = userStatsData.include_purchases_in_projection
+			? userPlannedPurchaseData.flatMap((purchase) => {
+					const entry = productsById.get(purchase.product)
+					const startDate = entry?.event.start_date
+					if (!entry || !startDate) return []
+					const quantity = Math.max(0, purchase.quantity)
+					if (quantity === 0) return []
+					const { product } = entry
+					const multiplier = userStatsData.webstore_bonus
+						? product.webstore_multiplier
+						: 1
+					return [{
+						creditAt: new Date(startDate),
+						productType: product.product_type,
+						jpCutoff: product.jp_cutoff_date,
+						// Rounded because a fractional multiplier on an odd carat
+						// count can land on a fraction, and carats are whole.
+						paidCarats: Math.round(
+							product.paid_carat_amount * quantity * multiplier
+						),
+						usd: product.usd_cost * quantity,
+						quantity,
+					}]
+				})
+			: []
 
 		// Same stable anchor drives the weekly-bonus pattern for every banner.
 		const referenceDate = today
@@ -325,6 +422,46 @@ export function useBannerResources({
 					supportTickets += userLeagueOfHeroesRank?.support_ticket_amount ?? 0
 				}
 			}
+
+			// Campaign purchases falling in this window. Paid carats, because they
+			// were bought — they land in the same pool the Daily Carat Pack's lump
+			// does and fund discounted pulls the same way.
+			//
+			// Selector tickets carry their product's cutoff into their own bucket,
+			// which is what later lets the reserved-copies allocator tell whether a
+			// given ticket can actually take a given banner's card.
+			for (const credit of purchaseCredits) {
+				if (credit.creditAt <= lastEndDate || credit.creditAt > endDate) continue
+				paidCarats += credit.paidCarats
+				usdSpent += credit.usd
+				if (credit.productType === "uma_selector") {
+					umaSelectorTickets = addSelectorTickets(
+						umaSelectorTickets, credit.jpCutoff, credit.quantity
+					)
+				} else if (credit.productType === "support_selector") {
+					supportSelectorTickets = addSelectorTickets(
+						supportSelectorTickets, credit.jpCutoff, credit.quantity
+					)
+				}
+			}
+
+			// Uncap shards and crystals over the same window. Shared with the
+			// Uncap Crystals panel so the two can't drift — see sumUncapAccrual.
+			const uncap = sumUncapAccrual({
+				windowStart: lastEndDate,
+				windowEnd: endDate,
+				events: parsedGameEvents,
+				meetings: parsedMeetings,
+				leagueEvents: parsedLoH,
+				championsMeetingRank: userChampionsMeetingRank,
+				leagueOfHeroesRank: userLeagueOfHeroesRank,
+			})
+			ssrShards += uncap.ssrShards
+			ssrCrystals += uncap.ssrCrystals
+			// Convert as we go rather than once at the end: the crystals have to be
+			// spendable on reserved copies at THIS checkpoint, not only the last one.
+			ssrCrystals += Math.floor(ssrShards / SHARDS_PER_CRYSTAL)
+			ssrShards %= SHARDS_PER_CRYSTAL
 
 			// Calendar days in (lastEndDate, endDate] — NOT elapsed 24-hour spans.
 			// See countDaysInWindow: differenceInDays truncates each window's
@@ -495,6 +632,34 @@ export function useBannerResources({
 				fullPricePaidPulls: userStatsData.full_price_paid_pulls,
 			})
 
+			// Copies taken outside of pulling, paid for with selectors first and
+			// SSR crystals second (see allocateReservedCopies for why that order).
+			// Independent of the pull strategy above: these resources aren't
+			// carats, so they change no pull count — only the copy distribution.
+			const featured = isUmaBanner
+				? banner.banner_uma?.umas ?? []
+				: banner.banner_support?.support_cards ?? []
+			// The NEWEST featured card sets the bar. A banner can feature more than
+			// one and we don't track which the user wants, so requiring the ticket
+			// to clear the newest guarantees it covers whichever they pick.
+			const newestFeaturedJpDate = featured.reduce<string | null>(
+				(newest, card) => {
+					if (!card.first_jp_date) return newest
+					return !newest || card.first_jp_date > newest
+						? card.first_jp_date
+						: newest
+				},
+				null
+			)
+			const reserved = allocateReservedCopies({
+				reservedCopies: banner.reserved_copies,
+				isUmaBanner,
+				newestFeaturedJpDate,
+				umaSelectorTickets,
+				supportSelectorTickets,
+				ssrCrystals,
+			})
+
 			// Write back to the banner's DISPLAY position, not the walk position,
 			// so the row on screen gets its own checkpoint's numbers.
 			results[index] = {
@@ -507,12 +672,21 @@ export function useBannerResources({
 				maxPullBreakdown: strategy.maxPullBreakdown,
 				umaTickets,
 				supportTickets,
+				umaSelectorTickets,
+				supportSelectorTickets,
+				ssrCrystals,
+				ssrShards,
+				usdSpent,
+				reservedFunding: reserved.funding,
 			}
 
 			freeCarats = strategy.freeCarats
 			paidCarats = strategy.paidCarats
 			umaTickets = strategy.umaTickets
 			supportTickets = strategy.supportTickets
+			umaSelectorTickets = reserved.umaSelectorTickets
+			supportSelectorTickets = reserved.supportSelectorTickets
+			ssrCrystals = reserved.ssrCrystals
 
 			// The walk order only guarantees endDate never goes backwards by a
 			// whole DAY — two checkpoints on the same day are ordered by start
@@ -534,6 +708,8 @@ export function useBannerResources({
 		leagueOfHeroesRankData,
 		teamTrialsRankData,
 		userPlannedBannerData,
-		userStatsData
+		userStatsData,
+		anniversaryEventData,
+		userPlannedPurchaseData
 	])
 }

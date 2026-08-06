@@ -104,3 +104,41 @@ export function calculateCopyDistribution(pulls: number): number[] {
 			: getExactProbability(pulls, randomNeeded) * 100
 	})
 }
+
+/**
+ * Shift a copy distribution right by copies obtained outside of pulling — a
+ * selector ticket or an SSR crystal spent on this banner's featured card.
+ *
+ * Those copies are certainties, not probabilities, so they don't belong inside
+ * the binomial at all: the pulls still produce whatever they produce, and the
+ * reserved copies simply sit on top. That makes this a pure re-indexing of the
+ * existing distribution rather than a change to how it is computed:
+ *
+ *     P(total = k) = P(pulls give k - reserved)      for k < MAX_COPIES
+ *     P(total = 5) = P(pulls give >= 5 - reserved)
+ *
+ * The top bucket absorbs the tail because there is no 5LB — every outcome that
+ * would have overshot MLB lands there, which is also what keeps the array
+ * summing to 100 (the same reason calculateCopyDistribution makes it cumulative).
+ */
+export function shiftDistribution(
+	distribution: number[],
+	reservedCopies: number
+): number[] {
+	const reserved = Math.max(0, Math.floor(reservedCopies))
+	if (reserved === 0) return distribution
+
+	return Array.from({ length: MAX_COPIES + 1 }, (_, copies) => {
+		// Below the reserved floor is now unreachable — those copies are already
+		// in hand before a single pull.
+		if (copies < reserved) return 0
+
+		const fromPulls = copies - reserved
+		if (copies < MAX_COPIES) return distribution[fromPulls] ?? 0
+
+		// Fold every outcome at or past the cap into the top bucket.
+		return distribution
+			.slice(fromPulls)
+			.reduce((sum, probability) => sum + probability, 0)
+	})
+}

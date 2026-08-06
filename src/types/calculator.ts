@@ -24,6 +24,7 @@ import type {
 } from "./ranks"
 import type { UserStats, UserPlannedBanner } from "./user"
 import type { GameEvent, ChampionsMeeting, LeagueOfHeroes, RaceEvent } from "./events"
+import type { AnniversaryEvent, UserPlannedPurchase } from "./anniversary"
 
 /** The full payload returned by GET /calculator-data.
  * `user_stats_data` is null for anonymous (guest) requests — the provider
@@ -41,6 +42,10 @@ export interface CalculatorData {
 	champions_meeting_data: ChampionsMeeting[]
 	league_of_heroes_event_data: LeagueOfHeroes[]
 	banner_timeline_data: BannerTimelineForViewing[]
+	/** Public reference data — campaigns and their purchasable products. */
+	anniversary_event_data: AnniversaryEvent[]
+	/** User-scoped; `[]` for guests, same as user_planned_banner_data. */
+	user_planned_purchase_data: UserPlannedPurchase[]
 }
 
 /**
@@ -104,10 +109,13 @@ export interface CalculatorContextType {
 	leagueOfHeroesData: LeagueOfHeroes[]
 	userPlannedBannerData: UserPlannedBanner[]
 	stagedBanners: UserPlannedBanner[]
+	anniversaryEventData: AnniversaryEvent[]
+	userPlannedPurchaseData: UserPlannedPurchase[]
 	timerIsGoing: boolean
 	organizedTimelineData: OrganizedTimelineData
 	saveNow: () => Promise<void>
 	setUserPlannedBannerData: Dispatch<SetStateAction<UserPlannedBanner[]>>
 	setStagedBanners: Dispatch<SetStateAction<UserPlannedBanner[]>>
+	setUserPlannedPurchaseData: Dispatch<SetStateAction<UserPlannedPurchase[]>>
 	setUserStatsData: Dispatch<SetStateAction<UserStats | null>>
 }

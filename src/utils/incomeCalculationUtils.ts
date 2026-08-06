@@ -480,3 +480,95 @@ export function sumRemainingThroughoutCarats(
 
 	return total
 }
+
+// ── Uncap shards & crystals ───────────────────────────────────────────────────
+
+/**
+ * The three reward-bearing shapes the accrual below reads, kept minimal and
+ * structural so callers can pass their own pre-parsed rows.
+ *
+ * Dates arrive already parsed because the per-banner projection calls this once
+ * per banner — re-parsing every event's date string on each of those passes was
+ * measurable, and the caller already parses them once for its other income.
+ */
+export interface ShardEventLike {
+	parsedStart: Date | null
+	ssr_shard_amount: number
+	sr_shard_amount: number
+	ssr_crystal_amount: number
+	sr_crystal_amount: number
+}
+
+export interface ShardRaceLike {
+	parsedDate: Date
+}
+
+export interface ShardRankLike {
+	ssr_shard_amount: number
+	sr_shard_amount: number
+}
+
+export interface UncapAccrual {
+	ssrShards: number
+	srShards: number
+	ssrCrystals: number
+	srCrystals: number
+}
+
+export interface UncapAccrualInput {
+	windowStart: Date
+	windowEnd: Date
+	events: ShardEventLike[]
+	meetings: ShardRaceLike[]
+	leagueEvents: ShardRaceLike[]
+	championsMeetingRank: ShardRankLike | undefined
+	leagueOfHeroesRank: ShardRankLike | undefined
+}
+
+/**
+ * Shards and crystals earned in the half-open window `(windowStart, windowEnd]`.
+ *
+ * Shared by useUncapCrystals (one user-chosen window) and useBannerResources
+ * (one window per banner, chained). Those two used to be the same arithmetic
+ * written twice; a single source is what stops the panel and the banner rows
+ * quietly disagreeing about the same projection.
+ *
+ * Shards and crystals are always a lump on an event's start date — there is no
+ * shard equivalent of carats_throughout, so nothing here is prorated.
+ *
+ * The window is half-open on the left so consecutive windows tile exactly:
+ * chaining `(a,b]` then `(b,c]` counts everything in `(a,c]` once.
+ */
+export function sumUncapAccrual(input: UncapAccrualInput): UncapAccrual {
+	const { windowStart, windowEnd } = input
+	const accrual: UncapAccrual = {
+		ssrShards: 0,
+		srShards: 0,
+		ssrCrystals: 0,
+		srCrystals: 0,
+	}
+
+	for (const event of input.events) {
+		const start = event.parsedStart
+		if (!start || start <= windowStart || start > windowEnd) continue
+		accrual.ssrShards += event.ssr_shard_amount
+		accrual.srShards += event.sr_shard_amount
+		accrual.ssrCrystals += event.ssr_crystal_amount
+		accrual.srCrystals += event.sr_crystal_amount
+	}
+
+	// Race payouts land on the event's END date, unlike game events.
+	for (const [races, rank] of [
+		[input.meetings, input.championsMeetingRank] as const,
+		[input.leagueEvents, input.leagueOfHeroesRank] as const,
+	]) {
+		if (!rank) continue
+		for (const race of races) {
+			if (race.parsedDate <= windowStart || race.parsedDate > windowEnd) continue
+			accrual.ssrShards += rank.ssr_shard_amount
+			accrual.srShards += rank.sr_shard_amount
+		}
+	}
+
+	return accrual
+}

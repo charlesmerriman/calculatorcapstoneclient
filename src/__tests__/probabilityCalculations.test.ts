@@ -5,6 +5,7 @@ import {
   calculateCopyDistribution,
   calculateSuccessProbability,
   getGuaranteedCopies,
+  shiftDistribution,
 } from '../utils/probabilityCalculations'
 
 // ── getGuaranteedCopies ───────────────────────────────────────────────────────
@@ -194,5 +195,51 @@ describe('calculateSuccessProbability', () => {
       // 800 pulls grant 4 copies; only 2 were asked for.
       expect(calculateSuccessProbability(800, 2)).toBe(100)
     })
+  })
+})
+
+describe('shiftDistribution', () => {
+  it('is a no-op for zero reserved copies', () => {
+    const base = calculateCopyDistribution(100)
+    expect(shiftDistribution(base, 0)).toBe(base)
+  })
+
+  it('moves each outcome up by the reserved count', () => {
+    const base = calculateCopyDistribution(100)
+    const shifted = shiftDistribution(base, 2)
+
+    // Ending with 0 or 1 copies is now impossible — two are already in hand.
+    expect(shifted[0]).toBe(0)
+    expect(shifted[1]).toBe(0)
+    // "Exactly 2 total" is now "pulls produced 0".
+    expect(shifted[2]).toBeCloseTo(base[0], 10)
+    expect(shifted[3]).toBeCloseTo(base[1], 10)
+  })
+
+  it('folds the tail into the MLB bucket', () => {
+    const base = calculateCopyDistribution(100)
+    const shifted = shiftDistribution(base, 2)
+    const tail = base.slice(3).reduce((sum, p) => sum + p, 0)
+
+    expect(shifted[MAX_COPIES]).toBeCloseTo(tail, 10)
+  })
+
+  it('still sums to 100', () => {
+    for (const reserved of [0, 1, 3, 5]) {
+      const shifted = shiftDistribution(calculateCopyDistribution(250), reserved)
+      const total = shifted.reduce((sum, p) => sum + p, 0)
+      expect(total).toBeCloseTo(100, 6)
+    }
+  })
+
+  it('is a certainty at MLB once enough copies are reserved', () => {
+    const shifted = shiftDistribution(calculateCopyDistribution(0), MAX_COPIES)
+    expect(shifted[MAX_COPIES]).toBeCloseTo(100, 6)
+  })
+
+  it('clamps a negative or fractional reserve rather than producing holes', () => {
+    const base = calculateCopyDistribution(100)
+    expect(shiftDistribution(base, -3)).toBe(base)
+    expect(shiftDistribution(base, 1.7)).toEqual(shiftDistribution(base, 1))
   })
 })

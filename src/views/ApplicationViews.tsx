@@ -2,6 +2,7 @@ import { Outlet, Route, Routes } from "react-router-dom"
 import { Navbar } from "../components/navbar/Navbar.tsx"
 import { CaratCalculator } from "../components/carat-calculator/CaratCalculator"
 import { Timeline } from "../components/timeline/Timeline"
+import { Selectors } from "../components/selectors/Selectors"
 import { Footer } from "../components/footer/Footer.tsx"
 
 export const ApplicationViews = () => {
@@ -40,6 +41,7 @@ export const ApplicationViews = () => {
 			>
 				<Route index element={<CaratCalculator />} />
 				<Route path="timeline" element={<Timeline />}/>
+				<Route path="selectors" element={<Selectors />}/>
 			</Route>
 		</Routes>
 	)

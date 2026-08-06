@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
+  allocateReservedCopies,
   applyPullStrategy,
   bannerKey,
   getPullCountStatus,
+  getReservedStatus,
   plannedBannerKey,
 } from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
+import type { SelectorTicketBucket } from '../utils/selectorTickets'
 import type { BannerSupport, BannerUma } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -323,5 +326,132 @@ describe('bannerKey / plannedBannerKey', () => {
 
   it('returns null for a row with no banner selected yet', () => {
     expect(plannedBannerKey({})).toBeNull()
+  })
+})
+
+// ── allocateReservedCopies ────────────────────────────────────────────────────
+
+describe('allocateReservedCopies', () => {
+  const OLD = '2020-01-01T00:00:00Z'
+  const NEW = '2030-01-01T00:00:00Z'
+
+  const base = {
+    reservedCopies: 0,
+    isUmaBanner: false,
+    newestFeaturedJpDate: OLD as string | null,
+    umaSelectorTickets: [] as SelectorTicketBucket[],
+    supportSelectorTickets: [] as SelectorTicketBucket[],
+    ssrCrystals: 0,
+  }
+
+  it('spends nothing for a zero reserve', () => {
+    const result = allocateReservedCopies({ ...base, ssrCrystals: 5 })
+    expect(result.funding).toEqual({ selectors: 0, crystals: 0, unfunded: 0 })
+    expect(result.ssrCrystals).toBe(5)
+  })
+
+  it('spends selectors before crystals', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      reservedCopies: 2,
+      supportSelectorTickets: [{ jpCutoff: null, count: 3 }],
+      ssrCrystals: 5,
+    })
+    expect(result.funding).toEqual({ selectors: 2, crystals: 0, unfunded: 0 })
+    expect(result.ssrCrystals).toBe(5)
+  })
+
+  it('falls back to crystals when the selector cannot reach the card', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      reservedCopies: 2,
+      newestFeaturedJpDate: NEW,
+      supportSelectorTickets: [{ jpCutoff: '2024-01-31', count: 3 }],
+      ssrCrystals: 5,
+    })
+    expect(result.funding).toEqual({ selectors: 0, crystals: 2, unfunded: 0 })
+    expect(result.ssrCrystals).toBe(3)
+    // The unusable selectors are untouched.
+    expect(result.supportSelectorTickets).toEqual([
+      { jpCutoff: '2024-01-31', count: 3 },
+    ])
+  })
+
+  it('splits across selectors then crystals', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      reservedCopies: 3,
+      supportSelectorTickets: [{ jpCutoff: null, count: 1 }],
+      ssrCrystals: 5,
+    })
+    expect(result.funding).toEqual({ selectors: 1, crystals: 2, unfunded: 0 })
+  })
+
+  it('never spends crystals on an uma banner', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      isUmaBanner: true,
+      reservedCopies: 2,
+      ssrCrystals: 9,
+    })
+    expect(result.funding).toEqual({ selectors: 0, crystals: 0, unfunded: 2 })
+    expect(result.ssrCrystals).toBe(9)
+  })
+
+  it('uses the uma pool on an uma banner', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      isUmaBanner: true,
+      reservedCopies: 1,
+      umaSelectorTickets: [{ jpCutoff: null, count: 2 }],
+      supportSelectorTickets: [{ jpCutoff: null, count: 2 }],
+    })
+    expect(result.funding.selectors).toBe(1)
+    expect(result.umaSelectorTickets).toEqual([{ jpCutoff: null, count: 1 }])
+    expect(result.supportSelectorTickets).toEqual([{ jpCutoff: null, count: 2 }])
+  })
+
+  it('reports the shortfall rather than clamping', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      reservedCopies: 4,
+      ssrCrystals: 1,
+    })
+    expect(result.funding).toEqual({ selectors: 0, crystals: 1, unfunded: 3 })
+  })
+
+  it('treats an unknown featured date as unreachable by a cutoff selector', () => {
+    const result = allocateReservedCopies({
+      ...base,
+      reservedCopies: 1,
+      newestFeaturedJpDate: null,
+      supportSelectorTickets: [{ jpCutoff: '2024-01-31', count: 2 }],
+    })
+    expect(result.funding).toEqual({ selectors: 0, crystals: 0, unfunded: 1 })
+  })
+
+  it('floors a fractional reserve and ignores a negative one', () => {
+    expect(
+      allocateReservedCopies({ ...base, reservedCopies: 2.9, ssrCrystals: 5 })
+        .funding.crystals
+    ).toBe(2)
+    expect(
+      allocateReservedCopies({ ...base, reservedCopies: -1, ssrCrystals: 5 })
+        .funding
+    ).toEqual({ selectors: 0, crystals: 0, unfunded: 0 })
+  })
+})
+
+describe('getReservedStatus', () => {
+  it('flags an unfunded request', () => {
+    expect(getReservedStatus({ selectors: 1, crystals: 0, unfunded: 2 })).toBe('over')
+  })
+
+  it('is ok when everything is covered', () => {
+    expect(getReservedStatus({ selectors: 0, crystals: 3, unfunded: 0 })).toBe('ok')
+  })
+
+  it('is neutral when nothing is reserved', () => {
+    expect(getReservedStatus({ selectors: 0, crystals: 0, unfunded: 0 })).toBe('neutral')
   })
 })

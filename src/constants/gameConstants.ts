@@ -165,6 +165,12 @@ export const THROUGHOUT_FILTER_GRACE_DAYS = 4
 // ── Pull costs ────────────────────────────────────────────────────────────────
 
 /** Carat cost of a single standard pull (after free pulls are consumed). */
+/**
+ * Shards needed to build one uncap crystal. Applies to both SR and SSR.
+ * Shared by the Uncap Crystals panel and the per-banner projection.
+ */
+export const SHARDS_PER_CRYSTAL = 20
+
 export const PULL_COST_CARATS = 150
 
 /**

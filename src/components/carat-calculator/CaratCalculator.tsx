@@ -23,6 +23,8 @@ export const CaratCalculator: React.FC = () => {
 		supportBannerData,
 		userPlannedBannerData,
 		stagedBanners,
+		anniversaryEventData,
+		userPlannedPurchaseData,
 		setUserPlannedBannerData,
 		setStagedBanners,
 	} = useCalculatorData()
@@ -37,6 +39,8 @@ export const CaratCalculator: React.FC = () => {
 		championsMeetingData,
 		leagueOfHeroesData,
 		userPlannedBannerData,
+		anniversaryEventData,
+		userPlannedPurchaseData,
 	})
 
 	if (!userStatsData) {
@@ -66,6 +70,7 @@ export const CaratCalculator: React.FC = () => {
 			{
 				tempId: highestId + 1,
 				number_of_pulls: 0,
+				reserved_copies: 0,
 				initialBannerType: bannerType,
 			} satisfies UserPlannedBanner,
 		])
@@ -173,7 +178,7 @@ export const CaratCalculator: React.FC = () => {
 												<div className="text-center">Start / End Date</div>
 												<div className="text-center">Confirm</div>
 												<div className="text-center"># Pulls</div>
-												<div className="text-center" title="Reserved for a future banner input">
+												<div className="text-center" title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling">
 													Reserved
 												</div>
 												<div className="text-center">% Chance to MLB (5x Copies)</div>
@@ -214,7 +219,7 @@ export const CaratCalculator: React.FC = () => {
 											<div className="text-center">Start / End Date</div>
 											<div className="text-center">Derived Stats (Auto-Calculated)</div>
 											<div className="text-center"># Pulls</div>
-											<div className="text-center" title="Reserved for a future banner input">
+											<div className="text-center" title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling">
 												Reserved
 											</div>
 											<div className="text-center">% Chance to MLB (5x Copies)</div>

@@ -11,12 +11,27 @@ export interface UserStats {
 	current_paid_carat: number
 	uma_ticket: number
 	support_ticket: number
+	/**
+	 * Selector tickets — NOT gacha tickets. uma_ticket/support_ticket above are
+	 * each worth one pull and get spent by the pull strategy; a selector takes a
+	 * specific card outright and never funds a pull.
+	 *
+	 * These are current holdings, treated as unrestricted (no JP cutoff). Tickets
+	 * projected from campaigns carry their campaign's cutoff instead — see
+	 * SelectorTicketBucket in hooks/useBannerResources.
+	 */
+	uma_selector_ticket: number
+	support_selector_ticket: number
 	daily_carat: boolean
 	training_pass: boolean
 	misc_earnings: boolean
 	monthly_shop_tickets: boolean
 	discounted_paid_pulls: boolean
 	full_price_paid_pulls: boolean
+	/** Off by default — planned purchases are budgeting-only until switched on. */
+	include_purchases_in_projection: boolean
+	/** Apply each pack's webstore multiplier. The whole amount stays paid carats. */
+	webstore_bonus: boolean
 	club_rank: number | null
 	team_trials_rank: number | null
 	champions_meeting_rank: number | null
@@ -56,6 +71,13 @@ export interface UserStats {
 
 interface BasePlannedBanner {
 	number_of_pulls: number
+	/**
+	 * Copies obtained WITHOUT pulling, using a selector ticket or an SSR crystal.
+	 * Only the count is stored — which resource pays is derived per render from
+	 * the projected balances and the banner's JP eligibility, so it can never go
+	 * stale against them. See allocateReservedCopies in utils/bannerHelpers.
+	 */
+	reserved_copies: number
 	banner_uma?: BannerUma | null
 	banner_support?: BannerSupport | null
 	initialBannerType?: "Uma" | "Support"

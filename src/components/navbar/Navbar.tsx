@@ -54,6 +54,7 @@ export const Navbar = () => {
 
 	const isCalculator = location.pathname === "/app"
 	const isTimeline = location.pathname === "/app/timeline"
+	const isSelectors = location.pathname === "/app/selectors"
 
 	const timerIsGoing = calculatorData?.timerIsGoing ?? false
 
@@ -165,14 +166,10 @@ export const Navbar = () => {
 						<CalendarDays className="h-4 w-4 shrink-0" />
 						<span className="truncate">Timeline</span>
 					</Link>
-					<button
-						disabled
-						title="Coming soon"
-						className={`${mobileNavClass(false)} cursor-not-allowed opacity-55`}
-					>
+					<Link to="/app/selectors" className={mobileNavClass(isSelectors)}>
 						<Sparkles className="h-4 w-4 shrink-0" />
-						<span className="truncate">Coming soon</span>
-					</button>
+						<span className="truncate">Selectors</span>
+					</Link>
 				</div>
 			</nav>
 
@@ -196,14 +193,10 @@ export const Navbar = () => {
 						<CalendarDays className="w-4 h-4" />
 						Timeline
 					</Link>
-					<button
-						disabled
-						title="Coming soon"
-						className={`${desktopNavClass(false)} cursor-not-allowed opacity-55`}
-					>
+					<Link to="/app/selectors" className={desktopNavClass(isSelectors)}>
 						<Sparkles className="h-4 w-4" />
-						Coming soon
-					</button>
+						Selectors
+					</Link>
 				</div>
 
 				{/* Right: Save indicator + Theme Picker + Logout/Login */}

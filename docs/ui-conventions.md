@@ -104,7 +104,7 @@ page exists for.
 That guarantee is enforced by a single token in `index.css`:
 
 ```css
---container-banner-table: 74.5rem;   /* 968px of fixed tracks + the MLB column's 14rem floor */
+--container-banner-table: 76.625rem;  /* 1002px of fixed tracks + the MLB column's 14rem floor */
 ```
 
 Both sides of the switch read it, so they cannot disagree:
@@ -125,12 +125,23 @@ one per section, around the header **and** its rows.
 The switch point then moves on its own — the table simply starts yielding to cards a
 little sooner.
 
-**There is a hard ceiling of 1214px (75.875rem) on that token**, and overshooting it does
-not degrade gracefully — it makes the table *disappear*. The shell can only ever hand the
-table `.page-container`'s `lg:max-w-7xl` (1280px) minus `mx-4` (32), the panel border (2)
-and `mx-4` again (32). Set the token above 1214px and the container query can never match
-at any viewport width, so every row silently falls back to `MobileBannerCard`. A 76rem
-value did exactly this, missing by 2px.
+**There is a hard ceiling on that token**, and overshooting it does not degrade
+gracefully — it makes the table *disappear*. Set it above what the shell can hand the
+table and the container query never matches at any viewport width, so every row silently
+falls back to `MobileBannerCard`.
+
+The ceiling was **1214px (75.875rem)** while the calculator sat in `.page-container`'s
+`lg:max-w-7xl` (1280px, minus `mx-4` = 32, the panel border = 2, and `mx-4` again = 32);
+a 76rem value did exactly this, missing by 2px. The calculator has since moved to its own
+`max-w-[96rem]` canvas (`CaratCalculator.tsx`), which is why the current 76.625rem fits.
+The **Timeline still uses `.page-container`**, so don't reuse this number for anything
+outside the calculator.
+
+Raising the token is still the wrong lever even below the ceiling: it is the minimum
+width at which cards become the spreadsheet, so every increase makes the table yield to
+cards on more screens. The Reserved column stayed at `5rem` for exactly this reason when
+it gained a funding hint beneath its input — the hint was abbreviated (`2s 1c`, full text
+in its `title`) instead of the track being widened.
 
 So prefer **reclaiming measured slack from existing tracks** over raising the token. When
 the derived-stats strip grew to four boxes, most of its space came from the images track
@@ -256,6 +267,33 @@ Guarded by `src/__tests__/Timeline.test.tsx`, whose fake observer fires each ins
   list is several hundred.
 
 ---
+
+## Selectors page (`components/selectors/`)
+
+`/app/selectors` is the third nav destination, alongside Calculator and Timeline. It
+holds everything about anniversary campaigns: discounted carat packs, selector tickets,
+USD budgeting, and the two toggles that govern whether any of it reaches the projection.
+
+- **`Selectors.tsx`** — page root. Zero props, reads `useCalculatorData()`, owns the
+  purchase upsert handlers. Follows `UncapCrystalsPanel`'s conventions.
+- **`CampaignCard.tsx`** — one campaign: packs with quantity steppers, selectors with a
+  target picker, and the per-campaign / cumulative footer.
+- **`SelectorTargetPicker.tsx`** — the card picker, filtered by the selector's JP cutoff.
+  Candidates come from the calculator's past and upcoming gacha-banner catalogue, not a
+  new endpoint. Spreadsheet catch-all rows such as `(All)` are excluded from the selector
+  list.
+- **`timeline/AnniversaryEventStrip.tsx`** — the band that sits flush on top of a banner
+  card when that banner is part of a campaign. It keeps only its **top** corners rounded
+  and the caller squares the card's top corners (`rounded-b-xl rounded-t-none`) so the
+  two read as one unit. Nothing inside the card moves; an unattached banner is unchanged.
+
+Campaign chrome is keyed off the backend's `event_type` tag (`anniversary` / `new_year` /
+`campaign`) in both the card and the strip — never off the name.
+
+**Money goes through `formatUsd`** (`utils/formatCurrency.ts`), never a hand-rolled
+`toLocaleString` at a call site — the same rule as `formatDate`. It is pinned to en-US /
+USD deliberately: the sheet's prices are US store prices, and rendering them as €70 would
+present a converted figure nobody computed.
 
 ## Testing note
 
