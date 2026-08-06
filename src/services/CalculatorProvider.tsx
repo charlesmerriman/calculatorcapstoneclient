@@ -167,8 +167,15 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
-				setAnniversaryEventData(data.anniversary_event_data)
-				setUserPlannedPurchaseData(data.user_planned_purchase_data)
+				// Defaulted, unlike the keys above, because these two arrived later
+				// than the rest of the payload. A backend running a build from
+				// before the selector planner omits them entirely, and an
+				// undefined here reaches useBannerResources' flatMap and takes
+				// down /app and /app/selectors together. Degrade to "no campaigns
+				// planned" instead — the rest of the calculator is still correct
+				// without them.
+				setAnniversaryEventData(data.anniversary_event_data ?? [])
+				setUserPlannedPurchaseData(data.user_planned_purchase_data ?? [])
 				setGameEventsData(data.events_data)
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
@@ -214,7 +221,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 							...stash.banners
 						],
 						[
-							...toPurchasePayload(data.user_planned_purchase_data),
+							// Same defaulting as the setter below — this runs on the
+							// raw payload, before the state above is populated.
+							...toPurchasePayload(data.user_planned_purchase_data ?? []),
 							...(stash.purchases ?? [])
 						]
 					)
