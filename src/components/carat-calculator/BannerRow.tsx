@@ -15,7 +15,7 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { formatDate } from "../../utils/dateFormat"
-import { bannerKey, getFreePulls, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
+import { bannerKey, getFreePulls, getPullCountStatus, getReservedStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
 import type { BannerResources } from "../../hooks/useBannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
@@ -107,6 +107,15 @@ export const BannerRow = ({
 		maxPossiblePulls === "Passed"
 			? { tickets: 0, paidPulls: 0 }
 			: resources.maxPullBreakdown
+
+	// Copies actually paid for, which is what the odds may credit. A passed
+	// banner funds nothing, mirroring the zeroed carat boxes above.
+	const reservedFunding =
+		maxPossiblePulls === "Passed"
+			? { selectors: 0, crystals: 0, unfunded: 0 }
+			: resources.reservedFunding
+	const fundedReservedCopies = reservedFunding.selectors + reservedFunding.crystals
+	const reservedStatus = getReservedStatus(reservedFunding)
 
 	const updateBannerInList = (
 		updater: (banner: UserPlannedBanner) => UserPlannedBanner
@@ -333,7 +342,7 @@ export const BannerRow = ({
 				</div>
 				<div className="border-t border-gray-600 p-2">
 					{hasBanner ? (
-						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} />
+						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} />
 					) : (
 						<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
 					)}
@@ -355,7 +364,7 @@ export const BannerRow = ({
 					</div>
 					<div className="col-span-2 p-2">
 						{hasBanner ? (
-							<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} />
+							<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} />
 						) : (
 							<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
 						)}
@@ -375,6 +384,29 @@ export const BannerRow = ({
 			? "On a pity threshold — no carats stranded in a partial counter"
 			: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
 
+	const handleReservedChange = (
+		event: React.ChangeEvent<HTMLInputElement>
+	): void => {
+		// Floored and non-negative like the pull input, and deliberately NOT
+		// capped at what's affordable — an over-reserve is shown, not prevented.
+		const parsed = Math.max(0, Math.floor(Number(event.target.value) || 0))
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({ ...banner, reserved_copies: parsed }))
+		)
+	}
+
+	// WCAG 1.4.1 again — the red state also travels as a tooltip and aria-invalid.
+	const reservedHint =
+		reservedStatus === "over"
+			? `${reservedFunding.unfunded} more ${
+					reservedFunding.unfunded === 1 ? "copy" : "copies"
+				} than you have selectors or crystals for`
+			: fundedReservedCopies > 0
+			? `${reservedFunding.selectors} from selectors, ${reservedFunding.crystals} from SSR crystals`
+			: bannerType === "Uma"
+			? "Copies taken with an uma selector instead of pulling"
+			: "Copies taken with a support selector or SSR crystal instead of pulling"
+
 	const pullsInput = (
 		<input
 			type="number"
@@ -382,18 +414,42 @@ export const BannerRow = ({
 			className={`spin-arrows pull-input pull-input--${pullStatus} w-20`}
 			min={0}
 			title={pullStatusHint}
+			aria-label="Number of pulls"
 			aria-invalid={pullStatus === "over"}
 			onChange={handlePullCountChange}
 		/>
 	)
 	const reservedInput = (
-		<input
-			type="text"
-			disabled
-			placeholder="—"
-			aria-label="Reserved future banner input"
-			className="w-20 cursor-not-allowed rounded border border-dashed border-gray-600 bg-gray-900/50 py-1 text-center text-sm text-gray-500"
-		/>
+		<div className="flex w-20 flex-col items-center gap-0.5">
+			<input
+				type="number"
+				value={plannedBanner.reserved_copies}
+				className={`spin-arrows pull-input pull-input--${reservedStatus} w-20`}
+				min={0}
+				title={reservedHint}
+				aria-label="Copies obtained without pulling"
+				aria-invalid={reservedStatus === "over"}
+				disabled={!hasBanner}
+				onChange={handleReservedChange}
+			/>
+			{plannedBanner.reserved_copies > 0 && (
+				// Abbreviated to fit the 5rem track. Widening it would push
+				// --container-banner-table past the ceiling documented in
+				// frontend/docs/ui-conventions.md, moving the card/table switch
+				// point later for everyone. The full wording is in the title,
+				// which this shares with the input.
+				<span
+					title={reservedHint}
+					className={`text-[10px] leading-tight ${
+						reservedStatus === "over" ? "text-red-400" : "text-gray-400"
+					}`}
+				>
+					{reservedStatus === "over"
+						? `${fundedReservedCopies}/${plannedBanner.reserved_copies}`
+						: `${reservedFunding.selectors}s ${reservedFunding.crystals}c`}
+				</span>
+			)}
+		</div>
 	)
 
 	return (

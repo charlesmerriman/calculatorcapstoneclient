@@ -14,12 +14,15 @@ import type {
 	GameEvent,
 	ChampionsMeeting,
 	LeagueOfHeroes,
-	OrganizedTimelineData
+	OrganizedTimelineData,
+	AnniversaryEvent,
+	UserPlannedPurchase
 } from "../types"
 import {
 	initialCalculatorDataFetch,
 	userCalculatorDataPatch,
-	toBannerPayload
+	toBannerPayload,
+	toPurchasePayload
 } from "./calculatorFetchCalls"
 import {
 	DEFAULT_GUEST_STATS,
@@ -59,6 +62,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [gameEventsData, setGameEventsData] = useState<GameEvent[]>([])
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
+	const [anniversaryEventData, setAnniversaryEventData] = useState<AnniversaryEvent[]>([])
+	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [fetchError, setFetchError] = useState(false)
@@ -71,12 +76,21 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		[userPlannedBannerData]
 	)
 
+	const preparePurchaseData = useCallback(
+		() => toPurchasePayload(userPlannedPurchaseData),
+		[userPlannedPurchaseData]
+	)
+
 	const performSave = useCallback(async (): Promise<void> => {
 		// Guests never PATCH — their plan is in-memory only. The auto-save
 		// timer is already gated, but saveNow could still land here.
 		if (!localStorage.getItem("authToken")) return
 		try {
-			const response = await userCalculatorDataPatch(userStatsData, prepareBannerData())
+			const response = await userCalculatorDataPatch(
+					userStatsData,
+					prepareBannerData(),
+					preparePurchaseData()
+				)
 			if (!response.ok) {
 				toast.error("Save failed. Your changes may not have been saved.")
 			} else {
@@ -85,7 +99,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		} catch {
 			toast.error("Save failed. Check your connection.")
 		}
-	}, [userStatsData, prepareBannerData])
+	}, [userStatsData, prepareBannerData, preparePurchaseData])
 
 	const { timerIsGoing, startTimer, saveNow } = useAutoSave({
 		saveFn: performSave,
@@ -153,6 +167,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
 				setUserPlannedBannerData(data.user_planned_banner_data)
+				setAnniversaryEventData(data.anniversary_event_data)
+				setUserPlannedPurchaseData(data.user_planned_purchase_data)
 				setGameEventsData(data.events_data)
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
@@ -196,6 +212,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 						[
 							...toBannerPayload(data.user_planned_banner_data),
 							...stash.banners
+						],
+						[
+							...toPurchasePayload(data.user_planned_purchase_data),
+							...(stash.purchases ?? [])
 						]
 					)
 					if (patchResponse.ok) {
@@ -248,7 +268,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		// also suppresses the pending-save icon and the beforeunload warning.
 		if (!localStorage.getItem("authToken")) return
 		startTimer()
-	}, [startTimer, userStatsData, userPlannedBannerData])
+	}, [startTimer, userStatsData, userPlannedBannerData, userPlannedPurchaseData])
 
 	const value = {
 		userStatsData,
@@ -260,6 +280,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		supportBannerData,
 		userPlannedBannerData,
 		stagedBanners,
+		anniversaryEventData,
+		userPlannedPurchaseData,
 		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
@@ -268,6 +290,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		saveNow,
 		setUserPlannedBannerData,
 		setStagedBanners,
+		setUserPlannedPurchaseData,
 		setUserStatsData
 	}
 

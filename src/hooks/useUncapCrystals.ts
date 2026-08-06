@@ -1,4 +1,6 @@
 import { useMemo } from "react"
+import { SHARDS_PER_CRYSTAL } from "../constants/gameConstants"
+import { sumUncapAccrual } from "../utils/incomeCalculationUtils"
 import type {
 	UserStats,
 	GameEvent,
@@ -14,8 +16,6 @@ export interface UncapCrystals {
 	srCrystals: number
 	srShards: number
 }
-
-const SHARDS_PER_CRYSTAL = 20
 
 /**
  * Calculates projected uncap crystal and shard counts at a given banner end date.
@@ -42,45 +42,37 @@ export function useUncapCrystals(
 		const zero = { ssrCrystals: 0, ssrShards: 0, srCrystals: 0, srShards: 0 }
 		if (!userStatsData || !selectedEndDate) return zero
 
-		let totalSsrShards = userStatsData.ssr_shards
-		let totalSrShards = userStatsData.sr_shards
-		let totalSsrCrystals = userStatsData.ssr_crystals
-		let totalSrCrystals = userStatsData.sr_crystals
-
 		const now = new Date()
 		const endDate = new Date(selectedEndDate)
 
-		for (const ge of gameEventsData) {
-			const startDate = ge.start_date ? new Date(ge.start_date) : null
-			if (startDate && startDate > now && startDate <= endDate) {
-				totalSsrShards += ge.ssr_shard_amount
-				totalSrShards += ge.sr_shard_amount
-				totalSsrCrystals += ge.ssr_crystal_amount
-				totalSrCrystals += ge.sr_crystal_amount
-			}
-		}
+		// One window, now -> the chosen banner end. The arithmetic itself is
+		// shared with the per-banner projection so the panel and the banner rows
+		// can never disagree about the same span.
+		const accrual = sumUncapAccrual({
+			windowStart: now,
+			windowEnd: endDate,
+			events: gameEventsData.map((ge) => ({
+				...ge,
+				parsedStart: ge.start_date ? new Date(ge.start_date) : null,
+			})),
+			meetings: championsMeetingData.map((m) => ({
+				parsedDate: new Date(m.end_date),
+			})),
+			leagueEvents: leagueOfHeroesData.map((l) => ({
+				parsedDate: new Date(l.end_date),
+			})),
+			championsMeetingRank: championsMeetingRankData.find(
+				(r) => r.id === userStatsData.champions_meeting_rank
+			),
+			leagueOfHeroesRank: leagueOfHeroesRankData.find(
+				(r) => r.id === userStatsData.league_of_heroes_rank
+			),
+		})
 
-		const userCmRank = championsMeetingRankData.find(
-			(r) => r.id === userStatsData.champions_meeting_rank
-		)
-		for (const meet of championsMeetingData) {
-			const date = new Date(meet.end_date)
-			if (date > now && date <= endDate) {
-				totalSsrShards += userCmRank?.ssr_shard_amount ?? 0
-				totalSrShards += userCmRank?.sr_shard_amount ?? 0
-			}
-		}
-
-		const userLohRank = leagueOfHeroesRankData.find(
-			(r) => r.id === userStatsData.league_of_heroes_rank
-		)
-		for (const loh of leagueOfHeroesData) {
-			const date = new Date(loh.end_date)
-			if (date > now && date <= endDate) {
-				totalSsrShards += userLohRank?.ssr_shard_amount ?? 0
-				totalSrShards += userLohRank?.sr_shard_amount ?? 0
-			}
-		}
+		const totalSsrShards = userStatsData.ssr_shards + accrual.ssrShards
+		const totalSrShards = userStatsData.sr_shards + accrual.srShards
+		let totalSsrCrystals = userStatsData.ssr_crystals + accrual.ssrCrystals
+		let totalSrCrystals = userStatsData.sr_crystals + accrual.srCrystals
 
 		// Every 20 shards converts to 1 crystal; remainder stays as shards.
 		totalSsrCrystals += Math.floor(totalSsrShards / SHARDS_PER_CRYSTAL)

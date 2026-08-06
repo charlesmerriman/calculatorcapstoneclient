@@ -81,6 +81,10 @@ const userStats: UserStats = {
   current_paid_carat: 0,
   uma_ticket: 0,
   support_ticket: 0,
+  uma_selector_ticket: 0,
+  support_selector_ticket: 0,
+  include_purchases_in_projection: false,
+  webstore_bonus: false,
   daily_carat: false,
   training_pass: false,
   misc_earnings: true,
@@ -100,7 +104,7 @@ const userStats: UserStats = {
 /** The uma banner, already sitting on the sheet in its own row. */
 const plannedUmaRow: UserPlannedBanner = {
   tempId: 1,
-  number_of_pulls: 0,
+  number_of_pulls: 0, reserved_copies: 0,
   banner_uma: umaBanner,
   initialBannerType: 'Uma',
 }
@@ -112,7 +116,7 @@ const plannedUmaRow: UserPlannedBanner = {
 function renderEmptyRow(bannerType: 'Uma' | 'Support') {
   const emptyRow: UserPlannedBanner = {
     tempId: 2,
-    number_of_pulls: 0,
+    number_of_pulls: 0, reserved_copies: 0,
     initialBannerType: bannerType,
   }
   const setUserPlannedBannerData = vi.fn()

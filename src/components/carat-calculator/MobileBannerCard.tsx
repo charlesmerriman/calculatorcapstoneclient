@@ -100,7 +100,12 @@ export const MobileBannerCard = ({
 						{pullsInput}
 					</div>
 					<div className="flex min-w-0 flex-col items-center justify-center px-2 py-2.5">
-						<div className="mb-1 text-[10px] font-medium uppercase text-gray-500">Reserved</div>
+						<div
+							className="mb-1 text-[10px] font-medium uppercase text-gray-500"
+							title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling"
+						>
+							Reserved
+						</div>
 						{reservedInput}
 					</div>
 				</div>

@@ -95,6 +95,13 @@
 /* The fixed tracks sum to 1002px (= 62.625rem), which is part of what
    --container-banner-table is built from — keep the two in step.
 
+   The reserved track stayed at 5rem when it stopped being a placeholder and
+   became the copies input plus a funding hint. Widening it would have pushed
+   --container-banner-table past the ceiling documented in
+   frontend/docs/ui-conventions.md, moving the card/table switch point later for
+   every user; the hint is abbreviated ("2s 1c", full text in its title) to fit
+   the 80px instead. Do not lengthen that hint without re-reading that ceiling.
+
    The derived-stats strip's worst case needs 334px with px-1.5 stat padding.
    px-1 saves 16px across its four boxes, letting the 20.5rem track fit the
    318px strip and its 8px cell gutter. Most of that space was paid for by
@@ -113,7 +120,7 @@
 		6.75rem            /* start / end date                    */
 		20.5rem            /* derived stats / confirm button     */
 		5rem               /* # pulls      (input is w-14)       */
-		5rem               /* reserved future input                */
+		5rem               /* reserved copies + funding hint       */
 		minmax(14rem, 1fr) /* MLB chance                         */
 		2.5rem;            /* delete / discard                   */
 	min-width: var(--container-banner-table);

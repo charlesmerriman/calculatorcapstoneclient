@@ -46,6 +46,9 @@ import type {
   GameEvent,
   ChampionsMeeting,
   LeagueOfHeroes,
+  AnniversaryEvent,
+  AnniversaryEventProduct,
+  UserPlannedPurchase,
 } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,6 +102,10 @@ const zeroStats: UserStats = {
   current_paid_carat: 0,
   uma_ticket: 0,
   support_ticket: 0,
+  uma_selector_ticket: 0,
+  support_selector_ticket: 0,
+  include_purchases_in_projection: false,
+  webstore_bonus: false,
   daily_carat: false,
   training_pass: false,
   // misc_earnings gates the flat 1,800-per-30-days approximation; off here so
@@ -141,18 +148,34 @@ const noIncome = {
   gameEventsData: [] as GameEvent[],
   championsMeetingData: [] as ChampionsMeeting[],
   leagueOfHeroesData: [] as LeagueOfHeroes[],
+  anniversaryEventData: [] as AnniversaryEvent[],
+  userPlannedPurchaseData: [] as UserPlannedPurchase[],
 }
 
-function makeUmaBanner(id: number, endDate: string, pulls: number, freePulls = 0): UserPlannedBanner {
+function makeUmaBanner(
+  id: number,
+  endDate: string,
+  pulls: number,
+  freePulls = 0,
+  opts: { reservedCopies?: number; featuredJpDates?: (string | null)[] } = {}
+): UserPlannedBanner {
   return {
     id,
     user: 1,
     number_of_pulls: pulls,
+    reserved_copies: opts.reservedCopies ?? 0,
     banner_uma: {
       id,
       name: `Uma Banner ${id}`,
       admin_comments: '',
-      umas: [],
+      umas: (opts.featuredJpDates ?? []).map((first_jp_date, i) => ({
+        id: id * 100 + i,
+        name: `Uma ${id}-${i}`,
+        image: '',
+        admin_comments: '',
+        recommendation: '',
+        first_jp_date,
+      })),
       free_pulls: freePulls,
       banner_timeline: {
         id,
@@ -238,16 +261,29 @@ function makeLeagueOfHeroes(id: number, endDate: string): LeagueOfHeroes {
   }
 }
 
-function makeSupportBanner(id: number, endDate: string, pulls: number): UserPlannedBanner {
+function makeSupportBanner(
+  id: number,
+  endDate: string,
+  pulls: number,
+  opts: { reservedCopies?: number; featuredJpDates?: (string | null)[] } = {}
+): UserPlannedBanner {
   return {
     id,
     user: 1,
     number_of_pulls: pulls,
+    reserved_copies: opts.reservedCopies ?? 0,
     banner_support: {
       id,
       name: `Support Banner ${id}`,
       admin_comments: '',
-      support_cards: [],
+      support_cards: (opts.featuredJpDates ?? []).map((first_jp_date, i) => ({
+        id: id * 100 + i,
+        name: `Support ${id}-${i}`,
+        image: '',
+        admin_comments: '',
+        recommendation: '',
+        first_jp_date,
+      })),
       free_pulls: 0,
       banner_timeline: {
         id,
@@ -2108,6 +2144,412 @@ describe('useBannerResources', () => {
       // estimates must match exactly. A negative delta would drag the second
       // below the first.
       expect(result.current[1].carats).toBe(result.current[0].carats)
+    })
+  })
+
+
+  // ── Campaign purchases & selector tickets ───────────────────────────────────
+
+  describe('campaign purchases', () => {
+    const campaign = (
+      overrides: Partial<AnniversaryEvent> = {},
+      products: Partial<AnniversaryEventProduct>[] = []
+    ): AnniversaryEvent => ({
+      id: 1,
+      name: '3rd Anniversary',
+      event_type: 'anniversary',
+      jp_cutoff_date: '2024-01-31',
+      image: null,
+      accent_label: '',
+      start_date: daysFromNow(10),
+      end_date: daysFromNow(20),
+      is_predicted: false,
+      applied_offset_days: 0,
+      banner_parts: [],
+      products: products.map((product, i) => ({
+        id: i + 1,
+        product_type: 'carat_pack',
+        name: 'Pack',
+        usd_cost: 70,
+        paid_carat_amount: 7500,
+        webstore_multiplier: 1.1,
+        max_quantity: 3,
+        jp_cutoff_date: '2024-01-31',
+        jp_cutoff_date_override: null,
+        order: i,
+        ...product,
+      })) as AnniversaryEventProduct[],
+      ...overrides,
+    })
+
+    const purchase = (
+      product: number,
+      quantity = 1
+    ): UserPlannedPurchase => ({
+      id: product,
+      user: 1,
+      product,
+      quantity,
+      target_uma: null,
+      target_support: null,
+    })
+
+    const statsWithPurchases = (extra: Partial<UserStats> = {}): UserStats => ({
+      ...zeroStats,
+      include_purchases_in_projection: true,
+      ...extra,
+    })
+
+    it('credits nothing while the projection toggle is off', () => {
+      const events = [campaign({}, [{}])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          // Toggle stays at its default (false).
+          userStatsData: zeroStats,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1)],
+        })
+      )
+      expect(result.current[0].paidCarats).toBe(0)
+      expect(result.current[0].usdSpent).toBe(0)
+    })
+
+    it('credits a pack as PAID carats once the toggle is on', () => {
+      const events = [campaign({}, [{}])]
+      const shared = {
+        ...noIncome,
+        userStatsData: statsWithPurchases(),
+        userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+        anniversaryEventData: events,
+      }
+      const { result } = renderHook(() =>
+        useBannerResources({ ...shared, userPlannedPurchaseData: [purchase(1)] })
+      )
+      const without = renderHook(() =>
+        useBannerResources({ ...shared, userPlannedPurchaseData: [] })
+      )
+
+      expect(result.current[0].paidCarats).toBe(7500)
+      expect(result.current[0].usdSpent).toBe(70)
+      // Compared against the same run without the purchase rather than against
+      // zero: the always-on income sources still accrue in both.
+      expect(result.current[0].freeCarats).toBe(without.result.current[0].freeCarats)
+    })
+
+    it('multiplies quantity', () => {
+      const events = [campaign({}, [{}])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: statsWithPurchases(),
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1, 3)],
+        })
+      )
+      expect(result.current[0].paidCarats).toBe(22500)
+      expect(result.current[0].usdSpent).toBe(210)
+    })
+
+    it('applies the webstore multiplier when enabled', () => {
+      const events = [campaign({}, [{}])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: statsWithPurchases({ webstore_bonus: true }),
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1)],
+        })
+      )
+      // The whole multiplied amount is paid carats — the bonus is not free.
+      expect(result.current[0].paidCarats).toBe(8250)
+      // USD is unaffected by the bonus.
+      expect(result.current[0].usdSpent).toBe(70)
+    })
+
+    it('credits only banners that close AFTER the campaign opens', () => {
+      const events = [campaign({ start_date: daysFromNow(20) }, [{}])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: statsWithPurchases(),
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0),
+            makeUmaBanner(2, daysFromNow(30), 0),
+          ],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1)],
+        })
+      )
+      expect(result.current[0].paidCarats).toBe(0)
+      expect(result.current[1].paidCarats).toBe(7500)
+    })
+
+    it('skips a campaign with no resolved date rather than guessing one', () => {
+      const events = [campaign({ start_date: null, end_date: null }, [{}])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: statsWithPurchases(),
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1)],
+        })
+      )
+      expect(result.current[0].paidCarats).toBe(0)
+    })
+
+    it('banks a selector ticket in a bucket carrying its cutoff', () => {
+      const events = [campaign({}, [
+        { product_type: 'uma_selector', paid_carat_amount: 1500, usd_cost: 21 },
+      ])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: statsWithPurchases(),
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1)],
+        })
+      )
+      expect(result.current[0].umaSelectorTickets).toEqual([
+        { jpCutoff: '2024-01-31', count: 1 },
+      ])
+      // Selectors also carry paid carats.
+      expect(result.current[0].paidCarats).toBe(1500)
+      // ...and must never leak into the gacha-ticket balance.
+      expect(result.current[0].umaTickets).toBe(0)
+    })
+
+    it('keeps a support selector out of the uma pool', () => {
+      const events = [campaign({}, [
+        { product_type: 'support_selector', paid_carat_amount: 0, usd_cost: 0 },
+      ])]
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: statsWithPurchases(),
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+          anniversaryEventData: events,
+          userPlannedPurchaseData: [purchase(1)],
+        })
+      )
+      expect(result.current[0].umaSelectorTickets).toEqual([])
+      expect(result.current[0].supportSelectorTickets).toEqual([
+        { jpCutoff: '2024-01-31', count: 1 },
+      ])
+    })
+
+    it('seeds current holdings as an unrestricted bucket', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, uma_selector_ticket: 2 },
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(30), 0)],
+        })
+      )
+      expect(result.current[0].umaSelectorTickets).toEqual([
+        { jpCutoff: null, count: 2 },
+      ])
+    })
+
+    it('stays invariant when the same span is split across more banners', () => {
+      // The tiling guard, extended to purchases: a campaign credited once must
+      // stay credited once however many checkpoints the walk visits.
+      const events = [campaign({ start_date: daysFromNow(5) }, [{}])]
+      const shared = {
+        ...noIncome,
+        userStatsData: statsWithPurchases(),
+        anniversaryEventData: events,
+        userPlannedPurchaseData: [purchase(1)],
+      }
+      const oneWindow = renderHook(() =>
+        useBannerResources({
+          ...shared,
+          userPlannedBannerData: [makeUmaBanner(1, daysFromNow(60), 0)],
+        })
+      )
+      const manyWindows = renderHook(() =>
+        useBannerResources({
+          ...shared,
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(20), 0),
+            makeUmaBanner(2, daysFromNow(40), 0),
+            makeUmaBanner(3, daysFromNow(60), 0),
+          ],
+        })
+      )
+      expect(manyWindows.result.current[2].paidCarats).toBe(
+        oneWindow.result.current[0].paidCarats
+      )
+      expect(manyWindows.result.current[2].usdSpent).toBe(
+        oneWindow.result.current[0].usdSpent
+      )
+    })
+  })
+
+  describe('reserved copies', () => {
+    // A card old enough for any cutoff we use below, and one too new.
+    const OLD_CARD = '2020-01-01T00:00:00Z'
+    const NEW_CARD = '2030-01-01T00:00:00Z'
+
+    it('spends an SSR crystal on a support banner', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, ssr_crystals: 3 },
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(30), 0, {
+              reservedCopies: 2,
+              featuredJpDates: [NEW_CARD],
+            }),
+          ],
+        })
+      )
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 0,
+        crystals: 2,
+        unfunded: 0,
+      })
+    })
+
+    it('prefers a qualifying selector over a crystal', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: {
+            ...zeroStats,
+            ssr_crystals: 3,
+            support_selector_ticket: 2,
+          },
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(30), 0, {
+              reservedCopies: 2,
+              featuredJpDates: [OLD_CARD],
+            }),
+          ],
+        })
+      )
+      // Current holdings are unrestricted, so both copies come from selectors
+      // and the universally-usable crystals are preserved.
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 2,
+        crystals: 0,
+        unfunded: 0,
+      })
+    })
+
+    it('never funds an uma banner with crystals', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, ssr_crystals: 5 },
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(30), 0, 0, {
+              reservedCopies: 1,
+              featuredJpDates: [OLD_CARD],
+            }),
+          ],
+        })
+      )
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 0,
+        crystals: 0,
+        unfunded: 1,
+      })
+    })
+
+    it('reports an unaffordable request rather than clamping it', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, ssr_crystals: 1 },
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(30), 0, {
+              reservedCopies: 4,
+              featuredJpDates: [NEW_CARD],
+            }),
+          ],
+        })
+      )
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 0,
+        crystals: 1,
+        unfunded: 3,
+      })
+    })
+
+    it('carries the spend forward to later banners', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, ssr_crystals: 3 },
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(10), 0, {
+              reservedCopies: 2,
+              featuredJpDates: [NEW_CARD],
+            }),
+            makeSupportBanner(2, daysFromNow(30), 0, {
+              featuredJpDates: [NEW_CARD],
+            }),
+          ],
+        })
+      )
+      expect(result.current[0].ssrCrystals).toBe(3)
+      expect(result.current[1].ssrCrystals).toBe(1)
+    })
+
+    it('does not change max pulls — selectors and crystals are not carats', () => {
+      const withReserve = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, current_carat: 3000, ssr_crystals: 5 },
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(30), 0, {
+              reservedCopies: 3,
+              featuredJpDates: [NEW_CARD],
+            }),
+          ],
+        })
+      )
+      const without = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, current_carat: 3000, ssr_crystals: 5 },
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(30), 0, {
+              featuredJpDates: [NEW_CARD],
+            }),
+          ],
+        })
+      )
+      expect(withReserve.result.current[0].maxPossiblePulls).toBe(
+        without.result.current[0].maxPossiblePulls
+      )
+    })
+
+    it('accrues SSR crystals from shards as the walk advances', () => {
+      // 20 shards = 1 crystal, converted at the checkpoint so it is spendable there.
+      const event = makeGameEvent(1, daysFromNow(5), daysFromNow(9), 0)
+      event.ssr_shard_amount = 20
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          gameEventsData: [event],
+          userStatsData: zeroStats,
+          userPlannedBannerData: [
+            makeSupportBanner(1, daysFromNow(30), 0, {
+              reservedCopies: 1,
+              featuredJpDates: [NEW_CARD],
+            }),
+          ],
+        })
+      )
+      expect(result.current[0].ssrCrystals).toBe(1)
+      expect(result.current[0].reservedFunding.crystals).toBe(1)
     })
   })
 

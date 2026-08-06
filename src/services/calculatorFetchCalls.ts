@@ -18,7 +18,7 @@
  * where you control both ends, this is standard practice.
  */
 
-import type { UserStats, UserPlannedBanner } from "../types"
+import type { UserStats, UserPlannedBanner, UserPlannedPurchase } from "../types"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -35,8 +35,22 @@ const API_URL = import.meta.env.VITE_API_URL
 export interface PlannedBannerPayload {
 	id?: number
 	number_of_pulls: number
+	reserved_copies: number
 	banner_uma: number | null
 	banner_support: number | null
+}
+
+/**
+ * A planned purchase on the way out. Closer to its response shape than planned
+ * banners are to theirs — the server already sends `product` as an id, because
+ * the client holds the whole campaign catalogue and joins on it.
+ */
+export interface PlannedPurchasePayload {
+	id?: number
+	product: number
+	quantity: number
+	target_uma: number | null
+	target_support: number | null
 }
 
 /**
@@ -75,9 +89,30 @@ export function toBannerPayload(
 		})
 }
 
+/**
+ * Same conversion for planned purchases. Rows whose product has gone away are
+ * dropped rather than sent — the server would reject the whole PATCH, taking
+ * the rest of the user's plan down with it.
+ */
+export function toPurchasePayload(
+	purchases: UserPlannedPurchase[]
+): PlannedPurchasePayload[] {
+	return purchases
+		.filter((purchase) => purchase.product && purchase.quantity > 0)
+		.map((purchase) => {
+			const { tempId: _tempId, ...rest } = purchase
+			return {
+				...rest,
+				target_uma: purchase.target_uma ?? null,
+				target_support: purchase.target_support ?? null
+			}
+		})
+}
+
 export function userCalculatorDataPatch(
 	userStatsData: UserStats | null,
-	userPlannedBannerData: PlannedBannerPayload[]
+	userPlannedBannerData: PlannedBannerPayload[],
+	userPlannedPurchaseData: PlannedPurchasePayload[]
 ): Promise<Response> {
 	return fetch(`${API_URL}/calculator-data`, {
 		method: "PATCH",
@@ -87,7 +122,8 @@ export function userCalculatorDataPatch(
 		},
 		body: JSON.stringify({
 			user_stats_data: userStatsData,
-			user_planned_banner_data: userPlannedBannerData
+			user_planned_banner_data: userPlannedBannerData,
+			user_planned_purchase_data: userPlannedPurchaseData
 		})
 	})
 }

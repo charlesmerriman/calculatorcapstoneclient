@@ -21,6 +21,7 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import { formatDate } from "../../utils/dateFormat"
 import { RaceEventCard } from "./RaceEventCard"
 import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
+import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
 import { getCountdownLabel } from "./timelineShared"
 import { isRaceEvent } from "../../types"
 import type {
@@ -277,8 +278,8 @@ export const Timeline = () => {
 		const highestId = allIds.length > 0 ? Math.max(...allIds) : 0
 
 		const newStaged: UserPlannedBanner = type === "Uma"
-			? { tempId: highestId + 1, number_of_pulls: 0, banner_uma: fullBanner as BannerUma, initialBannerType: "Uma" }
-			: { tempId: highestId + 1, number_of_pulls: 0, banner_support: fullBanner as BannerSupport, initialBannerType: "Support" }
+			? { tempId: highestId + 1, number_of_pulls: 0, reserved_copies: 0, banner_uma: fullBanner as BannerUma, initialBannerType: "Uma" }
+			: { tempId: highestId + 1, number_of_pulls: 0, reserved_copies: 0, banner_support: fullBanner as BannerSupport, initialBannerType: "Support" }
 
 		setStagedBanners((prev) => [...prev, newStaged])
 		toast.success(`${fullBanner.name} staged! Head to the Calculator to confirm.`)
@@ -476,9 +477,19 @@ export const Timeline = () => {
 						? "grid-cols-1"
 						: "grid-cols-2"
 
+					// A campaign strip sits flush above the card, so the card's own top
+					// corners have to square off or the two render as separate boxes
+					// with a seam between them.
+					const attachedEvent = bannerEvent.anniversary_event
+
 					return (
 						<div key={timelineEventKey(event)} className="my-3 w-full px-2">
-							<div className="card-panel w-full overflow-hidden rounded-xl p-2 sm:p-3">
+							{attachedEvent && <AnniversaryEventStrip event={attachedEvent} />}
+							<div
+								className={`card-panel w-full overflow-hidden p-2 sm:p-3 ${
+									attachedEvent ? "rounded-b-xl rounded-t-none" : "rounded-xl"
+								}`}
+							>
 								<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="flex min-w-0 items-center gap-3">
 										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 text-brand">
