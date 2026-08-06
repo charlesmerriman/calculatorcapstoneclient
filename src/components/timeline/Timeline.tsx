@@ -10,10 +10,13 @@ import {
 	ImageOff,
 	Infinity as InfinityIcon,
 	Loader2,
+	MapPinned,
+	Mountain,
 	Search,
 	Sparkles,
 	Star,
 	Ticket,
+	Trophy,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
@@ -273,8 +276,8 @@ function getCountdownLabel(startDate: string, endDate: string, today: Date): str
 // Champions Meeting details are entered by hand in the admin and are unknown
 // until the meeting is announced. The model's columns are non-null, so "unknown"
 // is encoded as a sentinel rather than an absent value: text fields are seeded
-// with "TBD" and the stat recommendations with 0. Both predicates below map
-// those sentinels back to "not announced yet" so the rows can be hidden.
+// with "TBD" and the stat recommendations with 0. Keep each slot visible and
+// translate those sentinels into a useful, consistent pending state.
 function isTrackDetailAvailable(value: string | null | undefined): boolean {
 	if (value == null) return false
 	const trimmed = value.trim()
@@ -288,6 +291,14 @@ function isRecommendationAvailable(value: string | number | null | undefined): b
 	if (value == null || value === "") return false
 	const numeric = Number(value)
 	return Number.isFinite(numeric) && numeric > 0
+}
+
+function trackDetailValue(value: string | null | undefined): string {
+	return isTrackDetailAvailable(value) ? value!.trim() : "Not announced"
+}
+
+function recommendationValue(value: string | number | null | undefined): string {
+	return isRecommendationAvailable(value) ? String(value) : "TBD"
 }
 
 // Banner art is uploaded per banner and is often missing for far-future,
@@ -528,14 +539,14 @@ export const Timeline = () => {
 				{visibleEvents.map((event) => {
 					if (isChampionsMeeting(event)) {
 						const trackDetails = [
-							event.track,
-							event.surface_type,
-							event.distance,
-							event.length,
-							event.direction,
-							event.track_condition,
-							event.season,
-							event.weather,
+							{ label: "Racecourse", value: event.track },
+							{ label: "Surface", value: event.surface_type },
+							{ label: "Distance", value: event.distance },
+							{ label: "Length", value: event.length },
+							{ label: "Direction", value: event.direction },
+							{ label: "Track condition", value: event.track_condition },
+							{ label: "Season", value: event.season },
+							{ label: "Weather", value: event.weather },
 						]
 						const statRecommendations = [
 							{ icon: "/00_CMSPEED1.png", label: "Speed", value: event.speed_recommendation },
@@ -544,49 +555,99 @@ export const Timeline = () => {
 							{ icon: "/03_CMGUTS1.png", label: "Guts", value: event.guts_recommendation },
 							{ icon: "/04_CMWits1.png", label: "Wits", value: event.wit_recommendation },
 						]
-						// A partially-filled meeting would read as misleading rather than
-						// merely incomplete, so each row is all-or-nothing: show it only
-						// once every value in it is available. When neither row qualifies,
-						// the card falls back to just the dates and the art.
-						const showTrackDetails = trackDetails.every(isTrackDetailAvailable)
-						const showStatRecommendations = statRecommendations.every((stat) =>
-							isRecommendationAvailable(stat.value)
-						)
+						const hasPendingDetails =
+							trackDetails.some((detail) => !isTrackDetailAvailable(detail.value)) ||
+							statRecommendations.some((stat) => !isRecommendationAvailable(stat.value))
 
 						return (
-							<div key={timelineEventKey(event)} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
-								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex flex-wrap items-center justify-center gap-2 text-center text-sm sm:text-lg card-section rounded-xl font-medium">
-										<span>
-											{formatDate(event.start_date)} through{" "}
-											{formatDate(event.end_date)}
-										</span>
-										{event.is_predicted && <PredictedBadge />}
-									</div>
-									{event.image ? (
-										<img src={event.image} alt={event.name} loading="lazy" decoding="async" className="max-w-full h-auto" />
-									) : (
-										<BannerArtPlaceholder className="max-w-md" />
-									)}
-									{showTrackDetails && (
-										<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
-											<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
-												{trackDetails.map((detail, detailIndex) => (
-													<div key={detailIndex}>{detail}</div>
-												))}
+							<div key={timelineEventKey(event)} className="my-3 w-full px-2">
+								<div className="card-panel w-full overflow-hidden rounded-xl p-2 sm:p-3">
+									<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+										<div className="flex min-w-0 items-center gap-3">
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 text-brand">
+												<Trophy className="h-5 w-5" />
+											</div>
+											<div className="min-w-0">
+												<div className="flex flex-wrap items-center gap-2">
+													<h2 className="text-xl font-semibold text-gray-100 sm:text-2xl">{event.name}</h2>
+													{event.is_predicted && <PredictedBadge />}
+												</div>
+												<p className="mt-0.5 text-sm text-gray-400">
+													{formatDate(event.start_date)} through {formatDate(event.end_date)}
+												</p>
 											</div>
 										</div>
-									)}
-									{showStatRecommendations && (
-										<div className="grid w-full grid-cols-2 gap-3 p-1 text-center text-gray-100 sm:grid-cols-3 lg:grid-cols-5">
-											{statRecommendations.map((stat) => (
-												<div key={stat.label} className="flex flex-col items-center">
-													<img src={stat.icon} alt={stat.label} className="max-w-16" />
-													{stat.value}
-												</div>
-											))}
+										<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-medium text-gray-200">
+											<Mountain className="h-4 w-4 text-brand" />
+											Champions Meeting
+										</div>
+									</div>
+
+									{hasPendingDetails && (
+										<div className="mb-4 flex items-center gap-2 rounded-lg border border-brand/25 bg-brand/5 px-3 py-2 text-sm text-gray-300">
+											<Loader2 className="h-4 w-4 shrink-0 text-brand" />
+											<span>Some course details and recommendations are coming soon.</span>
 										</div>
 									)}
+
+									<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(500px,1.66fr)] xl:items-stretch">
+										<div className="min-w-0">
+											{event.image ? (
+												<img
+													src={event.image}
+													alt={event.name}
+													loading="lazy"
+													decoding="async"
+													className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+												/>
+											) : (
+												<BannerArtPlaceholder />
+											)}
+										</div>
+
+										<div className="flex min-w-0 flex-col gap-4">
+											<section className="rounded-xl border border-gray-600 bg-gray-800 p-3 shadow-sm">
+												<div className="mb-3 flex items-center gap-2 text-sm font-semibold text-brand">
+													<MapPinned className="h-4 w-4" />
+													<span>Course details</span>
+												</div>
+												<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+													{trackDetails.map((detail) => {
+														const available = isTrackDetailAvailable(detail.value)
+														return (
+															<div key={detail.label} className="min-w-0 rounded-lg border border-gray-600/80 bg-gray-700/70 px-2 py-1.5">
+																<div className="text-xs font-medium uppercase tracking-wide text-gray-400">{detail.label}</div>
+																<div className={`mt-0.5 truncate text-sm font-semibold ${available ? "text-gray-100" : "text-gray-500"}`}>
+																	{trackDetailValue(detail.value)}
+																</div>
+															</div>
+														)
+													})}
+												</div>
+											</section>
+
+											<section className="rounded-xl border border-gray-600 bg-gray-800 p-3 shadow-sm">
+												<div className="mb-3 flex items-center gap-2 text-sm font-semibold text-brand">
+													<Star className="h-4 w-4" />
+													<span>Recommended stats</span>
+												</div>
+												<div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+													{statRecommendations.map((stat) => {
+														const available = isRecommendationAvailable(stat.value)
+														return (
+															<div key={stat.label} className="flex min-w-0 flex-col items-center rounded-lg border border-gray-600/80 bg-gray-700/70 px-1 py-2 text-center">
+																<img src={stat.icon} alt="" aria-hidden="true" className="h-10 w-10 object-contain sm:h-12 sm:w-12" />
+																<span className="mt-1 text-[0.7rem] font-medium leading-tight text-gray-300">{stat.label}</span>
+																<span className={`mt-0.5 text-base font-bold ${available ? "text-gray-100" : "text-gray-500"}`}>
+																	{recommendationValue(stat.value)}
+																</span>
+															</div>
+														)
+													})}
+												</div>
+											</section>
+										</div>
+									</div>
 								</div>
 							</div>
 						)
