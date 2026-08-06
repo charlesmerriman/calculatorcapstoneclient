@@ -42,14 +42,18 @@ export { isSavedBanner, isLocalBanner } from "./user"
 export type {
 	GameEvent,
 	ChampionsMeeting,
-	LeagueOfHeroes
+	LeagueOfHeroes,
+	RaceEvent
 } from "./events"
 
 export type {
 	CalculatorData,
 	OrganizedTimelineData,
+	TimelineEvent,
 	CalculatorContextType
 } from "./calculator"
+
+export { isRaceEvent, isBannerTimeline } from "./calculator"
 
 export type {
 	ChangeCategory,

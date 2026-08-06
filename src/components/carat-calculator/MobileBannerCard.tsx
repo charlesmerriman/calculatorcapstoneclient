@@ -8,6 +8,7 @@ interface MobileBannerCardProps {
 	dates: ReactNode
 	summary: ReactNode
 	pullsInput: ReactNode
+	reservedInput: ReactNode
 	chanceDisplay: ReactNode
 	onRemove: () => void
 	removeLabel: string
@@ -21,6 +22,7 @@ export const MobileBannerCard = ({
 	dates,
 	summary,
 	pullsInput,
+	reservedInput,
 	chanceDisplay,
 	onRemove,
 	removeLabel,
@@ -88,14 +90,18 @@ export const MobileBannerCard = ({
 			</div>
 
 			<div className="bg-gray-900/35">
-				<div className="grid grid-cols-[minmax(0,1fr)_6rem] border-b border-gray-700 sm:grid-cols-[minmax(0,1fr)_6.25rem]">
+				<div className="grid grid-cols-[minmax(0,1fr)_6rem_6rem] border-b border-gray-700 sm:grid-cols-[minmax(0,1fr)_6.25rem_6.25rem]">
 					<div className="min-w-0 border-r border-gray-700 px-4 py-2.5">
 						<div className="mb-1 text-[10px] font-medium uppercase text-gray-500">Dates</div>
 						{dates}
 					</div>
-					<div className="flex min-w-0 flex-col items-center justify-center px-2 py-2.5">
+					<div className="flex min-w-0 flex-col items-center justify-center border-r border-gray-700 px-2 py-2.5">
 						<div className="mb-1 text-[10px] font-medium uppercase text-gray-500">Pulls</div>
 						{pullsInput}
+					</div>
+					<div className="flex min-w-0 flex-col items-center justify-center px-2 py-2.5">
+						<div className="mb-1 text-[10px] font-medium uppercase text-gray-500">Reserved</div>
+						{reservedInput}
 					</div>
 				</div>
 

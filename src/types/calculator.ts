@@ -23,7 +23,7 @@ import type {
 	LeagueOfHeroesRank
 } from "./ranks"
 import type { UserStats, UserPlannedBanner } from "./user"
-import type { GameEvent, ChampionsMeeting, LeagueOfHeroes } from "./events"
+import type { GameEvent, ChampionsMeeting, LeagueOfHeroes, RaceEvent } from "./events"
 
 /** The full payload returned by GET /calculator-data.
  * `user_stats_data` is null for anonymous (guest) requests — the provider
@@ -44,20 +44,43 @@ export interface CalculatorData {
 }
 
 /**
- * The timeline merges banner timelines and champions meetings into one
- * sorted array. Each element is one or the other.
+ * The timeline merges banner timelines, champions meetings and League of Heroes
+ * events into one sorted array. Each element is exactly one of the three.
  *
- * TYPESCRIPT CONCEPT: Union Arrays
- * (ChampionsMeeting | BannerTimelineForViewing)[] means each element
- * in the array could be either type. To figure out which one you have,
- * use a type guard or check for a distinguishing property:
- *   if ("track" in event) { // it's a ChampionsMeeting }
+ * TYPESCRIPT CONCEPT: Discriminated Unions
+ * Every member carries a literal-typed `event_type` field, so narrowing on it
+ * tells the compiler precisely which member you're holding:
+ *   if (event.event_type === "champions_meeting") { // it's a ChampionsMeeting }
+ *
+ * This used to narrow structurally (`"track" in event`), which worked only for
+ * as long as the three shapes stayed distinguishable — and stopped the moment
+ * LeagueOfHeroes gained ChampionsMeeting's course fields. A tag can't converge.
  */
 export type OrganizedTimelineData = (
 	| ChampionsMeeting
 	| LeagueOfHeroes
 	| BannerTimelineForViewing
 )[]
+
+/** One element of the merged timeline array. */
+export type TimelineEvent = OrganizedTimelineData[number]
+
+/**
+ * The union's narrowing helpers, kept beside the union itself — the same
+ * arrangement as isSavedBanner/isLocalBanner in ./user.
+ *
+ * Prefer these over hand-written checks at call sites. Champions Meetings and
+ * League of Heroes events are structurally indistinguishable from each other,
+ * and BannerTimelineForViewing is structurally assignable to both (it shares
+ * every base field), so any shape-based test is wrong in at least one direction.
+ */
+export function isRaceEvent(event: TimelineEvent): event is RaceEvent {
+	return event.event_type === "champions_meeting" || event.event_type === "league_of_heroes"
+}
+
+export function isBannerTimeline(event: TimelineEvent): event is BannerTimelineForViewing {
+	return event.event_type === "banner_timeline"
+}
 
 /**
  * The shape of the Calculator context value.

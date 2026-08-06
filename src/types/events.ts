@@ -45,10 +45,16 @@ export interface GameEvent {
  * available, otherwise predicted from the JP schedule by the backend);
  * `is_predicted` is true when they're an estimate. The raw jp/global fields are
  * exposed for reference (global dates are null until the meeting is confirmed).
+ *
+ * `event_type` is a constant tag emitted by the backend (EventTypeMixin in
+ * calculatorapi/views/mixins.py). It's what narrows the merged timeline array —
+ * ChampionsMeeting and LeagueOfHeroes are otherwise field-identical bar the
+ * number, so nothing structural can tell them apart.
  */
 export interface ChampionsMeeting {
 	id: number
 	name: string
+	event_type: "champions_meeting"
 	cm_number: number
 	start_date: string
 	end_date: string
@@ -82,10 +88,17 @@ export interface ChampionsMeeting {
  * available, otherwise predicted from the JP schedule by the backend);
  * `is_predicted` is true when they're an estimate. The raw jp/global fields are
  * exposed for reference (global dates are null until the event is confirmed).
+ *
+ * Field-for-field identical to ChampionsMeeting apart from `event_type` and the
+ * number's name — the two carry the same data and share one timeline card
+ * (components/timeline/RaceEventCard.tsx). Keep them in step: a field added to
+ * one almost always belongs on the other.
  */
 export interface LeagueOfHeroes {
 	id: number
 	name: string
+	event_type: "league_of_heroes"
+	loh_number: number
 	start_date: string
 	end_date: string
 	is_predicted: boolean
@@ -96,5 +109,27 @@ export interface LeagueOfHeroes {
 	// See BannerTimeline for what these two mean.
 	schedule_offset_days: number
 	applied_offset_days: number
+	// Null when no art is uploaded yet; DRF serializes an empty ImageField as null.
 	image: string | null
+	track: string
+	surface_type: string
+	distance: string
+	length: string
+	track_condition: string
+	season: string
+	weather: string
+	direction: string
+	speed_recommendation: string
+	stamina_recommendation: string
+	power_recommendation: string
+	guts_recommendation: string
+	wit_recommendation: string
 }
+
+/**
+ * The two race-event types the timeline renders through one shared card.
+ *
+ * `event_type` makes this a genuine discriminated union: narrowing on it gives
+ * TypeScript the exact member back, with no structural sniffing and no casts.
+ */
+export type RaceEvent = ChampionsMeeting | LeagueOfHeroes

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { CalendarDays, Calculator as CalculatorIcon, LogIn, LogOut, Save, UserRound } from "lucide-react"
+import { CalendarDays, Calculator as CalculatorIcon, LogIn, LogOut, Save, Sparkles, UserRound } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
 import { userLogout } from "../../services/userServices"
 import { toBannerPayload } from "../../services/calculatorFetchCalls"
@@ -58,16 +58,16 @@ export const Navbar = () => {
 	const timerIsGoing = calculatorData?.timerIsGoing ?? false
 
 	const mobileNavClass = (active: boolean) =>
-		`flex min-w-0 items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-medium transition ${
+		`flex min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition ${
 			active
-				? "border-brand text-brand"
-				: "border-transparent text-gray-400 hover:text-gray-200"
+				? "border-brand/70 bg-brand/10 text-brand shadow-sm"
+				: "border-transparent text-gray-400 hover:border-gray-600 hover:bg-gray-700/70 hover:text-gray-100"
 		}`
 	const desktopNavClass = (active: boolean) =>
-		`flex items-center gap-1.5 border-b-2 px-5 text-sm transition ${
+		`flex h-9 items-center gap-1.5 rounded-lg border px-3.5 text-sm font-medium transition ${
 			active
-				? "border-brand text-brand"
-				: "border-transparent text-gray-400 hover:text-gray-200"
+				? "border-brand/70 bg-brand/10 text-brand shadow-sm"
+				: "border-transparent text-gray-400 hover:border-gray-600 hover:bg-gray-700/70 hover:text-gray-100"
 		}`
 
 	// Shared logo element used in both mobile and desktop navs
@@ -112,7 +112,7 @@ export const Navbar = () => {
 	return (
 		<div className="z-50 shrink-0">
 			{/* Mobile nav */}
-			<nav className="bg-gray-800 border-b border-gray-600 desktop-nav:hidden">
+			<nav className="border-b border-gray-600 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-sm desktop-nav:hidden">
 				<div className="flex h-14 items-center justify-between gap-3 px-3">
 					<div className="flex min-w-0 items-center">
 						{logo}
@@ -156,7 +156,7 @@ export const Navbar = () => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-2">
+				<div className="grid grid-cols-3 gap-1 border-t border-gray-700/80 bg-gray-900/30 px-2 py-2">
 					<Link to="/app" className={mobileNavClass(isCalculator)}>
 						<CalculatorIcon className="h-4 w-4 shrink-0" />
 						<span className="truncate">Calculator</span>
@@ -165,6 +165,14 @@ export const Navbar = () => {
 						<CalendarDays className="h-4 w-4 shrink-0" />
 						<span className="truncate">Timeline</span>
 					</Link>
+					<button
+						disabled
+						title="Coming soon"
+						className={`${mobileNavClass(false)} cursor-not-allowed opacity-55`}
+					>
+						<Sparkles className="h-4 w-4 shrink-0" />
+						<span className="truncate">Coming soon</span>
+					</button>
 				</div>
 			</nav>
 
@@ -172,14 +180,14 @@ export const Navbar = () => {
 			    Switches on desktop-nav rather than md: this layout is already over-full
 			    below ~900px (the "Sign in to save" button wraps to 2-3 lines), which
 			    is precisely the landscape-phone / portrait-tablet band. */}
-			<nav className="hidden grid-cols-[1fr_auto_1fr] items-center px-5 bg-gray-800 border-b border-gray-600 h-14 desktop-nav:grid">
+			<nav className="hidden h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-600 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 px-5 shadow-sm desktop-nav:grid">
 				{/* Left: Branding */}
 				<div className="flex items-center">
 					{logo}
 				</div>
 
 				{/* Center: Nav links */}
-				<div className="flex justify-center items-stretch h-full">
+				<div className="flex items-center justify-center rounded-xl border border-gray-600/80 bg-gray-900/50 p-1 shadow-inner">
 					<Link to="/app" className={desktopNavClass(isCalculator)}>
 						<CalculatorIcon className="w-4 h-4" />
 						Calculator
@@ -188,6 +196,14 @@ export const Navbar = () => {
 						<CalendarDays className="w-4 h-4" />
 						Timeline
 					</Link>
+					<button
+						disabled
+						title="Coming soon"
+						className={`${desktopNavClass(false)} cursor-not-allowed opacity-55`}
+					>
+						<Sparkles className="h-4 w-4" />
+						Coming soon
+					</button>
 				</div>
 
 				{/* Right: Save indicator + Theme Picker + Logout/Login */}

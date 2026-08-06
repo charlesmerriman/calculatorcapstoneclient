@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { differenceInCalendarDays } from "date-fns"
 import {
 	BookOpen,
 	CalendarDays,
@@ -7,7 +6,6 @@ import {
 	ChevronRight,
 	Clock3,
 	History,
-	ImageOff,
 	Infinity as InfinityIcon,
 	Loader2,
 	Search,
@@ -20,14 +18,16 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import PredictedBadge from "../PredictedBadge"
 import { bannerKey, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
-import { formatDate, parseApiDate } from "../../utils/dateFormat"
+import { formatDate } from "../../utils/dateFormat"
+import { RaceEventCard } from "./RaceEventCard"
+import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
+import { getCountdownLabel } from "./timelineShared"
+import { isRaceEvent } from "../../types"
 import type {
-	ChampionsMeeting,
-	LeagueOfHeroes,
-	BannerTimelineForViewing,
 	BannerUma,
 	BannerSupport,
 	UserPlannedBanner,
+	TimelineEvent,
 } from "../../types"
 
 const PAGE_SIZE = 10
@@ -161,19 +161,6 @@ function PaginationControls({
 	)
 }
 
-function isChampionsMeeting(
-	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
-): event is ChampionsMeeting {
-	return "track" in event
-}
-
-function isLeagueOfHeroes(
-	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
-): event is LeagueOfHeroes {
-	return !("track" in event) && !("banner_umas" in event)
-}
-
-
 /**
  * A React key that survives re-filtering and can't collide across the three
  * event types.
@@ -184,30 +171,22 @@ function isLeagueOfHeroes(
  * keys make React reuse one card's DOM — including its already-decoded images —
  * for a completely different event.
  */
-function timelineEventKey(
-	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing
-): string {
-	if (isChampionsMeeting(event)) return `cm-${event.id}`
-	if (isLeagueOfHeroes(event)) return `loh-${event.id}`
-	return `bt-${(event as unknown as BannerTimelineForViewing).id}`
+const EVENT_KEY_PREFIX = {
+	champions_meeting: "cm",
+	league_of_heroes: "loh",
+	banner_timeline: "bt",
+} as const
+
+function timelineEventKey(event: TimelineEvent): string {
+	return `${EVENT_KEY_PREFIX[event.event_type]}-${event.id}`
 }
 
-function eventMatchesSearch(
-	event: ChampionsMeeting | LeagueOfHeroes | BannerTimelineForViewing,
-	query: string
-): boolean {
+function eventMatchesSearch(event: TimelineEvent, query: string): boolean {
 	const q = query.toLowerCase()
-	if (isChampionsMeeting(event)) {
+	if (isRaceEvent(event)) {
 		return event.name.toLowerCase().includes(q) || event.track.toLowerCase().includes(q)
 	}
-	if (isLeagueOfHeroes(event)) {
-		return event.name.toLowerCase().includes(q)
-	}
-	// TypeScript collapses the remaining type to `never` here because
-	// BannerTimelineForViewing is structurally assignable to LeagueOfHeroes
-	// (same base fields), so the negative guards' Exclude produces never.
-	// The cast is logically safe: we've already ruled out both other branches.
-	const bannerEvent = event as unknown as BannerTimelineForViewing
+	const bannerEvent = event
 	if (bannerEvent.name.toLowerCase().includes(q)) return true
 	for (const banner of bannerEvent.banner_umas) {
 		for (const uma of banner.umas) {
@@ -245,63 +224,6 @@ function getBannerStatusClasses(status: BannerCardStatus): string {
 	if (status === "available") return "border-brand text-brand hover:bg-brand/10"
 	if (status === "planned" || status === "staged") return "border-gray-600 text-gray-300"
 	return "border-gray-600 text-gray-500"
-}
-
-// Countdown label for the badge in a banner card's header. Both dates are
-// parsed through parseApiDate so date-only strings land on *local* midnight —
-// `new Date("2026-08-10")` would parse as UTC and shift the day count by one
-// for anyone west of GMT. Comparing calendar days (not elapsed hours) means a
-// banner starting later today reads "Starts today" rather than "in 0 days".
-function getCountdownLabel(startDate: string, endDate: string, today: Date): string {
-	const start = parseApiDate(startDate)
-	const end = parseApiDate(endDate)
-	if (!start || !end) return ""
-
-	const daysUntilStart = differenceInCalendarDays(start, today)
-	if (daysUntilStart > 1) return `In ${daysUntilStart} Days`
-	if (daysUntilStart === 1) return "Starts Tomorrow"
-	if (daysUntilStart === 0) return "Starts Today"
-
-	// Already started — the countdown flips to how much of it is left.
-	const daysUntilEnd = differenceInCalendarDays(end, today)
-	if (daysUntilEnd > 1) return `Ends in ${daysUntilEnd} Days`
-	if (daysUntilEnd === 1) return "Ends Tomorrow"
-	if (daysUntilEnd === 0) return "Ends Today"
-	return "Ended"
-}
-
-// Champions Meeting details are entered by hand in the admin and are unknown
-// until the meeting is announced. The model's columns are non-null, so "unknown"
-// is encoded as a sentinel rather than an absent value: text fields are seeded
-// with "TBD" and the stat recommendations with 0. Both predicates below map
-// those sentinels back to "not announced yet" so the rows can be hidden.
-function isTrackDetailAvailable(value: string | null | undefined): boolean {
-	if (value == null) return false
-	const trimmed = value.trim()
-	return trimmed !== "" && trimmed.toUpperCase() !== "TBD"
-}
-
-// Recommendations come off an IntegerField, so DRF sends real numbers even
-// though the TS type says `string` — coerce before comparing. A meeting never
-// legitimately recommends 0 of a stat, so 0 (and anything non-numeric) is unset.
-function isRecommendationAvailable(value: string | number | null | undefined): boolean {
-	if (value == null || value === "") return false
-	const numeric = Number(value)
-	return Number.isFinite(numeric) && numeric > 0
-}
-
-// Banner art is uploaded per banner and is often missing for far-future,
-// still-predicted banners. Render a labelled placeholder instead of letting the
-// browser show a broken-image glyph for an empty `image`.
-function BannerArtPlaceholder({ className = "" }: { className?: string }) {
-	return (
-		<div
-			className={`flex min-h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border border-gray-600 bg-gray-800 p-4 text-center text-sm text-gray-400 ${className}`}
-		>
-			<ImageOff className="h-6 w-6" />
-			<span>Banner art coming soon</span>
-		</div>
-	)
 }
 
 export const Timeline = () => {
@@ -463,7 +385,7 @@ export const Timeline = () => {
 	return (
 		<div className="w-full bg-gray-900 pb-6">
 			<div className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
-				<div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
+				<div className="mx-auto grid w-full max-w-[96rem] grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
 					<div className="flex w-full flex-col gap-2 justify-self-start sm:flex-row sm:flex-wrap md:w-auto">
 						<button
 							type="button"
@@ -526,96 +448,15 @@ export const Timeline = () => {
 					<div className="text-gray-500 mt-8">No events found.</div>
 				)}
 				{visibleEvents.map((event) => {
-					if (isChampionsMeeting(event)) {
-						const trackDetails = [
-							event.track,
-							event.surface_type,
-							event.distance,
-							event.length,
-							event.direction,
-							event.track_condition,
-							event.season,
-							event.weather,
-						]
-						const statRecommendations = [
-							{ icon: "/00_CMSPEED1.png", label: "Speed", value: event.speed_recommendation },
-							{ icon: "/01_CMStamina1.png", label: "Stamina", value: event.stamina_recommendation },
-							{ icon: "/02_CMPOWER1.png", label: "Power", value: event.power_recommendation },
-							{ icon: "/03_CMGUTS1.png", label: "Guts", value: event.guts_recommendation },
-							{ icon: "/04_CMWits1.png", label: "Wits", value: event.wit_recommendation },
-						]
-						// A partially-filled meeting would read as misleading rather than
-						// merely incomplete, so each row is all-or-nothing: show it only
-						// once every value in it is available. When neither row qualifies,
-						// the card falls back to just the dates and the art.
-						const showTrackDetails = trackDetails.every(isTrackDetailAvailable)
-						const showStatRecommendations = statRecommendations.every((stat) =>
-							isRecommendationAvailable(stat.value)
-						)
-
-						return (
-							<div key={timelineEventKey(event)} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
-								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex flex-wrap items-center justify-center gap-2 text-center text-sm sm:text-lg card-section rounded-xl font-medium">
-										<span>
-											{formatDate(event.start_date)} through{" "}
-											{formatDate(event.end_date)}
-										</span>
-										{event.is_predicted && <PredictedBadge />}
-									</div>
-									{event.image ? (
-										<img src={event.image} alt={event.name} loading="lazy" decoding="async" className="max-w-full h-auto" />
-									) : (
-										<BannerArtPlaceholder className="max-w-md" />
-									)}
-									{showTrackDetails && (
-										<div className="flex flex-col items-center card-section shadow-sm rounded-xl w-full">
-											<div className="flex flex-wrap gap-4 md:gap-16 justify-center">
-												{trackDetails.map((detail, detailIndex) => (
-													<div key={detailIndex}>{detail}</div>
-												))}
-											</div>
-										</div>
-									)}
-									{showStatRecommendations && (
-										<div className="grid w-full grid-cols-2 gap-3 p-1 text-center text-gray-100 sm:grid-cols-3 lg:grid-cols-5">
-											{statRecommendations.map((stat) => (
-												<div key={stat.label} className="flex flex-col items-center">
-													<img src={stat.icon} alt={stat.label} className="max-w-16" />
-													{stat.value}
-												</div>
-											))}
-										</div>
-									)}
-								</div>
-							</div>
-						)
+					// Champions Meetings and League of Heroes events share one card —
+					// they carry the same data and are meant to look the same.
+					if (isRaceEvent(event)) {
+						return <RaceEventCard key={timelineEventKey(event)} event={event} today={today} />
 					}
 
-					if (isLeagueOfHeroes(event)) {
-						return (
-							<div key={timelineEventKey(event)} className="my-2 w-full px-2 flex flex-wrap lg:flex-nowrap font-medium text-base sm:text-lg">
-								<div className="w-full flex flex-col card-panel rounded-xl p-2 justify-center items-center gap-2">
-									<div className="w-full flex flex-wrap items-center justify-center gap-2 text-center text-sm sm:text-lg card-section rounded-xl font-medium">
-										<span>
-											{formatDate(event.start_date)} through{" "}
-											{formatDate(event.end_date)}
-										</span>
-										{event.is_predicted && <PredictedBadge />}
-									</div>
-									<div>{event.name}</div>
-									{event.image && <img src={event.image} alt={event.name} loading="lazy" decoding="async" className="max-w-full h-auto" />}
-								</div>
-							</div>
-						)
-					}
-
-					// BannerTimelineForViewing.
-					// TypeScript collapses the remaining type to `never` here because
-					// BannerTimelineForViewing is structurally assignable to LeagueOfHeroes
-					// (same base fields), so the negative guard's Exclude produces never.
-					// The cast is logically safe: we've already ruled out both other branches.
-					const bannerEvent = event as unknown as BannerTimelineForViewing
+					// Everything left is a banner window: the union has three members and
+					// the tag has ruled out the other two, so `event` narrows on its own.
+					const bannerEvent = event
 					const umaBanner = bannerEvent.banner_umas[0]
 					const supportBanner = bannerEvent.banner_supports[0]
 
@@ -674,18 +515,18 @@ export const Timeline = () => {
 										)}
 									</div>
 
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
 										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 											<Sparkles className="h-4 w-4" />
 											<span>Featured Umamusume</span>
 										</div>
 										{umaBanner ? (
 											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
-												<div className={`grid grid-rows-1 flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
+												<div className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
 													{umaBanner.umas.map((uma, umaIndex) => (
 														<div
 															key={umaIndex}
-															className="flex h-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm"
+															className="flex w-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm 2xl:max-w-[13.5rem]"
 														>
 															<div className="relative shrink-0 overflow-hidden bg-gray-700">
 																{uma.recommendation && (
@@ -701,8 +542,8 @@ export const Timeline = () => {
 																	className="block h-auto w-full object-contain"
 																/>
 															</div>
-															<div className="flex flex-1 flex-col justify-center p-1.5">
-																<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
+															<div className="flex h-16 items-center justify-center p-2">
+																<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
 																	{uma.name}
 																</div>
 															</div>
@@ -731,18 +572,18 @@ export const Timeline = () => {
 										)}
 									</section>
 
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:overflow-hidden">
+									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
 										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 											<Ticket className="h-4 w-4" />
 											<span>Featured Support Cards</span>
 										</div>
 										{supportBanner ? (
 											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
-												<div className={`grid grid-rows-1 flex-1 items-stretch justify-items-center content-stretch gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
+												<div className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
 													{supportBanner.support_cards.map((card, cardIndex) => (
 														<div
 															key={cardIndex}
-															className="flex h-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm"
+															className="flex w-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm 2xl:max-w-[9.5rem]"
 														>
 															<div className="relative shrink-0 overflow-hidden bg-gray-700">
 																{card.recommendation && (
@@ -758,8 +599,8 @@ export const Timeline = () => {
 																	className="block h-auto w-full object-contain"
 																/>
 															</div>
-															<div className="flex flex-1 flex-col justify-center p-1.5">
-																<div className="line-clamp-2 min-h-[2rem] overflow-hidden break-words text-center text-sm font-semibold leading-tight text-gray-100">
+															<div className="flex h-16 items-center justify-center p-2">
+																<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
 																	{card.name}
 																</div>
 															</div>

@@ -45,22 +45,18 @@
 	   measured after the page's max-width, margins and borders have taken their
 	   cut, so nobody has to re-derive that arithmetic when the shell changes.
 
-	   The value is the sum of .banner-grid's fixed tracks (922px = 57.625rem) plus
+	   The value is the sum of .banner-grid's fixed tracks (1002px = 62.625rem) plus
 	   the MLB column's 14rem floor. ADDING A COLUMN MEANS BUMPING THIS — add the
 	   track to .banner-grid, then add its width here. Nothing else moves: the
 	   switch point follows automatically.
 
-	   THE CEILING IS 1214px (75.875rem), and it is a hard one. The shell gives
-	   the table `.page-container`'s lg:max-w-7xl (1280px) minus mx-4 (32), the
-	   panel border (2) and mx-4 again (32). Set this token above that and the
-	   container query can NEVER match at any viewport width, so every row falls
-	   back to MobileBannerCard and the table silently disappears — which is what
-	   a 76rem value did, missing by 2px.
-
-	   Raising it also moves the switch point. Prefer reclaiming measured slack
-	   from existing tracks (see the comment on .banner-grid) and spend this token
-	   only for the remainder. */
-	--container-banner-table: 71.625rem;
+	   The calculator canvas can be wider than this token; that extra room is
+	   intentionally handed to the desktop table's flexible MLB column. Do not
+	   raise the token merely to use the wider canvas: it is the minimum width
+	   that switches cards to the spreadsheet, and raising it moves that switch
+	   point later. Prefer reclaiming measured slack from existing tracks (see the
+	   comment on .banner-grid) if the table ever needs another column. */
+	--container-banner-table: 76.625rem;
 
 	/* Display face for the brand wordmark only — body text stays on the default
 	   system stack. The font itself is imported in main.tsx (@fontsource-variable),

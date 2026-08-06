@@ -52,9 +52,10 @@
 
 /* ===== CONTAINERS ===== */
 
-/* Page-level container used by Calculator and Timeline */
+/* Page-level container used by Timeline. The calculator owns its own canvas
+   because its Income & Resources panel and banner sheet share a wider layout. */
 .page-container {
-	@apply justify-center w-full bg-gray-900 lg:max-w-7xl mx-auto;
+	@apply justify-center w-full bg-gray-900 lg:max-w-[96rem] mx-auto;
 }
 
 /* Neutral card panel (used in IncomeForm, BannerRow, Timeline) */
@@ -82,7 +83,7 @@
    `@banner-table:grid` so the mobile-card/desktop-table switch stays in one
    place.
 
-   min-width is the sum of the fixed tracks (70+128+168+108+328+80+40 = 922px)
+   min-width is the sum of the fixed tracks (70+128+168+108+328+80+80+40 = 1002px)
    plus the MLB column's 14rem floor, and it reads the SAME token that generates
    the `@banner-table:` container-query variant deciding whether this row renders
    at all (see index.css). That shared token is the guarantee the table is only
@@ -91,7 +92,7 @@
    The 14rem floor is not cosmetic. With a bare `1fr` the MLB column collapsed to
    zero and pushed the # Pulls input and delete button past the container's
    clipped right edge — unreachable, on the two controls the page exists for. */
-/* The fixed tracks sum to 922px (= 57.625rem), which is half of what
+/* The fixed tracks sum to 1002px (= 62.625rem), which is part of what
    --container-banner-table is built from — keep the two in step.
 
    The derived-stats strip's worst case needs 334px with px-1.5 stat padding.
@@ -111,7 +112,8 @@
 		10.5rem            /* banner select                      */
 		6.75rem            /* start / end date                    */
 		20.5rem            /* derived stats / confirm button     */
-		5rem               /* # pulls      (input is w-16)       */
+		5rem               /* # pulls      (input is w-14)       */
+		5rem               /* reserved future input                */
 		minmax(14rem, 1fr) /* MLB chance                         */
 		2.5rem;            /* delete / discard                   */
 	min-width: var(--container-banner-table);

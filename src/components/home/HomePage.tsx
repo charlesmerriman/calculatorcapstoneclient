@@ -1,19 +1,17 @@
-import type React from "react"
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { motion } from "framer-motion"
 import {
-	Carrot,
-	Trophy,
+	ArrowUpRight,
 	CalendarPlus,
-	Ticket,
-	TrendingUp,
+	Carrot,
 	FileText,
-	PlayCircle,
-	ScrollText,
 	HelpCircle,
 	MessageSquare,
-	ArrowUpRight,
+	PlayCircle,
+	ScrollText,
+	Ticket,
+	TrendingUp,
+	Trophy,
 } from "lucide-react"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
@@ -21,79 +19,25 @@ import { changelogFetch } from "../../services/changelogFetchCalls"
 import { formatRelativeDate } from "../../utils/relativeDate"
 import type { ChangelogEntry } from "../../types"
 
-// ---------------------------------------------------------------------------
-// Config — edit these in one place.
-// ---------------------------------------------------------------------------
 const YOUTUBE_CHANNEL_URL = "https://www.youtube.com/@HenryHandsomeDerby"
-// Uploads playlist = the channel ID with its "UC" prefix swapped for "UU".
-// Embedding the uploads playlist always plays the channel's newest video first,
-// so this stays current with no YouTube Data API key required.
 const YOUTUBE_UPLOADS_PLAYLIST_ID = "UUbKJl479CjOtg57eF-GhUDw"
-// TODO(link): replace with Henry Handsome's actual Google Sheet URL.
 const HENRY_SHEET_URL = "#"
 
-// Shared style constants keep the sections visually consistent and easy to tweak.
-const sectionTitle = "text-2xl font-bold text-gray-100"
-const sectionIntro = "mt-2 text-gray-400"
-const card = "rounded-xl border border-gray-700 bg-gray-800 p-5 shadow-md"
-
-// Numbered walkthrough of the planner. Mirrors the real flow the `useBannerResources`
-// hook expects: resources + income ranks in, pull plan out, projections read back.
 const steps = [
-	{
-		icon: Carrot,
-		title: "Enter your current resources",
-		body: "Start with the carats, tickets, and other resources you have right now.",
-	},
-	{
-		icon: Trophy,
-		title: "Set your income ranks",
-		body: "Pick your Club, Team Trials, Champions Meeting, and League of Heroes ranks so income is estimated correctly.",
-	},
-	{
-		icon: CalendarPlus,
-		title: "Add upcoming banners",
-		body: "Choose the uma and support banners you're planning to pull on.",
-	},
-	{
-		icon: Ticket,
-		title: "Set pulls per banner",
-		body: "Tell the calculator how many pulls you want to spend on each banner.",
-	},
-	{
-		icon: TrendingUp,
-		title: "Read your projections",
-		body: "See how many carats and tickets you'll have available by each banner's end date.",
-	},
+	{ icon: Carrot, title: "Enter your resources", body: "Add your current carats and tickets." },
+	{ icon: Trophy, title: "Set your ranks", body: "Match the forecast to your income." },
+	{ icon: CalendarPlus, title: "Add upcoming banners", body: "Choose the banners you want to plan for." },
+	{ icon: Ticket, title: "Set your pull goals", body: "Decide how far you want to pull." },
+	{ icon: TrendingUp, title: "Read the forecast", body: "See what will be available by each end date." },
 ]
 
-// The three skeleton pages linked from the creator section.
 const infoLinks = [
 	{ to: "/changelog", icon: ScrollText, label: "Changelog" },
 	{ to: "/faq", icon: HelpCircle, label: "FAQ" },
 	{ to: "/feedback", icon: MessageSquare, label: "Feedback" },
 ]
 
-/** Subtle fade/slide-up on mount — matches the motion used elsewhere in the app. */
-const fadeUp = {
-	initial: { opacity: 0, y: 16 },
-	animate: { opacity: 1, y: 0 },
-	transition: { duration: 0.4, ease: "easeOut" },
-}
-
-/**
- * Public landing page (route: /).
- *
- * Sections:
- *   A. Hero + CTAs
- *   B. How to use the calculator (numbered steps)
- *   C. Creator's resource guide (Google Doc callout)
- *   D. Featured creator: channel link + auto-latest video embed + skeleton page links
- */
 export const HomePage = () => {
-	// Latest changelog date powers the "Updated N days ago" caption on the
-	// Changelog card. One lightweight fetch; failures fall back to a neutral
-	// caption and never block the page.
 	const [latestChangelogDate, setLatestChangelogDate] = useState<string | null>(null)
 
 	useEffect(() => {
@@ -101,149 +45,60 @@ export const HomePage = () => {
 		changelogFetch(controller.signal)
 			.then((res) => (res.ok ? res.json() : null))
 			.then((data: ChangelogEntry[] | null) => {
-				if (data && data.length > 0) setLatestChangelogDate(data[0].date)
+				if (data?.length) setLatestChangelogDate(data[0].date)
 			})
-			.catch(() => {
-				// AbortError (StrictMode double-mount) or network error — leave the fallback caption.
-			})
+			.catch(() => undefined)
 		return () => controller.abort()
 	}, [])
 
 	return (
-		// See PrivacyPolicy: flex-1 lets <main> absorb leftover viewport height so the
-		// footer stays a fixed band at the bottom of a short page, and no overflow-y-auto
-		// so long content scrolls the page (footer included) instead of a nested region.
 		<div className="flex min-h-dvh flex-col bg-gray-900">
 			<Navbar />
-			<main className="flex-1">
-				<div className="mx-auto max-w-6xl space-y-8 px-4 py-6">
-					{/* ---- A. Hero (kept compact so the key content lands above the fold) ---- */}
-					<motion.section {...fadeUp} className="text-center">
-						<h1 className="text-2xl font-bold text-gray-100 sm:text-3xl">
-							Uma Musume Carat Calculator
-						</h1>
-						<p className="mx-auto mt-1 max-w-md text-gray-400">
-							Plan your pulls. Know your carats.
-						</p>
-						<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-							<Link
-								to="/app"
-								className="rounded-lg bg-brand px-5 py-2 font-semibold text-black transition hover:bg-brand/85"
-							>
-								Open the Calculator
-							</Link>
-							<Link
-								to="/login"
-								className="rounded-lg border border-gray-600 px-5 py-2 font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-800"
-							>
-								Sign in to save a plan
-							</Link>
+			<main className="flex flex-1 items-center">
+				<div className="mx-auto w-full max-w-[104rem] px-4 py-5 sm:px-6 lg:px-8 lg:py-4">
+					<section className="rounded-2xl border border-gray-700 bg-gray-800/75 px-5 py-4 shadow-lg shadow-black/10 sm:px-6">
+						<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+							<div>
+								<h1 className="text-2xl font-bold tracking-tight text-gray-100 sm:text-3xl">Plan your pulls. Know your carats.</h1>
+								<p className="mt-1 text-sm text-gray-400 sm:text-base">A simple planner for your Uma Musume banners, income, and pull goals.</p>
+							</div>
+							<div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
+								<Link to="/app" className="rounded-lg bg-brand px-4 py-2 text-center text-sm font-bold text-black transition hover:brightness-110">Open the calculator</Link>
+								<Link to="/login" className="rounded-lg border border-gray-600 px-4 py-2 text-center text-sm font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-700">Sign in to save a plan</Link>
+							</div>
 						</div>
-					</motion.section>
+					</section>
 
-					{/* Two-column split on desktop: Henry's channel/video/sheet/links on the
-					    left, how-to on the right. Stacks on mobile. */}
-					<div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-						{/* ---- Left: channel link + latest video + Google Sheet + skeleton links ---- */}
-						<motion.section {...fadeUp}>
-							{/* Clickable header linking straight to the channel. */}
-							<a
-								href={YOUTUBE_CHANNEL_URL}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="flex items-center justify-between gap-3 rounded-xl border border-gray-700 bg-gray-800 px-5 py-3 shadow-md transition hover:border-red-500/60 hover:bg-gray-700"
-							>
-								<span className="flex items-center gap-2.5 text-lg font-semibold text-gray-100">
-									<PlayCircle className="h-5 w-5 shrink-0 text-red-500" aria-hidden="true" />
-									Henry Handsome's Youtube Channel
-								</span>
-								<ArrowUpRight className="h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
+					<div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:items-stretch">
+						<section className="min-w-0">
+							<a href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-3 rounded-xl border border-gray-700 bg-gray-800 px-4 py-2.5 transition hover:border-red-500/60 hover:bg-gray-700">
+								<span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-100 sm:text-base"><PlayCircle className="h-5 w-5 shrink-0 text-red-500" aria-hidden="true" /><span className="truncate">Henry Handsome Derby's latest video</span></span>
+								<ArrowUpRight className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
 							</a>
-
-							{/* Auto-latest embed: the uploads playlist opens on the newest upload. */}
-							<div className="mt-4 aspect-video w-full overflow-hidden rounded-xl border border-gray-700">
-								<iframe
-									className="h-full w-full"
-									src={`https://www.youtube.com/embed/videoseries?list=${YOUTUBE_UPLOADS_PLAYLIST_ID}`}
-									title="Henry Handsome — latest video"
-									allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-									allowFullScreen
-								/>
+							<div className="mt-3 aspect-video overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-md">
+								<iframe className="h-full w-full" src={`https://www.youtube.com/embed/videoseries?list=${YOUTUBE_UPLOADS_PLAYLIST_ID}`} title="Henry Handsome Derby — latest video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
 							</div>
-
-							{/* Henry's Google Sheet callout (sits directly below the video). */}
-							<div className={`${card} mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between`}>
-								<div className="flex items-center gap-4">
-									<FileText className="h-8 w-8 shrink-0 text-brand" aria-hidden="true" />
-									<h2 className="text-lg font-semibold text-gray-100">Henry's Google Sheet</h2>
-								</div>
-								<a
-									href={HENRY_SHEET_URL}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100"
-								>
-									Open the Sheet
-									<ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+							<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+								<a href={HENRY_SHEET_URL} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-left transition hover:border-gray-500 hover:bg-gray-700">
+									<FileText className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" /><span className="min-w-0"><span className="block truncate text-xs font-semibold text-gray-100">Henry's Sheet</span><span className="block truncate text-[11px] text-gray-500">Resource guide</span></span>
 								</a>
-							</div>
-
-							{/* Skeleton page links (pages are still under construction). */}
-							<div className="mt-4 grid gap-4 sm:grid-cols-3">
 								{infoLinks.map((item) => {
 									const Icon = item.icon
-									// The Changelog is live: show when it was last updated. FAQ and
-									// Feedback are still placeholders, so they keep "Coming soon".
-									let caption = "Coming soon"
-									if (item.to === "/changelog") {
-										caption = latestChangelogDate
-											? `Updated ${formatRelativeDate(latestChangelogDate)}`
-											: "View updates"
-									}
-									return (
-										<Link
-											key={item.to}
-											to={item.to}
-											className={`${card} flex items-center gap-3 transition hover:border-gray-500 hover:bg-gray-700`}
-										>
-											<Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-											<div>
-												<div className="font-semibold text-gray-100">{item.label}</div>
-												<div className="text-xs text-gray-500">{caption}</div>
-											</div>
-										</Link>
-									)
+									const caption = item.to === "/changelog" ? (latestChangelogDate ? `Updated ${formatRelativeDate(latestChangelogDate)}` : "View updates") : "Coming soon"
+									return <Link key={item.to} to={item.to} className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-left transition hover:border-gray-500 hover:bg-gray-700"><Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" /><span className="min-w-0"><span className="block truncate text-xs font-semibold text-gray-100">{item.label}</span><span className="block truncate text-[11px] text-gray-500">{caption}</span></span></Link>
 								})}
 							</div>
-						</motion.section>
+						</section>
 
-						{/* ---- Right: How to use the calculator (single column) ---- */}
-						<motion.section {...fadeUp}>
-							<h2 className={sectionTitle}>How to use the calculator</h2>
-							<p className={sectionIntro}>
-								Five quick steps from your current stash to a full pull plan.
-							</p>
-							<ol className="mt-5 space-y-4">
-								{steps.map((step, i) => {
+						<section className="flex h-full flex-col rounded-xl border border-gray-700 bg-gray-800 p-4 shadow-md">
+							<div className="flex items-baseline justify-between gap-3"><div><h2 className="text-lg font-bold text-gray-100">How it works</h2><p className="mt-0.5 text-sm text-gray-400">From your stash to a clear pull plan.</p></div><span className="text-xs font-medium text-brand">5 steps</span></div>
+							<ol className="mt-3 flex flex-1 flex-col divide-y divide-gray-700 rounded-lg border border-gray-700 bg-gray-900/40">
+								{steps.map((step, index) => {
 									const Icon = step.icon
-									return (
-										<li key={step.title} className={`${card} flex gap-4`}>
-											{/* Number badge */}
-											<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/15 text-sm font-bold text-brand">
-												{i + 1}
-											</span>
-											<div>
-												<div className="flex items-center gap-2">
-													<Icon className="h-4 w-4 text-brand" aria-hidden="true" />
-													<h3 className="font-semibold text-gray-100">{step.title}</h3>
-												</div>
-												<p className="mt-1 text-sm leading-relaxed text-gray-400">{step.body}</p>
-											</div>
-										</li>
-									)
+									return <li key={step.title} className="flex flex-1 items-center gap-3 px-3 py-2.5"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-bold text-brand">{index + 1}</span><Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" /><div className="min-w-0"><h3 className="text-sm font-semibold text-gray-100">{step.title}</h3><p className="truncate text-xs text-gray-400">{step.body}</p></div></li>
 								})}
 							</ol>
-						</motion.section>
+						</section>
 					</div>
 				</div>
 			</main>

@@ -224,23 +224,62 @@ export function useBannerResources({
 		// carats. Results are written back to each banner's display slot, so
 		// nothing about the on-screen ordering changes.
 		//
-		// The sort is stable (guaranteed since ES2019), so banners sharing an
-		// end date — every uma/support pair does — keep their display order and
-		// therefore their existing spend priority.
+		// Ordering is stated by the comparator below, NOT inherited from sort
+		// stability. An earlier version compared raw end INSTANTS and leaned on
+		// stability to keep same-end-date banners in display order. That never
+		// fired, because predicted banners don't share an instant — only a
+		// rendered date. The backend derives them as
+		// `anchor + jp_gap * PREDICTION_FACTOR` (a float times a timedelta), so
+		// each one lands on an arbitrary time of day: 07:24:28.800Z here,
+		// 21:59:59Z there. formatDate prints local Y/M/D only, so the sheet shows
+		// one date for both while getTime() puts them hours apart — and a banner
+		// that merely drew an earlier time of day spent first, charging its
+		// deduction to a banner that opened weeks before it.
+		//
+		// So compare at the granularity the sheet actually displays: whole local
+		// days, then earliest start day, then display position.
 		const walkOrder = userPlannedBannerData
 			.map((banner, index) => {
 				const timeline =
 					banner.banner_uma?.banner_timeline ??
 					banner.banner_support?.banner_timeline
+				const endDate = timeline?.end_date ? new Date(timeline.end_date) : null
+				const startDate = timeline?.start_date
+					? new Date(timeline.start_date)
+					: null
 				return {
 					banner,
 					index,
 					timeline,
-					endDate: timeline?.end_date ? new Date(timeline.end_date) : null,
+					endDate,
+					// Sort keys only. All the window arithmetic below still uses the
+					// raw `endDate` instant — this changes the order checkpoints are
+					// visited in, never the windows themselves.
+					endDay: endDate ? startOfDay(endDate).getTime() : null,
+					startDay: startDate ? startOfDay(startDate).getTime() : null,
 				}
 			})
-			.filter((entry): entry is typeof entry & { endDate: Date } => entry.endDate !== null)
-			.sort((a, b) => a.endDate.getTime() - b.endDate.getTime())
+			.filter(
+				(entry): entry is typeof entry & { endDate: Date; endDay: number } =>
+					entry.endDate !== null && entry.endDay !== null
+			)
+			.sort((a, b) => {
+				// 1. End day ascending — the cursor walks the calendar forward, so
+				//    banners closing on genuinely different days keep that order.
+				if (a.endDay !== b.endDay) return a.endDay - b.endDay
+				// 2. Start day ascending — on a shared closing day the banner that
+				//    opened first spends first, so its estimate is never charged for
+				//    pulls committed to a banner that opened after it. A banner with
+				//    no resolvable start sorts last; it can't claim priority.
+				if (a.startDay !== b.startDay) {
+					if (a.startDay === null) return 1
+					if (b.startDay === null) return -1
+					return a.startDay - b.startDay
+				}
+				// 3. Display position — uma/support pairs share one timeline, so both
+				//    keys above tie and the row listed first keeps spend priority.
+				return a.index - b.index
+			})
 
 		for (const { banner, index, timeline, endDate } of walkOrder) {
 			for (const ge of parsedGameEvents) {
@@ -256,16 +295,20 @@ export function useBannerResources({
 			// filter that decides which banners can reach it runs absolutely from
 			// today rather than from the previous checkpoint (see
 			// sumRemainingThroughoutCarats). So take the running total at this
-			// checkpoint and credit only what it added over the last one. The
-			// qualifying set only grows as the cursor advances, so this delta is
-			// never negative.
+			// checkpoint and credit only what it added over the last one.
+			//
+			// Clamped at 0: the walk is ordered by end DAY, so two checkpoints on
+			// the same day can be visited slightly out of instant order, and this
+			// filter reads the raw instant. Without the clamp that step backwards
+			// would REFUND throughout carats already credited. Same-day steps add
+			// nothing anyway, so the floor only ever discards noise.
 			const throughoutToDate = sumRemainingThroughoutCarats(
 				parsedGameEvents,
 				nowUtc,
 				endDate
 			)
-			freeCarats += throughoutToDate - creditedThroughout
-			creditedThroughout = throughoutToDate
+			freeCarats += Math.max(0, throughoutToDate - creditedThroughout)
+			creditedThroughout = Math.max(creditedThroughout, throughoutToDate)
 
 			for (const meet of parsedMeetings) {
 				if (meet.parsedDate > lastEndDate && meet.parsedDate <= endDate) {
@@ -471,10 +514,12 @@ export function useBannerResources({
 			umaTickets = strategy.umaTickets
 			supportTickets = strategy.supportTickets
 
-			// The walk order guarantees endDate never goes backwards between
-			// checkpoints, but a banner that ALREADY ENDED still sits before
-			// `today`. Keep the guard so the cursor never retreats behind the
-			// projection's anchor.
+			// The walk order only guarantees endDate never goes backwards by a
+			// whole DAY — two checkpoints on the same day are ordered by start
+			// date, so the second can sit a few hours earlier. A banner that
+			// ALREADY ENDED also sits before `today`. Either way the cursor must
+			// never retreat; the windows those checkpoints open are backwards and
+			// every income helper already clamps them to zero.
 			if (endDate > lastEndDate) {
 				lastEndDate = endDate
 			}

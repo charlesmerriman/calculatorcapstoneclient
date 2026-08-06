@@ -196,6 +196,21 @@ Renders `organizedTimelineData` — banner timelines, Champions Meetings and Lea
 Heroes events merged into one date-sorted list (~250 rows) — filtered by past/future and
 a search box.
 
+**Two card shapes, three event types.** Champions Meetings and League of Heroes events
+share one course-details card, `components/timeline/RaceEventCard.tsx`; banner
+windows keep the wider three-column card inline in `Timeline.tsx`. `RaceEventCard` never
+branches on which of the two it has — if it ever needs to, they've stopped being the same
+card and should be split again. `RaceEventCard.test.tsx` renders one of each from the same
+data and diffs the markup, so a change applied to only one type fails there.
+
+**Narrow with `isRaceEvent()` / `isBannerTimeline()`** (from `types/calculator.ts`), never
+by sniffing properties. The three shapes are not reliably distinguishable structurally: the
+two race types are field-identical apart from their number, and a banner window shares
+every base field with both. The guards read the backend's `event_type` tag instead. The old
+`"track" in event` checks needed `as unknown as` casts to compile — a signal the narrowing
+was fictional — and would have silently mis-sorted every League of Heroes event as a
+Champions Meeting once the two shapes converged.
+
 **Two list modes**, chosen by the user and remembered in
 `localStorage["uma-planner-timeline-view"]`. Infinite scroll is the default; `"paged"` is
 the opt-in value that restores the original 10-per-page view. Anything else (including a

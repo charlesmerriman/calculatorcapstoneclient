@@ -6,7 +6,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { useUncapCrystals } from "../../hooks/useUncapCrystals"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
-import type { BannerTimelineForViewing } from "../../types"
+import { isBannerTimeline } from "../../types"
 
 interface DateOption {
 	value: string
@@ -16,21 +16,12 @@ interface DateOption {
 const iconCls = "w-4 h-4 shrink-0 text-brand"
 
 // Cell showing a value (or placeholder when no date selected) with optional colored background.
-const CrystalCell = ({
-	value,
-	selected,
-	green,
-}: {
-	value: number
-	selected: boolean
-	green: boolean
-}) => (
+const CrystalCell = ({ value, selected, green, className = "" }: { value: number; selected: boolean; green: boolean; className?: string }) => (
 	<div
 		className={[
-			"flex items-center justify-center py-1.5 text-sm font-bold rounded",
-			green
-				? "bg-green-900/60 text-green-300 border border-green-700"
-				: "bg-gray-700 text-gray-300 border border-gray-600",
+			"flex items-center justify-center px-2 py-1.5 text-sm font-bold",
+			green ? "bg-green-900/60 text-green-300" : "bg-gray-700 text-gray-300",
+			className,
 		].join(" ")}
 	>
 		{selected ? value.toLocaleString() : "—"}
@@ -38,15 +29,8 @@ const CrystalCell = ({
 )
 
 export const UncapCrystalsPanel = () => {
-	const {
-		userStatsData,
-		gameEventsData,
-		championsMeetingData,
-		championsMeetingRankData,
-		leagueOfHeroesData,
-		leagueOfHeroesRankData,
-		organizedTimelineData,
-	} = useCalculatorData()
+	const { userStatsData, gameEventsData, championsMeetingData, championsMeetingRankData, leagueOfHeroesData, leagueOfHeroesRankData, organizedTimelineData } =
+		useCalculatorData()
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null)
 
 	const crystals = useUncapCrystals(
@@ -61,10 +45,11 @@ export const UncapCrystalsPanel = () => {
 
 	const now = new Date()
 
-	// Filter organizedTimelineData to BannerTimelineForViewing entries only,
-	// using a structural type guard — "banner_umas" is unique to that interface.
+	// Filter organizedTimelineData to BannerTimelineForViewing entries only.
+	// This used to test for "banner_umas" structurally; it narrows on the
+	// backend's event_type tag now (see isBannerTimeline in types/calculator).
 	const bannerOptions: DateOption[] = organizedTimelineData
-		.filter((event): event is BannerTimelineForViewing => "banner_umas" in event)
+		.filter(isBannerTimeline)
 		.filter((t) => new Date(t.end_date) >= now)
 		.map((t) => ({
 			value: t.end_date,
@@ -74,7 +59,7 @@ export const UncapCrystalsPanel = () => {
 	const selectedOption = bannerOptions.find((o) => o.value === selectedEndDate) ?? null
 
 	return (
-		<div className="card-panel p-3">
+		<div className="p-4 sm:p-5">
 			<h3 className="font-semibold text-sm text-brand mb-2 flex items-center justify-center gap-1.5">
 				<Gem className={iconCls} />
 				Uncap Crystals
@@ -87,22 +72,20 @@ export const UncapCrystalsPanel = () => {
 				placeholder="Select Banner Date for Estimate"
 				options={bannerOptions}
 				value={selectedOption}
-				onChange={(opt: SingleValue<DateOption>) =>
-					setSelectedEndDate(opt ? opt.value : null)
-				}
+				onChange={(opt: SingleValue<DateOption>) => setSelectedEndDate(opt ? opt.value : null)}
 			/>
 
-			<div className="mt-2 grid grid-cols-2 gap-2">
+			<div className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border border-gray-700">
 				{/* Column headers */}
-				<div className="text-xs text-gray-400 text-center font-semibold">SSR Crystals/Shards</div>
-				<div className="text-xs text-gray-400 text-center font-semibold">SR Crystals/Shards</div>
+				<div className="border-b border-r border-gray-700 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">SSR Crystals/Shards</div>
+				<div className="border-b border-gray-700 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">SR Crystals/Shards</div>
 
 				{/* Crystal rows (green) */}
-				<CrystalCell value={crystals.ssrCrystals} selected={!!selectedEndDate} green />
-				<CrystalCell value={crystals.srCrystals} selected={!!selectedEndDate} green />
+				<CrystalCell value={crystals.ssrCrystals} selected={!!selectedEndDate} green className="border-r border-b border-gray-700" />
+				<CrystalCell value={crystals.srCrystals} selected={!!selectedEndDate} green className="border-b border-gray-700" />
 
 				{/* Shard rows (neutral) — color differentiation makes the row label redundant */}
-				<CrystalCell value={crystals.ssrShards} selected={!!selectedEndDate} green={false} />
+				<CrystalCell value={crystals.ssrShards} selected={!!selectedEndDate} green={false} className="border-r border-gray-700" />
 				<CrystalCell value={crystals.srShards} selected={!!selectedEndDate} green={false} />
 			</div>
 		</div>
