@@ -23,6 +23,8 @@ interface StagedBannerRowProps {
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
 	userPlannedBannerData: UserPlannedBanner[]
+	/** Every staged row, this one included — it filters itself out by tempId. */
+	stagedBanners: UserPlannedBanner[]
 }
 
 interface BannerOption {
@@ -38,7 +40,8 @@ export const StagedBannerRow = ({
 	onDiscard,
 	umaBannerData,
 	supportBannerData,
-	userPlannedBannerData
+	userPlannedBannerData,
+	stagedBanners
 }: StagedBannerRowProps) => {
 	const bannerType: "Uma" | "Support" = stagedBanner.banner_support
 		? "Support"
@@ -56,15 +59,27 @@ export const StagedBannerRow = ({
 		bannerType === "Uma" ? stagedBanner.banner_uma?.id : stagedBanner.banner_support?.id
 	const currentBanner = targetBannerData.find((banner) => banner.id === selectedBannerId)
 
-	// Keys of banners already confirmed on the sheet — the staged banner can't duplicate any of them.
+	// Banners this row can't take, and why: those already confirmed on the sheet,
+	// plus those claimed by a *different* staged row. Without the second group,
+	// two staged rows could hold the same banner all the way to the confirm
+	// button, where the second one is rejected — the conflict is worth surfacing
+	// in the select instead, while it's still cheap to fix.
+	//
 	// Keyed by type+id, never by bare id — uma and support banners have independent
 	// primary keys, so a bare id would make an uma banner block its same-date
 	// support counterpart (see plannedBannerKey).
-	const alreadyPlannedBannerKeys = new Set(
-		userPlannedBannerData
-			.map(plannedBannerKey)
-			.filter((key): key is BannerKey => key !== null)
-	)
+	const unavailableBanners = new Map<BannerKey, "sheet" | "staged">()
+	for (const planned of userPlannedBannerData) {
+		const key = plannedBannerKey(planned)
+		if (key) unavailableBanners.set(key, "sheet")
+	}
+	for (const staged of stagedBanners) {
+		// This row's own selection is never a conflict with itself.
+		if (staged.tempId === stagedBanner.tempId) continue
+		const key = plannedBannerKey(staged)
+		// "sheet" wins a tie — it's the more actionable of the two messages.
+		if (key && !unavailableBanners.has(key)) unavailableBanners.set(key, "staged")
+	}
 
 	/** This row's select only ever offers banners of its own type. */
 	const optionKey = (option: BannerOption): BannerKey =>
@@ -72,8 +87,13 @@ export const StagedBannerRow = ({
 
 	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
 		if (!option) return
-		if (alreadyPlannedBannerKeys.has(optionKey(option))) {
-			toast.error("This banner is already on your sheet.")
+		const conflict = unavailableBanners.get(optionKey(option))
+		if (conflict) {
+			toast.error(
+				conflict === "sheet"
+					? "This banner is already on your sheet."
+					: "This banner is already staged in another row."
+			)
 			return
 		}
 		if (bannerType === "Uma") {
@@ -133,14 +153,19 @@ export const StagedBannerRow = ({
 					: null
 			}
 			onChange={handleBannerSelect}
-			formatOptionLabel={(option) => (
-				<span className={alreadyPlannedBannerKeys.has(optionKey(option)) ? "text-gray-500" : ""}>
-					{option.label}
-					{alreadyPlannedBannerKeys.has(optionKey(option)) && (
-						<span className="ml-1 text-xs">(on sheet)</span>
-					)}
-				</span>
-			)}
+			formatOptionLabel={(option) => {
+				const conflict = unavailableBanners.get(optionKey(option))
+				return (
+					<span className={conflict ? "text-gray-500" : ""}>
+						{option.label}
+						{conflict && (
+							<span className="ml-1 text-xs">
+								{conflict === "sheet" ? "(on sheet)" : "(staged)"}
+							</span>
+						)}
+					</span>
+				)
+			}}
 			options={targetBannerData
 				.filter(
 					(banner) =>

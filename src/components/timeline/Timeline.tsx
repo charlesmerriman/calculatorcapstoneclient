@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import PredictedBadge from "../PredictedBadge"
-import { bannerKey, plannedBannerKey } from "../../utils/bannerHelpers"
+import { bannerKey, nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
 import { formatDate } from "../../utils/dateFormat"
 import { RaceEventCard } from "./RaceEventCard"
@@ -271,17 +271,18 @@ export const Timeline = () => {
 			return
 		}
 
-		const allIds = [
-			...userPlannedBannerData.map((b) => b.tempId ?? b.id ?? 0),
-			...stagedBanners.map((b) => b.tempId ?? 0),
-		]
-		const highestId = allIds.length > 0 ? Math.max(...allIds) : 0
+		setStagedBanners((prev) => {
+			// From `prev`, never from the render-scoped stagedBanners — staging two
+			// banners in quick succession is the normal way to use this page, and a
+			// stale list would mint the same tempId twice. See nextTempId.
+			const tempId = nextTempId(userPlannedBannerData, prev)
 
-		const newStaged: UserPlannedBanner = type === "Uma"
-			? { tempId: highestId + 1, number_of_pulls: 0, reserved_copies: 0, banner_uma: fullBanner as BannerUma, initialBannerType: "Uma" }
-			: { tempId: highestId + 1, number_of_pulls: 0, reserved_copies: 0, banner_support: fullBanner as BannerSupport, initialBannerType: "Support" }
+			const newStaged: UserPlannedBanner = type === "Uma"
+				? { tempId, number_of_pulls: 0, reserved_copies: 0, banner_uma: fullBanner as BannerUma, initialBannerType: "Uma" }
+				: { tempId, number_of_pulls: 0, reserved_copies: 0, banner_support: fullBanner as BannerSupport, initialBannerType: "Support" }
 
-		setStagedBanners((prev) => [...prev, newStaged])
+			return [...prev, newStaged]
+		})
 		toast.success(`${fullBanner.name} staged! Head to the Calculator to confirm.`)
 	}
 

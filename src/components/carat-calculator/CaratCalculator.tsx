@@ -7,7 +7,7 @@ import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
-import { plannedBannerKey } from "../../utils/bannerHelpers"
+import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
 export const CaratCalculator: React.FC = () => {
@@ -48,28 +48,15 @@ export const CaratCalculator: React.FC = () => {
 		return <div>Loading...</div>
 	}
 
+	// Every click stages another row. The staging area is a queue, not a single
+	// slot: a user planning several banners can line them all up, fill each one
+	// in, and confirm them independently.
 	const handleAddBanner = (bannerType: "Uma" | "Support"): void => {
-		const emptyStaged = stagedBanners.find((b) => !b.banner_uma && !b.banner_support)
-
-		if (emptyStaged) {
-			if (emptyStaged.initialBannerType === bannerType) {
-				// Same type already waiting — nothing to do.
-				toast.error(`An empty ${bannerType} banner is already staged. Select a banner for it or discard it first.`)
-				return
-			}
-			// Opposite type — replace it in-place so the user doesn't lose its position in the list.
-			setStagedBanners((prev) => prev.map((b) => (b.tempId === emptyStaged.tempId ? { ...b, initialBannerType: bannerType } : b)))
-			return
-		}
-
-		// Generate a tempId higher than every existing id so there are never two banners sharing one.
-		const allIds = [...userPlannedBannerData.map((b) => b.tempId ?? b.id ?? 0), ...stagedBanners.map((b) => b.tempId ?? 0)]
-		const highestId = allIds.length > 0 ? Math.max(...allIds) : 0
-
 		setStagedBanners((prev) => [
 			...prev,
 			{
-				tempId: highestId + 1,
+				// From `prev`, never from the render-scoped stagedBanners — see nextTempId.
+				tempId: nextTempId(userPlannedBannerData, prev),
 				number_of_pulls: 0,
 				reserved_copies: 0,
 				initialBannerType: bannerType,
@@ -191,18 +178,34 @@ export const CaratCalculator: React.FC = () => {
 												<div className="text-center">% Chance to MLB (5x Copies)</div>
 												<div className="text-center"></div>
 											</div>
-											{stagedBanners.map((banner) => (
-												<StagedBannerRow
-													key={banner.tempId}
-													stagedBanner={banner}
-													setStagedBanner={handleUpdateStagedBanner}
-													onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
-													onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
-													umaBannerData={umaBannerData}
-													supportBannerData={supportBannerData}
-													userPlannedBannerData={userPlannedBannerData}
-												/>
-											))}
+											{/* Same spacing/divider rules as the sheet below: several staged
+											    rows have to read as one list, gapped as cards on mobile and
+											    ruled as table rows once the grid kicks in. */}
+											<div className="space-y-3 @banner-table:space-y-0 @banner-table:divide-y @banner-table:divide-gray-700">
+												<AnimatePresence initial={false}>
+													{stagedBanners.map((banner) => (
+														<motion.div
+															key={banner.tempId}
+															layout
+															initial={{ opacity: 0, y: -6 }}
+															animate={{ opacity: 1, y: 0 }}
+															exit={{ opacity: 0, y: -6 }}
+															transition={{ duration: 0.18 }}
+														>
+															<StagedBannerRow
+																stagedBanner={banner}
+																setStagedBanner={handleUpdateStagedBanner}
+																onConfirm={() => handleConfirmStagedBanner(banner.tempId!)}
+																onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
+																umaBannerData={umaBannerData}
+																supportBannerData={supportBannerData}
+																userPlannedBannerData={userPlannedBannerData}
+																stagedBanners={stagedBanners}
+															/>
+														</motion.div>
+													))}
+												</AnimatePresence>
+											</div>
 										</div>
 									</motion.div>
 								)}

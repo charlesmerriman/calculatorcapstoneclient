@@ -5,11 +5,12 @@ import {
   bannerKey,
   getPullCountStatus,
   getReservedStatus,
+  nextTempId,
   plannedBannerKey,
 } from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
 import type { SelectorTicketBucket } from '../utils/selectorTickets'
-import type { BannerSupport, BannerUma } from '../types'
+import type { BannerSupport, BannerUma, UserPlannedBanner } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -453,5 +454,36 @@ describe('getReservedStatus', () => {
 
   it('is neutral when nothing is reserved', () => {
     expect(getReservedStatus({ selectors: 0, crystals: 0, unfunded: 0 })).toBe('neutral')
+  })
+})
+
+describe('nextTempId', () => {
+  it('clears every id in play, staged and on the sheet alike', () => {
+    const sheet = [{ id: 7, number_of_pulls: 0, reserved_copies: 0 }]
+    const staged = [{ tempId: 12, number_of_pulls: 0, reserved_copies: 0 }]
+    expect(nextTempId(sheet, staged)).toBe(13)
+  })
+
+  it('prefers tempId over a stale server id on the same row', () => {
+    const sheet = [{ id: 3, tempId: 40, number_of_pulls: 0, reserved_copies: 0 }]
+    expect(nextTempId(sheet)).toBe(41)
+  })
+
+  it('starts at 1 when nothing exists yet', () => {
+    expect(nextTempId([], [])).toBe(1)
+  })
+
+  // The reason this takes `prev` from inside a setState updater: staging two
+  // banners back to back must never mint the same id twice, since every staged
+  // handler selects its row by tempId.
+  it('keeps issuing distinct ids as rows accumulate', () => {
+    let staged: UserPlannedBanner[] = []
+    const sheet: UserPlannedBanner[] = [{ id: 2, number_of_pulls: 0, reserved_copies: 0 }]
+
+    for (let i = 0; i < 3; i++) {
+      staged = [...staged, { tempId: nextTempId(sheet, staged), number_of_pulls: 0, reserved_copies: 0 }]
+    }
+
+    expect(staged.map((b) => b.tempId)).toEqual([3, 4, 5])
   })
 })

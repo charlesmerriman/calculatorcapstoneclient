@@ -414,3 +414,24 @@ export function plannedBannerKey(
 	if (plannedBanner.banner_support) return bannerKey("Support", plannedBanner.banner_support.id)
 	return null
 }
+
+/**
+ * The next free `tempId` across every row the user holds — staged rows and
+ * sheet rows alike, since a staged row keeps its id when it moves to the sheet.
+ * Saved rows are counted by their server `id` for the same reason.
+ *
+ * Call this from *inside* a `setStagedBanners` updater, passing that updater's
+ * own `prev` list. Computing it from a render-scoped copy of the list can hand
+ * two rows the same id if two adds land before a re-render, and every staged
+ * handler — update, confirm, discard — selects its row by `tempId`, so a
+ * collision would silently edit or delete two rows at once.
+ */
+export function nextTempId(...bannerLists: UserPlannedBanner[][]): number {
+	let highest = 0
+	for (const list of bannerLists) {
+		for (const banner of list) {
+			highest = Math.max(highest, banner.tempId ?? banner.id ?? 0)
+		}
+	}
+	return highest + 1
+}
