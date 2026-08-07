@@ -97,6 +97,54 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
   return { inputs, setUserPlannedBannerData }
 }
 
+/**
+ * Renders a row with a given reserved count and the funding split the projection
+ * worked out for it, then returns every Reserved field on screen.
+ *
+ * `reservedFunding` is normally derived by allocateReservedCopies inside
+ * useBannerResources; it's injected directly here so each case can pin one
+ * funding outcome without standing up the whole projection.
+ */
+function renderReserved(
+  reservedCopies: number,
+  reservedFunding: { selectors: number; crystals: number; unfunded: number },
+  numberOfPulls = 0,
+) {
+  const planned: UserPlannedBanner = {
+    tempId: 1,
+    number_of_pulls: numberOfPulls,
+    reserved_copies: reservedCopies,
+    banner_uma: umaBanner,
+    initialBannerType: 'Uma',
+  }
+  const setUserPlannedBannerData = vi.fn()
+
+  render(
+    <BannerRow
+      plannedBanner={planned}
+      userPlannedBannerData={[planned]}
+      clubRankData={[]}
+      teamTrialsRankData={[]}
+      championsMeetingRankData={[]}
+      userStatsData={userStats}
+      umaBannerData={[umaBanner]}
+      supportBannerData={[]}
+      setUserPlannedBannerData={setUserPlannedBannerData}
+      resources={{
+        ...EMPTY_BANNER_RESOURCES,
+        maxPossiblePulls: 1_000,
+        reservedFunding,
+      }}
+      initialBannerType="Uma"
+    />,
+  )
+
+  const inputs = screen.getAllByRole('spinbutton', {
+    name: 'Copies obtained without pulling',
+  }) as HTMLInputElement[]
+  return { inputs, setUserPlannedBannerData }
+}
+
 /** The state class currently on the field, e.g. "over". */
 function statusOf(input: HTMLInputElement): string | undefined {
   return Array.from(input.classList)
@@ -165,5 +213,98 @@ describe('BannerRow — pull count status colouring', () => {
   it('does not mark an affordable count as invalid', () => {
     const { inputs } = renderRow(200, 1_000)
     inputs.forEach((input) => expect(input).toHaveAttribute('aria-invalid', 'false'))
+  })
+})
+
+describe('BannerRow — reserved copies', () => {
+  // The regression this suite exists for: the field shipped live on the mobile
+  // card while the desktop grid cell was still a disabled placeholder. Both
+  // layouts are in the DOM under jsdom (the switch between them is CSS-only), so
+  // a count below two means one of them has gone dead again.
+  it('renders an editable field in both layouts', () => {
+    const { inputs } = renderReserved(0, { selectors: 0, crystals: 0, unfunded: 0 })
+
+    expect(inputs.length).toBeGreaterThanOrEqual(2)
+    inputs.forEach((input) => expect(input).toBeEnabled())
+  })
+
+  it('marks a fully funded count as ok and shows the funding split', () => {
+    const { inputs } = renderReserved(3, { selectors: 2, crystals: 1, unfunded: 0 })
+
+    inputs.forEach((input) => {
+      expect(statusOf(input)).toBe('ok')
+      expect(input).toHaveAttribute('aria-invalid', 'false')
+    })
+    // Abbreviated to fit the 5rem track — full wording lives in the title.
+    expect(screen.getAllByText('2s 1c')).toHaveLength(inputs.length)
+  })
+
+  it('marks an under-funded count as over, and says so without relying on colour', () => {
+    const { inputs } = renderReserved(3, { selectors: 1, crystals: 0, unfunded: 2 })
+
+    inputs.forEach((input) => {
+      expect(statusOf(input)).toBe('over')
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(input).toHaveAttribute('title', expect.stringContaining('2 more copies'))
+    })
+    // Over-reserved rows swap the split for funded/asked-for.
+    expect(screen.getAllByText('1/3')).toHaveLength(inputs.length)
+  })
+
+  it('hides the funding hint when nothing is reserved', () => {
+    renderReserved(0, { selectors: 0, crystals: 0, unfunded: 0 })
+    expect(screen.queryByText('0s 0c')).toBeNull()
+  })
+
+  it('floors decimals and rejects negatives, and does not clamp to what is funded', () => {
+    const { inputs, setUserPlannedBannerData } = renderReserved(0, {
+      selectors: 0,
+      crystals: 0,
+      unfunded: 0,
+    })
+
+    fireEvent.change(inputs[0], { target: { value: '2.7' } })
+    expect(
+      (setUserPlannedBannerData.mock.calls[0][0] as UserPlannedBanner[])[0].reserved_copies,
+    ).toBe(2)
+
+    fireEvent.change(inputs[0], { target: { value: '-5' } })
+    expect(
+      (setUserPlannedBannerData.mock.calls[1][0] as UserPlannedBanner[])[0].reserved_copies,
+    ).toBe(0)
+
+    // Over-reserving is reported, not prevented — mirroring the pull-count field.
+    fireEvent.change(inputs[0], { target: { value: '99' } })
+    expect(
+      (setUserPlannedBannerData.mock.calls[2][0] as UserPlannedBanner[])[0].reserved_copies,
+    ).toBe(99)
+  })
+
+  // The other half of the same regression: the desktop MLBChanceDisplay was
+  // omitting reservedCopies, so reserved copies shifted the odds on a phone and
+  // did nothing in the table.
+  it('shifts the odds in every rendered chance display', () => {
+    renderReserved(5, { selectors: 5, crystals: 0, unfunded: 0 })
+
+    // With 0 pulls the distribution sits entirely on "None"; five certain copies
+    // push all of it onto the 5x cell. Asserting on the cell rather than a bare
+    // "100.0%" count pins WHERE the mass landed, and checking every rendered
+    // display catches one layout being wired while the other isn't.
+    const cells = screen.getAllByText('5x')
+    expect(cells.length).toBeGreaterThan(0)
+    cells.forEach((label) => expect(label.parentElement).toHaveTextContent('100.0%'))
+  })
+
+  it('credits only funded copies to the odds, never the unfunded ones', () => {
+    renderReserved(5, { selectors: 2, crystals: 0, unfunded: 3 })
+
+    // Two funded copies were paid for, so the certainty lands on 2x — not on the
+    // 5x the user asked for and can't afford.
+    screen
+      .getAllByText('2x')
+      .forEach((label) => expect(label.parentElement).toHaveTextContent('100.0%'))
+    screen
+      .getAllByText('5x')
+      .forEach((label) => expect(label.parentElement).toHaveTextContent('0.0%'))
   })
 })

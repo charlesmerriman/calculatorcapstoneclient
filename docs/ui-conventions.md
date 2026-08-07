@@ -153,6 +153,29 @@ compact gutter for `Start: 2026/12/31`.
 ~305px, so 14rem is already a deliberate squeeze, and it is also the only track that
 absorbs surplus width above the switch point.
 
+A track can also run out of room **vertically**. `BannerRow`'s Reserved cell is the one
+exception to the row's `py-2`: its `h-9` input plus the 10px funding hint need 50.5px and
+`py-2` leaves only 48px inside the `h-16` row, so it uses `py-1` for 56px. Don't normalise
+it back to match its neighbours — the hint clips. `StagedBannerRow`'s copy renders no hint
+and correctly keeps `py-2`.
+
+**Column labels may be icons instead of text.** Reserved is the first one: it shows the
+selector ticket (`/item_icon_00131.png`) and the SSR crystal (`/item_icon_00144.png`), the
+two resources `allocateReservedCopies` can spend. Game-resource icons are served from
+`public/` by root-absolute path with no import — the same convention `IncomeForm` uses for
+its Current Resources rows — and each carries a meaningful `alt`.
+
+An icon label must also keep a `sr-only` text label: a `title` on a `div` is not reliably
+announced, so without the span the column has no accessible name at all.
+
+Both come from `components/carat-calculator/ReservedColumnIcons.tsx`, which returns a
+fragment so each call site owns its wrapper, and exports `RESERVED_COLUMN_TITLE` so the
+tooltip wording stays one string. **A column label appears in three places** — the staging
+header, the sheet header (both in `CaratCalculator`) and the mobile card's cell label in
+`MobileBannerCard`. Changing only the headers leaves the phone showing the old text. Sizes
+differ deliberately: `w-5` in the headers against `text-xs`, `w-4` on the card where the
+neighbouring "Dates"/"Pulls" labels are 10px caps.
+
 ### Portaled `react-select` menus need `menuPosition="fixed"`
 
 Every select using `menuPortalTarget={document.body}` also sets `menuPosition="fixed"`.

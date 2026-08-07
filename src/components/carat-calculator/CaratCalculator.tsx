@@ -5,6 +5,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { BannerRow } from "./BannerRow"
 import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
+import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
 import { plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
@@ -118,6 +119,14 @@ export const CaratCalculator: React.FC = () => {
 	// so the user understands which section is which.
 	const showSectionLabels = stagedBanners.length > 0 && userPlannedBannerData.length > 0
 
+	// Icon-only header, shared by the staging and sheet header rows below so the
+	// two can't drift. Same icons the mobile card labels its Reserved cell with.
+	const reservedHeaderCell = (
+		<div className="flex items-center justify-center gap-1" title={RESERVED_COLUMN_TITLE}>
+			<ReservedColumnIcons />
+		</div>
+	)
+
 	return (
 		<div className="w-full bg-gray-900">
 			{/* The calculator gets a wider desktop canvas without changing Timeline's
@@ -178,9 +187,7 @@ export const CaratCalculator: React.FC = () => {
 												<div className="text-center">Start / End Date</div>
 												<div className="text-center">Confirm</div>
 												<div className="text-center"># Pulls</div>
-												<div className="text-center" title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling">
-													Reserved
-												</div>
+												{reservedHeaderCell}
 												<div className="text-center">% Chance to MLB (5x Copies)</div>
 												<div className="text-center"></div>
 											</div>
@@ -219,9 +226,7 @@ export const CaratCalculator: React.FC = () => {
 											<div className="text-center">Start / End Date</div>
 											<div className="text-center">Derived Stats (Auto-Calculated)</div>
 											<div className="text-center"># Pulls</div>
-											<div className="text-center" title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling">
-												Reserved
-											</div>
+											{reservedHeaderCell}
 											<div className="text-center">% Chance to MLB (5x Copies)</div>
 											<div className="text-center"></div>
 										</div>

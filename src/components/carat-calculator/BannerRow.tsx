@@ -419,12 +419,17 @@ export const BannerRow = ({
 			onChange={handlePullCountChange}
 		/>
 	)
-	const reservedInput = (
-		<div className="flex w-20 flex-col items-center gap-0.5">
+	// Parameterised by width rather than written out twice: the mobile card and
+	// the desktop cell differ only in how wide they are, and the five attributes
+	// that carry this field's state (status class, title, aria-label,
+	// aria-invalid, disabled) must never drift between the two copies. Same
+	// factory shape as renderBannerSelect above.
+	const renderReservedInput = (widthClass: string) => (
+		<div className={`flex ${widthClass} flex-col items-center gap-0.5`}>
 			<input
 				type="number"
 				value={plannedBanner.reserved_copies}
-				className={`spin-arrows pull-input pull-input--${reservedStatus} w-20`}
+				className={`spin-arrows pull-input pull-input--${reservedStatus} ${widthClass}`}
 				min={0}
 				title={reservedHint}
 				aria-label="Copies obtained without pulling"
@@ -461,7 +466,7 @@ export const BannerRow = ({
 			dates={dateDisplay}
 			summary={statsDisplay}
 			pullsInput={pullsInput}
-			reservedInput={reservedInput}
+			reservedInput={renderReservedInput("w-20")}
 			chanceDisplay={null}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
@@ -559,16 +564,15 @@ export const BannerRow = ({
 				/>
 			</div>
 
-			{/* === Reserved future input === */}
-			<div className="flex items-center justify-center py-2 px-1 relative">
+			{/* === Reserved copies === */}
+			{/* py-1, not the py-2 its neighbours use. The input (h-9) plus the
+			    funding hint below it need 50.5px, and py-2 leaves only 48px
+			    inside this h-16 row — the hint would clip. Widening the track
+			    instead is not an option; see the ceiling on
+			    --container-banner-table in frontend/docs/ui-conventions.md. */}
+			<div className="flex items-center justify-center py-1 px-1 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
-				<input
-					type="text"
-					disabled
-					placeholder="—"
-					aria-label="Reserved future banner input"
-					className="w-14 cursor-not-allowed rounded border border-dashed border-gray-600 bg-gray-900/50 py-1 text-center text-sm text-gray-500"
-				/>
+				{renderReservedInput("w-14")}
 			</div>
 
 			{/* === MLB chance grid === */}
@@ -577,6 +581,7 @@ export const BannerRow = ({
 					<MLBChanceDisplay
 						pulls={plannedBanner.number_of_pulls}
 						plannedBanner={plannedBanner}
+						reservedCopies={fundedReservedCopies}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { Trash2, X } from "lucide-react"
+import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 
 interface MobileBannerCardProps {
 	bannerType: "Uma" | "Support"
@@ -100,11 +101,14 @@ export const MobileBannerCard = ({
 						{pullsInput}
 					</div>
 					<div className="flex min-w-0 flex-col items-center justify-center px-2 py-2.5">
+						{/* Icons rather than the word, matching the desktop table header.
+						    w-4 here, not the header's w-5: these sit in a row of 10px
+						    caps labels ("Dates", "Pulls") and 20px would tower over them. */}
 						<div
-							className="mb-1 text-[10px] font-medium uppercase text-gray-500"
-							title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling"
+							className="mb-1 flex items-center justify-center gap-1"
+							title={RESERVED_COLUMN_TITLE}
 						>
-							Reserved
+							<ReservedColumnIcons size="w-4 h-4" />
 						</div>
 						{reservedInput}
 					</div>
