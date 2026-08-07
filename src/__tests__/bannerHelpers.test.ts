@@ -338,7 +338,7 @@ describe('allocateReservedCopies', () => {
   const base = {
     reservedCopies: 0,
     isUmaBanner: false,
-    newestFeaturedJpDate: OLD as string | null,
+    oldestFeaturedJpDate: OLD as string | null,
     umaSelectorTickets: [] as SelectorTicketBucket[],
     supportSelectorTickets: [] as SelectorTicketBucket[],
     ssrCrystals: 0,
@@ -365,7 +365,7 @@ describe('allocateReservedCopies', () => {
     const result = allocateReservedCopies({
       ...base,
       reservedCopies: 2,
-      newestFeaturedJpDate: NEW,
+      oldestFeaturedJpDate: NEW,
       supportSelectorTickets: [{ jpCutoff: '2024-01-31', count: 3 }],
       ssrCrystals: 5,
     })
@@ -424,7 +424,7 @@ describe('allocateReservedCopies', () => {
     const result = allocateReservedCopies({
       ...base,
       reservedCopies: 1,
-      newestFeaturedJpDate: null,
+      oldestFeaturedJpDate: null,
       supportSelectorTickets: [{ jpCutoff: '2024-01-31', count: 2 }],
     })
     expect(result.funding).toEqual({ selectors: 0, crystals: 0, unfunded: 1 })

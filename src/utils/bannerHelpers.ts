@@ -266,12 +266,19 @@ export interface ReservedCopiesInput {
 	reservedCopies: number
 	isUmaBanner: boolean
 	/**
-	 * Earliest JP appearance of the NEWEST featured card on this banner. A
-	 * selector must clear the newest to be able to guarantee whichever card the
-	 * user actually wants — we don't track which one, so this is the strict
-	 * reading. Null means unknown, which selectors refuse under a real cutoff.
+	 * JP release date of the OLDEST featured card on this banner — i.e. the
+	 * easiest one for a selector to reach.
+	 *
+	 * A selector needs to clear only ONE card here, not all of them: the ticket
+	 * takes a single card and the user picks which. Gating on the newest instead
+	 * meant a lone recent unit poisoned the whole banner — an 11-uma banner with
+	 * 8 cards inside the cutoff still read as unfundable because of the 9th.
+	 *
+	 * Cards with no known release date are excluded upstream rather than treated
+	 * as old, so they can neither qualify a banner nor block one. All-unknown
+	 * yields null, which selectors refuse under a real cutoff.
 	 */
-	newestFeaturedJpDate: string | null
+	oldestFeaturedJpDate: string | null
 	umaSelectorTickets: SelectorTicketBucket[]
 	supportSelectorTickets: SelectorTicketBucket[]
 	/** SSR crystals available. Support banners only — there is no uma crystal. */
@@ -319,7 +326,7 @@ export function allocateReservedCopies(
 	const { buckets, spent } = spendSelectorTickets(
 		pool,
 		wanted,
-		input.newestFeaturedJpDate
+		input.oldestFeaturedJpDate
 	)
 	result.funding.selectors = spent
 	if (input.isUmaBanner) {

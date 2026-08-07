@@ -286,6 +286,37 @@ export function useBannerResources({
 				})
 			: []
 
+		// Selector tickets from planned campaign purchases are banked UP FRONT,
+		// not credited into the window their campaign falls in — unlike the paid
+		// carats from the very same purchase, which stay window-gated below.
+		//
+		// The asymmetry is the point. Carats are spent during a banner, so
+		// December's carats genuinely cannot buy August's pulls. A selector is not
+		// spent at a banner at all: it picks a card out of the back catalogue, and
+		// a card stays in that catalogue after its banner ends. Someone planning a
+		// July banner around a selector they will hold in December is describing a
+		// real, achievable plan, and gating the ticket on the campaign's date
+		// refused it — with every campaign sitting in the future relative to a
+		// banner running now, that made selectors nearly unusable.
+		//
+		// What still constrains a ticket is its CUTOFF, carried into the bucket
+		// here: it can only ever take cards released on JP on or before that date.
+		// That is the real rule, and it does not depend on the calendar.
+		//
+		// Banking once, outside the walk, is also what keeps a ticket from being
+		// spent twice: the pool is decremented as the walk consumes it.
+		for (const credit of purchaseCredits) {
+			if (credit.productType === "uma_selector") {
+				umaSelectorTickets = addSelectorTickets(
+					umaSelectorTickets, credit.jpCutoff, credit.quantity
+				)
+			} else if (credit.productType === "support_selector") {
+				supportSelectorTickets = addSelectorTickets(
+					supportSelectorTickets, credit.jpCutoff, credit.quantity
+				)
+			}
+		}
+
 		// Same stable anchor drives the weekly-bonus pattern for every banner.
 		const referenceDate = today
 
@@ -427,22 +458,12 @@ export function useBannerResources({
 			// were bought — they land in the same pool the Daily Carat Pack's lump
 			// does and fund discounted pulls the same way.
 			//
-			// Selector tickets carry their product's cutoff into their own bucket,
-			// which is what later lets the reserved-copies allocator tell whether a
-			// given ticket can actually take a given banner's card.
+			// Carats only. Selector tickets are NOT credited per-window; they are
+			// seeded up front — see the fold above purchaseWalk for why.
 			for (const credit of purchaseCredits) {
 				if (credit.creditAt <= lastEndDate || credit.creditAt > endDate) continue
 				paidCarats += credit.paidCarats
 				usdSpent += credit.usd
-				if (credit.productType === "uma_selector") {
-					umaSelectorTickets = addSelectorTickets(
-						umaSelectorTickets, credit.jpCutoff, credit.quantity
-					)
-				} else if (credit.productType === "support_selector") {
-					supportSelectorTickets = addSelectorTickets(
-						supportSelectorTickets, credit.jpCutoff, credit.quantity
-					)
-				}
 			}
 
 			// Uncap shards and crystals over the same window. Shared with the
@@ -639,22 +660,29 @@ export function useBannerResources({
 			const featured = isUmaBanner
 				? banner.banner_uma?.umas ?? []
 				: banner.banner_support?.support_cards ?? []
-			// The NEWEST featured card sets the bar. A banner can feature more than
-			// one and we don't track which the user wants, so requiring the ticket
-			// to clear the newest guarantees it covers whichever they pick.
-			const newestFeaturedJpDate = featured.reduce<string | null>(
-				(newest, card) => {
-					if (!card.first_jp_date) return newest
-					return !newest || card.first_jp_date > newest
+			// The OLDEST featured card sets the bar, because a selector only has to
+			// reach ONE card on the banner — it takes a single card and the user
+			// picks which. Gating on the newest (as this once did) let a lone
+			// recent unit poison the whole banner: an 11-uma banner with 8 cards
+			// inside a selector's cutoff still read as unfundable.
+			//
+			// Cards with no known release date are skipped rather than treated as
+			// old, so an unknown can neither qualify a banner nor block one. A
+			// banner whose cards are all unknown yields null, which isCardEligible
+			// refuses under any real cutoff.
+			const oldestFeaturedJpDate = featured.reduce<string | null>(
+				(oldest, card) => {
+					if (!card.first_jp_date) return oldest
+					return !oldest || card.first_jp_date < oldest
 						? card.first_jp_date
-						: newest
+						: oldest
 				},
 				null
 			)
 			const reserved = allocateReservedCopies({
 				reservedCopies: banner.reserved_copies,
 				isUmaBanner,
-				newestFeaturedJpDate,
+				oldestFeaturedJpDate,
 				umaSelectorTickets,
 				supportSelectorTickets,
 				ssrCrystals,

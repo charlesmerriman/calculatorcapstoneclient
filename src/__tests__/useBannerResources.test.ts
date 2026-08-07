@@ -2396,6 +2396,43 @@ describe('useBannerResources', () => {
     const OLD_CARD = '2020-01-01T00:00:00Z'
     const NEW_CARD = '2030-01-01T00:00:00Z'
 
+    // A cutoff-bearing selector can only come from a campaign purchase —
+    // current holdings are always seeded as an unrestricted bucket, which would
+    // fund anything and so can't exercise the reach rule at all.
+    const CUTOFF = '2024-01-31'
+    const selectorCampaign = (
+      productType: AnniversaryEventProduct['product_type'],
+      startsIn = 1
+    ): AnniversaryEvent => ({
+      id: 1,
+      name: '3rd Anniversary',
+      event_type: 'anniversary',
+      jp_cutoff_date: CUTOFF,
+      image: null,
+      accent_label: '',
+      start_date: daysFromNow(startsIn),
+      end_date: daysFromNow(startsIn + 4),
+      is_predicted: false,
+      applied_offset_days: 0,
+      banner_parts: [],
+      products: [{
+        id: 1,
+        product_type: productType,
+        name: 'Selector',
+        usd_cost: 21,
+        paid_carat_amount: 0,
+        webstore_multiplier: 1,
+        max_quantity: 1,
+        jp_cutoff_date: CUTOFF,
+        jp_cutoff_date_override: null,
+        order: 0,
+      }],
+    })
+    const boughtSelector: UserPlannedPurchase[] = [{
+      id: 1, user: 1, product: 1, quantity: 1,
+      target_uma: null, target_support: null,
+    }]
+
     it('spends an SSR crystal on a support banner', () => {
       const { result } = renderHook(() =>
         useBannerResources({
@@ -2480,6 +2517,136 @@ describe('useBannerResources', () => {
         crystals: 1,
         unfunded: 3,
       })
+    })
+
+    // A selector takes ONE card and the user picks which, so it only has to
+    // reach one card on the banner. This gated on the NEWEST card until
+    // 2026-08, which meant a single recent unit made the whole banner read as
+    // unfundable — an 11-uma banner with 8 cards inside the cutoff still went
+    // red because of the 9th.
+    it('funds a multi-card banner when any one card clears the cutoff', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, include_purchases_in_projection: true },
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(30), 0, 0, {
+              reservedCopies: 1,
+              featuredJpDates: [NEW_CARD, OLD_CARD, NEW_CARD],
+            }),
+          ],
+          anniversaryEventData: [selectorCampaign('uma_selector')],
+          userPlannedPurchaseData: boughtSelector,
+        })
+      )
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 1,
+        crystals: 0,
+        unfunded: 0,
+      })
+    })
+
+    // A selector picks from the back catalogue, so it can still take a card
+    // whose banner has already ended. Gating the ticket on its campaign's date
+    // (as the credit loop once did, alongside the paid carats from the same
+    // purchase) refused every banner running before the first campaign, which
+    // in practice is most of the plan.
+    it('funds a banner that ends before the campaign granting the selector', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, include_purchases_in_projection: true },
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0, 0, {
+              reservedCopies: 1,
+              featuredJpDates: [OLD_CARD],
+            }),
+          ],
+          // Campaign lands well after the banner's window closes.
+          anniversaryEventData: [selectorCampaign('uma_selector', 120)],
+          userPlannedPurchaseData: boughtSelector,
+        })
+      )
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 1,
+        crystals: 0,
+        unfunded: 0,
+      })
+    })
+
+    it('still spends a selector only once across the whole plan', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, include_purchases_in_projection: true },
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(10), 0, 0, {
+              reservedCopies: 1,
+              featuredJpDates: [OLD_CARD],
+            }),
+            makeUmaBanner(2, daysFromNow(20), 0, 0, {
+              reservedCopies: 1,
+              featuredJpDates: [OLD_CARD],
+            }),
+          ],
+          anniversaryEventData: [selectorCampaign('uma_selector', 120)],
+          userPlannedPurchaseData: boughtSelector,
+        })
+      )
+      // One ticket bought, so the second banner goes unfunded — banking the
+      // pool up front must not turn into an unlimited supply.
+      expect(result.current[0].reservedFunding.selectors).toBe(1)
+      expect(result.current[1].reservedFunding).toEqual({
+        selectors: 0,
+        crystals: 0,
+        unfunded: 1,
+      })
+    })
+
+    it('still refuses a banner where no card clears the cutoff', () => {
+      const { result } = renderHook(() =>
+        useBannerResources({
+          ...noIncome,
+          userStatsData: { ...zeroStats, include_purchases_in_projection: true },
+          userPlannedBannerData: [
+            makeUmaBanner(1, daysFromNow(30), 0, 0, {
+              reservedCopies: 1,
+              featuredJpDates: [NEW_CARD, NEW_CARD],
+            }),
+          ],
+          anniversaryEventData: [selectorCampaign('uma_selector')],
+          userPlannedPurchaseData: boughtSelector,
+        })
+      )
+      expect(result.current[0].reservedFunding).toEqual({
+        selectors: 0,
+        crystals: 0,
+        unfunded: 1,
+      })
+    })
+
+    it('lets an unknown release date neither qualify nor block a banner', () => {
+      const withDates = (dates: (string | null)[]) =>
+        renderHook(() =>
+          useBannerResources({
+            ...noIncome,
+            userStatsData: { ...zeroStats, include_purchases_in_projection: true },
+            userPlannedBannerData: [
+              makeUmaBanner(1, daysFromNow(30), 0, 0, {
+                reservedCopies: 1,
+                featuredJpDates: dates,
+              }),
+            ],
+            anniversaryEventData: [selectorCampaign('uma_selector')],
+            userPlannedPurchaseData: boughtSelector,
+          })
+        ).result.current[0].reservedFunding
+
+      // Unknown is skipped, so the known-old card still qualifies the banner.
+      expect(withDates([null, OLD_CARD]).selectors).toBe(1)
+      // ...but an unknown can't stand in for one, so this stays refused.
+      expect(withDates([null, NEW_CARD]).unfunded).toBe(1)
+      expect(withDates([null, null]).unfunded).toBe(1)
     })
 
     it('carries the spend forward to later banners', () => {
