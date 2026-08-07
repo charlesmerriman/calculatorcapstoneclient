@@ -97,7 +97,7 @@ export const Selectors = () => {
 		}
 
 	return (
-		<div className="mx-2 my-3 flex flex-col gap-4 sm:mx-4">
+		<div className="mx-auto my-3 flex w-[calc(100%-1rem)] max-w-[96rem] flex-col gap-4 sm:w-[calc(100%-2rem)]">
 			<header className="flex flex-col gap-3">
 				<div>
 					<h1 className="flex items-center gap-2 text-xl font-bold text-brand">

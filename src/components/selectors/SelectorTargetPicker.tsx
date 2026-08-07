@@ -105,8 +105,8 @@ export const SelectorTargetPicker = ({
 	const cardSizeClass = isUma ? "h-28 w-28" : "h-28 w-[5.25rem]"
 
 	return (
-		<div className="flex min-w-0 items-start gap-2">
-			<div className="min-w-0 flex-1">
+		<div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,30rem)_minmax(10rem,1fr)]">
+			<div className="min-w-0">
 				<div className="flex min-w-0 gap-1">
 					<button
 						type="button"
@@ -138,17 +138,19 @@ export const SelectorTargetPicker = ({
 					)}
 				</div>
 			</div>
-			{selected && (
-				<img
-					src={selected.image}
-					alt={selected.label}
-					loading="lazy"
-					decoding="async"
-					className={`shrink-0 rounded-md border border-gray-600 bg-gray-700 object-contain shadow-sm ${
-						isUma ? "h-32 w-32" : "h-32 w-24"
-					}`}
-				/>
-			)}
+			<div className="flex min-h-32 items-center justify-center rounded-md border border-gray-700 bg-gray-900/35">
+				{selected && (
+					<img
+						src={selected.image}
+						alt={selected.label}
+						loading="lazy"
+						decoding="async"
+						className={`rounded-md border border-gray-600 bg-gray-700 object-contain shadow-sm ${
+							isUma ? "h-32 w-32" : "h-32 w-24"
+						}`}
+					/>
+				)}
+			</div>
 
 			{isOpen && createPortal(
 				<div

@@ -119,11 +119,6 @@ export const CampaignCard = ({
 										<span className="min-w-0 flex-1 truncate text-sm text-gray-200">
 											{line.product.name}
 										</span>
-										<span className="shrink-0 text-xs text-gray-400">
-											{line.product.usd_cost > 0
-												? formatUsd(line.product.usd_cost)
-												: "Free"}
-										</span>
 									</div>
 									{line.quantity > 0 && (
 										<div className="mt-2">
