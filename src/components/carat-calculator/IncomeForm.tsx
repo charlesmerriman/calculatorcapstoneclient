@@ -502,25 +502,6 @@ export const IncomeForm = () => {
 									value={userStatsData.sr_shards}
 									onChange={(v) => setUserStatsData({ ...userStatsData, sr_shards: v })}
 								/>
-								{/* Selectors you ALREADY hold, as opposed to the ones the Selectors
-								    page projects you buying at a future campaign. The difference is
-								    when they exist: a campaign selector is credited at that
-								    campaign's start and so can't pay for any banner before it,
-								    while these are available from the start of the projection.
-								    They also carry no cutoff, so they reach any card — we don't
-								    know which campaign granted them. See useBannerResources. */}
-								<ResourceRow
-									icon={<img src="/item_icon_00114.png" alt="Uma Selectors" className="w-8 h-8 object-contain" />}
-									label="Uma Selectors"
-									value={userStatsData.uma_selector_ticket}
-									onChange={(v) => setUserStatsData({ ...userStatsData, uma_selector_ticket: v })}
-								/>
-								<ResourceRow
-									icon={<img src="/item_icon_00131.png" alt="Support Selectors" className="w-8 h-8 object-contain" />}
-									label="Support Selectors"
-									value={userStatsData.support_selector_ticket}
-									onChange={(v) => setUserStatsData({ ...userStatsData, support_selector_ticket: v })}
-								/>
 							</div>
 						</div>
 					</div>
