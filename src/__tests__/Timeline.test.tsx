@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { BannerTimelineForViewing } from '../types'
 
 /**
@@ -68,13 +68,14 @@ const TOTAL_EVENTS = 25
  * string is exactly one per card — which is what the card counting below uses.
  * Dates are in 2099 so every event survives the default current/future filter.
  */
-const events: BannerTimelineForViewing[] = Array.from(
+const BASE_EVENTS: BannerTimelineForViewing[] = Array.from(
   { length: TOTAL_EVENTS },
   (_, i) => {
     const day = String(i + 1).padStart(2, '0')
     return {
       id: i + 1,
       name: `Window ${day}`,
+      banner_category: 'standard',
       event_type: 'banner_timeline',
       start_date: `2099-01-${day}T22:00:00Z`,
       end_date: `2099-02-${day}T21:59:59Z`,
@@ -93,6 +94,31 @@ const events: BannerTimelineForViewing[] = Array.from(
     }
   },
 )
+
+/**
+ * What the mocked context serves. Reassignable so a test can swap in a smaller,
+ * purpose-built dataset — the mock factory below reads this at render time, not
+ * at module load, so a reassignment before `render` takes effect. Restored in
+ * an afterEach so it can't leak between suites.
+ */
+let events: BannerTimelineForViewing[] = BASE_EVENTS
+
+/** A banner window built off the base fixture, with only the dates that matter. */
+function windowAt(
+  id: number,
+  start: string,
+  end: string,
+): BannerTimelineForViewing {
+  return {
+    ...BASE_EVENTS[0],
+    id,
+    name: `Window ${id}`,
+    start_date: start,
+    end_date: end,
+    global_start_date: start,
+    global_end_date: end,
+  }
+}
 
 vi.mock('../services/CalculatorContext', () => ({
   useCalculatorData: () => ({
@@ -132,6 +158,10 @@ beforeEach(() => {
   // forward leaks its position into every test that renders afterwards.
   sessionStorage.clear()
   resetObservers()
+})
+
+afterEach(() => {
+  events = BASE_EVENTS
 })
 
 describe('Timeline infinite scroll', () => {
@@ -298,5 +328,78 @@ describe('Timeline date formatting', () => {
     const expected = `${start.getFullYear()}/${start.getMonth() + 1}/${start.getDate()} through ${end.getFullYear()}/${end.getMonth() + 1}/${end.getDate()}`
 
     expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+})
+
+/**
+ * The grouping rule itself is covered in timelineShared.test.ts. What matters
+ * here is that the list actually renders a group as ONE card — the counts, the
+ * paging and the "showing X of Y" indicator all measure rows, not raw events.
+ */
+describe('Timeline concurrent banners', () => {
+  /** One per rendered card — the date header appears exactly once per card. */
+  function headerCount(): number {
+    return screen.getAllByText(/ through /).length
+  }
+
+  it('renders two banners opening at the same moment as a single card', () => {
+    events = [
+      windowAt(1, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
+      windowAt(2, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
+    ]
+    render(<Timeline />)
+
+    expect(headerCount()).toBe(1)
+    // Both banners still render their own panels and their own add buttons
+    // inside that one card — they are separate gacha pools.
+    expect(cardCount()).toBe(2)
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 of 1')
+  })
+
+  it('shows the union window, and flags the banner that runs longer', () => {
+    // The real 2025 Golden Week shape: the revival outlasts the standard banner
+    // it opened alongside.
+    events = [
+      windowAt(1, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
+      windowAt(2, '2099-03-01T22:00:00Z', '2099-03-17T21:59:59Z'),
+    ]
+    render(<Timeline />)
+
+    const start = new Date('2099-03-01T22:00:00Z')
+    const unionEnd = new Date('2099-03-17T21:59:59Z')
+    const shortEnd = new Date('2099-03-08T21:59:59Z')
+    const fmt = (d: Date) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+
+    // Header covers the whole window...
+    expect(
+      screen.getByText(`${fmt(start)} through ${fmt(unionEnd)}`),
+    ).toBeInTheDocument()
+    // ...and the shorter banner says when it actually stops, so the header
+    // can't imply you have until the 17th to pull on it.
+    expect(
+      screen.getByText(`This banner ends ${fmt(shortEnd)}`),
+    ).toBeInTheDocument()
+  })
+
+  it('says nothing extra when both banners share an end date', () => {
+    events = [
+      windowAt(1, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
+      windowAt(2, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
+    ]
+    render(<Timeline />)
+
+    expect(screen.queryByText(/This banner ends/)).not.toBeInTheDocument()
+  })
+
+  it('never groups across the past/future boundary', () => {
+    // Same start date, but one has already ended. Grouping runs after the
+    // filter, so the ended banner must not be dragged into the current view.
+    const past = windowAt(1, '2099-03-01T22:00:00Z', '2000-01-01T00:00:00Z')
+    const future = windowAt(2, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z')
+    events = [past, future]
+    render(<Timeline />)
+
+    expect(headerCount()).toBe(1)
+    expect(cardCount()).toBe(1)
   })
 })

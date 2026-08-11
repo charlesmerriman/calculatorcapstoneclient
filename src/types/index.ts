@@ -15,6 +15,7 @@
 
 export type {
 	BannerTimeline,
+	BannerCategory,
 	Uma,
 	SupportCard,
 	BannerUma,
