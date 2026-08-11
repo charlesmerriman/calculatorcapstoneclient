@@ -140,12 +140,14 @@ export const WHITE_DAY_DAY = 14
 /**
  * Days an event's `end_date` trails its banner's own end date.
  *
- * MUST match `GAME_EVENT_END_DATE_BUFFER` in `calculatorapi/predictions.py` —
- * the API adds this padding when it resolves an event's dates, and the
- * throughout curve has to strip it back off to recover the banner window. The
- * API does not serialise the banner's dates on the event, which is the only
- * reason this is duplicated here; if that ever changes, read them directly and
- * delete this.
+ * LEGACY ENGINE ONLY. It used this to strip the API's padding back off and
+ * recover the banner window the throughout curve runs over. The ledger engine
+ * doesn't need it: `income_ledger` serves `throughout_end` with the buffer
+ * already removed, and the live value is admin-editable
+ * (`CalculationConstants.game_event_end_buffer_days`) rather than duplicated
+ * across two repositories.
+ *
+ * Delete this with `useBannerResources`.
  */
 export const GAME_EVENT_END_DATE_BUFFER_DAYS = 4
 
