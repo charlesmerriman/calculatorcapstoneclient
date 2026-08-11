@@ -34,8 +34,27 @@ import {
 	sumRemainingThroughoutCarats,
 	getTrainingPassIncome,
 } from "../utils/incomeCalculationUtils"
+import {
+	cumulativeClubRankCarats,
+	cumulativeDailyCarats,
+	cumulativeDailyCaratPack,
+	cumulativeLoginAndGiftCarats,
+	cumulativeMiscEarningsCarats,
+	cumulativeMonthlyShopTickets,
+	cumulativeTeamTrialsCarats,
+	cumulativeTrainingPassIncome,
+} from "../utils/cumulativeIncome"
+import {
+	countRaceEvents,
+	cumulativeEventRewards,
+	cumulativeThroughoutCarats,
+	parseLedger,
+} from "../utils/incomeLedger"
+import { startOfUtcDay } from "../utils/utcDates"
+import type { CalculationConstants } from "../types/constants"
 import type {
 	UserStats,
+	IncomeLedgerRow,
 	ClubRank,
 	TeamTrialsRank,
 	ChampionsMeetingRank,
@@ -62,6 +81,16 @@ interface AverageMonthlyIncomeParams {
 	gameEventsData: GameEvent[]
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]
+}
+
+interface AverageMonthlyIncomeV2Params {
+	userStatsData: UserStats | null
+	clubRankData: ClubRank[]
+	teamTrialsRankData: TeamTrialsRank[]
+	championsMeetingRankData: ChampionsMeetingRank[]
+	leagueOfHeroesRankData: LeagueOfHeroesRank[]
+	incomeLedger: IncomeLedgerRow[]
+	constants: CalculationConstants
 }
 
 const WINDOW_MONTHS = 5
@@ -228,5 +257,134 @@ export function useAverageMonthlyIncome({
 		leagueOfHeroesRankData,
 		teamTrialsRankData,
 		userStatsData,
+	])
+}
+
+// ── Ledger-engine version ────────────────────────────────────────────────────
+
+/**
+ * The same figure, computed by the ledger engine.
+ *
+ * Kept in this file rather than its own so the two views of the same
+ * calculation sit next to each other. They MUST agree: this drives the "Income
+ * & Resources" tiles while useBannerResources drives the rows below them, and a
+ * user comparing the two immediately sees any disagreement. Deleting the
+ * function above is a single edit once the legacy engine goes.
+ *
+ * Note how much smaller it is. Every income source here is a cumulative total
+ * from today to one fixed end date, which is exactly what the per-banner engine
+ * asks for at each banner — so this is now one call to the same primitives
+ * rather than a parallel re-implementation of every income rule. That
+ * duplication was the reason the two hooks could silently drift, and the reason
+ * a maintenance rule existed telling you to mirror every new income source into
+ * both.
+ *
+ * Campaign purchases stay excluded, deliberately: they are one-off, and
+ * averaging them across five months would report a recurring income nobody
+ * earns.
+ */
+export function useAverageMonthlyIncomeV2({
+	userStatsData,
+	clubRankData,
+	teamTrialsRankData,
+	championsMeetingRankData,
+	leagueOfHeroesRankData,
+	incomeLedger,
+	constants,
+}: AverageMonthlyIncomeV2Params): AverageMonthlyIncome {
+	return useMemo(() => {
+		const zero = { carats: 0, umaTickets: 0, supportTickets: 0, ssrShards: 0, srShards: 0 }
+		if (!userStatsData) return zero
+
+		const now = new Date()
+		const today = startOfUtcDay(now)
+		// Date.UTC rolls a month overflow forward, so this is the same calendar
+		// day five months out without needing a clamp.
+		const end = new Date(
+			Date.UTC(
+				today.getUTCFullYear(),
+				today.getUTCMonth() + WINDOW_MONTHS,
+				today.getUTCDate()
+			)
+		)
+
+		const ledger = parseLedger(incomeLedger)
+		const clubRank = clubRankData.find((r) => r.id === userStatsData.club_rank)
+		const teamTrialsRank = teamTrialsRankData.find(
+			(r) => r.id === userStatsData.team_trials_rank
+		)
+		const cmRank = championsMeetingRankData.find(
+			(r) => r.id === userStatsData.champions_meeting_rank
+		)
+		const lohRank = leagueOfHeroesRankData.find(
+			(r) => r.id === userStatsData.league_of_heroes_rank
+		)
+
+		const events = cumulativeEventRewards(ledger, now, end)
+		const cmCount = countRaceEvents(ledger, "champions_meeting", today, end)
+		const lohCount = countRaceEvents(ledger, "league_of_heroes", today, end)
+		const pack = userStatsData.daily_carat
+			? cumulativeDailyCaratPack(today, end, constants)
+			: { freeCarats: 0, paidCarats: 0 }
+		const pass = cumulativeTrainingPassIncome(
+			today, end, userStatsData.training_pass, constants
+		)
+		const shop = userStatsData.monthly_shop_tickets
+			? cumulativeMonthlyShopTickets(today, end, constants)
+			: { umaTickets: 0, supportTickets: 0 }
+
+		// One combined carat figure here, unlike the per-banner projection: the
+		// free/paid split only matters where the two balances buy pulls at
+		// different prices.
+		const carats =
+			events.carats +
+			cumulativeThroughoutCarats(ledger, now, end, constants) +
+			cmCount * (cmRank?.income_amount ?? 0) +
+			lohCount * (lohRank?.income_amount ?? 0) +
+			cumulativeDailyCarats(today, end, constants) +
+			cumulativeTeamTrialsCarats(today, end, teamTrialsRank?.income_amount ?? 0) +
+			cumulativeClubRankCarats(today, end, clubRank?.income_amount ?? 0) +
+			cumulativeLoginAndGiftCarats(today, end, constants) +
+			(userStatsData.misc_earnings
+				? cumulativeMiscEarningsCarats(today, end, constants)
+				: 0) +
+			pack.freeCarats + pack.paidCarats +
+			pass.freeCarats + pass.paidCarats
+
+		const umaTickets =
+			events.umaTickets +
+			cmCount * (cmRank?.uma_ticket_amount ?? 0) +
+			lohCount * (lohRank?.uma_ticket_amount ?? 0) +
+			shop.umaTickets + pass.umaTickets
+		const supportTickets =
+			events.supportTickets +
+			cmCount * (cmRank?.support_ticket_amount ?? 0) +
+			lohCount * (lohRank?.support_ticket_amount ?? 0) +
+			shop.supportTickets + pass.supportTickets
+
+		const ssrShards =
+			events.ssrShards +
+			cmCount * (cmRank?.ssr_shard_amount ?? 0) +
+			lohCount * (lohRank?.ssr_shard_amount ?? 0)
+		const srShards =
+			events.srShards +
+			cmCount * (cmRank?.sr_shard_amount ?? 0) +
+			lohCount * (lohRank?.sr_shard_amount ?? 0)
+
+		return {
+			carats: Math.round(carats / WINDOW_MONTHS),
+			umaTickets: Math.round(umaTickets / WINDOW_MONTHS),
+			supportTickets: Math.round(supportTickets / WINDOW_MONTHS),
+			ssrShards: Math.round(ssrShards / WINDOW_MONTHS),
+			srShards: Math.round(srShards / WINDOW_MONTHS),
+		}
+	}, [
+		userStatsData,
+		clubRankData,
+		teamTrialsRankData,
+		championsMeetingRankData,
+		leagueOfHeroesRankData,
+		incomeLedger,
+		constants,
 	])
 }

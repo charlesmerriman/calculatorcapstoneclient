@@ -4,7 +4,11 @@ import Select from "react-select"
 import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select"
 import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Carrot, Dumbbell, Ticket, Star, Sparkles, ChevronDown } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
+import {
+	useAverageMonthlyIncome,
+	useAverageMonthlyIncomeV2,
+} from "../../hooks/useAverageMonthlyIncome"
+import { USE_INCOME_ENGINE_V2 } from "../../config/featureFlags"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
 import { ToggleSwitch } from "../ToggleSwitch"
 import type { ClubRank, TeamTrialsRank, ChampionsMeetingRank, LeagueOfHeroesRank } from "../../types"
@@ -100,10 +104,15 @@ export const IncomeForm = () => {
 		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
+		incomeLedger,
+		calculationConstants,
 		setUserStatsData,
 	} = useCalculatorData()
 
-	const monthlyStats = useAverageMonthlyIncome({
+	// These tiles must agree with the banner rows below them, so they follow the
+	// same engine flag. Hooks can't be called conditionally, so both run and one
+	// result is picked. See config/featureFlags.ts for the removal condition.
+	const legacyMonthlyStats = useAverageMonthlyIncome({
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,
@@ -113,6 +122,16 @@ export const IncomeForm = () => {
 		championsMeetingData,
 		leagueOfHeroesData,
 	})
+	const ledgerMonthlyStats = useAverageMonthlyIncomeV2({
+		userStatsData,
+		clubRankData,
+		teamTrialsRankData,
+		championsMeetingRankData,
+		leagueOfHeroesRankData,
+		incomeLedger,
+		constants: calculationConstants,
+	})
+	const monthlyStats = USE_INCOME_ENGINE_V2 ? ledgerMonthlyStats : legacyMonthlyStats
 
 	// Open by default on desktop, collapsed on mobile — this panel is roughly a
 	// screen and a half tall on a phone, and the banner sheet below it is what

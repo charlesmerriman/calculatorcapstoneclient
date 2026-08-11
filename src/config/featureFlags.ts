@@ -7,17 +7,22 @@
  */
 
 /**
- * Use the ledger-based income engine (`useBannerResourcesV2`) instead of the
- * original windowed walk (`useBannerResources`).
+ * Use the ledger-based income engine instead of the original windowed walk.
  *
- * Both engines ship while the sheet-parity harness is being built, so the two
- * can be compared against the same saved plan. REMOVE THIS — along with
- * `useBannerResources`, the window-occurrence helpers in
- * `utils/incomeCalculationUtils.ts`, and this file's only entry — once the
- * harness is green and v2 is the only engine.
+ * Selects between `useBannerResources` / `useAverageMonthlyIncome` (legacy) and
+ * `useBannerResourcesV2` / `useAverageMonthlyIncomeV2` (ledger). Both are picked
+ * by the SAME flag on purpose: the per-banner rows and the "Income & Resources"
+ * tiles above them must never disagree, and a user comparing the two would spot
+ * it instantly.
  *
- * Off by default: enabling it moves everyone's numbers (see the UTC migration
- * and the parity constants), so it stays opt-in until it is verified.
+ * ON by default. Set `VITE_INCOME_ENGINE_V2=false` to fall back to the legacy
+ * engine — that escape hatch is the only reason the old code still ships.
+ *
+ * REMOVE THIS, along with the legacy hooks and the window-occurrence helpers in
+ * `utils/incomeCalculationUtils.ts`, once the ledger engine has run in
+ * production long enough to trust. Note the legacy engine's ~110 tests in
+ * `useBannerResources.test.ts` go with it — until then they still guard shipping
+ * code and should not be deleted.
  */
 export const USE_INCOME_ENGINE_V2 =
-	import.meta.env.VITE_INCOME_ENGINE_V2 === "true"
+	import.meta.env.VITE_INCOME_ENGINE_V2 !== "false"
