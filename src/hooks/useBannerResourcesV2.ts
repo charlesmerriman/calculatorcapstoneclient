@@ -27,7 +27,6 @@
  */
 
 import { useMemo } from "react"
-import { SHARDS_PER_CRYSTAL } from "../constants/gameConstants"
 import {
 	cumulativeClubRankCarats,
 	cumulativeDailyCarats,
@@ -61,6 +60,7 @@ import type {
 	UserPlannedPurchase,
 	IncomeLedgerRow,
 } from "../types"
+import type { CalculationConstants } from "../types/constants"
 
 interface BannerResourcesV2Params {
 	userStatsData: UserStats | null
@@ -72,6 +72,8 @@ interface BannerResourcesV2Params {
 	anniversaryEventData: AnniversaryEvent[]
 	userPlannedPurchaseData: UserPlannedPurchase[]
 	incomeLedger: IncomeLedgerRow[]
+	/** Admin-editable tunables, already overlaid on DEFAULT_CONSTANTS. */
+	constants: CalculationConstants
 }
 
 /** Running total of what the banners resolving before this one committed. */
@@ -93,6 +95,7 @@ export function useBannerResourcesV2({
 	anniversaryEventData,
 	userPlannedPurchaseData,
 	incomeLedger,
+	constants,
 }: BannerResourcesV2Params): BannerResources[] {
 	return useMemo(() => {
 		if (!userStatsData) return []
@@ -188,26 +191,26 @@ export function useBannerResourcesV2({
 			const cmCount = countRaceEvents(ledger, "champions_meeting", today, end)
 			const lohCount = countRaceEvents(ledger, "league_of_heroes", today, end)
 			const pack = userStatsData.daily_carat
-				? cumulativeDailyCaratPack(today, end)
+				? cumulativeDailyCaratPack(today, end, constants)
 				: { freeCarats: 0, paidCarats: 0 }
 			const pass = cumulativeTrainingPassIncome(
-				today, end, userStatsData.training_pass
+				today, end, userStatsData.training_pass, constants
 			)
 			const shop = userStatsData.monthly_shop_tickets
-				? cumulativeMonthlyShopTickets(today, end)
+				? cumulativeMonthlyShopTickets(today, end, constants)
 				: { umaTickets: 0, supportTickets: 0 }
 
 			const freeCarats =
 				events.carats +
-				cumulativeThroughoutCarats(ledger, now, end) +
+				cumulativeThroughoutCarats(ledger, now, end, constants) +
 				cmCount * (championsMeetingRank?.income_amount ?? 0) +
 				lohCount * (leagueOfHeroesRank?.income_amount ?? 0) +
-				cumulativeDailyCarats(today, end) +
+				cumulativeDailyCarats(today, end, constants) +
 				cumulativeTeamTrialsCarats(today, end, teamTrialsRank?.income_amount ?? 0) +
 				cumulativeClubRankCarats(today, end, clubRank?.income_amount ?? 0) +
-				cumulativeLoginAndGiftCarats(today, end) +
+				cumulativeLoginAndGiftCarats(today, end, constants) +
 				(userStatsData.misc_earnings
-					? cumulativeMiscEarningsCarats(today, end)
+					? cumulativeMiscEarningsCarats(today, end, constants)
 					: 0) +
 				pack.freeCarats +
 				pass.freeCarats
@@ -313,11 +316,11 @@ export function useBannerResourcesV2({
 			// Shards roll into crystals at this checkpoint, not once at the end,
 			// so the crystals are spendable on THIS banner's reserved copies.
 			const totalShards = (userStatsData.ssr_shards || 0) + income.ssrShards
-			const ssrShards = totalShards % SHARDS_PER_CRYSTAL
+			const ssrShards = totalShards % constants.shards_per_crystal
 			const ssrCrystals =
 				(userStatsData.ssr_crystals || 0) +
 				income.ssrCrystals +
-				Math.floor(totalShards / SHARDS_PER_CRYSTAL) -
+				Math.floor(totalShards / constants.shards_per_crystal) -
 				spent.ssrCrystals
 
 			// Discounted pulls are once per day, capped by the banner's OWN
@@ -410,5 +413,6 @@ export function useBannerResourcesV2({
 		anniversaryEventData,
 		userPlannedPurchaseData,
 		incomeLedger,
+		constants,
 	])
 }

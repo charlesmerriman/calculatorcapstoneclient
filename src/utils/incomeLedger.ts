@@ -15,13 +15,9 @@
  * load-bearing.
  */
 
-import { THROUGHOUT_END_OFFSET_DAYS, THROUGHOUT_FILTER_GRACE_DAYS } from "../constants/gameConstants"
+import type { CalculationConstants } from "../types/constants"
 import type { IncomeLedgerRow, LedgerRowKind, ParsedLedgerRow } from "../types/ledger"
 import { addUtcDays, ceilToTen, startOfUtcDay, utcDaysBetween } from "./utcDates"
-
-const THROUGHOUT_DECAY_K = 2 // steepness of the early exponential leg
-const THROUGHOUT_DECAY_LINEAR_SLOPE = 0.8 // slope of the linear fallback leg
-const E_NEG_K = Math.exp(-THROUGHOUT_DECAY_K)
 
 /**
  * Parse each row's dates once.
@@ -145,16 +141,20 @@ export function countRaceEvents(
  * the banner starts both legs exceed 1 so MIN caps at 1 (nothing collected yet),
  * after it both go negative so MAX floors at 0 (pool exhausted).
  *
- * The curve runs over the BANNER's span shortened by THROUGHOUT_END_OFFSET_DAYS.
+ * The curve runs over the BANNER's span shortened by `throughout_end_offset_days`.
  * `throughout_end` already arrives as the banner's end rather than the event's
  * padded one — the backend strips that buffer, so there is no constant to keep
  * in sync here any more.
  */
-function remainingThroughoutForRow(row: ParsedLedgerRow, now: Date): number {
+function remainingThroughoutForRow(
+	row: ParsedLedgerRow,
+	now: Date,
+	k: CalculationConstants
+): number {
 	if (!row.carats_throughout || !row.parsedThroughoutEnd) return 0
 
 	const bannerStart = row.parsedDate
-	const curveEnd = addUtcDays(row.parsedThroughoutEnd, -THROUGHOUT_END_OFFSET_DAYS)
+	const curveEnd = addUtcDays(row.parsedThroughoutEnd, -k.throughout_end_offset_days)
 
 	const span = utcDaysBetween(bannerStart, curveEnd)
 	// A banner shorter than the trim has no curve to walk; treat it as spent
@@ -162,14 +162,15 @@ function remainingThroughoutForRow(row: ParsedLedgerRow, now: Date): number {
 	if (span <= 0) return 0
 
 	const fraction = Math.min(Math.max(utcDaysBetween(bannerStart, now) / span, 0), 1)
+	const eNegK = Math.exp(-k.throughout_decay_k)
 	const exponential =
-		(Math.exp(-THROUGHOUT_DECAY_K * fraction) - E_NEG_K) / (1 - E_NEG_K)
+		(Math.exp(-k.throughout_decay_k * fraction) - eNegK) / (1 - eNegK)
 	const linear = 1 - fraction
 
 	const share = Math.max(
 		0,
 		Math.min(1, exponential),
-		Math.min(1, linear * THROUGHOUT_DECAY_LINEAR_SLOPE)
+		Math.min(1, linear * k.throughout_decay_linear_slope)
 	)
 
 	return ceilToTen(share * row.carats_throughout)
@@ -183,7 +184,7 @@ function remainingThroughoutForRow(row: ParsedLedgerRow, now: Date): number {
  * An event qualifies when both hold:
  *   - its banner has not already finished (`bannerEnd >= now`) — carats from a
  *     closed banner are gone, not bankable;
- *   - its banner ends within THROUGHOUT_FILTER_GRACE_DAYS after `end`.
+ *   - its banner ends within `throughout_filter_grace_days` after `end`.
  *
  * There is deliberately no exclusion for banners already running: any number can
  * be in flight at once and all of them count, each contributing only what it has
@@ -192,15 +193,16 @@ function remainingThroughoutForRow(row: ParsedLedgerRow, now: Date): number {
 export function cumulativeThroughoutCarats(
 	ledger: ParsedLedgerRow[],
 	now: Date,
-	end: Date
+	end: Date,
+	k: CalculationConstants
 ): number {
 	let total = 0
 	for (const row of ledger) {
 		const bannerEnd = row.parsedThroughoutEnd
 		if (!row.carats_throughout || !bannerEnd) continue
 		if (bannerEnd < now) continue
-		if (addUtcDays(bannerEnd, -THROUGHOUT_FILTER_GRACE_DAYS) > end) continue
-		total += remainingThroughoutForRow(row, now)
+		if (addUtcDays(bannerEnd, -k.throughout_filter_grace_days) > end) continue
+		total += remainingThroughoutForRow(row, now, k)
 	}
 	return total
 }

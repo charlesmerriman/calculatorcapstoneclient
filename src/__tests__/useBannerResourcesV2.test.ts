@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useBannerResourcesV2 } from '../hooks/useBannerResourcesV2'
-import { PULL_COST_CARATS } from '../constants/gameConstants'
+import { PULL_COST_CARATS, DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import type {
   UserStats,
   ClubRank,
@@ -67,6 +67,7 @@ const noIncome = {
   anniversaryEventData: [] as AnniversaryEvent[],
   userPlannedPurchaseData: [] as UserPlannedPurchase[],
   incomeLedger: [] as IncomeLedgerRow[],
+  constants: DEFAULT_CONSTANTS,
 }
 
 function timeline(id: number, startDay: number, endDay: number): BannerTimeline {

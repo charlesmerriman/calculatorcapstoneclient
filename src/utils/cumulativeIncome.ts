@@ -22,36 +22,13 @@
  * All arithmetic is UTC (see ./utcDates). `today` is midnight UTC; `now` is the
  * live instant, and the two are NOT interchangeable — the sheet uses `$AG$3`
  * (TODAY) for span measures and `$AG$2` (NOW) for the event filters.
+ *
+ * Every function takes the constants as its last argument rather than importing
+ * them: they are admin-editable and arrive with the API response, so a module
+ * import would freeze them at build time.
  */
 
-import {
-	DAILY_BASE_CARATS,
-	WEEKDAY_BONUS_CARATS,
-	WEEKEND_BONUS_CARATS,
-	DAILY_CARAT_PACK_PER_DAY,
-	DAILY_CARAT_PACK_PAID_CARATS,
-	DAILY_CARAT_PACK_CYCLE_DAYS,
-	MISC_EARNINGS_PER_DAY,
-	MISC_EARNINGS_DELAY_DAYS,
-	FIFTY_DAY_LOGIN_PER_CYCLE,
-	FIFTY_DAY_LOGIN_CYCLE_DAYS,
-	VALENTINES_CARATS,
-	VALENTINES_MONTH,
-	VALENTINES_DAY,
-	WHITE_DAY_CARATS,
-	WHITE_DAY_MONTH,
-	WHITE_DAY_DAY,
-	MONTHLY_SHOP_UMA_TICKETS,
-	MONTHLY_SHOP_SUPPORT_TICKETS,
-	TRAINING_PASS_START_DATE,
-	TRAINING_PASS_MONTHLY_FREE_CARATS,
-	TRAINING_PASS_MONTHLY_PAID_CARATS,
-	TRAINING_PASS_FREE_UMA_TICKETS,
-	TRAINING_PASS_FREE_SUPPORT_TICKETS,
-	TRAINING_PASS_PAID_BONUS_UMA_TICKETS,
-	TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS,
-	MONTHLY_BASE_REWARD,
-} from "../constants/gameConstants"
+import type { CalculationConstants } from "../types/constants"
 import {
 	addUtcDays,
 	ceilToTen,
@@ -68,30 +45,26 @@ import {
  * single BLENDED rate — the sheet's `75 + 150/7` (cell AN42, Global branch).
  *
  * The old engine walked each day and added the bonus on the specific weekdays it
- * fell on, phased off `today`. Same long-run rate (the four bonuses total 150 a
- * week either way), but a different figure for any given banner, and it made
- * every estimate depend on which weekday the user happened to open the page.
- * The sheet smears it, so we smear it.
+ * fell on, phased off `today`. Same long-run rate (the bonuses total 150 a week
+ * either way), but a different figure for any given banner, and it made every
+ * estimate depend on which weekday the user happened to open the page. The sheet
+ * smears it, so we smear it.
  */
-const BLENDED_DAILY_RATE =
-	DAILY_BASE_CARATS + (WEEKDAY_BONUS_CARATS * 3 + WEEKEND_BONUS_CARATS) / 7
+function blendedDailyRate(k: CalculationConstants): number {
+	return k.daily_base_carats + k.weekly_bonus_carats / 7
+}
 
 /**
- * The shared launch constant is built as `new Date(2027, 7, 15)` — LOCAL
- * midnight. This engine is UTC throughout, so comparing it against UTC instants
- * would shift the launch by up to a day depending on the viewer's timezone.
- * Re-pin it to the same calendar day in UTC.
+ * The configured Training Pass launch date as a UTC midnight instant.
  *
- * This goes away once the launch date becomes an admin-editable constant; the
- * sheet reads it from a timeline row rather than hardcoding it at all.
+ * The API sends a plain `YYYY-MM-DD` calendar day. Parsing that with `new Date()`
+ * would be UTC midnight anyway, but going through Date.UTC explicitly keeps this
+ * correct if the field ever gains a time component.
  */
-const TRAINING_PASS_LAUNCH_UTC = new Date(
-	Date.UTC(
-		TRAINING_PASS_START_DATE.getFullYear(),
-		TRAINING_PASS_START_DATE.getMonth(),
-		TRAINING_PASS_START_DATE.getDate()
-	)
-)
+function trainingPassLaunch(k: CalculationConstants): Date {
+	const [year, month, day] = k.training_pass_start_date.split("-").map(Number)
+	return new Date(Date.UTC(year, month - 1, day))
+}
 
 /**
  * Daily quests + weekly login — sheet `AN42`:
@@ -100,10 +73,14 @@ const TRAINING_PASS_LAUNCH_UTC = new Date(
  * The CEILING is applied to the CUMULATIVE total, not per day, so it can only
  * ever add up to 9 carats to the whole projection rather than compounding.
  */
-export function cumulativeDailyCarats(today: Date, end: Date): number {
+export function cumulativeDailyCarats(
+	today: Date,
+	end: Date,
+	k: CalculationConstants
+): number {
 	const days = utcDaysBetween(today, end)
 	if (days <= 0) return 0
-	return ceilToTen(days * BLENDED_DAILY_RATE)
+	return ceilToTen(days * blendedDailyRate(k))
 }
 
 /**
@@ -114,6 +91,8 @@ export function cumulativeDailyCarats(today: Date, end: Date): number {
  * once the week containing it has fully elapsed. Measured from that Monday
  * rather than from today, which is why a banner a few days out can already
  * carry a payout.
+ *
+ * The rate comes from the user's rank row, not the constants — it is per-user.
  */
 export function cumulativeTeamTrialsCarats(
 	today: Date,
@@ -150,10 +129,18 @@ export function cumulativeClubRankCarats(
  * toggle, and only after a ramp-in counted from today. The ramp-in start is an
  * ABSOLUTE instant, which is what stops a densely-planned timeline from
  * restarting it at every banner.
+ *
+ * Note the daily figure is derived from a MONTHLY constant, floored — matching
+ * the sheet, which stores the monthly total and divides.
  */
-export function cumulativeMiscEarningsCarats(today: Date, end: Date): number {
-	const days = utcDaysBetween(addUtcDays(today, MISC_EARNINGS_DELAY_DAYS), end)
-	return days > 0 ? days * MISC_EARNINGS_PER_DAY : 0
+export function cumulativeMiscEarningsCarats(
+	today: Date,
+	end: Date,
+	k: CalculationConstants
+): number {
+	const days = utcDaysBetween(addUtcDays(today, k.misc_earnings_delay_days), end)
+	if (days <= 0) return 0
+	return days * Math.floor(k.misc_earnings_monthly / 30)
 }
 
 /**
@@ -169,16 +156,22 @@ export function cumulativeMiscEarningsCarats(today: Date, end: Date): number {
  *
  * The gifts are universal (no toggle), as is the login campaign.
  */
-export function cumulativeLoginAndGiftCarats(today: Date, end: Date): number {
+export function cumulativeLoginAndGiftCarats(
+	today: Date,
+	end: Date,
+	k: CalculationConstants
+): number {
 	const days = utcDaysBetween(today, end)
 	if (days <= 0) return 0
 
-	const cycles = Math.floor(days / FIFTY_DAY_LOGIN_CYCLE_DAYS)
-	let total = cycles * FIFTY_DAY_LOGIN_PER_CYCLE
+	const cycles = Math.floor(days / k.fifty_day_login_cycle_days)
+	let total = cycles * k.fifty_day_login_carats
 
+	// The constants are 1-indexed months, as a human editing the admin page
+	// expects; Date.UTC wants 0-indexed.
 	for (const [month, day, amount] of [
-		[VALENTINES_MONTH, VALENTINES_DAY, VALENTINES_CARATS],
-		[WHITE_DAY_MONTH, WHITE_DAY_DAY, WHITE_DAY_CARATS],
+		[k.valentines_month - 1, k.valentines_day, k.valentines_carats],
+		[k.white_day_month - 1, k.white_day_day, k.white_day_carats],
 	] as const) {
 		let occurrence = new Date(Date.UTC(today.getUTCFullYear(), month, day))
 		if (occurrence < startOfUtcDay(today)) {
@@ -192,9 +185,9 @@ export function cumulativeLoginAndGiftCarats(today: Date, end: Date): number {
 }
 
 export interface DailyCaratPackIncome {
-	/** The 50/day drip — ordinary earned currency. */
+	/** The daily drip — ordinary earned currency. */
 	freeCarats: number
-	/** The 500 repurchase bonus — bought, so it can fund discounted pulls. */
+	/** The repurchase bonus — bought, so it can fund discounted pulls. */
 	paidCarats: number
 }
 
@@ -210,15 +203,16 @@ export interface DailyCaratPackIncome {
  */
 export function cumulativeDailyCaratPack(
 	today: Date,
-	end: Date
+	end: Date,
+	k: CalculationConstants
 ): DailyCaratPackIncome {
 	const days = utcDaysBetween(today, end)
 	if (days <= 0) return { freeCarats: 0, paidCarats: 0 }
 	return {
-		freeCarats: days * DAILY_CARAT_PACK_PER_DAY,
+		freeCarats: days * k.daily_carat_pack_per_day,
 		paidCarats:
-			Math.floor(days / DAILY_CARAT_PACK_CYCLE_DAYS) *
-			DAILY_CARAT_PACK_PAID_CARATS,
+			Math.floor(days / k.daily_carat_pack_cycle_days) *
+			k.daily_carat_pack_paid_carats,
 	}
 }
 
@@ -232,20 +226,24 @@ export interface MonthlyShopTickets {
  *   `DATEDIF(EOMONTH(today, -1) + 2, E, "M") * quantity`
  *
  * Bought with an untracked currency, so it costs no carats. Measured from the
- * 2nd of the current month because that is when the shop restocks — a banner
- * ending on the 1st would otherwise be credited a bundle the player can't buy
- * yet. Off by default.
+ * restock day of the current month rather than the 1st — a banner ending on the
+ * 1st would otherwise be credited a bundle the player can't buy yet. Off by
+ * default.
  */
 export function cumulativeMonthlyShopTickets(
 	today: Date,
-	end: Date
+	end: Date,
+	k: CalculationConstants
 ): MonthlyShopTickets {
-	const restockDay = addUtcDays(startOfUtcMonth(today), 1)
+	const restockDay = addUtcDays(
+		startOfUtcMonth(today),
+		k.monthly_shop_restock_day - 1
+	)
 	const months = utcMonthsBetween(restockDay, end)
 	if (months <= 0) return { umaTickets: 0, supportTickets: 0 }
 	return {
-		umaTickets: months * MONTHLY_SHOP_UMA_TICKETS,
-		supportTickets: months * MONTHLY_SHOP_SUPPORT_TICKETS,
+		umaTickets: months * k.monthly_shop_uma_tickets,
+		supportTickets: months * k.monthly_shop_support_tickets,
 	}
 }
 
@@ -272,33 +270,37 @@ export interface TrainingPassIncome {
  * The sheet does not make that distinction, and full parity follows the sheet.
  *
  * Carats are either/or (the paid reward replaces the free tier's) while tickets
- * are base + bonus (the paid pass stacks). The paid tier's 2,200 is split across
- * both balances, 1,850 free + 350 paid, because part of it is purchased currency.
+ * are base + bonus (the paid pass stacks). The paid tier's total is split across
+ * both balances because part of it is purchased currency.
  */
 export function cumulativeTrainingPassIncome(
 	today: Date,
 	end: Date,
-	hasPaidPass: boolean
+	hasPaidPass: boolean,
+	k: CalculationConstants
 ): TrainingPassIncome {
 	const empty = { freeCarats: 0, paidCarats: 0, umaTickets: 0, supportTickets: 0 }
-	if (end <= TRAINING_PASS_LAUNCH_UTC) return empty
+	const launch = trainingPassLaunch(k)
+	if (end <= launch) return empty
 
-	const start = today > TRAINING_PASS_LAUNCH_UTC ? today : TRAINING_PASS_LAUNCH_UTC
+	const start = today > launch ? today : launch
 	const months = utcMonthsBetween(start, end)
 	if (months <= 0) return empty
 
 	return {
 		freeCarats:
 			months *
-			(hasPaidPass ? TRAINING_PASS_MONTHLY_FREE_CARATS : MONTHLY_BASE_REWARD),
-		paidCarats: hasPaidPass ? months * TRAINING_PASS_MONTHLY_PAID_CARATS : 0,
+			(hasPaidPass
+				? k.training_pass_monthly_free_carats
+				: k.monthly_base_reward),
+		paidCarats: hasPaidPass ? months * k.training_pass_monthly_paid_carats : 0,
 		umaTickets:
 			months *
-			(TRAINING_PASS_FREE_UMA_TICKETS +
-				(hasPaidPass ? TRAINING_PASS_PAID_BONUS_UMA_TICKETS : 0)),
+			(k.training_pass_free_uma_tickets +
+				(hasPaidPass ? k.training_pass_paid_bonus_uma_tickets : 0)),
 		supportTickets:
 			months *
-			(TRAINING_PASS_FREE_SUPPORT_TICKETS +
-				(hasPaidPass ? TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS : 0)),
+			(k.training_pass_free_support_tickets +
+				(hasPaidPass ? k.training_pass_paid_bonus_support_tickets : 0)),
 	}
 }

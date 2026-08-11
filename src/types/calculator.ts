@@ -26,6 +26,7 @@ import type { UserStats, UserPlannedBanner } from "./user"
 import type { GameEvent, ChampionsMeeting, LeagueOfHeroes, RaceEvent } from "./events"
 import type { AnniversaryEvent, UserPlannedPurchase } from "./anniversary"
 import type { IncomeLedgerRow } from "./ledger"
+import type { CalculationConstants } from "./constants"
 
 /** The full payload returned by GET /calculator-data.
  * `user_stats_data` is null for anonymous (guest) requests — the provider
@@ -53,6 +54,8 @@ export interface CalculatorData {
 	 * events_data / champions_meeting_data / league_of_heroes_event_data.
 	 */
 	income_ledger: IncomeLedgerRow[]
+	/** Admin-editable tunables. Absent on an older API; see DEFAULT_CONSTANTS. */
+	calculation_constants: CalculationConstants
 }
 
 /**
@@ -119,6 +122,7 @@ export interface CalculatorContextType {
 	anniversaryEventData: AnniversaryEvent[]
 	userPlannedPurchaseData: UserPlannedPurchase[]
 	incomeLedger: IncomeLedgerRow[]
+	calculationConstants: CalculationConstants
 	timerIsGoing: boolean
 	organizedTimelineData: OrganizedTimelineData
 	saveNow: () => Promise<void>

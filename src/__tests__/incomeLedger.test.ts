@@ -5,7 +5,10 @@ import {
   cumulativeThroughoutCarats,
   parseLedger,
 } from '../utils/incomeLedger'
-import { THROUGHOUT_FILTER_GRACE_DAYS } from '../constants/gameConstants'
+import {
+  DEFAULT_CONSTANTS as K,
+  THROUGHOUT_FILTER_GRACE_DAYS,
+} from '../constants/gameConstants'
 import { addUtcDays } from '../utils/utcDates'
 import type { IncomeLedgerRow, LedgerRowKind } from '../types/ledger'
 
@@ -117,8 +120,8 @@ describe('cumulativeThroughoutCarats', () => {
     const ledger = parseLedger([
       throughoutRow('2026-08-20T22:00:00Z', '2026-09-05T21:59:59Z', 1000),
     ])
-    const early = cumulativeThroughoutCarats(ledger, NOW, utc('2026-09-10T00:00:00Z'))
-    const later = cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'))
+    const early = cumulativeThroughoutCarats(ledger, NOW, utc('2026-09-10T00:00:00Z'), K)
+    const later = cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'), K)
     // Once the banner is inside the grace window it contributes its full
     // remaining amount; extending the end date adds nothing more.
     expect(early).toBeGreaterThan(0)
@@ -129,7 +132,7 @@ describe('cumulativeThroughoutCarats', () => {
     const ledger = parseLedger([
       throughoutRow('2026-06-01T22:00:00Z', '2026-06-15T21:59:59Z', 1000),
     ])
-    expect(cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'))).toBe(0)
+    expect(cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'), K)).toBe(0)
   })
 
   it('does not credit a banner ending beyond the grace window', () => {
@@ -139,22 +142,22 @@ describe('cumulativeThroughoutCarats', () => {
     ])
     const justInside = addUtcDays(bannerEnd, -THROUGHOUT_FILTER_GRACE_DAYS)
     expect(
-      cumulativeThroughoutCarats(ledger, NOW, addUtcDays(justInside, -1))
+      cumulativeThroughoutCarats(ledger, NOW, addUtcDays(justInside, -1), K)
     ).toBe(0)
-    expect(cumulativeThroughoutCarats(ledger, NOW, justInside)).toBeGreaterThan(0)
+    expect(cumulativeThroughoutCarats(ledger, NOW, justInside, K)).toBeGreaterThan(0)
   })
 
   it('front-loads: a banner still to open has its whole pool left', () => {
     const ledger = parseLedger([
       throughoutRow('2026-11-01T22:00:00Z', '2026-11-15T21:59:59Z', 1000),
     ])
-    expect(cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'))).toBe(1000)
+    expect(cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'), K)).toBe(1000)
   })
 
   it('ignores rows carrying no pool', () => {
     const ledger = parseLedger([
       row({ date: '2026-08-20T22:00:00Z', kind: 'event', carats: 5000 }),
     ])
-    expect(cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'))).toBe(0)
+    expect(cumulativeThroughoutCarats(ledger, NOW, utc('2026-12-01T00:00:00Z'), K)).toBe(0)
   })
 })

@@ -29,6 +29,7 @@ export const CaratCalculator: React.FC = () => {
 		anniversaryEventData,
 		userPlannedPurchaseData,
 		incomeLedger,
+		calculationConstants,
 		setUserPlannedBannerData,
 		setStagedBanners,
 	} = useCalculatorData()
@@ -61,6 +62,7 @@ export const CaratCalculator: React.FC = () => {
 		anniversaryEventData,
 		userPlannedPurchaseData,
 		incomeLedger,
+		constants: calculationConstants,
 	})
 	const bannerResources = USE_INCOME_ENGINE_V2 ? ledgerResources : legacyResources
 

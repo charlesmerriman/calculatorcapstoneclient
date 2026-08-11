@@ -17,8 +17,10 @@ import type {
 	OrganizedTimelineData,
 	AnniversaryEvent,
 	UserPlannedPurchase,
-	IncomeLedgerRow
+	IncomeLedgerRow,
+	CalculationConstants
 } from "../types"
+import { DEFAULT_CONSTANTS } from "../constants/gameConstants"
 import {
 	initialCalculatorDataFetch,
 	userCalculatorDataPatch,
@@ -67,6 +69,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
 	const [incomeLedger, setIncomeLedger] = useState<IncomeLedgerRow[]>([])
+	const [calculationConstants, setCalculationConstants] =
+		useState<CalculationConstants>(DEFAULT_CONSTANTS)
 	const [isLoading, setIsLoading] = useState(true)
 	const [fetchError, setFetchError] = useState(false)
 
@@ -185,6 +189,13 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				// deploy where the two sides are briefly out of step) should
 				// degrade to an empty projection, not crash the calculator.
 				setIncomeLedger(data.income_ledger ?? [])
+				// Overlaid rather than replaced: a constant the API doesn't know
+				// about yet keeps its built-in default instead of arriving
+				// undefined and turning every downstream total into NaN.
+				setCalculationConstants({
+					...DEFAULT_CONSTANTS,
+					...(data.calculation_constants ?? {}),
+				})
 				setOrganizedTimelineData(sortedMergedEvents)
 				setIsLoading(false)
 		}
@@ -301,6 +312,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		championsMeetingData,
 		leagueOfHeroesData,
 		incomeLedger,
+		calculationConstants,
 		timerIsGoing,
 		organizedTimelineData,
 		saveNow,
