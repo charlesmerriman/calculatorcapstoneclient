@@ -4,7 +4,16 @@
  * All carat values are in-game carats (the main gacha currency).
  * These values come from the game's income schedule — see
  * backend/docs/income-calculation.md for the full breakdown.
+ *
+ * NOTE: the individual `export const`s below feed the LEGACY engine
+ * (`useBannerResources`) and go away with it. The ledger engine reads its
+ * numbers from the admin-editable `CalculationConstants` served by
+ * `/calculator-data`, falling back to `DEFAULT_CONSTANTS` at the bottom of this
+ * file — which is assembled from these same literals so the two cannot drift
+ * while both engines ship.
  */
+
+import type { CalculationConstants } from "../types/constants"
 
 // ── Daily income ──────────────────────────────────────────────────────────────
 
@@ -131,12 +140,14 @@ export const WHITE_DAY_DAY = 14
 /**
  * Days an event's `end_date` trails its banner's own end date.
  *
- * MUST match `GAME_EVENT_END_DATE_BUFFER` in `calculatorapi/predictions.py` —
- * the API adds this padding when it resolves an event's dates, and the
- * throughout curve has to strip it back off to recover the banner window. The
- * API does not serialise the banner's dates on the event, which is the only
- * reason this is duplicated here; if that ever changes, read them directly and
- * delete this.
+ * LEGACY ENGINE ONLY. It used this to strip the API's padding back off and
+ * recover the banner window the throughout curve runs over. The ledger engine
+ * doesn't need it: `income_ledger` serves `throughout_end` with the buffer
+ * already removed, and the live value is admin-editable
+ * (`CalculationConstants.game_event_end_buffer_days`) rather than duplicated
+ * across two repositories.
+ *
+ * Delete this with `useBannerResources`.
  */
 export const GAME_EVENT_END_DATE_BUFFER_DAYS = 4
 
@@ -248,3 +259,71 @@ export const TRAINING_PASS_FREE_UMA_TICKETS = 2
 export const TRAINING_PASS_FREE_SUPPORT_TICKETS = 2
 export const TRAINING_PASS_PAID_BONUS_UMA_TICKETS = 2
 export const TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS = 2
+
+/**
+ * ── Defaults for the admin-editable constants ────────────────────────────────
+ *
+ * `/calculator-data` serves the live values from the `CalculationConstants`
+ * singleton; this object is what the app falls back to when that key is absent —
+ * a fresh database, an older API, or a deploy where the two sides are briefly
+ * out of step. The provider overlays the server's values on top of these.
+ *
+ * Every entry is built from the literals above rather than restated, so the
+ * defaults cannot drift from what the legacy engine uses while both still ship.
+ * The backend model's own field defaults are the third copy of these numbers;
+ * `CalculationConstantsTests.test_defaults_match_the_current_calibration` pins
+ * the two that matter most.
+ */
+export const DEFAULT_CONSTANTS: CalculationConstants = {
+	daily_base_carats: DAILY_BASE_CARATS,
+	// The blended weekly total: three weekday bonuses plus one weekend bonus.
+	weekly_bonus_carats: WEEKDAY_BONUS_CARATS * 3 + WEEKEND_BONUS_CARATS,
+
+	daily_carat_pack_per_day: DAILY_CARAT_PACK_PER_DAY,
+	daily_carat_pack_paid_carats: DAILY_CARAT_PACK_PAID_CARATS,
+	daily_carat_pack_cycle_days: DAILY_CARAT_PACK_CYCLE_DAYS,
+	// Rebuilt from the local-midnight Date above as a plain ISO calendar day,
+	// which is what the API sends and what the UTC engine wants.
+	training_pass_start_date: [
+		TRAINING_PASS_START_DATE.getFullYear(),
+		String(TRAINING_PASS_START_DATE.getMonth() + 1).padStart(2, "0"),
+		String(TRAINING_PASS_START_DATE.getDate()).padStart(2, "0"),
+	].join("-"),
+	training_pass_monthly_free_carats: TRAINING_PASS_MONTHLY_FREE_CARATS,
+	training_pass_monthly_paid_carats: TRAINING_PASS_MONTHLY_PAID_CARATS,
+	monthly_base_reward: MONTHLY_BASE_REWARD,
+	training_pass_free_uma_tickets: TRAINING_PASS_FREE_UMA_TICKETS,
+	training_pass_free_support_tickets: TRAINING_PASS_FREE_SUPPORT_TICKETS,
+	training_pass_paid_bonus_uma_tickets: TRAINING_PASS_PAID_BONUS_UMA_TICKETS,
+	training_pass_paid_bonus_support_tickets: TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS,
+
+	// The sheet models this as a MONTHLY figure and drips it as monthly/30;
+	// MISC_EARNINGS_PER_DAY is the legacy engine's per-day equivalent.
+	misc_earnings_monthly: MISC_EARNINGS_PER_DAY * 30,
+	misc_earnings_delay_days: MISC_EARNINGS_DELAY_DAYS,
+	fifty_day_login_carats: FIFTY_DAY_LOGIN_PER_CYCLE,
+	fifty_day_login_cycle_days: FIFTY_DAY_LOGIN_CYCLE_DAYS,
+	valentines_carats: VALENTINES_CARATS,
+	// The legacy constants are 0-indexed to match Date.getMonth(); the API is
+	// 1-indexed, as a human editing the admin page would expect.
+	valentines_month: VALENTINES_MONTH + 1,
+	valentines_day: VALENTINES_DAY,
+	white_day_carats: WHITE_DAY_CARATS,
+	white_day_month: WHITE_DAY_MONTH + 1,
+	white_day_day: WHITE_DAY_DAY,
+	monthly_shop_uma_tickets: MONTHLY_SHOP_UMA_TICKETS,
+	monthly_shop_support_tickets: MONTHLY_SHOP_SUPPORT_TICKETS,
+	monthly_shop_restock_day: MONTHLY_SHOP_TICKET_DAY,
+
+	pull_cost_carats: PULL_COST_CARATS,
+	discounted_pull_cost_carats: DISCOUNTED_PULL_COST_CARATS,
+	shards_per_crystal: SHARDS_PER_CRYSTAL,
+
+	throughout_end_offset_days: THROUGHOUT_END_OFFSET_DAYS,
+	throughout_filter_grace_days: THROUGHOUT_FILTER_GRACE_DAYS,
+	throughout_decay_k: 2,
+	throughout_decay_linear_slope: 0.8,
+
+	prediction_factor: 0.664,
+	game_event_end_buffer_days: GAME_EVENT_END_DATE_BUFFER_DAYS,
+}

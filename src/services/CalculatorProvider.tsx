@@ -16,8 +16,11 @@ import type {
 	LeagueOfHeroes,
 	OrganizedTimelineData,
 	AnniversaryEvent,
-	UserPlannedPurchase
+	UserPlannedPurchase,
+	IncomeLedgerRow,
+	CalculationConstants
 } from "../types"
+import { DEFAULT_CONSTANTS } from "../constants/gameConstants"
 import {
 	initialCalculatorDataFetch,
 	userCalculatorDataPatch,
@@ -65,6 +68,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [anniversaryEventData, setAnniversaryEventData] = useState<AnniversaryEvent[]>([])
 	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
+	const [incomeLedger, setIncomeLedger] = useState<IncomeLedgerRow[]>([])
+	const [calculationConstants, setCalculationConstants] =
+		useState<CalculationConstants>(DEFAULT_CONSTANTS)
 	const [isLoading, setIsLoading] = useState(true)
 	const [fetchError, setFetchError] = useState(false)
 
@@ -179,6 +185,17 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setGameEventsData(data.events_data)
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
+				// Defaulted like the campaign keys above: an older API (or a
+				// deploy where the two sides are briefly out of step) should
+				// degrade to an empty projection, not crash the calculator.
+				setIncomeLedger(data.income_ledger ?? [])
+				// Overlaid rather than replaced: a constant the API doesn't know
+				// about yet keeps its built-in default instead of arriving
+				// undefined and turning every downstream total into NaN.
+				setCalculationConstants({
+					...DEFAULT_CONSTANTS,
+					...(data.calculation_constants ?? {}),
+				})
 				setOrganizedTimelineData(sortedMergedEvents)
 				setIsLoading(false)
 		}
@@ -294,6 +311,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
+		incomeLedger,
+		calculationConstants,
 		timerIsGoing,
 		organizedTimelineData,
 		saveNow,

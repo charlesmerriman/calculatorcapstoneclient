@@ -7,6 +7,8 @@ import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
+import { useBannerResourcesV2 } from "../../hooks/useBannerResourcesV2"
+import { USE_INCOME_ENGINE_V2 } from "../../config/featureFlags"
 import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
@@ -26,11 +28,18 @@ export const CaratCalculator: React.FC = () => {
 		stagedBanners,
 		anniversaryEventData,
 		userPlannedPurchaseData,
+		incomeLedger,
+		calculationConstants,
 		setUserPlannedBannerData,
 		setStagedBanners,
 	} = useCalculatorData()
 
-	const bannerResources = useBannerResources({
+	// Both engines run while the sheet-parity harness is being built, selected by
+	// VITE_INCOME_ENGINE_V2. Hooks can't be called conditionally, so both are
+	// invoked and one result is picked — the unused engine's useMemo is cheap
+	// relative to a render, and this keeps the swap to a single expression.
+	// See config/featureFlags.ts for the removal condition.
+	const legacyResources = useBannerResources({
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,
@@ -43,6 +52,19 @@ export const CaratCalculator: React.FC = () => {
 		anniversaryEventData,
 		userPlannedPurchaseData,
 	})
+	const ledgerResources = useBannerResourcesV2({
+		userStatsData,
+		clubRankData,
+		teamTrialsRankData,
+		championsMeetingRankData,
+		leagueOfHeroesRankData,
+		userPlannedBannerData,
+		anniversaryEventData,
+		userPlannedPurchaseData,
+		incomeLedger,
+		constants: calculationConstants,
+	})
+	const bannerResources = USE_INCOME_ENGINE_V2 ? ledgerResources : legacyResources
 
 	if (!userStatsData) {
 		return <div>Loading...</div>
