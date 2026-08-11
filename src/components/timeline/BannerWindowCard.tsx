@@ -1,4 +1,14 @@
-import { CalendarDays, ChevronRight, Clock3, Sparkles, Star, Ticket } from "lucide-react"
+import {
+	CalendarDays,
+	ChevronRight,
+	Clock3,
+	Dumbbell,
+	Flower2,
+	Repeat,
+	Sparkles,
+	Star,
+	Ticket,
+} from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import PredictedBadge from "../PredictedBadge"
 import { bannerKey } from "../../utils/bannerHelpers"
@@ -9,6 +19,7 @@ import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
 import { getCountdownLabel } from "./timelineShared"
 import type { BannerWindowGroup } from "./timelineShared"
 import type {
+	BannerCategory,
 	BannerSupport,
 	BannerTimelineForViewing,
 	BannerUma,
@@ -28,6 +39,90 @@ import type {
  */
 
 type BannerCardStatus = "available" | "planned" | "staged" | "expired"
+
+/**
+ * The governing rule for everything below: CATEGORY DRIVES THE CHROME, COUNT
+ * DRIVES THE GRID.
+ *
+ * Which chip appears and whether the section opens into a full-width band is a
+ * function of banner_category. How many tiles fit on a row is a function of how
+ * many cards the banner actually has. Keeping those separate means a
+ * miscategorised row — an editor forgetting to mark next year's revival —
+ * renders plainly but completely, rather than clipping nine umas.
+ *
+ * `standard` deliberately has no entry: most banners are standard, and a chip
+ * on every card is noise rather than signal.
+ */
+type CategoryChrome = {
+	label: string
+	icon: LucideIcon
+	/** Defined in App.css against the --color-category-* theme tokens. */
+	chipClass: string
+	/**
+	 * Full-width horizontal band instead of the usual image/uma/support
+	 * columns. Only the revivals: they carry up to eleven umas and no support
+	 * cards at all, so a 260px column would either clip them or stack them into
+	 * a tower beside two empty panels.
+	 */
+	band?: true
+	/**
+	 * Weights the section's columns towards the support grid. A race-prep batch
+	 * is one uma and ten support cards — the reverse of an ordinary banner.
+	 */
+	supportLed?: true
+}
+
+const CATEGORY_CHROME: Partial<Record<BannerCategory, CategoryChrome>> = {
+	golden_week_revival: {
+		label: "Golden Week Revival",
+		icon: Flower2,
+		chipClass: "category-chip--revival",
+		band: true,
+	},
+	race_prep_support: {
+		label: "Race Prep Support",
+		icon: Dumbbell,
+		chipClass: "category-chip--quiet",
+		supportLed: true,
+	},
+	rerun: {
+		label: "Rerun",
+		icon: Repeat,
+		chipClass: "category-chip--quiet",
+	},
+}
+
+/**
+ * A band opens out to one tile per column at xl, so a revival's featured umas
+ * read as a single line across the card.
+ *
+ * Written out rather than built as `xl:grid-cols-${n}`: Tailwind generates
+ * utilities by scanning source text for literal class names, and an
+ * interpolated string produces none of them. Below xl the card is too narrow
+ * for a line of eleven, so the band wraps at two — tall, but nothing hidden,
+ * which is the whole point.
+ */
+const BAND_XL_COLUMNS = [
+	"xl:grid-cols-1",
+	"xl:grid-cols-1",
+	"xl:grid-cols-2",
+	"xl:grid-cols-3",
+	"xl:grid-cols-4",
+	"xl:grid-cols-5",
+	"xl:grid-cols-6",
+	"xl:grid-cols-7",
+	"xl:grid-cols-8",
+	"xl:grid-cols-9",
+	"xl:grid-cols-10",
+	"xl:grid-cols-11",
+	"xl:grid-cols-12",
+] as const
+
+/** Image | umas | supports. Support-led inverts the last two weights. */
+const SECTION_COLUMNS =
+	"xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(260px,0.78fr)]"
+const SECTION_COLUMNS_SUPPORT_LED =
+	"xl:grid-cols-[minmax(300px,1fr)_minmax(200px,0.5fr)_minmax(420px,1.7fr)]"
 
 /**
  * The fields a featured tile actually renders. Both Uma and SupportCard
@@ -76,6 +171,8 @@ type FeaturePanelProps = {
 	emptyText: string
 	/** Uma art is portrait and wider; support art is smaller. */
 	tileWidthClass: string
+	/** Band opens to one tile per column at xl; column stays two-wide. */
+	layout?: "column" | "band"
 	status: BannerCardStatus
 	actionIcon: LucideIcon
 	onAdd: () => void
@@ -88,30 +185,49 @@ function FeaturePanel({
 	hasBanner,
 	emptyText,
 	tileWidthClass,
+	layout = "column",
 	status,
 	actionIcon: ActionIcon,
 	onAdd,
 }: FeaturePanelProps) {
-	// PHASE 3 SEAM: this binary rule, and the xl:overflow-hidden clip below, are
-	// what currently render only 2 of a revival's 11 umas. Category-aware
-	// rendering replaces both with a count-derived density.
-	const featureGridClass = items.length === 1 ? "grid-cols-1" : "grid-cols-2"
+	// Count drives the grid. A narrow column tops out at two tiles across and
+	// grows downwards; a band opens to one row of `items.length` at xl.
+	//
+	// There is no row cap and no overflow clip here, and that is deliberate: the
+	// panel used to carry `grid-rows-1`, `xl:overflow-hidden` and
+	// `xl:[contain:size]`, which pinned it to the banner art's height and
+	// silently discarded every tile past the first row. On an eleven-uma revival
+	// that meant showing two umas and hiding nine, with nothing on screen to say
+	// so. A card that grows taller is the right trade.
+	const isBand = layout === "band"
+	const featureGridClass = isBand
+		? `grid-cols-2 items-stretch ${BAND_XL_COLUMNS[Math.min(items.length, 12)]}`
+		: `items-center ${items.length === 1 ? "grid-cols-1" : "grid-cols-2"}`
+
+	// A band tile is only as wide as the card divided by the card count — around
+	// 115px at eleven umas — so the column layout's 15px name over two lines
+	// truncates. "Biwa Hayahide (Christmas)" and "Biwa Hayahide (Mecha)" both
+	// became "Biwa Hayahide…", which is worse than useless on a banner that
+	// features both. A smaller face over three lines fits them whole.
+	const nameClass = isBand
+		? "line-clamp-3 text-[0.8125rem]"
+		: "line-clamp-2 text-[0.9375rem]"
 
 	return (
-		<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
+		<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm">
 			<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
 				<Icon className="h-4 w-4" />
 				<span>{title}</span>
 			</div>
 			{hasBanner ? (
-				<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
+				<div className="flex flex-1 flex-col gap-1.5">
 					<div
-						className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${featureGridClass}`}
+						className={`grid flex-1 justify-items-center content-center gap-1.5 ${featureGridClass}`}
 					>
 						{items.map((item) => (
 							<div
 								key={item.id}
-								className={`flex w-full min-w-0 flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm ${tileWidthClass}`}
+								className={`flex h-full w-full min-w-0 flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm ${tileWidthClass}`}
 							>
 								<div className="relative shrink-0 overflow-hidden bg-gray-700">
 									{item.recommendation && (
@@ -127,8 +243,10 @@ function FeaturePanel({
 										className="block h-auto w-full object-contain"
 									/>
 								</div>
-								<div className="flex h-16 items-center justify-center p-2">
-									<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
+								<div className="flex min-h-16 flex-1 items-center justify-center p-2">
+									<div
+										className={`overflow-hidden break-words text-center font-semibold leading-tight text-gray-100 ${nameClass}`}
+									>
 										{item.name}
 									</div>
 								</div>
@@ -201,15 +319,91 @@ function BannerSection({
 	// the 2025 Golden Week revival runs nine days longer than the standard
 	// banner sharing its start.
 	const hasOwnWindow = isGrouped && banner.end_date !== groupEndDate
+	const chrome = CATEGORY_CHROME[banner.banner_category]
+	const ChipIcon = chrome?.icon
+
+	const umaPanel = (
+		<FeaturePanel
+			icon={Sparkles}
+			title="Featured Umamusume"
+			items={umaBanner?.umas ?? []}
+			hasBanner={!!umaBanner}
+			emptyText="No Umamusume banner in this window."
+			tileWidthClass="max-w-[10rem] 2xl:max-w-[13.5rem]"
+			layout={chrome?.band ? "band" : "column"}
+			status={getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)}
+			actionIcon={Star}
+			onAdd={() => umaBanner && onAddBanner(umaBanner, "Uma")}
+		/>
+	)
+
+	const supportPanel = (
+		<FeaturePanel
+			icon={Ticket}
+			title="Featured Support Cards"
+			items={supportBanner?.support_cards ?? []}
+			hasBanner={!!supportBanner}
+			emptyText="No support banner in this window."
+			tileWidthClass="max-w-[7.75rem] 2xl:max-w-[9.5rem]"
+			status={getBannerCardStatus(
+				!!supportBanner,
+				supportExpired,
+				supportPlanned,
+				supportStaged
+			)}
+			actionIcon={Ticket}
+			onAdd={() => supportBanner && onAddBanner(supportBanner, "Support")}
+		/>
+	)
+
+	const header = (chrome || hasOwnWindow) && (
+		<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+			{chrome && ChipIcon && (
+				<span className={`category-chip ${chrome.chipClass}`}>
+					<ChipIcon className="h-3.5 w-3.5" />
+					{chrome.label}
+				</span>
+			)}
+			{hasOwnWindow && (
+				<span className="text-sm font-medium text-gray-400">
+					This banner ends {formatDate(banner.end_date)}
+				</span>
+			)}
+		</div>
+	)
+
+	if (chrome?.band) {
+		// No image column and no support column by default — a revival carries
+		// neither in any row we hold, and rendering two empty placeholders across
+		// the full width would be worse than rendering nothing. Both still appear
+		// if the data ever grows them, which is the count-drives-the-grid half of
+		// the rule: the category picks the shape, the data decides what's in it.
+		return (
+			<div className="flex flex-col gap-3">
+				{header}
+				{banner.image && (
+					<img
+						src={banner.image}
+						alt={banner.name}
+						loading="lazy"
+						decoding="async"
+						className="h-auto w-full max-w-2xl rounded-xl border border-gray-600 shadow-md"
+					/>
+				)}
+				{umaPanel}
+				{supportBanner && supportPanel}
+			</div>
+		)
+	}
 
 	return (
 		<div className="flex flex-col gap-2">
-			{hasOwnWindow && (
-				<div className="text-sm font-medium text-gray-400">
-					This banner ends {formatDate(banner.end_date)}
-				</div>
-			)}
-			<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(260px,0.78fr)] xl:items-stretch">
+			{header}
+			<div
+				className={`grid gap-4 xl:items-stretch ${
+					chrome?.supportLed ? SECTION_COLUMNS_SUPPORT_LED : SECTION_COLUMNS
+				}`}
+			>
 				<div className="min-w-0">
 					{banner.image ? (
 						<img
@@ -224,34 +418,8 @@ function BannerSection({
 					)}
 				</div>
 
-				<FeaturePanel
-					icon={Sparkles}
-					title="Featured Umamusume"
-					items={umaBanner?.umas ?? []}
-					hasBanner={!!umaBanner}
-					emptyText="No Umamusume banner in this window."
-					tileWidthClass="max-w-[10rem] 2xl:max-w-[13.5rem]"
-					status={getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)}
-					actionIcon={Star}
-					onAdd={() => umaBanner && onAddBanner(umaBanner, "Uma")}
-				/>
-
-				<FeaturePanel
-					icon={Ticket}
-					title="Featured Support Cards"
-					items={supportBanner?.support_cards ?? []}
-					hasBanner={!!supportBanner}
-					emptyText="No support banner in this window."
-					tileWidthClass="max-w-[7.75rem] 2xl:max-w-[9.5rem]"
-					status={getBannerCardStatus(
-						!!supportBanner,
-						supportExpired,
-						supportPlanned,
-						supportStaged
-					)}
-					actionIcon={Ticket}
-					onAdd={() => supportBanner && onAddBanner(supportBanner, "Support")}
-				/>
+				{umaPanel}
+				{supportPanel}
 			</div>
 		</div>
 	)

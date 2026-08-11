@@ -107,6 +107,29 @@
 	--color-pull-neutral-border: #6f8f7c;
 	--color-pull-over: #fb8f8f;
 	--color-pull-over-border: #ef4444;
+
+	/* ── Banner category accent ────────────────────────────────────────────
+	   The chip on a Golden Week revival's timeline section (.category-chip--
+	   revival in App.css). Only this one category gets a hue of its own: it is
+	   the headline case, the one that visibly breaks the card's usual layout,
+	   and the one a reader most needs to spot while scrolling. Reruns and race-
+	   prep batches use the gray ramp, so they read as annotations rather than
+	   competing for the same attention.
+
+	   A token for the same reason the pull-* colors are: the six theme blocks
+	   below override only --color-brand and the gray ramp, so a literal
+	   `text-pink-300` would keep one fixed tint on all seven themes — including
+	   the light one, where this value measures 1.49:1 on the chip's fill.
+
+	   Measured 6.90:1 (teal, the tightest) to 7.99:1 (purple) across the six
+	   dark themes; the border clears the 3:1 non-text minimum at 5.67:1.
+
+	   Rose rather than a brand tint because the accent has to stay legible as
+	   "not the usual banner" against SEVEN different brand hues (gold, amber,
+	   racing blue, lavender, teal, orange). A brand-derived chip would vanish
+	   into the card's existing brand-colored labels on every one of them. */
+	--color-category-revival: #f3a9c6;
+	--color-category-revival-border: #d9739c;
 }
 
 /* ===== THEME OVERRIDES =====
@@ -252,6 +275,13 @@
 	--color-pull-neutral-border: #5f7a6a;
 	--color-pull-over: #991b1b;
 	--color-pull-over-border: #b91c1c;
+
+	/* Category accent, deepened for light surfaces on the same reasoning as the
+	   pull colors above: the dark default is a pale rose meant for a near-black
+	   card and measures 1.49:1 on this theme's #fffaf7 panel. This one clears AA
+	   at 5.32:1 (border 4.51:1) while staying recognisably the same rose. */
+	--color-category-revival: #a3325c;
+	--color-category-revival-border: #c04a78;
 }
 
 /* Light-theme polish lives here rather than in each component so every existing

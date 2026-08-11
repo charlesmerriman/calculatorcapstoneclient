@@ -1,6 +1,12 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { BannerTimelineForViewing } from '../types'
+import type {
+  BannerCategory,
+  BannerTimeline,
+  BannerTimelineForViewing,
+  SupportCard,
+  Uma,
+} from '../types'
 
 /**
  * Timeline's infinite scroll is driven by an IntersectionObserver, which jsdom
@@ -117,6 +123,76 @@ function windowAt(
     end_date: end,
     global_start_date: start,
     global_end_date: end,
+  }
+}
+
+/**
+ * The API omits `banner_timeline` from banners nested inside a timeline, but
+ * the shared BannerUma/BannerSupport type still declares it. This stands in for
+ * it so the fixtures below type-check without a cast.
+ */
+const NESTED_TIMELINE: BannerTimeline = {
+  id: 0,
+  name: 'nested',
+  banner_category: 'standard',
+  start_date: '2099-03-01T22:00:00Z',
+  end_date: '2099-03-08T21:59:59Z',
+  is_predicted: false,
+  jp_start_date: null,
+  jp_end_date: null,
+  global_start_date: null,
+  global_end_date: null,
+  schedule_offset_days: 0,
+  applied_offset_days: 0,
+  image: '',
+}
+
+function card<T extends Uma | SupportCard>(id: number, name: string): T {
+  return {
+    id,
+    name,
+    image: `${name}.png`,
+    admin_comments: '',
+    recommendation: '',
+    first_jp_date: null,
+  } as T
+}
+
+/** A window of the given category, carrying the named umas and support cards. */
+function categorised(
+  id: number,
+  category: BannerCategory,
+  umas: string[],
+  supports: string[] = [],
+): BannerTimelineForViewing {
+  const base = windowAt(id, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z')
+  return {
+    ...base,
+    banner_category: category,
+    banner_umas: umas.length
+      ? [
+          {
+            id,
+            banner_timeline: NESTED_TIMELINE,
+            name: `Uma banner ${id}`,
+            admin_comments: '',
+            umas: umas.map((n, i) => card<Uma>(i + 1, n)),
+            free_pulls: 0,
+          },
+        ]
+      : [],
+    banner_supports: supports.length
+      ? [
+          {
+            id,
+            banner_timeline: NESTED_TIMELINE,
+            name: `Support banner ${id}`,
+            admin_comments: '',
+            support_cards: supports.map((n, i) => card<SupportCard>(i + 1, n)),
+            free_pulls: 0,
+          },
+        ]
+      : [],
   }
 }
 
@@ -401,5 +477,122 @@ describe('Timeline concurrent banners', () => {
 
     expect(headerCount()).toBe(1)
     expect(cardCount()).toBe(1)
+  })
+})
+
+/**
+ * Category drives the chrome, count drives the grid.
+ *
+ * One caveat these tests can't get around: the clipping this phase fixes was
+ * purely a CSS effect (`grid-rows-1` plus `xl:overflow-hidden` pinned the panel
+ * to the banner art's height). jsdom applies no stylesheets, so every tile was
+ * always in the DOM — asserting on rendered names would have passed before the
+ * fix too. The class-name assertions below are therefore the real guard against
+ * that regression, and the layouts were checked visually against the dev server.
+ */
+describe('Timeline banner categories', () => {
+  /** The grid a named card's tile sits in. */
+  function gridFor(name: string): HTMLElement {
+    const grid = screen.getByAltText(name).closest('div.grid')
+    expect(grid, `no grid around ${name}`).not.toBeNull()
+    return grid as HTMLElement
+  }
+
+  const REVIVAL_UMAS = [
+    'Oguri Cap (Christmas)',
+    'Gold Ship (Summer)',
+    "Gold Ship (Project L'Arc)",
+    'Mejiro McQueen (Summer)',
+    'Tamamo Cross (Festival)',
+    'Curren Chan (Wedding)',
+    'Seiun Sky (Ballroom)',
+    'Hishi Miracle',
+    'Biwa Hayahide (Christmas)',
+    'Biwa Hayahide (Mecha)',
+    'Nakayama Festa',
+  ]
+
+  it('marks a Golden Week revival and leaves a standard banner unmarked', () => {
+    events = [
+      categorised(1, 'golden_week_revival', ['Oguri Cap (Christmas)']),
+      categorised(2, 'standard', ['Yukino Bijin'], ['Smart Falcon']),
+    ]
+    render(<Timeline />)
+
+    expect(screen.getByText('Golden Week Revival')).toBeInTheDocument()
+    // Exactly one chip — a badge on every card would be noise, not signal.
+    expect(screen.getAllByText(/Golden Week Revival|Rerun|Race Prep Support/))
+      .toHaveLength(1)
+  })
+
+  it('opens a revival into one row of tiles, with no cap and no clip', () => {
+    events = [categorised(1, 'golden_week_revival', REVIVAL_UMAS)]
+    render(<Timeline />)
+
+    const grid = gridFor('Hishi Miracle')
+    // Eleven umas, eleven columns at xl — the horizontal band.
+    expect(grid.className).toContain('xl:grid-cols-11')
+    // The three classes that used to hide nine of them.
+    expect(grid.className).not.toContain('grid-rows-1')
+    expect(grid.className).not.toContain('overflow-hidden')
+    expect(grid.className).not.toContain('contain:size')
+  })
+
+  it('drops the empty art and support columns a revival would leave behind', () => {
+    // Every revival we hold has no art and no support cards, so the ordinary
+    // three-column section would spend two thirds of a full-width row on
+    // placeholders.
+    events = [categorised(1, 'golden_week_revival', REVIVAL_UMAS)]
+    render(<Timeline />)
+
+    expect(screen.queryByText('Banner art coming soon')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('No support banner in this window.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('still shows a revival its support cards if the data ever grows them', () => {
+    // Category picks the shape; the data decides what goes in it.
+    events = [
+      categorised(1, 'golden_week_revival', ['Oguri Cap (Christmas)'], ['Kitasan Black']),
+    ]
+    render(<Timeline />)
+
+    expect(screen.getByAltText('Kitasan Black')).toBeInTheDocument()
+  })
+
+  it('labels a rerun without changing its layout', () => {
+    events = [categorised(1, 'rerun', ['Gentildonna'], ['Kitasan Black'])]
+    render(<Timeline />)
+
+    expect(screen.getByText('Rerun')).toBeInTheDocument()
+    // Still the ordinary three-column section, art placeholder included.
+    expect(screen.getByText('Banner art coming soon')).toBeInTheDocument()
+    expect(gridFor('Gentildonna').className).not.toContain('xl:grid-cols-')
+  })
+
+  it('degrades a race-prep batch that has no uma at all', () => {
+    // Two of the sheet's 32 race-prep rows carry no uma — the first ever, and
+    // an unfilled placeholder. The uma panel must stay and say so.
+    events = [
+      categorised(1, 'race_prep_support', [], ['Kitasan Black', 'Super Creek']),
+    ]
+    render(<Timeline />)
+
+    expect(screen.getByText('Race Prep Support')).toBeInTheDocument()
+    expect(screen.getByText('No Umamusume banner in this window.')).toBeInTheDocument()
+    expect(screen.getByAltText('Super Creek')).toBeInTheDocument()
+  })
+
+  it('grows a narrow panel downwards rather than hiding the extra tiles', () => {
+    // An uncategorised banner with four umas — the miscategorised-row case.
+    // It renders plainly, but completely.
+    events = [categorised(1, 'standard', ['A Uma', 'B Uma', 'C Uma', 'D Uma'])]
+    render(<Timeline />)
+
+    const grid = gridFor('D Uma')
+    expect(grid.className).toContain('grid-cols-2')
+    expect(grid.className).not.toContain('grid-rows-1')
+    expect(grid.className).not.toContain('overflow-hidden')
   })
 })
