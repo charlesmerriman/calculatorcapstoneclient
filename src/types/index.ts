@@ -56,6 +56,12 @@ export type {
 export { isRaceEvent, isBannerTimeline } from "./calculator"
 
 export type {
+	IncomeLedgerRow,
+	LedgerRowKind,
+	ParsedLedgerRow
+} from "./ledger"
+
+export type {
 	ChangeCategory,
 	ChangelogChange,
 	ChangelogEntry

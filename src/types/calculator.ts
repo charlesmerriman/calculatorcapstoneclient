@@ -25,6 +25,7 @@ import type {
 import type { UserStats, UserPlannedBanner } from "./user"
 import type { GameEvent, ChampionsMeeting, LeagueOfHeroes, RaceEvent } from "./events"
 import type { AnniversaryEvent, UserPlannedPurchase } from "./anniversary"
+import type { IncomeLedgerRow } from "./ledger"
 
 /** The full payload returned by GET /calculator-data.
  * `user_stats_data` is null for anonymous (guest) requests — the provider
@@ -46,6 +47,12 @@ export interface CalculatorData {
 	anniversary_event_data: AnniversaryEvent[]
 	/** User-scoped; `[]` for guests, same as user_planned_banner_data. */
 	user_planned_purchase_data: UserPlannedPurchase[]
+	/**
+	 * Flat, date-sorted timeline of every reward instant. The projection queries
+	 * this for cumulative income totals rather than re-deriving a calendar from
+	 * events_data / champions_meeting_data / league_of_heroes_event_data.
+	 */
+	income_ledger: IncomeLedgerRow[]
 }
 
 /**
@@ -111,6 +118,7 @@ export interface CalculatorContextType {
 	stagedBanners: UserPlannedBanner[]
 	anniversaryEventData: AnniversaryEvent[]
 	userPlannedPurchaseData: UserPlannedPurchase[]
+	incomeLedger: IncomeLedgerRow[]
 	timerIsGoing: boolean
 	organizedTimelineData: OrganizedTimelineData
 	saveNow: () => Promise<void>

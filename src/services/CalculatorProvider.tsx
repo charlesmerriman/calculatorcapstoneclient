@@ -16,7 +16,8 @@ import type {
 	LeagueOfHeroes,
 	OrganizedTimelineData,
 	AnniversaryEvent,
-	UserPlannedPurchase
+	UserPlannedPurchase,
+	IncomeLedgerRow
 } from "../types"
 import {
 	initialCalculatorDataFetch,
@@ -65,6 +66,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [anniversaryEventData, setAnniversaryEventData] = useState<AnniversaryEvent[]>([])
 	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
+	const [incomeLedger, setIncomeLedger] = useState<IncomeLedgerRow[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [fetchError, setFetchError] = useState(false)
 
@@ -179,6 +181,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setGameEventsData(data.events_data)
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
+				// Defaulted like the campaign keys above: an older API (or a
+				// deploy where the two sides are briefly out of step) should
+				// degrade to an empty projection, not crash the calculator.
+				setIncomeLedger(data.income_ledger ?? [])
 				setOrganizedTimelineData(sortedMergedEvents)
 				setIsLoading(false)
 		}
@@ -294,6 +300,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
+		incomeLedger,
 		timerIsGoing,
 		organizedTimelineData,
 		saveNow,
