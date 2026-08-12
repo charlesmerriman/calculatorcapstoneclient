@@ -120,6 +120,7 @@ describe('timeline event narrowing', () => {
   const bannerWindow: BannerTimelineForViewing = {
     id: 1,
     name: 'Window',
+    banner_category: 'standard',
     event_type: 'banner_timeline',
     start_date: '2099-01-10T00:00:00Z',
     end_date: '2099-01-17T00:00:00Z',

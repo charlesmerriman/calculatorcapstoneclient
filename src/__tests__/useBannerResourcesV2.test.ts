@@ -74,6 +74,7 @@ function timeline(id: number, startDay: number, endDay: number): BannerTimeline 
   return {
     id,
     name: `Timeline ${id}`,
+    banner_category: 'standard',
     start_date: daysFromNow(startDay, 'T22:00:00Z'),
     end_date: daysFromNow(endDay),
     is_predicted: false,

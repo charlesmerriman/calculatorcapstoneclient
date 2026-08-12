@@ -49,7 +49,15 @@ contrast on the light theme. Any semantic status color that must survive a theme
 belongs in `@theme` as its own token.
 
 The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
-`App.css`) are the worked example to copy.
+`App.css`) are the worked example to copy. `--color-category-revival[-border]`
+(`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
+pattern: dark values in `@theme`, deepened counterparts under `[data-theme="light"]`.
+
+A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
+to read as "not the usual banner" against seven different brand hues, and would vanish into
+the card's existing brand-colored labels on every one of them. Only the headline category
+gets a hue; reruns and race-prep batches use the gray ramp so the one signal stays
+meaningful.
 
 ### Gotcha: `@apply` in `App.css` cannot see custom `@theme` tokens
 
@@ -232,10 +240,46 @@ a search box.
 
 **Two card shapes, three event types.** Champions Meetings and League of Heroes events
 share one course-details card, `components/timeline/RaceEventCard.tsx`; banner
-windows keep the wider three-column card inline in `Timeline.tsx`. `RaceEventCard` never
-branches on which of the two it has — if it ever needs to, they've stopped being the same
-card and should be split again. `RaceEventCard.test.tsx` renders one of each from the same
-data and diffs the markup, so a change applied to only one type fails there.
+windows use the wider card in `components/timeline/BannerWindowCard.tsx`. `RaceEventCard`
+never branches on which of the two it has — if it ever needs to, they've stopped being the
+same card and should be split again. `RaceEventCard.test.tsx` renders one of each from the
+same data and diffs the markup, so a change applied to only one type fails there.
+
+### Concurrent banners are one card, grouped at render time
+
+`groupTimelineEvents` (`timelineShared.ts`) folds banner events sharing an **exact**
+`start_date` into one `BannerWindowGroup`, rendered as a single card: shared header with the
+union window, then one section per constituent banner, each keeping its own panels and its
+own "Add to Planner". A section whose own end date differs from the header's says so.
+
+- **Grouping runs last**, after the past/future and search filters. Grouping first would let
+  a window straddle the boundary and pull an ended banner into the current view.
+- **Exact string equality, not the calendar day.** Both agree on every row in production
+  (eight groups, sixteen rows); exact equality can't merge two banners a reader west of GMT
+  sees on different dates.
+- **The rows must not be merged in the database.** They are separate gacha pools with
+  separate pity, `UserPlannedBanner` foreign-keys `BannerUma` rather than the timeline, and
+  their end dates can differ — and income is a pure function of a banner's end date.
+- A group of one is the common case and is the *same* code path, so there is no second
+  layout to keep in sync.
+
+### Category drives the chrome, count drives the grid
+
+`banner_category` picks which chip appears and whether the section opens into a full-width
+band (`CATEGORY_CHROME` in `BannerWindowCard.tsx`). How many tiles fit on a row is derived
+from the card count. Keeping those separate means a miscategorised row renders plainly but
+**completely**, instead of hiding cards.
+
+- `golden_week_revival` gets the band: one tile per column at `xl`, so up to eleven umas read
+  as a single line across the card. Its art and support columns are dropped — no revival has
+  either — but both return if the data ever grows them.
+- `race_prep_support` inverts the section's column weights (narrow uma, wide support grid) and
+  must degrade to zero umas; two of the sheet's 32 rows have none.
+- `standard` gets no chip at all. A badge on every card is noise, not signal.
+- **Never reintroduce `grid-rows-1`, `xl:overflow-hidden` or `xl:[contain:size]` on a feature
+  panel.** That trio pinned the panel to the banner art's height and silently discarded every
+  tile past the first row — two of eleven umas shown, nine gone, nothing on screen saying so.
+  jsdom applies no CSS, so only the class-name assertions in `Timeline.test.tsx` catch it.
 
 **Narrow with `isRaceEvent()` / `isBannerTimeline()`** (from `types/calculator.ts`), never
 by sniffing properties. The three shapes are not reliably distinguishable structurally: the
@@ -283,9 +327,11 @@ Guarded by `src/__tests__/Timeline.test.tsx`, whose fake observer fires each ins
 - **Both windows reset through `resetListWindow()` in the filter handlers, not from an
   effect.** Resetting in an effect commits the stale window and re-renders over it — a
   visible flash, and what `react-hooks/set-state-in-effect` flags.
-- **Cards key off `timelineEventKey(event)`** (`cm-` / `loh-` / `bt-` + id). Ids are
-  unique only *within* a model, and positional keys make React reuse a card's DOM —
-  including decoded images — for a different event when the list grows or re-filters.
+- **Cards key off `timelineRowKey(row)`** — `cm-` / `loh-` + id for race events, `win-` +
+  the shared start date for a banner window. Ids are unique only *within* a model, and
+  positional keys make React reuse a card's DOM — including decoded images — for a
+  different event when the list grows or re-filters. A window keys on its date rather than
+  its first banner's id so the key survives the API reordering banners inside a group.
 - Card images carry `loading="lazy"`; a banner card holds up to five, so a fully-revealed
   list is several hundred.
 

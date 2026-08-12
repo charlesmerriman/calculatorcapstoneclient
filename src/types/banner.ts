@@ -9,6 +9,24 @@
 
 import type { AttachedAnniversaryEvent } from "./anniversary"
 
+/**
+ * What kind of banner window a BannerTimeline is — the backend's
+ * `BannerCategory` TextChoices, mirroring the source sheet's "Banner Type"
+ * column so the two can be diffed.
+ *
+ * NOT to be confused with "banner type", which throughout the planner means
+ * Uma-vs-Support (`initialBannerType`, `bannerKey`, `banner-type-tab--uma`).
+ * Category is a different axis entirely and the two names must stay distinct.
+ *
+ * Drives presentation only: the timeline card's chrome and the category
+ * filter. Never the pull maths.
+ */
+export type BannerCategory =
+	| "standard"
+	| "race_prep_support"
+	| "golden_week_revival"
+	| "rerun"
+
 /** Represents a time window during which banners are available for pulling.
  *
  * `start_date`/`end_date` are the RESOLVED global dates: the confirmed global
@@ -20,6 +38,7 @@ import type { AttachedAnniversaryEvent } from "./anniversary"
 export interface BannerTimeline {
 	id: number
 	name: string
+	banner_category: BannerCategory
 	start_date: string
 	end_date: string
 	is_predicted: boolean
@@ -96,6 +115,7 @@ export interface BannerSupport {
 export interface BannerTimelineForViewing {
 	id: number
 	name: string
+	banner_category: BannerCategory
 	// Constant tag from the backend; see ChampionsMeeting in types/events.ts for
 	// why the merged timeline array narrows on this rather than on shape.
 	event_type: "banner_timeline"
