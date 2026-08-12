@@ -14,9 +14,15 @@ import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
 import { RaceEventCard } from "./RaceEventCard"
 import { BannerWindowCard } from "./BannerWindowCard"
-import { groupTimelineEvents, timelineRowKey } from "./timelineShared"
+import {
+	CATEGORY_LABELS,
+	CATEGORY_ORDER,
+	groupTimelineEvents,
+	timelineRowKey,
+} from "./timelineShared"
 import { isRaceEvent } from "../../types"
 import type {
+	BannerCategory,
 	BannerUma,
 	BannerSupport,
 	UserPlannedBanner,
@@ -111,6 +117,16 @@ const pageIndicatorClass =
 	"inline-flex min-h-10 items-center justify-center rounded border border-gray-700 bg-gray-950/50 px-4 py-2 text-sm font-semibold text-gray-200 shadow-inner md:min-h-0 md:py-1.5"
 const searchInputClass =
 	"w-full rounded border border-gray-600 bg-gray-800 py-2 pl-9 pr-3 text-sm text-gray-100 shadow-sm placeholder:text-gray-400 transition focus:border-gray-500 focus:bg-gray-800 focus:outline-none md:py-1.5"
+// Matches controlButtonClass so the filter reads as a third control in that row
+// rather than a form field that wandered in.
+const categorySelectClass =
+	"inline-flex min-h-10 items-center rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-100 shadow-sm transition hover:border-gray-500 hover:bg-gray-700 focus:border-gray-500 focus:outline-none md:min-h-0 md:py-1.5"
+
+/**
+ * The category filter's value. `"all"` is not a category — it's the absence of
+ * the filter, and the only value that keeps race events in the list.
+ */
+type CategoryFilter = "all" | BannerCategory
 
 type PaginationControlsProps = {
 	currentPage: number
@@ -183,6 +199,10 @@ export const Timeline = () => {
 	} = useCalculatorData()
 	const [showPast, setShowPast] = useState(false)
 	const [searchQuery, setSearchQuery] = useState("")
+	// Not persisted, matching the search box and the past/future toggle: it's a
+	// question you're asking right now, not a preference. Only the view mode and
+	// the paged position survive leaving the route.
+	const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all")
 	const [currentPage, setCurrentPage] = useState(readStoredPage)
 	const [viewMode, setViewMode] = useState<TimelineViewMode>(readStoredViewMode)
 	const [visibleCount, setVisibleCount] = useState(INFINITE_CHUNK_SIZE)
@@ -240,19 +260,43 @@ export const Timeline = () => {
 	// the current view, and would make a search match pull in banners that don't
 	// match. Everything downstream — paging, the reveal window, the counts —
 	// therefore measures ROWS (cards on screen), not raw events.
-	const timelineRows = useMemo(
-		() =>
-			groupTimelineEvents(
-				organizedTimelineData
-					.filter((event) =>
-						showPast
-							? new Date(event.end_date) < today
-							: new Date(event.end_date) >= today
-					)
-					.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
-			),
-		[organizedTimelineData, showPast, searchQuery, today]
-	)
+	const timelineRows = useMemo(() => {
+		const rows = groupTimelineEvents(
+			organizedTimelineData
+				.filter((event) =>
+					showPast
+						? new Date(event.end_date) < today
+						: new Date(event.end_date) >= today
+				)
+				.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
+		)
+
+		if (categoryFilter === "all") return rows
+
+		// Applied AFTER grouping, and a group survives if ANY constituent matches.
+		// Filtering the events first would drop the ordinary banner that shares a
+		// revival's window, leaving a card that misrepresents the week — the
+		// reader would see the revival alone and conclude nothing else was on.
+		//
+		// Race events drop out here on purpose: a Champions Meeting has no banner
+		// category, so "show me only reruns" cannot meaningfully include one.
+		return rows.filter(
+			(row) =>
+				row.kind === "banner_window" &&
+				row.group.banners.some((banner) => banner.banner_category === categoryFilter)
+		)
+	}, [organizedTimelineData, showPast, searchQuery, categoryFilter, today])
+
+	// Only offer categories the data actually contains. `race_prep_support` has
+	// no rows until the support backfill lands, and an option that can only ever
+	// return "No events found." is a dead end rather than a filter.
+	const availableCategories = useMemo(() => {
+		const present = new Set<BannerCategory>()
+		for (const event of organizedTimelineData) {
+			if (!isRaceEvent(event)) present.add(event.banner_category)
+		}
+		return CATEGORY_ORDER.filter((category) => present.has(category))
+	}, [organizedTimelineData])
 
 	const totalPages = Math.max(1, Math.ceil(timelineRows.length / PAGE_SIZE))
 
@@ -369,6 +413,31 @@ export const Timeline = () => {
 							)}
 							{viewMode === "infinite" ? "Use pages" : "Use infinite scroll"}
 						</button>
+						{/* Hidden only when there is nothing to choose between — a
+						    single-option filter is just clutter. */}
+						{availableCategories.length > 1 && (
+							<>
+								<label className="sr-only" htmlFor="timeline-category-filter">
+									Filter by banner type
+								</label>
+								<select
+									id="timeline-category-filter"
+									className={`${categorySelectClass} w-full sm:w-auto`}
+									value={categoryFilter}
+									onChange={(e) => {
+										setCategoryFilter(e.target.value as CategoryFilter)
+										resetListWindow()
+									}}
+								>
+									<option value="all">All events</option>
+									{availableCategories.map((category) => (
+										<option key={category} value={category}>
+											{CATEGORY_LABELS[category]}
+										</option>
+									))}
+								</select>
+							</>
+						)}
 					</div>
 					{viewMode === "paged" && totalPages > 1 ? (
 						<PaginationControls
