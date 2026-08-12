@@ -667,17 +667,36 @@ describe('Timeline banner categories', () => {
     expect(screen.queryByText('Banner art coming soon')).not.toBeInTheDocument()
   })
 
-  it('expands when only the support side is oversized', () => {
-    // A race-prep batch: one uma, ten support cards.
+  it('bands only the oversized panel, leaving the other beside the art', () => {
+    // A race-prep batch: one uma, ten support cards, banner art. 22 of the 29
+    // race-prep rows are exactly this, so it is the shape that matters most.
     const supports = Array.from({ length: 10 }, (_, i) => `Card ${i + 1}`)
     events = [categorised(1, 'race_prep_support', ['Satono Crown'], supports)]
     render(<Timeline />)
 
+    // The ten that don't fit get the full-width line...
     expect(bandFor('Card 10').row.children).toHaveLength(10)
-    // The lone uma gets a band too, so both halves read as lines rather than
-    // one line above a single tile stranded in a two-column grid.
-    expect(bandFor('Satono Crown').row.children).toHaveLength(1)
+    // ...and the lone uma keeps its column beside the art, which is where it sat
+    // before these support cards were backfilled. Banding the whole section
+    // instead threw the art onto its own row and left one tile adrift in a
+    // full-width panel.
+    expect(screen.getByAltText('Satono Crown').closest('div.overflow-x-auto')).toBeNull()
+    expect(gridFor('Satono Crown')).toBeInTheDocument()
     expect(screen.getByText('Race Prep Support')).toBeInTheDocument()
+  })
+
+  it('drops the support column that banded away, rather than emptying it', () => {
+    // The art row must not keep a placeholder slot for the panel that left, or
+    // the row renders art | uma | nothing with the band repeating below.
+    const supports = Array.from({ length: 10 }, (_, i) => `Card ${i + 1}`)
+    events = [categorised(1, 'race_prep_support', ['Satono Crown'], supports)]
+    render(<Timeline />)
+
+    expect(
+      screen.queryByText('No support banner in this window.'),
+    ).not.toBeInTheDocument()
+    // Exactly one support panel on the card — the band.
+    expect(screen.getAllByText('Featured Support Cards')).toHaveLength(1)
   })
 
   it('keeps an ordinary two-card banner in the compact columns', () => {

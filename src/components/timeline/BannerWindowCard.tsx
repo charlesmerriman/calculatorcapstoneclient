@@ -131,6 +131,15 @@ const SECTION_COLUMNS =
 	"xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(260px,0.78fr)]"
 const SECTION_COLUMNS_SUPPORT_LED =
 	"xl:grid-cols-[minmax(300px,1fr)_minmax(200px,0.5fr)_minmax(420px,1.7fr)]"
+/**
+ * Image | one panel, for when the other panel has banded away below.
+ *
+ * The art takes the width the departed panel freed rather than the surviving
+ * panel doubling: this is the race-prep shape (one uma, ten banded supports),
+ * where a 260px uma column beside large art is exactly how the row read before
+ * the support cards existed.
+ */
+const SECTION_COLUMNS_PAIR = "xl:grid-cols-[minmax(360px,1.6fr)_minmax(260px,0.7fr)]"
 
 /**
  * The fields a featured tile actually renders. Both Uma and SupportCard
@@ -380,8 +389,28 @@ function BannerSection({
 	// future one features only two umas.
 	const umaCount = umaBanner?.umas.length ?? 0
 	const supportCount = supportBanner?.support_cards.length ?? 0
-	const expanded = !!chrome?.band || umaCount > COLUMN_TILE_CAPACITY ||
-		supportCount > COLUMN_TILE_CAPACITY
+
+	// BANDING IS PER PANEL. A panel bands only when its OWN cards overflow a
+	// column — the other panel is unaffected and keeps its place beside the art.
+	//
+	// This was briefly a section-wide flag, which read plausibly and was wrong on
+	// the commonest case we have: 22 of the 29 race-prep rows are one uma and ten
+	// support cards WITH banner art, and banding the section threw the art onto
+	// its own line and marooned the lone uma in a full-width band. Only the cards
+	// that don't fit need the extra width.
+	const umaBanded = !!umaBanner && (!!chrome?.band || umaCount > COLUMN_TILE_CAPACITY)
+	const supportBanded =
+		!!supportBanner && (!!chrome?.band || supportCount > COLUMN_TILE_CAPACITY)
+	const hasBand = umaBanded || supportBanded
+
+	// A panel keeps its column if it isn't banded — and, once anything IS banded,
+	// only if it has a banner to show. That second clause is what stops a revival
+	// (umas banded, no support banner at all) from spending a full-width row on an
+	// empty "No support banner in this window." panel. With nothing banded the
+	// empty states still render, because then they're the whole section.
+	const umaInColumn = !umaBanded && (!!umaBanner || !hasBand)
+	const supportInColumn = !supportBanded && (!!supportBanner || !hasBand)
+	const columnPanelCount = (umaInColumn ? 1 : 0) + (supportInColumn ? 1 : 0)
 
 	const umaPanel = (
 		<FeaturePanel
@@ -394,7 +423,7 @@ function BannerSection({
 			// 7rem × 9 + gaps still fits the launch banner's umas on one unscrolled
 			// line at 1150px, the narrowest desktop width worth optimising for.
 			bandMinWidthClass="min-w-[7rem]"
-			layout={expanded ? "band" : "column"}
+			layout={umaBanded ? "band" : "column"}
 			status={getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)}
 			actionIcon={Star}
 			onAdd={() => umaBanner && onAddBanner(umaBanner, "Uma")}
@@ -413,7 +442,7 @@ function BannerSection({
 			// The launch banner's twenty scroll on any realistic screen, which is
 			// the intended outcome — 20 across a 1490px card is 68px a tile.
 			bandMinWidthClass="min-w-[6rem]"
-			layout={expanded ? "band" : "column"}
+			layout={supportBanded ? "band" : "column"}
 			status={getBannerCardStatus(
 				!!supportBanner,
 				supportExpired,
@@ -441,54 +470,79 @@ function BannerSection({
 		</div>
 	)
 
-	if (expanded) {
-		// Art and the support panel appear only if the banner actually has them.
-		// Revivals carry neither, and the launch banner has no art either — a
-		// full-width "Banner art coming soon" placeholder above two bands is
-		// worse than no placeholder at all.
-		return (
-			<div className="flex flex-col gap-3">
-				{header}
-				{banner.image && (
-					<img
-						src={banner.image}
-						alt={banner.name}
-						loading="lazy"
-						decoding="async"
-						className="h-auto w-full max-w-2xl rounded-xl border border-gray-600 shadow-md"
-					/>
-				)}
-				{umaBanner && umaPanel}
-				{supportBanner && supportPanel}
-			</div>
-		)
-	}
+	// Whether the art cell appears at all.
+	//
+	// A section with no bands always shows it, placeholder included — that is the
+	// ordinary three-column banner, where the placeholder is a third of the row
+	// and reads as "art pending". Once something has banded, a placeholder is
+	// only ever filler: it would be 1030px of empty box beside a single uma tile,
+	// with the real content already on the band below. So past that point the
+	// cell needs actual art to earn its place.
+	const showArt = !hasBand || !!banner.image
+
+	// `columnPanelCount === 2` implies nothing banded (a banded panel is by
+	// definition not in a column), so the three-column template is only ever
+	// reached by the ordinary case and stays exactly as it was.
+	const artRowColumns =
+		columnPanelCount === 2
+			? chrome?.supportLed
+				? SECTION_COLUMNS_SUPPORT_LED
+				: SECTION_COLUMNS
+			: SECTION_COLUMNS_PAIR
 
 	return (
-		<div className="flex flex-col gap-2">
+		<div className={`flex flex-col ${hasBand ? "gap-3" : "gap-2"}`}>
 			{header}
-			<div
-				className={`grid gap-4 xl:items-stretch ${
-					chrome?.supportLed ? SECTION_COLUMNS_SUPPORT_LED : SECTION_COLUMNS
-				}`}
-			>
-				<div className="min-w-0">
-					{banner.image ? (
-						<img
-							src={banner.image}
-							alt={banner.name}
-							loading="lazy"
-							decoding="async"
-							className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
-						/>
-					) : (
-						<BannerArtPlaceholder />
-					)}
-				</div>
 
-				{umaPanel}
-				{supportPanel}
-			</div>
+			{columnPanelCount > 0 &&
+				(showArt ? (
+					<div className={`grid gap-4 xl:items-stretch ${artRowColumns}`}>
+						<div className="min-w-0">
+							{banner.image ? (
+								<img
+									src={banner.image}
+									alt={banner.name}
+									loading="lazy"
+									decoding="async"
+									className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+								/>
+							) : (
+								<BannerArtPlaceholder />
+							)}
+						</div>
+
+						{umaInColumn && umaPanel}
+						{supportInColumn && supportPanel}
+					</div>
+				) : (
+					// No art and nothing to sit beside: the panel keeps its column
+					// width rather than stretching across a row it is the only
+					// occupant of. Wide enough for two tiles, which is the most a
+					// column ever holds.
+					<div className="w-full max-w-md">
+						{umaInColumn && umaPanel}
+						{supportInColumn && supportPanel}
+					</div>
+				))}
+
+			{/* No column panel to sit beside, but art to show anyway: it spans the
+			    bands instead, capped so it doesn't tower over them. No production
+			    row hits this today — every both-banded row is art-less — but a
+			    future one shouldn't silently lose its art. */}
+			{columnPanelCount === 0 && banner.image && (
+				<img
+					src={banner.image}
+					alt={banner.name}
+					loading="lazy"
+					decoding="async"
+					className="h-auto w-full max-w-2xl rounded-xl border border-gray-600 shadow-md"
+				/>
+			)}
+
+			{/* Bands stack below the art row, umas first — the primary axis of a
+			    banner, and the order the panels sit in when both are columns. */}
+			{umaBanded && umaPanel}
+			{supportBanded && supportPanel}
 		</div>
 	)
 }
