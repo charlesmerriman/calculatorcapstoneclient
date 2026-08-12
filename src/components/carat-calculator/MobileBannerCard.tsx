@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { Trash2, X } from "lucide-react"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
+import { ExtraCardsBadge } from "./ExtraCardsBadge"
 
 interface MobileBannerCardProps {
 	bannerType: "Uma" | "Support"
@@ -59,7 +60,7 @@ export const MobileBannerCard = ({
 					)}
 				</div>
 
-				<div className="flex min-w-0 shrink-0 items-center gap-1 overflow-hidden px-1.5 py-2 sm:gap-2 sm:px-3">
+				<div className="relative flex min-w-0 shrink-0 items-center gap-1 overflow-hidden px-1.5 py-2 sm:gap-2 sm:px-3">
 					{images.length > 0 ? (
 						images.slice(0, 2).map((img) => (
 							<div
@@ -74,6 +75,7 @@ export const MobileBannerCard = ({
 							</div>
 						))
 					) : null}
+					<ExtraCardsBadge hidden={images.length - 2} />
 				</div>
 
 				<div className="flex min-w-0 flex-1 items-center py-2 pr-1">
