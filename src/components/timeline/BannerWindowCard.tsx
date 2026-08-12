@@ -100,39 +100,31 @@ const CATEGORY_CHROME: Partial<Record<BannerCategory, CategoryChrome>> = {
 const COLUMN_TILE_CAPACITY = 2
 
 /**
- * A band opens out to one tile per column at xl, so a section's featured cards
- * read as a single line across the card.
+ * A BAND IS ONE LINE AT EVERY WIDTH. Nothing about it is breakpoint-driven.
  *
- * Written out rather than built as `xl:grid-cols-${n}`: Tailwind generates
- * utilities by scanning source text for literal class names, and an
- * interpolated string produces none of them. Past 12 the stock scale runs out,
- * so those are arbitrary `repeat()` values — needed for the launch banner's
- * twenty support cards. Below xl the card is too narrow for a line of twenty,
- * so the band wraps at two: tall, but nothing hidden, which is the point.
+ * The first attempt built the line out of `xl:grid-cols-${n}` classes, which
+ * meant the line only existed above 1280px — below that the band fell back to
+ * two columns and a ten-card race-prep batch rendered as a 2×5 tower with a
+ * gutter of dead space down the middle. It also divided the width by the card
+ * count with no floor, so the launch banner's twenty support cards were squeezed
+ * to 74px each and their names broke mid-syllable.
+ *
+ * So the line is a flex row instead, and the card count sets a MINIMUM tile
+ * width rather than an exact one:
+ *
+ *   - each tile grows to an equal share of the row (`flex-1`), so four revival
+ *     umas spread across the full width exactly as they do today;
+ *   - each tile refuses to shrink past `bandMinWidthClass`, so twenty support
+ *     cards stay readable;
+ *   - when the minimums don't fit, the row overflows its own `overflow-x-auto`
+ *     scroller. Still exactly one line, just one you scroll — and the page body
+ *     never scrolls sideways, per the container rule in ui-conventions.
+ *
+ * The cap lives on the tile and the growth on a wrapper around it, which is what
+ * reproduces the grid's `justify-items-center` spread: the wrapper takes its
+ * share of the row, the tile sits centered inside it at its natural size.
  */
-const BAND_XL_COLUMNS = [
-	"xl:grid-cols-1",
-	"xl:grid-cols-1",
-	"xl:grid-cols-2",
-	"xl:grid-cols-3",
-	"xl:grid-cols-4",
-	"xl:grid-cols-5",
-	"xl:grid-cols-6",
-	"xl:grid-cols-7",
-	"xl:grid-cols-8",
-	"xl:grid-cols-9",
-	"xl:grid-cols-10",
-	"xl:grid-cols-11",
-	"xl:grid-cols-12",
-	"xl:grid-cols-[repeat(13,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(14,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(15,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(16,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(17,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(18,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(19,minmax(0,1fr))]",
-	"xl:grid-cols-[repeat(20,minmax(0,1fr))]",
-] as const
+const BAND_TILE = "flex flex-1 justify-center"
 
 /** Image | umas | supports. Support-led inverts the last two weights. */
 const SECTION_COLUMNS =
@@ -185,9 +177,14 @@ type FeaturePanelProps = {
 	/** False when this window has no banner of this kind at all. */
 	hasBanner: boolean
 	emptyText: string
-	/** Uma art is portrait and wider; support art is smaller. */
+	/** Widest a tile grows to. Uma art is portrait and wider; support art is smaller. */
 	tileWidthClass: string
-	/** Band opens to one tile per column at xl; column stays two-wide. */
+	/**
+	 * Narrowest a tile shrinks to in a band before the line starts scrolling.
+	 * Unused in column layout, where the two-across grid sets the width.
+	 */
+	bandMinWidthClass: string
+	/** Band is one scrollable line at every width; column stays two-wide. */
 	layout?: "column" | "band"
 	status: BannerCardStatus
 	actionIcon: LucideIcon
@@ -201,42 +198,76 @@ function FeaturePanel({
 	hasBanner,
 	emptyText,
 	tileWidthClass,
+	bandMinWidthClass,
 	layout = "column",
 	status,
 	actionIcon: ActionIcon,
 	onAdd,
 }: FeaturePanelProps) {
-	// Count drives the grid. A narrow column tops out at two tiles across and
-	// grows downwards; a band opens to one row of `items.length` at xl.
+	// Count drives the layout. A narrow column tops out at two tiles across and
+	// grows downwards; a band is always exactly one line — see BAND_TILE.
 	//
-	// There is no row cap and no overflow clip here, and that is deliberate: the
-	// panel used to carry `grid-rows-1`, `xl:overflow-hidden` and
+	// There is no row cap and no overflow clip on the cross axis, and that is
+	// deliberate: the panel used to carry `grid-rows-1`, `xl:overflow-hidden` and
 	// `xl:[contain:size]`, which pinned it to the banner art's height and
 	// silently discarded every tile past the first row. On an eleven-uma revival
 	// that meant showing two umas and hiding nine, with nothing on screen to say
-	// so. A card that grows taller is the right trade.
+	// so. A card that grows taller — or a line that scrolls — is the right trade.
 	const isBand = layout === "band"
-	const featureGridClass = isBand
-		? `grid-cols-2 items-stretch ${BAND_XL_COLUMNS[Math.min(items.length, BAND_XL_COLUMNS.length - 1)]}`
-		: `items-center ${items.length === 1 ? "grid-cols-1" : "grid-cols-2"}`
 
-	// A band tile is only as wide as the card divided by the card count, so the
-	// name needs to shrink as the band widens. Three tiers, each measured
-	// against a real banner:
-	//
-	//   column        ~160px  the ordinary one- or two-card row
-	//   band          ~115px  eleven umas — 15px/two lines truncated "Biwa
-	//                         Hayahide (Christmas)" and "(Mecha)" to the same
-	//                         "Biwa Hayahide…", useless on a banner with both
-	//   band, dense    ~72px  the launch banner's twenty support cards, where
-	//                         13px broke words mid-syllable ("Specia l Week",
-	//                         "Tazuna Hayak awa")
-	const dense = isBand && items.length > 12
-	const nameClass = dense
-		? "line-clamp-3 text-[0.6875rem] tracking-tight"
-		: isBand
-			? "line-clamp-3 text-[0.8125rem]"
-			: "line-clamp-2 text-[0.9375rem]"
+	// A band tile is narrower than a column tile, so its name gets a smaller
+	// size and a third line. Both tiers were measured against real banners: at
+	// 15px/two lines "Biwa Hayahide (Christmas)" and "(Mecha)" both truncated to
+	// "Biwa Hayahide…" on a revival featuring both. The old third tier — 11px
+	// with tighter tracking, for the launch banner's twenty support cards — is
+	// gone with the squeeze that forced it; no band tile now renders below
+	// `bandMinWidthClass`.
+	const nameClass = isBand
+		? "line-clamp-3 text-[0.8125rem]"
+		: "line-clamp-2 text-[0.9375rem]"
+
+	const tiles = items.map((item) => {
+		const tile = (
+			<div
+				className={`flex h-full w-full min-w-0 flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm ${tileWidthClass}`}
+			>
+				<div className="relative shrink-0 overflow-hidden bg-gray-700">
+					{item.recommendation && (
+						<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
+							{item.recommendation}
+						</div>
+					)}
+					<img
+						src={item.image}
+						alt={item.name}
+						loading="lazy"
+						decoding="async"
+						className="block h-auto w-full object-contain"
+					/>
+				</div>
+				<div className="flex min-h-16 flex-1 items-center justify-center p-2">
+					<div
+						className={`overflow-hidden break-words text-center font-semibold leading-tight text-gray-100 ${nameClass}`}
+					>
+						{item.name}
+					</div>
+				</div>
+			</div>
+		)
+
+		// In a band the growth sits on a wrapper so the tile keeps its own cap and
+		// stays centered in its share of the line; in a column the tile is the
+		// grid cell itself.
+		return isBand ? (
+			<div key={item.id} className={`${BAND_TILE} ${bandMinWidthClass}`}>
+				{tile}
+			</div>
+		) : (
+			<div key={item.id} className="flex w-full min-w-0 justify-center">
+				{tile}
+			</div>
+		)
+	})
 
 	return (
 		<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm">
@@ -246,38 +277,27 @@ function FeaturePanel({
 			</div>
 			{hasBanner ? (
 				<div className="flex flex-1 flex-col gap-1.5">
-					<div
-						className={`grid flex-1 justify-items-center content-center gap-1.5 ${featureGridClass}`}
-					>
-						{items.map((item) => (
-							<div
-								key={item.id}
-								className={`flex h-full w-full min-w-0 flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm ${tileWidthClass}`}
-							>
-								<div className="relative shrink-0 overflow-hidden bg-gray-700">
-									{item.recommendation && (
-										<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
-											{item.recommendation}
-										</div>
-									)}
-									<img
-										src={item.image}
-										alt={item.name}
-										loading="lazy"
-										decoding="async"
-										className="block h-auto w-full object-contain"
-									/>
-								</div>
-								<div className="flex min-h-16 flex-1 items-center justify-center p-2">
-									<div
-										className={`overflow-hidden break-words text-center font-semibold leading-tight text-gray-100 ${nameClass}`}
-									>
-										{item.name}
-									</div>
-								</div>
-							</div>
-						))}
-					</div>
+					{isBand ? (
+						// `pb-1` keeps the tiles' shadow out of the scroller's clip: setting
+						// overflow-x to auto computes overflow-y to auto too, so a band with
+						// no bottom padding shaves the shadow off every tile.
+						<div className="flex-1 overflow-x-auto pb-1">
+							{/* No `justify-*` on purpose. The tiles are flex-1 with the cap on
+							    the inner tile, so the row always fills exactly and there is
+							    never free space to distribute — while `justify-center` on a row
+							    that DOES overflow strands its first tile off the left edge
+							    where no amount of scrolling reaches it. */}
+							<div className="flex items-stretch gap-1.5">{tiles}</div>
+						</div>
+					) : (
+						<div
+							className={`grid flex-1 content-center items-center gap-1.5 ${
+								items.length === 1 ? "grid-cols-1" : "grid-cols-2"
+							}`}
+						>
+							{tiles}
+						</div>
+					)}
 					{/* Single shared action button — every featured card here belongs to the
 					    same banner, so one full-width button drives the add for all of them. */}
 					<button
@@ -371,6 +391,9 @@ function BannerSection({
 			hasBanner={!!umaBanner}
 			emptyText="No Umamusume banner in this window."
 			tileWidthClass="max-w-[10rem] 2xl:max-w-[13.5rem]"
+			// 7rem × 9 + gaps still fits the launch banner's umas on one unscrolled
+			// line at 1150px, the narrowest desktop width worth optimising for.
+			bandMinWidthClass="min-w-[7rem]"
 			layout={expanded ? "band" : "column"}
 			status={getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)}
 			actionIcon={Star}
@@ -386,6 +409,10 @@ function BannerSection({
 			hasBanner={!!supportBanner}
 			emptyText="No support banner in this window."
 			tileWidthClass="max-w-[7.75rem] 2xl:max-w-[9.5rem]"
+			// A race-prep batch's ten cards fit unscrolled from about 1050px up.
+			// The launch banner's twenty scroll on any realistic screen, which is
+			// the intended outcome — 20 across a 1490px card is 68px a tile.
+			bandMinWidthClass="min-w-[6rem]"
 			layout={expanded ? "band" : "column"}
 			status={getBannerCardStatus(
 				!!supportBanner,

@@ -413,6 +413,25 @@ export const Timeline = () => {
 							)}
 							{viewMode === "infinite" ? "Use pages" : "Use infinite scroll"}
 						</button>
+					</div>
+					{viewMode === "paged" && totalPages > 1 ? (
+						<PaginationControls
+							currentPage={effectivePage}
+							totalPages={totalPages}
+							onPrevious={() => goToPage(Math.max(1, effectivePage - 1))}
+							onNext={() => goToPage(Math.min(totalPages, effectivePage + 1))}
+						/>
+					) : viewMode === "infinite" && timelineRows.length > 0 ? (
+						<span className={pageIndicatorClass}>
+							Showing <span className="mx-1 text-brand">{visibleRows.length}</span> of{" "}
+							{timelineRows.length}
+						</span>
+					) : <div />}
+					{/* Narrowing controls, grouped at the trailing edge: the category
+					    filter and the search box both cut the list down, so they belong
+					    beside each other rather than one of them sitting among the
+					    view-mode toggles on the far side of the bar. */}
+					<div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end md:w-auto md:justify-self-end">
 						{/* Hidden only when there is nothing to choose between — a
 						    single-option filter is just clutter. */}
 						{availableCategories.length > 1 && (
@@ -438,21 +457,6 @@ export const Timeline = () => {
 								</select>
 							</>
 						)}
-					</div>
-					{viewMode === "paged" && totalPages > 1 ? (
-						<PaginationControls
-							currentPage={effectivePage}
-							totalPages={totalPages}
-							onPrevious={() => goToPage(Math.max(1, effectivePage - 1))}
-							onNext={() => goToPage(Math.min(totalPages, effectivePage + 1))}
-						/>
-					) : viewMode === "infinite" && timelineRows.length > 0 ? (
-						<span className={pageIndicatorClass}>
-							Showing <span className="mx-1 text-brand">{visibleRows.length}</span> of{" "}
-							{timelineRows.length}
-						</span>
-					) : <div />}
-					<div className="flex justify-end">
 						<div className="relative w-full md:w-64">
 							<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input
