@@ -520,21 +520,41 @@ describe('Timeline concurrent banners', () => {
 })
 
 /**
- * Category drives the chrome, count drives the grid.
+ * Category drives the chrome, count drives the layout.
  *
- * One caveat these tests can't get around: the clipping this phase fixes was
- * purely a CSS effect (`grid-rows-1` plus `xl:overflow-hidden` pinned the panel
- * to the banner art's height). jsdom applies no stylesheets, so every tile was
- * always in the DOM — asserting on rendered names would have passed before the
- * fix too. The class-name assertions below are therefore the real guard against
- * that regression, and the layouts were checked visually against the dev server.
+ * One caveat these tests can't get around: the defects here are CSS effects, and
+ * jsdom applies no stylesheets. Every tile is in the DOM either way, so
+ * asserting on rendered names would have passed before each fix too. What the
+ * band assertions below can check structurally is the ONE-LINE guarantee — a
+ * band's tiles are all direct children of a single flex row, so counting them
+ * proves there is no second row to wrap onto. That is a stronger guard than the
+ * class-name sniffing it replaces, which asserted `xl:grid-cols-N` and so was
+ * blind to the band collapsing to two columns below 1280px. The widths
+ * themselves were checked visually at 420 / 1150 / 1280 / 1600.
  */
 describe('Timeline banner categories', () => {
-  /** The grid a named card's tile sits in. */
+  /** The grid a named card's tile sits in — compact column layout only. */
   function gridFor(name: string): HTMLElement {
     const grid = screen.getByAltText(name).closest('div.grid')
     expect(grid, `no grid around ${name}`).not.toBeNull()
     return grid as HTMLElement
+  }
+
+  /**
+   * The one-line band a named card sits in, as its scroller and its row.
+   *
+   * `row.children` is the assertion that matters: a band puts every tile on one
+   * flex row, so the child count IS the line length. If the layout ever wraps
+   * again, tiles land on a second row and the count stops matching.
+   */
+  function bandFor(name: string): { scroller: HTMLElement; row: HTMLElement } {
+    const scroller = screen.getByAltText(name).closest('div.overflow-x-auto')
+    expect(scroller, `no band scroller around ${name}`).not.toBeNull()
+    const row = (scroller as HTMLElement).firstElementChild as HTMLElement
+    expect(row.className).toContain('flex')
+    // A band must never be a grid again — that is what let it wrap at two.
+    expect(row.className).not.toContain('grid')
+    return { scroller: scroller as HTMLElement, row }
   }
 
   const REVIVAL_UMAS = [
@@ -570,13 +590,16 @@ describe('Timeline banner categories', () => {
     events = [categorised(1, 'golden_week_revival', REVIVAL_UMAS)]
     render(<Timeline />)
 
-    const grid = gridFor('Hishi Miracle')
-    // Eleven umas, eleven columns at xl — the horizontal band.
-    expect(grid.className).toContain('xl:grid-cols-11')
+    const { scroller, row } = bandFor('Hishi Miracle')
+    // Eleven umas, eleven tiles, one row — at every width, not just xl.
+    expect(row.children).toHaveLength(REVIVAL_UMAS.length)
+    // A line too long to fit scrolls inside its own container, which is what
+    // keeps it off the page's horizontal scrollbar.
+    expect(scroller.className).toContain('overflow-x-auto')
     // The three classes that used to hide nine of them.
-    expect(grid.className).not.toContain('grid-rows-1')
-    expect(grid.className).not.toContain('overflow-hidden')
-    expect(grid.className).not.toContain('contain:size')
+    expect(row.className).not.toContain('grid-rows-1')
+    expect(scroller.className).not.toContain('overflow-hidden')
+    expect(scroller.className).not.toContain('contain:size')
   })
 
   it('drops the empty art and support columns a revival would leave behind', () => {
@@ -634,11 +657,9 @@ describe('Timeline banner categories', () => {
     events = [categorised(1, 'standard', umas, supports)]
     render(<Timeline />)
 
-    // Both sides get their own horizontal line...
-    expect(gridFor('Launch Uma 9').className).toContain('xl:grid-cols-9')
-    expect(gridFor('Launch Card 20').className).toContain(
-      'xl:grid-cols-[repeat(20,minmax(0,1fr))]',
-    )
+    // Both sides get their own horizontal line, each holding all of its cards.
+    expect(bandFor('Launch Uma 9').row.children).toHaveLength(9)
+    expect(bandFor('Launch Card 20').row.children).toHaveLength(20)
     // ...and every card is present, none capped away.
     expect(screen.getByAltText('Launch Uma 1')).toBeInTheDocument()
     expect(screen.getByAltText('Launch Card 1')).toBeInTheDocument()
@@ -652,7 +673,10 @@ describe('Timeline banner categories', () => {
     events = [categorised(1, 'race_prep_support', ['Satono Crown'], supports)]
     render(<Timeline />)
 
-    expect(gridFor('Card 10').className).toContain('xl:grid-cols-10')
+    expect(bandFor('Card 10').row.children).toHaveLength(10)
+    // The lone uma gets a band too, so both halves read as lines rather than
+    // one line above a single tile stranded in a two-column grid.
+    expect(bandFor('Satono Crown').row.children).toHaveLength(1)
     expect(screen.getByText('Race Prep Support')).toBeInTheDocument()
   })
 
@@ -667,16 +691,22 @@ describe('Timeline banner categories', () => {
     expect(screen.getByText('Banner art coming soon')).toBeInTheDocument()
   })
 
-  it('grows a narrow panel downwards rather than hiding the extra tiles', () => {
-    // An uncategorised banner with four umas — the miscategorised-row case.
-    // It renders plainly, but completely.
+  it('puts a miscategorised four-uma row on one line rather than a tower', () => {
+    // An uncategorised banner with four umas — the miscategorised-row case. It
+    // renders plainly, but completely, and on one line: the count alone is
+    // enough to open the band, with no category to go on.
+    //
+    // This used to assert `grid-cols-2` and pass, because a band WAS a
+    // two-column grid until xl. That is the bug, not the contract — four umas
+    // in a 2×2 block with a gutter of dead space beside them is what the
+    // one-line rule replaces.
     events = [categorised(1, 'standard', ['A Uma', 'B Uma', 'C Uma', 'D Uma'])]
     render(<Timeline />)
 
-    const grid = gridFor('D Uma')
-    expect(grid.className).toContain('grid-cols-2')
-    expect(grid.className).not.toContain('grid-rows-1')
-    expect(grid.className).not.toContain('overflow-hidden')
+    const { row } = bandFor('D Uma')
+    expect(row.children).toHaveLength(4)
+    expect(row.className).not.toContain('grid-cols-2')
+    expect(row.className).not.toContain('grid-rows-1')
   })
 })
 
@@ -714,6 +744,25 @@ describe('Timeline category filter', () => {
     render(<Timeline />)
 
     expect(screen.queryByLabelText(FILTER)).not.toBeInTheDocument()
+  })
+
+  it('sits with the search box, ahead of it', () => {
+    // Both controls narrow the list, so they share the trailing end of the
+    // control bar — the filter first. It used to sit among the view-mode
+    // toggles at the other end, which put two unrelated jobs in one group.
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'golden_week_revival', ['Oguri Cap (Christmas)']),
+    ]
+    render(<Timeline />)
+
+    const filter = screen.getByLabelText(FILTER)
+    const search = screen.getByPlaceholderText(/search characters or events/i)
+
+    expect(filter.parentElement).toBe(search.parentElement?.parentElement)
+    // DOCUMENT_POSITION_FOLLOWING: the search box comes after the filter.
+    expect(filter.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy()
   })
 
   it('narrows the list to the chosen category', () => {
