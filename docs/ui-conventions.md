@@ -265,19 +265,32 @@ own "Add to Planner". A section whose own end date differs from the header's say
 
 ### Count drives the layout, category drives the accents
 
-The **card count** decides whether a section abandons the image/uma/support columns for
-stacked full-width bands (`COLUMN_TILE_CAPACITY`, currently 2 — a feature column is ~260px,
-two tiles across). `banner_category` picks the chip and the column weighting
-(`CATEGORY_CHROME` in `BannerWindowCard.tsx`), and can still *force* a band.
+The **card count** decides whether a panel abandons its column for a full-width band
+(`COLUMN_TILE_CAPACITY`, currently 2 — a feature column is ~260px, two tiles across).
+`banner_category` picks the chip and the column weighting (`CATEGORY_CHROME` in
+`BannerWindowCard.tsx`), and can still *force* a band.
 
 That way round because of the JP launch banner: a `standard` row with 9 umas and 20 support
 cards and no art. No category flagged it, and none should have to — the counts are right
 there. A miscategorised revival therefore still renders every card.
 
+**Banding is PER PANEL, not per section.** Only the cards that don't fit take the extra
+width; the other panel keeps its place beside the art. This was briefly section-wide, which
+reads plausibly and is wrong on the commonest shape we hold: 22 of the 29 race-prep rows are
+one uma and ten support cards *with* art, and banding the section threw the art onto its own
+line and left a single uma tile adrift in a full-width panel. Five combinations occur in
+production — race-prep with art (22), race-prep without art (4), race-prep with no uma (3),
+revival (4), launch banner (1) — and any change here should be checked against all five.
+
+- The art cell needs **real art** to appear once anything has banded. A "Banner art coming
+  soon" placeholder is a third of an ordinary three-column row and reads as pending, but
+  beside a lone uma tile with the real content banded below it is ~1030px of empty box. Where
+  dropping it leaves a single panel, the panel keeps its column width (`max-w-md`) rather
+  than stretching across a row it is the only occupant of.
+- Two column panels implies nothing banded — a banded panel is by definition not in a column
+  — so `SECTION_COLUMNS` is only ever reached by the ordinary case and can be reasoned about
+  as such.
 - **A band is exactly one line at every width, and nothing about it is breakpoint-driven.**
-  Art and the support panel appear only if the banner has them — revivals carry neither and
-  the launch banner has no art, and a full-width "Banner art coming soon" above two bands is
-  worse than nothing.
 - The line is a flex row, and the card count sets a **minimum** tile width rather than an
   exact one: each tile grows to an equal share of the row, refuses to shrink past
   `bandMinWidthClass` (7rem uma / 6rem support), and the row overflows into the band's own
