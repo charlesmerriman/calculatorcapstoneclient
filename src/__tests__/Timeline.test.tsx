@@ -625,6 +625,48 @@ describe('Timeline banner categories', () => {
     expect(screen.getByAltText('Super Creek')).toBeInTheDocument()
   })
 
+  it('opens into bands on card count alone, with no category to go on', () => {
+    // The JP launch banner: nine umas and twenty support cards on a `standard`
+    // row with no art. No category could have flagged it, so the layout has to
+    // key off the counts.
+    const umas = Array.from({ length: 9 }, (_, i) => `Launch Uma ${i + 1}`)
+    const supports = Array.from({ length: 20 }, (_, i) => `Launch Card ${i + 1}`)
+    events = [categorised(1, 'standard', umas, supports)]
+    render(<Timeline />)
+
+    // Both sides get their own horizontal line...
+    expect(gridFor('Launch Uma 9').className).toContain('xl:grid-cols-9')
+    expect(gridFor('Launch Card 20').className).toContain(
+      'xl:grid-cols-[repeat(20,minmax(0,1fr))]',
+    )
+    // ...and every card is present, none capped away.
+    expect(screen.getByAltText('Launch Uma 1')).toBeInTheDocument()
+    expect(screen.getByAltText('Launch Card 1')).toBeInTheDocument()
+    // No art, so no full-width placeholder above the bands.
+    expect(screen.queryByText('Banner art coming soon')).not.toBeInTheDocument()
+  })
+
+  it('expands when only the support side is oversized', () => {
+    // A race-prep batch: one uma, ten support cards.
+    const supports = Array.from({ length: 10 }, (_, i) => `Card ${i + 1}`)
+    events = [categorised(1, 'race_prep_support', ['Satono Crown'], supports)]
+    render(<Timeline />)
+
+    expect(gridFor('Card 10').className).toContain('xl:grid-cols-10')
+    expect(screen.getByText('Race Prep Support')).toBeInTheDocument()
+  })
+
+  it('keeps an ordinary two-card banner in the compact columns', () => {
+    // The overwhelmingly common row must be untouched by all of the above.
+    events = [categorised(1, 'standard', ['A', 'B'], ['C', 'D'])]
+    render(<Timeline />)
+
+    expect(gridFor('A').className).not.toContain('xl:grid-cols-')
+    expect(gridFor('C').className).not.toContain('xl:grid-cols-')
+    // Compact sections still show the art placeholder.
+    expect(screen.getByText('Banner art coming soon')).toBeInTheDocument()
+  })
+
   it('grows a narrow panel downwards rather than hiding the extra tiles', () => {
     // An uncategorised banner with four umas — the miscategorised-row case.
     // It renders plainly, but completely.

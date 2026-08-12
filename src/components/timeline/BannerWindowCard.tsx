@@ -93,14 +93,22 @@ const CATEGORY_CHROME: Partial<Record<BannerCategory, CategoryChrome>> = {
 }
 
 /**
- * A band opens out to one tile per column at xl, so a revival's featured umas
+ * How many tiles a narrow feature column holds across. The column is about
+ * 260px and a tile caps at 160px, so two is the honest answer — past that the
+ * section is better off as a full-width band.
+ */
+const COLUMN_TILE_CAPACITY = 2
+
+/**
+ * A band opens out to one tile per column at xl, so a section's featured cards
  * read as a single line across the card.
  *
  * Written out rather than built as `xl:grid-cols-${n}`: Tailwind generates
  * utilities by scanning source text for literal class names, and an
- * interpolated string produces none of them. Below xl the card is too narrow
- * for a line of eleven, so the band wraps at two — tall, but nothing hidden,
- * which is the whole point.
+ * interpolated string produces none of them. Past 12 the stock scale runs out,
+ * so those are arbitrary `repeat()` values — needed for the launch banner's
+ * twenty support cards. Below xl the card is too narrow for a line of twenty,
+ * so the band wraps at two: tall, but nothing hidden, which is the point.
  */
 const BAND_XL_COLUMNS = [
 	"xl:grid-cols-1",
@@ -116,6 +124,14 @@ const BAND_XL_COLUMNS = [
 	"xl:grid-cols-10",
 	"xl:grid-cols-11",
 	"xl:grid-cols-12",
+	"xl:grid-cols-[repeat(13,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(14,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(15,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(16,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(17,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(18,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(19,minmax(0,1fr))]",
+	"xl:grid-cols-[repeat(20,minmax(0,1fr))]",
 ] as const
 
 /** Image | umas | supports. Support-led inverts the last two weights. */
@@ -201,17 +217,26 @@ function FeaturePanel({
 	// so. A card that grows taller is the right trade.
 	const isBand = layout === "band"
 	const featureGridClass = isBand
-		? `grid-cols-2 items-stretch ${BAND_XL_COLUMNS[Math.min(items.length, 12)]}`
+		? `grid-cols-2 items-stretch ${BAND_XL_COLUMNS[Math.min(items.length, BAND_XL_COLUMNS.length - 1)]}`
 		: `items-center ${items.length === 1 ? "grid-cols-1" : "grid-cols-2"}`
 
-	// A band tile is only as wide as the card divided by the card count — around
-	// 115px at eleven umas — so the column layout's 15px name over two lines
-	// truncates. "Biwa Hayahide (Christmas)" and "Biwa Hayahide (Mecha)" both
-	// became "Biwa Hayahide…", which is worse than useless on a banner that
-	// features both. A smaller face over three lines fits them whole.
-	const nameClass = isBand
-		? "line-clamp-3 text-[0.8125rem]"
-		: "line-clamp-2 text-[0.9375rem]"
+	// A band tile is only as wide as the card divided by the card count, so the
+	// name needs to shrink as the band widens. Three tiers, each measured
+	// against a real banner:
+	//
+	//   column        ~160px  the ordinary one- or two-card row
+	//   band          ~115px  eleven umas — 15px/two lines truncated "Biwa
+	//                         Hayahide (Christmas)" and "(Mecha)" to the same
+	//                         "Biwa Hayahide…", useless on a banner with both
+	//   band, dense    ~72px  the launch banner's twenty support cards, where
+	//                         13px broke words mid-syllable ("Specia l Week",
+	//                         "Tazuna Hayak awa")
+	const dense = isBand && items.length > 12
+	const nameClass = dense
+		? "line-clamp-3 text-[0.6875rem] tracking-tight"
+		: isBand
+			? "line-clamp-3 text-[0.8125rem]"
+			: "line-clamp-2 text-[0.9375rem]"
 
 	return (
 		<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm">
@@ -322,6 +347,22 @@ function BannerSection({
 	const chrome = CATEGORY_CHROME[banner.banner_category]
 	const ChipIcon = chrome?.icon
 
+	// Whether this section abandons the image/uma/support columns for stacked
+	// full-width bands.
+	//
+	// Driven by the CARD COUNT, not the category. A feature column is about
+	// 260px — two tiles across — so a third card already means a second row, and
+	// by nine it is a tower beside a mostly-empty card. The JP launch banner is
+	// the case that forces this: nine umas AND twenty support cards, on a
+	// `standard` row with no art, which no category could have flagged.
+	//
+	// The category flag still forces it, so a revival stays a band even if a
+	// future one features only two umas.
+	const umaCount = umaBanner?.umas.length ?? 0
+	const supportCount = supportBanner?.support_cards.length ?? 0
+	const expanded = !!chrome?.band || umaCount > COLUMN_TILE_CAPACITY ||
+		supportCount > COLUMN_TILE_CAPACITY
+
 	const umaPanel = (
 		<FeaturePanel
 			icon={Sparkles}
@@ -330,7 +371,7 @@ function BannerSection({
 			hasBanner={!!umaBanner}
 			emptyText="No Umamusume banner in this window."
 			tileWidthClass="max-w-[10rem] 2xl:max-w-[13.5rem]"
-			layout={chrome?.band ? "band" : "column"}
+			layout={expanded ? "band" : "column"}
 			status={getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)}
 			actionIcon={Star}
 			onAdd={() => umaBanner && onAddBanner(umaBanner, "Uma")}
@@ -345,6 +386,7 @@ function BannerSection({
 			hasBanner={!!supportBanner}
 			emptyText="No support banner in this window."
 			tileWidthClass="max-w-[7.75rem] 2xl:max-w-[9.5rem]"
+			layout={expanded ? "band" : "column"}
 			status={getBannerCardStatus(
 				!!supportBanner,
 				supportExpired,
@@ -372,12 +414,11 @@ function BannerSection({
 		</div>
 	)
 
-	if (chrome?.band) {
-		// No image column and no support column by default — a revival carries
-		// neither in any row we hold, and rendering two empty placeholders across
-		// the full width would be worse than rendering nothing. Both still appear
-		// if the data ever grows them, which is the count-drives-the-grid half of
-		// the rule: the category picks the shape, the data decides what's in it.
+	if (expanded) {
+		// Art and the support panel appear only if the banner actually has them.
+		// Revivals carry neither, and the launch banner has no art either — a
+		// full-width "Banner art coming soon" placeholder above two bands is
+		// worse than no placeholder at all.
 		return (
 			<div className="flex flex-col gap-3">
 				{header}
@@ -390,7 +431,7 @@ function BannerSection({
 						className="h-auto w-full max-w-2xl rounded-xl border border-gray-600 shadow-md"
 					/>
 				)}
-				{umaPanel}
+				{umaBanner && umaPanel}
 				{supportBanner && supportPanel}
 			</div>
 		)
