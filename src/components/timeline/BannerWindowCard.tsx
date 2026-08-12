@@ -16,7 +16,7 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import { formatDate } from "../../utils/dateFormat"
 import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
 import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
-import { getCountdownLabel } from "./timelineShared"
+import { CATEGORY_LABELS, getCountdownLabel } from "./timelineShared"
 import type { BannerWindowGroup } from "./timelineShared"
 import type {
 	BannerCategory,
@@ -74,19 +74,19 @@ type CategoryChrome = {
 
 const CATEGORY_CHROME: Partial<Record<BannerCategory, CategoryChrome>> = {
 	golden_week_revival: {
-		label: "Golden Week Revival",
+		label: CATEGORY_LABELS.golden_week_revival,
 		icon: Flower2,
 		chipClass: "category-chip--revival",
 		band: true,
 	},
 	race_prep_support: {
-		label: "Race Prep Support",
+		label: CATEGORY_LABELS.race_prep_support,
 		icon: Dumbbell,
 		chipClass: "category-chip--quiet",
 		supportLed: true,
 	},
 	rerun: {
-		label: "Rerun",
+		label: CATEGORY_LABELS.rerun,
 		icon: Repeat,
 		chipClass: "category-chip--quiet",
 	},

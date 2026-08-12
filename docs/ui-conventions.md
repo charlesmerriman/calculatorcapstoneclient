@@ -276,6 +276,17 @@ from the card count. Keeping those separate means a miscategorised row renders p
 - `race_prep_support` inverts the section's column weights (narrow uma, wide support grid) and
   must degrade to zero umas; two of the sheet's 32 rows have none.
 - `standard` gets no chip at all. A badge on every card is noise, not signal.
+- **`CATEGORY_LABELS` in `timelineShared.ts` is the only place the category names are
+  written.** They appear both on the chip and in the filter's dropdown, and a reader
+  filtering for "Golden Week Revival" has to see that exact phrase on the cards that
+  come back.
+- **The category filter runs on groups, not events**, and a window survives if *any* of
+  its banners matches — filtering for revivals must keep the ordinary banner sharing that
+  card, or the week looks emptier than it was. Race events drop out whenever a category is
+  selected, since a Champions Meeting has no banner category to match. The dropdown only
+  offers categories actually present in the data, so `race_prep_support` stays hidden until
+  the support backfill lands rather than being an option that can only return
+  "No events found."
 - **Never reintroduce `grid-rows-1`, `xl:overflow-hidden` or `xl:[contain:size]` on a feature
   panel.** That trio pinned the panel to the banner art's height and silently discarded every
   tile past the first row — two of eleven umas shown, nine gone, nothing on screen saying so.

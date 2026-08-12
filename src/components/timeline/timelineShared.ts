@@ -12,6 +12,7 @@ import { parseApiDate } from "../../utils/dateFormat"
 import { isRaceEvent } from "../../types"
 import type {
 	AttachedAnniversaryEvent,
+	BannerCategory,
 	BannerTimelineForViewing,
 	RaceEvent,
 	TimelineEvent,
@@ -39,6 +40,32 @@ export function getCountdownLabel(startDate: string, endDate: string, today: Dat
 	if (daysUntilEnd === 0) return "Ends Today"
 	return "Ended"
 }
+
+/**
+ * Display names for the banner categories, in the order the filter offers them.
+ *
+ * One source of truth because the same words appear twice — on the chip in a
+ * timeline section and in the category filter's dropdown — and a reader
+ * filtering for "Golden Week Revival" has to see that exact phrase on the cards
+ * that come back.
+ *
+ * `standard` has a label even though it never renders a chip: the filter still
+ * has to name it.
+ */
+export const CATEGORY_LABELS: Record<BannerCategory, string> = {
+	standard: "Standard",
+	golden_week_revival: "Golden Week Revival",
+	race_prep_support: "Race Prep Support",
+	rerun: "Rerun",
+}
+
+/** Filter order: the ordinary case first, then the exceptions. */
+export const CATEGORY_ORDER: BannerCategory[] = [
+	"standard",
+	"golden_week_revival",
+	"race_prep_support",
+	"rerun",
+]
 
 /**
  * Banners that open at the same moment, presented as one timeline card.

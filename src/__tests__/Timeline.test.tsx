@@ -4,7 +4,9 @@ import type {
   BannerCategory,
   BannerTimeline,
   BannerTimelineForViewing,
+  ChampionsMeeting,
   SupportCard,
+  TimelineEvent,
   Uma,
 } from '../types'
 
@@ -107,7 +109,37 @@ const BASE_EVENTS: BannerTimelineForViewing[] = Array.from(
  * at module load, so a reassignment before `render` takes effect. Restored in
  * an afterEach so it can't leak between suites.
  */
-let events: BannerTimelineForViewing[] = BASE_EVENTS
+let events: TimelineEvent[] = BASE_EVENTS
+
+/** A Champions Meeting, for asserting what the category filter does to races. */
+function raceEvent(id: number, day: string): ChampionsMeeting {
+  return {
+    id,
+    name: `Champions Meeting ${id}`,
+    event_type: 'champions_meeting',
+    cm_number: id,
+    start_date: `2099-03-${day}T22:00:00Z`,
+    end_date: `2099-04-${day}T21:59:59Z`,
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: null,
+    global_end_date: null,
+    schedule_offset_days: 0,
+    applied_offset_days: 0,
+    image: null,
+    track: 'Tokyo',
+    surface_type: 'Turf',
+    distance: 'Mile',
+    length: '1600m',
+    track_condition: 'Firm',
+    season: 'Spring',
+    weather: 'Sunny',
+    direction: 'Left',
+    speed_recommendation: '',
+    stamina_recommendation: '',
+  } as ChampionsMeeting
+}
 
 /** A banner window built off the base fixture, with only the dates that matter. */
 function windowAt(
@@ -158,14 +190,21 @@ function card<T extends Uma | SupportCard>(id: number, name: string): T {
   } as T
 }
 
-/** A window of the given category, carrying the named umas and support cards. */
+/**
+ * A window of the given category, carrying the named umas and support cards.
+ *
+ * Dates derive from the id so two calls produce two separate cards. Grouping
+ * keys on an identical start date, and a helper that silently folded every
+ * fixture into one card would make the filter tests below meaningless.
+ */
 function categorised(
   id: number,
   category: BannerCategory,
   umas: string[],
   supports: string[] = [],
 ): BannerTimelineForViewing {
-  const base = windowAt(id, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z')
+  const day = String(id).padStart(2, '0')
+  const base = windowAt(id, `2099-03-${day}T22:00:00Z`, `2099-04-${day}T21:59:59Z`)
   return {
     ...base,
     banner_category: category,
@@ -519,10 +558,12 @@ describe('Timeline banner categories', () => {
     ]
     render(<Timeline />)
 
-    expect(screen.getByText('Golden Week Revival')).toBeInTheDocument()
-    // Exactly one chip — a badge on every card would be noise, not signal.
-    expect(screen.getAllByText(/Golden Week Revival|Rerun|Race Prep Support/))
-      .toHaveLength(1)
+    // Queried by class rather than text: the category filter's dropdown carries
+    // the same words in an <option>, and this assertion is about the chip.
+    // Exactly one — a badge on every card would be noise, not signal.
+    const chips = document.querySelectorAll('.category-chip')
+    expect(chips).toHaveLength(1)
+    expect(chips[0]).toHaveTextContent('Golden Week Revival')
   })
 
   it('opens a revival into one row of tiles, with no cap and no clip', () => {
@@ -594,5 +635,123 @@ describe('Timeline banner categories', () => {
     expect(grid.className).toContain('grid-cols-2')
     expect(grid.className).not.toContain('grid-rows-1')
     expect(grid.className).not.toContain('overflow-hidden')
+  })
+})
+
+/**
+ * The category filter. The load-bearing rule is that it runs on GROUPS, not on
+ * events: a window survives if any of its banners matches, so filtering for
+ * revivals keeps the ordinary banner sharing that card rather than presenting a
+ * week that looks emptier than it was.
+ */
+describe('Timeline category filter', () => {
+  const FILTER = /filter by banner type/i
+
+  function selectCategory(value: string): void {
+    fireEvent.change(screen.getByLabelText(FILTER), { target: { value } })
+  }
+
+  it('offers only the categories the data actually contains', () => {
+    // race_prep_support is absent until the support backfill lands, so it must
+    // not appear as an option that can only return "No events found."
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'golden_week_revival', ['Oguri Cap (Christmas)']),
+    ]
+    render(<Timeline />)
+
+    const options = Array.from(
+      screen.getByLabelText(FILTER).querySelectorAll('option'),
+    ).map((o) => o.textContent)
+
+    expect(options).toEqual(['All events', 'Standard', 'Golden Week Revival'])
+  })
+
+  it('hides itself when there is nothing to choose between', () => {
+    events = [categorised(1, 'standard', ['Yukino Bijin'])]
+    render(<Timeline />)
+
+    expect(screen.queryByLabelText(FILTER)).not.toBeInTheDocument()
+  })
+
+  it('narrows the list to the chosen category', () => {
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'golden_week_revival', ['Oguri Cap (Christmas)']),
+      categorised(3, 'rerun', ['Gentildonna']),
+    ]
+    render(<Timeline />)
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 3 of 3')
+
+    selectCategory('golden_week_revival')
+
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 of 1')
+    expect(screen.getByAltText('Oguri Cap (Christmas)')).toBeInTheDocument()
+    expect(screen.queryByAltText('Gentildonna')).not.toBeInTheDocument()
+  })
+
+  it('keeps a whole window when only one of its banners matches', () => {
+    // The Golden Week shape: a revival and an ordinary banner opening together.
+    // Filtering for revivals must not strip the neighbour off the shared card.
+    const revival = categorised(1, 'golden_week_revival', ['Oguri Cap (Christmas)'])
+    const alongside = {
+      ...categorised(2, 'standard', ['Copano Rickey (Parade)']),
+      start_date: revival.start_date,
+      end_date: revival.end_date,
+    }
+    events = [revival, alongside]
+    render(<Timeline />)
+
+    selectCategory('golden_week_revival')
+
+    expect(screen.getByAltText('Oguri Cap (Christmas)')).toBeInTheDocument()
+    expect(screen.getByAltText('Copano Rickey (Parade)')).toBeInTheDocument()
+  })
+
+  it('drops race events once a banner category is chosen', () => {
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'rerun', ['Gentildonna']),
+      raceEvent(9, '05'),
+    ]
+    render(<Timeline />)
+    expect(screen.getByText('Champions Meeting 9')).toBeInTheDocument()
+
+    // A Champions Meeting has no banner category, so it cannot match one.
+    selectCategory('rerun')
+
+    expect(screen.queryByText('Champions Meeting 9')).not.toBeInTheDocument()
+    expect(screen.getByAltText('Gentildonna')).toBeInTheDocument()
+  })
+
+  it('restores everything, race events included, on "All events"', () => {
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'rerun', ['Gentildonna']),
+      raceEvent(9, '05'),
+    ]
+    render(<Timeline />)
+
+    selectCategory('rerun')
+    selectCategory('all')
+
+    expect(screen.getByText('Champions Meeting 9')).toBeInTheDocument()
+    expect(screen.getByAltText('Yukino Bijin')).toBeInTheDocument()
+  })
+
+  it('resets the paged position, which could otherwise outrun the result', () => {
+    localStorage.setItem('uma-planner-timeline-view', 'paged')
+    sessionStorage.setItem('uma-planner-timeline-page', '2')
+    events = [
+      ...Array.from({ length: 12 }, (_, i) => categorised(i + 1, 'standard', [`Uma ${i + 1}`])),
+      categorised(13, 'rerun', ['Gentildonna']),
+    ]
+    render(<Timeline />)
+    expect(screen.getAllByText(/Page/)[0]).toHaveTextContent('Page 2 of 2')
+
+    selectCategory('rerun')
+
+    expect(sessionStorage.getItem('uma-planner-timeline-page')).toBe('1')
+    expect(screen.getByAltText('Gentildonna')).toBeInTheDocument()
   })
 })
