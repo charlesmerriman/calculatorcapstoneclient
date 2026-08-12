@@ -267,21 +267,36 @@ own "Add to Planner". A section whose own end date differs from the header's say
 
 The **card count** decides whether a section abandons the image/uma/support columns for
 stacked full-width bands (`COLUMN_TILE_CAPACITY`, currently 2 — a feature column is ~260px,
-two tiles across) and how many tiles sit on a row. `banner_category` picks the chip and the
-column weighting (`CATEGORY_CHROME` in `BannerWindowCard.tsx`), and can still *force* a
-band.
+two tiles across). `banner_category` picks the chip and the column weighting
+(`CATEGORY_CHROME` in `BannerWindowCard.tsx`), and can still *force* a band.
 
 That way round because of the JP launch banner: a `standard` row with 9 umas and 20 support
 cards and no art. No category flagged it, and none should have to — the counts are right
 there. A miscategorised revival therefore still renders every card.
 
-- A band puts one tile per column at `xl`, so a section's cards read as a single line. Art and
-  the support panel appear only if the banner has them — revivals carry neither and the launch
-  banner has no art, and a full-width "Banner art coming soon" above two bands is worse than
-  nothing. `BAND_XL_COLUMNS` is written out as literal class names because Tailwind scans source
-  text; past 12 the stock scale runs out, so those are arbitrary `repeat()` values.
-- **Band names shrink in three measured tiers** — ~160px column, ~115px band (eleven umas),
-  ~72px dense band (the launch banner's twenty supports, where 13px broke words mid-syllable).
+- **A band is exactly one line at every width, and nothing about it is breakpoint-driven.**
+  Art and the support panel appear only if the banner has them — revivals carry neither and
+  the launch banner has no art, and a full-width "Banner art coming soon" above two bands is
+  worse than nothing.
+- The line is a flex row, and the card count sets a **minimum** tile width rather than an
+  exact one: each tile grows to an equal share of the row, refuses to shrink past
+  `bandMinWidthClass` (7rem uma / 6rem support), and the row overflows into the band's own
+  `overflow-x-auto` scroller when the minimums don't fit. Only the launch banner's twenty
+  supports actually scroll on a desktop screen.
+- **Growth sits on a wrapper around each tile, not on the tile.** That is what reproduces
+  the old grid's `justify-items-center` spread — the wrapper takes its share of the line, the
+  tile stays centred inside it at its own capped width. Put the growth on the tile and a
+  four-uma revival stretches into four wide slabs.
+- The row carries no `justify-*`. The wrappers always fill the line exactly, so there is
+  never free space to distribute — and `justify-center` on a row that *does* overflow strands
+  its first tile off the left edge where scrolling cannot reach it.
+- This replaced a table of `xl:grid-cols-N` classes that produced the line only above
+  1280px; below that the band fell back to two columns, so a ten-card race-prep batch
+  rendered as a 2×5 tower. **Don't reintroduce a breakpoint here.** Tests assert the line by
+  counting a flex row's children, which is what makes "one line" checkable in jsdom at all.
+- **Band names shrink one measured tier** — ~160px column (two lines), band (three lines,
+  13px). The old ~72px "dense" tier went with the squeeze that forced it; no band tile now
+  renders below its minimum width.
 - `race_prep_support` inverts the section's column weights (narrow uma, wide support grid) and
   must degrade to zero umas; two of the sheet's 32 rows have none.
 - `standard` gets no chip at all. A badge on every card is noise, not signal.
