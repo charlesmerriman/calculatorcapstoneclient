@@ -134,12 +134,67 @@ const SECTION_COLUMNS_SUPPORT_LED =
 /**
  * Image | one panel, for when the other panel has banded away below.
  *
- * The art takes the width the departed panel freed rather than the surviving
- * panel doubling: this is the race-prep shape (one uma, ten banded supports),
- * where a 260px uma column beside large art is exactly how the row read before
- * the support cards existed.
+ * TWO EQUAL HALVES: art hard left in the first, panel hard right in the second.
+ * Not the weighted split this used to be — that handed the art 1.6 of 2.3fr
+ * (~1030px) against the panel's 0.7 (~450px), which worked only while the art
+ * filled whatever column it was given. Once BANNER_ART capped the width the two
+ * stopped agreeing, leaving the art adrift in an oversized column and the lone
+ * uma tile flush against the section's right edge.
  */
-const SECTION_COLUMNS_PAIR = "xl:grid-cols-[minmax(360px,1.6fr)_minmax(260px,0.7fr)]"
+const SECTION_COLUMNS_PAIR = "xl:grid-cols-2"
+
+/**
+ * The lone panel's cell in the PAIR shape. It sits hard right rather than
+ * filling its half, so the cap is what holds it to the width it has in an
+ * ordinary three-column row (~438px) instead of ballooning into a 740px box
+ * around a single tile.
+ *
+ * `grid` so the panel inside still stretches to the row height, as it does when
+ * it is the grid item itself. xl-only throughout: below that breakpoint every
+ * template collapses to one stacked column, where the panel should still fill
+ * the width.
+ */
+const PAIR_PANEL_CELL = "grid min-w-0 xl:ml-auto xl:w-full xl:max-w-[28rem]"
+
+/**
+ * BANNER ART IS BOUNDED BY ITS WIDTH, AND THE HEIGHT FOLLOWS.
+ *
+ * Every banner asset is 16:9, so with only `w-full` the art's height is
+ * whatever column template the section happened to land in. That reads fine on
+ * the ordinary three-column row — the art gets ~637px, so ~358px tall at the
+ * widest the page container goes — but SECTION_COLUMNS_PAIR hands it 1.6 of
+ * 2.3fr, i.e. ~1030px, and the same picture renders ~580px tall: one card
+ * towering over its neighbours for no reason other than which panel banded
+ * away. Below `xl` the grid collapses to one column and it is worse still, the
+ * art spanning the full card.
+ *
+ * THE CAP IS ON THE WIDTH, NOT THE HEIGHT, AND THAT IS NOT INTERCHANGEABLE.
+ * `max-h` with `w-full` SQUASHES the art: a percentage width is already
+ * definite, so clamping the height just shortens the box and the picture
+ * distorts with it (measured: 1030×580 became 1030×368, aspect 1.78 → 2.80).
+ * The auto-width rule that would have rescaled the width to match never
+ * applies here. Capping the width instead leaves `height: auto` free to track
+ * the intrinsic ratio, so the art is always undistorted at any aspect.
+ *
+ * 41rem/656px is just above the three-column ceiling, so ordinary rows render
+ * exactly as they did and only the over-wide shapes clamp — landing them at
+ * ~369px tall, i.e. matching the ordinary row instead of dwarfing it.
+ *
+ * The art sits HARD LEFT in whatever cell it lands in, so the cap only ever
+ * eats into the space on its right. That keeps its left edge on the section's
+ * left edge in every template — the ordinary three-column row has no slack to
+ * distribute, so centring the capped shapes was the only thing that moved, and
+ * it moved them out of line with every other card in the timeline.
+ * BANNER_ART_ALONE is the one exception; see its own note.
+ */
+const BANNER_ART = "block h-auto w-full max-w-[41rem] rounded-xl border border-gray-600 shadow-md"
+
+/**
+ * The art-only branch: every panel banded, so the art has a full-width row to
+ * itself and nothing beside it. Here there is no column edge to align to, so
+ * hard left just reads as a layout bug and the art is centred instead.
+ */
+const BANNER_ART_ALONE = `${BANNER_ART} mx-auto`
 
 /**
  * The fields a featured tile actually renders. Both Uma and SupportCard
@@ -504,15 +559,27 @@ function BannerSection({
 									alt={banner.name}
 									loading="lazy"
 									decoding="async"
-									className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+									className={BANNER_ART}
 								/>
 							) : (
 								<BannerArtPlaceholder />
 							)}
 						</div>
 
-						{umaInColumn && umaPanel}
-						{supportInColumn && supportPanel}
+						{/* One panel left: it gets a half to itself and sits centred in
+						    it, mirroring the art. Two panels means nothing banded, so
+						    the ordinary three-column templates apply and each panel is
+						    the grid item directly. */}
+						{columnPanelCount === 1 ? (
+							<div className={PAIR_PANEL_CELL}>
+								{umaInColumn ? umaPanel : supportPanel}
+							</div>
+						) : (
+							<>
+								{umaInColumn && umaPanel}
+								{supportInColumn && supportPanel}
+							</>
+						)}
 					</div>
 				) : (
 					// No art and nothing to sit beside: the panel keeps its column
@@ -525,17 +592,17 @@ function BannerSection({
 					</div>
 				))}
 
-			{/* No column panel to sit beside, but art to show anyway: it spans the
-			    bands instead, capped so it doesn't tower over them. No production
-			    row hits this today — every both-banded row is art-less — but a
-			    future one shouldn't silently lose its art. */}
+			{/* No column panel to sit beside, but art to show anyway: it sits above
+			    the bands instead, centered because there is no column edge left to
+			    align to. Reached by any row whose only banner is banded — a
+			    support-only race-prep batch with art is the live case. */}
 			{columnPanelCount === 0 && banner.image && (
 				<img
 					src={banner.image}
 					alt={banner.name}
 					loading="lazy"
 					decoding="async"
-					className="h-auto w-full max-w-2xl rounded-xl border border-gray-600 shadow-md"
+					className={BANNER_ART_ALONE}
 				/>
 			)}
 

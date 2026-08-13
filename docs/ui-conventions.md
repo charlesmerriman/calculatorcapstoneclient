@@ -290,6 +290,33 @@ revival (4), launch banner (1) — and any change here should be checked against
 - Two column panels implies nothing banded — a banded panel is by definition not in a column
   — so `SECTION_COLUMNS` is only ever reached by the ordinary case and can be reasoned about
   as such.
+- **Banner art is capped on its WIDTH (`BANNER_ART`, 41rem), never its height, and it sits
+  hard left.** The assets are 16:9, so an uncapped `w-full` makes the height a function of
+  whichever column template the section landed in: ~358px on an ordinary three-column row,
+  but ~580px under the old weighted `SECTION_COLUMNS_PAIR`, and taller still below `xl`
+  where the grid collapses to one column. 41rem sits just above the three-column ceiling, so
+  ordinary rows are untouched and only the wider shapes clamp, landing at ~369px.
+  Do **not** reach for `max-h` instead: with a percentage width the used width is already
+  definite, so a height clamp just squashes the picture (measured 1030×580 → 1030×368,
+  aspect 1.78 → 2.80). Capping width leaves `height: auto` free to track the intrinsic
+  ratio. The cap only ever eats space to the art's *right*, so its left edge stays on the
+  section's left edge in every template — the ordinary three-column row has no slack to
+  distribute, and centring the capped shapes was what put them out of line with it.
+  `BANNER_ART_ALONE` is the sole exception: the art-only branch (every panel banded, e.g.
+  race-prep with no uma) has a full-width row and no column edge to align to, so it centres.
+- **`SECTION_COLUMNS_PAIR` is two EQUAL halves, and both occupants are pinned to an outer
+  edge** — art hard left, panel hard right (`PAIR_PANEL_CELL`) and capped at 28rem, the width
+  it has in a three-column row, rather than filling its half. It was a weighted 1.6fr/0.7fr
+  split, which only worked while the art expanded to fill whatever column it was handed; once
+  the art was width-capped the two stopped agreeing, leaving the art adrift mid-column beside
+  a panel flush right. Pinning both is what makes that right edge read as deliberate instead
+  of accidental — the slack collects in one span between them rather than in three uneven
+  ones. Both caps are `xl`-only: below that every template collapses to one stacked column
+  and both should fill it.
+  - The trade is that the slack is *large* — ~390px at a 1573px viewport, sitting above four
+    support tiles in the band below. Equal halves make the split easy to reason about, but if
+    that void ever needs closing, size the first track to the art (`xl:grid-cols-[41rem_1fr]`)
+    rather than re-centring either occupant.
 - **A band is exactly one line at every width, and nothing about it is breakpoint-driven.**
 - The line is a flex row, and the card count sets a **minimum** tile width rather than an
   exact one: each tile grows to an equal share of the row, refuses to shrink past
