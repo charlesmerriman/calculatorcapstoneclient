@@ -1,30 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
 	BookOpen,
-	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
-	Clock3,
 	History,
 	Infinity as InfinityIcon,
 	Loader2,
 	Search,
-	Sparkles,
-	Star,
-	Ticket,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import PredictedBadge from "../PredictedBadge"
-import { bannerKey, nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
+import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
-import { formatDate } from "../../utils/dateFormat"
 import { RaceEventCard } from "./RaceEventCard"
-import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
-import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
-import { getCountdownLabel } from "./timelineShared"
+import { BannerWindowCard } from "./BannerWindowCard"
+import {
+	CATEGORY_LABELS,
+	CATEGORY_ORDER,
+	groupTimelineEvents,
+	timelineRowKey,
+} from "./timelineShared"
 import { isRaceEvent } from "../../types"
 import type {
+	BannerCategory,
 	BannerUma,
 	BannerSupport,
 	UserPlannedBanner,
@@ -119,8 +117,16 @@ const pageIndicatorClass =
 	"inline-flex min-h-10 items-center justify-center rounded border border-gray-700 bg-gray-950/50 px-4 py-2 text-sm font-semibold text-gray-200 shadow-inner md:min-h-0 md:py-1.5"
 const searchInputClass =
 	"w-full rounded border border-gray-600 bg-gray-800 py-2 pl-9 pr-3 text-sm text-gray-100 shadow-sm placeholder:text-gray-400 transition focus:border-gray-500 focus:bg-gray-800 focus:outline-none md:py-1.5"
+// Matches controlButtonClass so the filter reads as a third control in that row
+// rather than a form field that wandered in.
+const categorySelectClass =
+	"inline-flex min-h-10 items-center rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-100 shadow-sm transition hover:border-gray-500 hover:bg-gray-700 focus:border-gray-500 focus:outline-none md:min-h-0 md:py-1.5"
 
-type BannerCardStatus = "available" | "planned" | "staged" | "expired"
+/**
+ * The category filter's value. `"all"` is not a category — it's the absence of
+ * the filter, and the only value that keeps race events in the list.
+ */
+type CategoryFilter = "all" | BannerCategory
 
 type PaginationControlsProps = {
 	currentPage: number
@@ -162,26 +168,6 @@ function PaginationControls({
 	)
 }
 
-/**
- * A React key that survives re-filtering and can't collide across the three
- * event types.
- *
- * Ids are only unique *within* a model, so a bare id would let ChampionsMeeting
- * 4 and BannerTimeline 4 share a key. The old `key={index}` was worse still:
- * under infinite scroll the list grows and re-filters in place, and positional
- * keys make React reuse one card's DOM — including its already-decoded images —
- * for a completely different event.
- */
-const EVENT_KEY_PREFIX = {
-	champions_meeting: "cm",
-	league_of_heroes: "loh",
-	banner_timeline: "bt",
-} as const
-
-function timelineEventKey(event: TimelineEvent): string {
-	return `${EVENT_KEY_PREFIX[event.event_type]}-${event.id}`
-}
-
 function eventMatchesSearch(event: TimelineEvent, query: string): boolean {
 	const q = query.toLowerCase()
 	if (isRaceEvent(event)) {
@@ -202,31 +188,6 @@ function eventMatchesSearch(event: TimelineEvent, query: string): boolean {
 	return false
 }
 
-function getBannerCardStatus(
-	hasBanner: boolean,
-	expired: boolean,
-	planned: boolean,
-	staged: boolean
-): BannerCardStatus {
-	if (!hasBanner || expired) return "expired"
-	if (planned) return "planned"
-	if (staged) return "staged"
-	return "available"
-}
-
-function getBannerStatusLabel(status: BannerCardStatus): string {
-	if (status === "planned") return "Already on sheet"
-	if (status === "staged") return "Already staged"
-	if (status === "expired") return "Banner ended"
-	return "Add to Planner"
-}
-
-function getBannerStatusClasses(status: BannerCardStatus): string {
-	if (status === "available") return "border-brand text-brand hover:bg-brand/10"
-	if (status === "planned" || status === "staged") return "border-gray-600 text-gray-300"
-	return "border-gray-600 text-gray-500"
-}
-
 export const Timeline = () => {
 	const {
 		organizedTimelineData,
@@ -238,6 +199,10 @@ export const Timeline = () => {
 	} = useCalculatorData()
 	const [showPast, setShowPast] = useState(false)
 	const [searchQuery, setSearchQuery] = useState("")
+	// Not persisted, matching the search box and the past/future toggle: it's a
+	// question you're asking right now, not a preference. Only the view mode and
+	// the paged position survive leaving the route.
+	const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all")
 	const [currentPage, setCurrentPage] = useState(readStoredPage)
 	const [viewMode, setViewMode] = useState<TimelineViewMode>(readStoredViewMode)
 	const [visibleCount, setVisibleCount] = useState(INFINITE_CHUNK_SIZE)
@@ -289,19 +254,51 @@ export const Timeline = () => {
 	// Memoized because infinite scroll re-renders this component on every append,
 	// and re-scanning ~250 events (each search walking every featured uma and
 	// support card) on each one is real work for no benefit.
-	const filteredEvents = useMemo(
-		() =>
+	//
+	// Grouping runs LAST, on the already-filtered list. Doing it first would let
+	// a window straddle the past/future boundary and drag an ended banner into
+	// the current view, and would make a search match pull in banners that don't
+	// match. Everything downstream — paging, the reveal window, the counts —
+	// therefore measures ROWS (cards on screen), not raw events.
+	const timelineRows = useMemo(() => {
+		const rows = groupTimelineEvents(
 			organizedTimelineData
 				.filter((event) =>
 					showPast
 						? new Date(event.end_date) < today
 						: new Date(event.end_date) >= today
 				)
-				.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery)),
-		[organizedTimelineData, showPast, searchQuery, today]
-	)
+				.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
+		)
 
-	const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE))
+		if (categoryFilter === "all") return rows
+
+		// Applied AFTER grouping, and a group survives if ANY constituent matches.
+		// Filtering the events first would drop the ordinary banner that shares a
+		// revival's window, leaving a card that misrepresents the week — the
+		// reader would see the revival alone and conclude nothing else was on.
+		//
+		// Race events drop out here on purpose: a Champions Meeting has no banner
+		// category, so "show me only reruns" cannot meaningfully include one.
+		return rows.filter(
+			(row) =>
+				row.kind === "banner_window" &&
+				row.group.banners.some((banner) => banner.banner_category === categoryFilter)
+		)
+	}, [organizedTimelineData, showPast, searchQuery, categoryFilter, today])
+
+	// Only offer categories the data actually contains. `race_prep_support` has
+	// no rows until the support backfill lands, and an option that can only ever
+	// return "No events found." is a dead end rather than a filter.
+	const availableCategories = useMemo(() => {
+		const present = new Set<BannerCategory>()
+		for (const event of organizedTimelineData) {
+			if (!isRaceEvent(event)) present.add(event.banner_category)
+		}
+		return CATEGORY_ORDER.filter((category) => present.has(category))
+	}, [organizedTimelineData])
+
+	const totalPages = Math.max(1, Math.ceil(timelineRows.length / PAGE_SIZE))
 
 	// The only writer of the page, so every path that moves it — the buttons, the
 	// filter resets — also persists it. Nothing sets `currentPage` directly.
@@ -322,17 +319,17 @@ export const Timeline = () => {
 	// Without an IntersectionObserver there is nothing to drive the growth, so
 	// that case skips windowing entirely rather than stranding the reader ten
 	// cards in with no way to reach the rest.
-	const visibleEvents =
+	const visibleRows =
 		viewMode === "paged"
-			? filteredEvents.slice((effectivePage - 1) * PAGE_SIZE, effectivePage * PAGE_SIZE)
+			? timelineRows.slice((effectivePage - 1) * PAGE_SIZE, effectivePage * PAGE_SIZE)
 			: SUPPORTS_INTERSECTION_OBSERVER
-				? filteredEvents.slice(0, visibleCount)
-				: filteredEvents
+				? timelineRows.slice(0, visibleCount)
+				: timelineRows
 
 	const hasMoreToReveal =
 		viewMode === "infinite" &&
 		SUPPORTS_INTERSECTION_OBSERVER &&
-		visibleCount < filteredEvents.length
+		visibleCount < timelineRows.length
 
 	// Restarting both windows is the right response to any change in what the
 	// list contains: page 7 of a now-two-page result renders empty, and a search
@@ -424,13 +421,42 @@ export const Timeline = () => {
 							onPrevious={() => goToPage(Math.max(1, effectivePage - 1))}
 							onNext={() => goToPage(Math.min(totalPages, effectivePage + 1))}
 						/>
-					) : viewMode === "infinite" && filteredEvents.length > 0 ? (
+					) : viewMode === "infinite" && timelineRows.length > 0 ? (
 						<span className={pageIndicatorClass}>
-							Showing <span className="mx-1 text-brand">{visibleEvents.length}</span> of{" "}
-							{filteredEvents.length}
+							Showing <span className="mx-1 text-brand">{visibleRows.length}</span> of{" "}
+							{timelineRows.length}
 						</span>
 					) : <div />}
-					<div className="flex justify-end">
+					{/* Narrowing controls, grouped at the trailing edge: the category
+					    filter and the search box both cut the list down, so they belong
+					    beside each other rather than one of them sitting among the
+					    view-mode toggles on the far side of the bar. */}
+					<div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end md:w-auto md:justify-self-end">
+						{/* Hidden only when there is nothing to choose between — a
+						    single-option filter is just clutter. */}
+						{availableCategories.length > 1 && (
+							<>
+								<label className="sr-only" htmlFor="timeline-category-filter">
+									Filter by banner type
+								</label>
+								<select
+									id="timeline-category-filter"
+									className={`${categorySelectClass} w-full sm:w-auto`}
+									value={categoryFilter}
+									onChange={(e) => {
+										setCategoryFilter(e.target.value as CategoryFilter)
+										resetListWindow()
+									}}
+								>
+									<option value="all">All events</option>
+									{availableCategories.map((category) => (
+										<option key={category} value={category}>
+											{CATEGORY_LABELS[category]}
+										</option>
+									))}
+								</select>
+							</>
+						)}
 						<div className="relative w-full md:w-64">
 							<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input
@@ -446,205 +472,26 @@ export const Timeline = () => {
 			</div>
 
 			<div className="page-container flex flex-col items-center">
-				{filteredEvents.length === 0 && (
+				{timelineRows.length === 0 && (
 					<div className="text-gray-500 mt-8">No events found.</div>
 				)}
-				{visibleEvents.map((event) => {
-					// Champions Meetings and League of Heroes events share one card —
-					// they carry the same data and are meant to look the same.
-					if (isRaceEvent(event)) {
-						return <RaceEventCard key={timelineEventKey(event)} event={event} today={today} />
-					}
-
-					// Everything left is a banner window: the union has three members and
-					// the tag has ruled out the other two, so `event` narrows on its own.
-					const bannerEvent = event
-					const umaBanner = bannerEvent.banner_umas[0]
-					const supportBanner = bannerEvent.banner_supports[0]
-
-					const umaExpired     = !umaBanner     || new Date(bannerEvent.end_date) <= today
-					const supportExpired = !supportBanner || new Date(bannerEvent.end_date) <= today
-					const umaPlanned     = umaBanner     ? plannedBannerKeys.has(bannerKey("Uma", umaBanner.id))         : false
-					const supportPlanned = supportBanner ? plannedBannerKeys.has(bannerKey("Support", supportBanner.id)) : false
-					const umaStaged      = umaBanner     ? stagedBanners.some((b) => b.banner_uma?.id === umaBanner.id)         : false
-					const supportStaged  = supportBanner ? stagedBanners.some((b) => b.banner_support?.id === supportBanner.id) : false
-					const umaStatus = getBannerCardStatus(!!umaBanner, umaExpired, umaPlanned, umaStaged)
-					const supportStatus = getBannerCardStatus(!!supportBanner, supportExpired, supportPlanned, supportStaged)
-					const countdownLabel = getCountdownLabel(bannerEvent.start_date, bannerEvent.end_date, today)
-					const umaFeatureGridClass = umaBanner && umaBanner.umas.length === 1
-						? "grid-cols-1"
-						: "grid-cols-2"
-					const supportFeatureGridClass = supportBanner && supportBanner.support_cards.length === 1
-						? "grid-cols-1"
-						: "grid-cols-2"
-
-					// A campaign strip sits flush above the card, so the card's own top
-					// corners have to square off or the two render as separate boxes
-					// with a seam between them.
-					const attachedEvent = bannerEvent.anniversary_event
-
-					return (
-						<div key={timelineEventKey(event)} className="my-3 w-full px-2">
-							{attachedEvent && <AnniversaryEventStrip event={attachedEvent} />}
-							<div
-								className={`card-panel w-full overflow-hidden p-2 sm:p-3 ${
-									attachedEvent ? "rounded-b-xl rounded-t-none" : "rounded-xl"
-								}`}
-							>
-								<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-									<div className="flex min-w-0 items-center gap-3">
-										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 text-brand">
-											<CalendarDays className="h-5 w-5" />
-										</div>
-										<div className="min-w-0 text-xl font-semibold text-gray-100 sm:text-2xl">
-											<div className="flex flex-wrap items-center gap-2">
-												<span>
-													{formatDate(bannerEvent.start_date)} through{" "}
-													{formatDate(bannerEvent.end_date)}
-												</span>
-												{bannerEvent.is_predicted && <PredictedBadge />}
-											</div>
-										</div>
-									</div>
-									<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-semibold text-gray-100">
-										<span>{countdownLabel}</span>
-										<Clock3 className="h-4 w-4 text-brand" />
-									</div>
-								</div>
-
-								<div className="grid gap-4 xl:grid-cols-[minmax(360px,1.28fr)_minmax(260px,0.88fr)_minmax(260px,0.78fr)] xl:items-stretch">
-									<div className="min-w-0">
-										{bannerEvent.image ? (
-											<img
-												src={bannerEvent.image}
-												alt={bannerEvent.name}
-												loading="lazy"
-												decoding="async"
-												className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
-											/>
-										) : (
-											<BannerArtPlaceholder />
-										)}
-									</div>
-
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
-										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
-											<Sparkles className="h-4 w-4" />
-											<span>Featured Umamusume</span>
-										</div>
-										{umaBanner ? (
-											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
-												<div className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${umaFeatureGridClass}`}>
-													{umaBanner.umas.map((uma, umaIndex) => (
-														<div
-															key={umaIndex}
-															className="flex w-full min-w-0 max-w-[10rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm 2xl:max-w-[13.5rem]"
-														>
-															<div className="relative shrink-0 overflow-hidden bg-gray-700">
-																{uma.recommendation && (
-																	<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
-																		{uma.recommendation}
-																	</div>
-																)}
-																<img
-																	src={uma.image}
-																	alt={uma.name}
-																	loading="lazy"
-																	decoding="async"
-																	className="block h-auto w-full object-contain"
-																/>
-															</div>
-															<div className="flex h-16 items-center justify-center p-2">
-																<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
-																	{uma.name}
-																</div>
-															</div>
-														</div>
-													))}
-												</div>
-												{/* Single shared action button — both featured umas belong to the same
-												    banner, so one full-width button drives the add for all of them. */}
-												<button
-													type="button"
-													onClick={() => handleAddBanner(umaBanner, "Uma")}
-													disabled={umaStatus !== "available"}
-													className={`flex shrink-0 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-medium leading-tight transition ${getBannerStatusClasses(umaStatus)} ${
-														umaStatus === "available" ? "cursor-pointer" : "cursor-not-allowed"
-													}`}
-												>
-													<Star className="h-3.5 w-3.5" />
-													{getBannerStatusLabel(umaStatus)}
-													{umaStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
-												</button>
-											</div>
-										) : (
-											<div className="flex min-h-40 w-full flex-1 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
-												No Umamusume banner in this window.
-											</div>
-										)}
-									</section>
-
-									<section className="flex min-w-0 flex-col rounded-xl border border-gray-600 bg-gray-800 px-1.5 py-1.5 shadow-sm xl:min-h-0 xl:[contain:size] xl:overflow-hidden">
-										<div className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-semibold text-brand">
-											<Ticket className="h-4 w-4" />
-											<span>Featured Support Cards</span>
-										</div>
-										{supportBanner ? (
-											<div className="flex flex-1 flex-col gap-1.5 xl:min-h-0 xl:overflow-hidden">
-												<div className={`grid grid-rows-1 flex-1 items-center justify-items-center content-center gap-1.5 xl:min-h-0 xl:overflow-hidden ${supportFeatureGridClass}`}>
-													{supportBanner.support_cards.map((card, cardIndex) => (
-														<div
-															key={cardIndex}
-															className="flex w-full min-w-0 max-w-[7.75rem] flex-col overflow-hidden rounded-lg bg-gray-700 text-left shadow-sm 2xl:max-w-[9.5rem]"
-														>
-															<div className="relative shrink-0 overflow-hidden bg-gray-700">
-																{card.recommendation && (
-																	<div className="absolute left-2 top-2 z-10 rounded border border-gray-600 bg-gray-700/95 px-2 py-1 text-xs font-semibold text-brand">
-																		{card.recommendation}
-																	</div>
-																)}
-																<img
-																	src={card.image}
-																	alt={card.name}
-																	loading="lazy"
-																	decoding="async"
-																	className="block h-auto w-full object-contain"
-																/>
-															</div>
-															<div className="flex h-16 items-center justify-center p-2">
-																<div className="line-clamp-2 overflow-hidden break-words text-center text-[0.9375rem] font-semibold leading-tight text-gray-100">
-																	{card.name}
-																</div>
-															</div>
-														</div>
-													))}
-												</div>
-												{/* Single shared action button — all featured support cards belong to the
-												    same banner, so one full-width button drives the add for all of them. */}
-												<button
-													type="button"
-													onClick={() => handleAddBanner(supportBanner, "Support")}
-													disabled={supportStatus !== "available"}
-													className={`flex shrink-0 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-medium leading-tight transition ${getBannerStatusClasses(supportStatus)} ${
-														supportStatus === "available" ? "cursor-pointer" : "cursor-not-allowed"
-													}`}
-												>
-													<Ticket className="h-3.5 w-3.5" />
-													{getBannerStatusLabel(supportStatus)}
-													{supportStatus === "available" && <ChevronRight className="h-3.5 w-3.5" />}
-												</button>
-											</div>
-										) : (
-											<div className="flex min-h-40 w-full flex-1 items-center justify-center rounded-lg border border-gray-600 bg-gray-700 px-4 text-center text-sm text-gray-400">
-												No support banner in this window.
-											</div>
-										)}
-									</section>
-								</div>
-							</div>
-						</div>
+				{visibleRows.map((row) =>
+					// Champions Meetings and League of Heroes events share one card — they
+					// carry the same data and are meant to look the same. Everything else
+					// is a banner window, which may hold more than one concurrent banner.
+					row.kind === "race" ? (
+						<RaceEventCard key={timelineRowKey(row)} event={row.event} today={today} />
+					) : (
+						<BannerWindowCard
+							key={timelineRowKey(row)}
+							group={row.group}
+							today={today}
+							plannedBannerKeys={plannedBannerKeys}
+							stagedBanners={stagedBanners}
+							onAddBanner={handleAddBanner}
+						/>
 					)
-				})}
+				)}
 
 				{viewMode === "infinite" && (
 					<>
@@ -660,9 +507,9 @@ export const Timeline = () => {
 								<Loader2 className="h-4 w-4 animate-spin text-brand" />
 								Loading more events...
 							</div>
-						) : filteredEvents.length > 0 ? (
+						) : timelineRows.length > 0 ? (
 							<div className="mt-4 text-sm text-gray-500">
-								That's all {filteredEvents.length} events.
+								That's all {timelineRows.length} events.
 							</div>
 						) : null}
 					</>

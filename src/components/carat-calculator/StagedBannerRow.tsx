@@ -14,6 +14,7 @@ import { formatDate } from "../../utils/dateFormat"
 import { bannerKey, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
+import { ExtraCardsBadge } from "./ExtraCardsBadge"
 
 interface StagedBannerRowProps {
 	stagedBanner: UserPlannedBanner
@@ -291,7 +292,7 @@ export const StagedBannerRow = ({
 			</div>
 
 			{/* === Images section === */}
-			<div className="flex items-center justify-center gap-1.5 py-1 px-1">
+			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
 				{images.slice(0, 2).map((img) => (
 					<img
 						key={img.name}
@@ -300,6 +301,7 @@ export const StagedBannerRow = ({
 						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
 					/>
 				))}
+				<ExtraCardsBadge hidden={images.length - 2} />
 			</div>
 
 			{/* === Banner select === */}

@@ -49,7 +49,15 @@ contrast on the light theme. Any semantic status color that must survive a theme
 belongs in `@theme` as its own token.
 
 The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
-`App.css`) are the worked example to copy.
+`App.css`) are the worked example to copy. `--color-category-revival[-border]`
+(`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
+pattern: dark values in `@theme`, deepened counterparts under `[data-theme="light"]`.
+
+A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
+to read as "not the usual banner" against seven different brand hues, and would vanish into
+the card's existing brand-colored labels on every one of them. Only the headline category
+gets a hue; reruns and race-prep batches use the gray ramp so the one signal stays
+meaningful.
 
 ### Gotcha: `@apply` in `App.css` cannot see custom `@theme` tokens
 
@@ -232,10 +240,121 @@ a search box.
 
 **Two card shapes, three event types.** Champions Meetings and League of Heroes events
 share one course-details card, `components/timeline/RaceEventCard.tsx`; banner
-windows keep the wider three-column card inline in `Timeline.tsx`. `RaceEventCard` never
-branches on which of the two it has — if it ever needs to, they've stopped being the same
-card and should be split again. `RaceEventCard.test.tsx` renders one of each from the same
-data and diffs the markup, so a change applied to only one type fails there.
+windows use the wider card in `components/timeline/BannerWindowCard.tsx`. `RaceEventCard`
+never branches on which of the two it has — if it ever needs to, they've stopped being the
+same card and should be split again. `RaceEventCard.test.tsx` renders one of each from the
+same data and diffs the markup, so a change applied to only one type fails there.
+
+### Concurrent banners are one card, grouped at render time
+
+`groupTimelineEvents` (`timelineShared.ts`) folds banner events sharing an **exact**
+`start_date` into one `BannerWindowGroup`, rendered as a single card: shared header with the
+union window, then one section per constituent banner, each keeping its own panels and its
+own "Add to Planner". A section whose own end date differs from the header's says so.
+
+- **Grouping runs last**, after the past/future and search filters. Grouping first would let
+  a window straddle the boundary and pull an ended banner into the current view.
+- **Exact string equality, not the calendar day.** Both agree on every row in production
+  (eight groups, sixteen rows); exact equality can't merge two banners a reader west of GMT
+  sees on different dates.
+- **The rows must not be merged in the database.** They are separate gacha pools with
+  separate pity, `UserPlannedBanner` foreign-keys `BannerUma` rather than the timeline, and
+  their end dates can differ — and income is a pure function of a banner's end date.
+- A group of one is the common case and is the *same* code path, so there is no second
+  layout to keep in sync.
+
+### Count drives the layout, category drives the accents
+
+The **card count** decides whether a panel abandons its column for a full-width band
+(`COLUMN_TILE_CAPACITY`, currently 2 — a feature column is ~260px, two tiles across).
+`banner_category` picks the chip and the column weighting (`CATEGORY_CHROME` in
+`BannerWindowCard.tsx`), and can still *force* a band.
+
+That way round because of the JP launch banner: a `standard` row with 9 umas and 20 support
+cards and no art. No category flagged it, and none should have to — the counts are right
+there. A miscategorised revival therefore still renders every card.
+
+**Banding is PER PANEL, not per section.** Only the cards that don't fit take the extra
+width; the other panel keeps its place beside the art. This was briefly section-wide, which
+reads plausibly and is wrong on the commonest shape we hold: 22 of the 29 race-prep rows are
+one uma and ten support cards *with* art, and banding the section threw the art onto its own
+line and left a single uma tile adrift in a full-width panel. Five combinations occur in
+production — race-prep with art (22), race-prep without art (4), race-prep with no uma (3),
+revival (4), launch banner (1) — and any change here should be checked against all five.
+
+- The art cell needs **real art** to appear once anything has banded. A "Banner art coming
+  soon" placeholder is a third of an ordinary three-column row and reads as pending, but
+  beside a lone uma tile with the real content banded below it is ~1030px of empty box. Where
+  dropping it leaves a single panel, the panel keeps its column width (`max-w-md`) rather
+  than stretching across a row it is the only occupant of.
+- Two column panels implies nothing banded — a banded panel is by definition not in a column
+  — so `SECTION_COLUMNS` is only ever reached by the ordinary case and can be reasoned about
+  as such.
+- **Banner art is capped on its WIDTH (`BANNER_ART`, 41rem), never its height, and it sits
+  hard left.** The assets are 16:9, so an uncapped `w-full` makes the height a function of
+  whichever column template the section landed in: ~358px on an ordinary three-column row,
+  but ~580px under the old weighted `SECTION_COLUMNS_PAIR`, and taller still below `xl`
+  where the grid collapses to one column. 41rem sits just above the three-column ceiling, so
+  ordinary rows are untouched and only the wider shapes clamp, landing at ~369px.
+  Do **not** reach for `max-h` instead: with a percentage width the used width is already
+  definite, so a height clamp just squashes the picture (measured 1030×580 → 1030×368,
+  aspect 1.78 → 2.80). Capping width leaves `height: auto` free to track the intrinsic
+  ratio. The cap only ever eats space to the art's *right*, so its left edge stays on the
+  section's left edge in every template — the ordinary three-column row has no slack to
+  distribute, and centring the capped shapes was what put them out of line with it.
+  `BANNER_ART_ALONE` is the sole exception: the art-only branch (every panel banded, e.g.
+  race-prep with no uma) has a full-width row and no column edge to align to, so it centres.
+- **`SECTION_COLUMNS_PAIR` is two EQUAL halves, and both occupants are pinned to an outer
+  edge** — art hard left, panel hard right (`PAIR_PANEL_CELL`) and capped at 28rem, the width
+  it has in a three-column row, rather than filling its half. It was a weighted 1.6fr/0.7fr
+  split, which only worked while the art expanded to fill whatever column it was handed; once
+  the art was width-capped the two stopped agreeing, leaving the art adrift mid-column beside
+  a panel flush right. Pinning both is what makes that right edge read as deliberate instead
+  of accidental — the slack collects in one span between them rather than in three uneven
+  ones. Both caps are `xl`-only: below that every template collapses to one stacked column
+  and both should fill it.
+  - The trade is that the slack is *large* — ~390px at a 1573px viewport, sitting above four
+    support tiles in the band below. Equal halves make the split easy to reason about, but if
+    that void ever needs closing, size the first track to the art (`xl:grid-cols-[41rem_1fr]`)
+    rather than re-centring either occupant.
+- **A band is exactly one line at every width, and nothing about it is breakpoint-driven.**
+- The line is a flex row, and the card count sets a **minimum** tile width rather than an
+  exact one: each tile grows to an equal share of the row, refuses to shrink past
+  `bandMinWidthClass` (7rem uma / 6rem support), and the row overflows into the band's own
+  `overflow-x-auto` scroller when the minimums don't fit. Only the launch banner's twenty
+  supports actually scroll on a desktop screen.
+- **Growth sits on a wrapper around each tile, not on the tile.** That is what reproduces
+  the old grid's `justify-items-center` spread — the wrapper takes its share of the line, the
+  tile stays centred inside it at its own capped width. Put the growth on the tile and a
+  four-uma revival stretches into four wide slabs.
+- The row carries no `justify-*`. The wrappers always fill the line exactly, so there is
+  never free space to distribute — and `justify-center` on a row that *does* overflow strands
+  its first tile off the left edge where scrolling cannot reach it.
+- This replaced a table of `xl:grid-cols-N` classes that produced the line only above
+  1280px; below that the band fell back to two columns, so a ten-card race-prep batch
+  rendered as a 2×5 tower. **Don't reintroduce a breakpoint here.** Tests assert the line by
+  counting a flex row's children, which is what makes "one line" checkable in jsdom at all.
+- **Band names shrink one measured tier** — ~160px column (two lines), band (three lines,
+  13px). The old ~72px "dense" tier went with the squeeze that forced it; no band tile now
+  renders below its minimum width.
+- `race_prep_support` inverts the section's column weights (narrow uma, wide support grid) and
+  must degrade to zero umas; two of the sheet's 32 rows have none.
+- `standard` gets no chip at all. A badge on every card is noise, not signal.
+- **`CATEGORY_LABELS` in `timelineShared.ts` is the only place the category names are
+  written.** They appear both on the chip and in the filter's dropdown, and a reader
+  filtering for "Golden Week Revival" has to see that exact phrase on the cards that
+  come back.
+- **The category filter runs on groups, not events**, and a window survives if *any* of
+  its banners matches — filtering for revivals must keep the ordinary banner sharing that
+  card, or the week looks emptier than it was. Race events drop out whenever a category is
+  selected, since a Champions Meeting has no banner category to match. The dropdown only
+  offers categories actually present in the data, so `race_prep_support` stays hidden until
+  the support backfill lands rather than being an option that can only return
+  "No events found."
+- **Never reintroduce `grid-rows-1`, `xl:overflow-hidden` or `xl:[contain:size]` on a feature
+  panel.** That trio pinned the panel to the banner art's height and silently discarded every
+  tile past the first row — two of eleven umas shown, nine gone, nothing on screen saying so.
+  jsdom applies no CSS, so only the class-name assertions in `Timeline.test.tsx` catch it.
 
 **Narrow with `isRaceEvent()` / `isBannerTimeline()`** (from `types/calculator.ts`), never
 by sniffing properties. The three shapes are not reliably distinguishable structurally: the
@@ -283,9 +402,11 @@ Guarded by `src/__tests__/Timeline.test.tsx`, whose fake observer fires each ins
 - **Both windows reset through `resetListWindow()` in the filter handlers, not from an
   effect.** Resetting in an effect commits the stale window and re-renders over it — a
   visible flash, and what `react-hooks/set-state-in-effect` flags.
-- **Cards key off `timelineEventKey(event)`** (`cm-` / `loh-` / `bt-` + id). Ids are
-  unique only *within* a model, and positional keys make React reuse a card's DOM —
-  including decoded images — for a different event when the list grows or re-filters.
+- **Cards key off `timelineRowKey(row)`** — `cm-` / `loh-` + id for race events, `win-` +
+  the shared start date for a banner window. Ids are unique only *within* a model, and
+  positional keys make React reuse a card's DOM — including decoded images — for a
+  different event when the list grows or re-filters. A window keys on its date rather than
+  its first banner's id so the key survives the API reordering banners inside a group.
 - Card images carry `loading="lazy"`; a banner card holds up to five, so a fully-revealed
   list is several hundred.
 

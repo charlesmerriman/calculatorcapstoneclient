@@ -20,6 +20,7 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import type { BannerResources } from "../../hooks/useBannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
+import { ExtraCardsBadge } from "./ExtraCardsBadge"
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -501,7 +502,7 @@ export const BannerRow = ({
 			</div>
 
 			{/* === Images section === */}
-			<div className="flex items-center justify-center gap-1.5 py-1 px-1">
+			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
 				{images.slice(0, 2).map((img) => (
 					<img
 						key={img.name}
@@ -510,6 +511,7 @@ export const BannerRow = ({
 						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
 					/>
 				))}
+				<ExtraCardsBadge hidden={images.length - 2} />
 			</div>
 
 			{/* === Banner select === */}

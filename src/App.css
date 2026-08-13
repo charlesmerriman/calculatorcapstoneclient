@@ -251,6 +251,60 @@
 	}
 }
 
+/* ── Banner category chip ─────────────────────────────────────────────────
+   The marker on a timeline section whose banner isn't an ordinary one. A
+   `standard` banner gets no chip at all — most banners are standard, and a
+   badge on every card is noise rather than signal.
+
+   Same @apply restriction as the pull-input classes above: --color-category-*
+   lives in index.css's @theme, which `@reference "tailwindcss"` doesn't load,
+   so the color properties are written against the variables directly. The
+   layout half is plain CSS for the same reason — splitting it across a
+   Tailwind class string and a stylesheet rule would put the chip's padding
+   somewhere other than its color. */
+.category-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	flex-shrink: 0;
+	border-radius: 9999px;
+	border-width: 1px;
+	border-style: solid;
+	padding: 0.125rem 0.625rem;
+	font-size: 0.75rem;
+	line-height: 1.25rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.category-chip--revival {
+	color: var(--color-category-revival);
+	border-color: var(--color-category-revival-border);
+	background-color: var(--color-gray-800);
+}
+
+/* Reruns and race-prep batches. Deliberately achromatic: they are worth
+   labelling but not worth interrupting the scroll for, and leaving the one hue
+   to the revival keeps that signal meaningful. */
+.category-chip--quiet {
+	color: var(--color-gray-300);
+	border-color: var(--color-gray-600);
+	background-color: var(--color-gray-800);
+}
+
+/* Tinted fill behind the same @supports guard as the pull inputs, and for the
+   same reason — see the comment on that guard. Without color-mix the chip keeps
+   its flat card-colored fill and still reads through border and text. */
+@supports (background-color: color-mix(in srgb, red 12%, blue)) {
+	.category-chip--revival {
+		background-color: color-mix(
+			in srgb,
+			var(--color-category-revival-border) 14%,
+			var(--color-gray-800)
+		);
+	}
+}
+
 /* Icon-only delete button on the right edge. Width comes from .banner-grid's
    last track — this is a table cell, not a free-standing button. */
 .banner-delete-btn {

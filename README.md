@@ -79,9 +79,53 @@ npm install
 # Create a .env file
 echo "VITE_API_URL=http://localhost:8000" > .env
 
-# Start the dev server (proxies API calls to the Django backend)
+# Start the dev server (calls the local Django backend)
 npm run dev
 ```
+
+## Choosing a backend
+
+Two dev commands, differing only in which API they read:
+
+```bash
+npm run dev         # local Django on :8000  — full read/write, sign-in works
+npm run dev:live    # live production API    — real content, read-only
+```
+
+`dev:live` is `vite --mode live`, which loads [.env.live](.env.live) and
+overrides `VITE_API_URL` for that run only. Flipping is just stopping one and
+starting the other — nothing to edit, nothing to remember to put back. A
+**LIVE DATA** badge appears bottom-left so the two are never confused.
+
+Use `dev:live` for frontend work that needs realistic content: the local
+database has no seeding path any more (see
+[../backend/README.md](../backend/README.md#there-is-no-seeding-step--a-fresh-local-database-starts-empty)),
+and production content is edited through the admin panel, so the live API is the
+only accurate source for it.
+
+**It cannot write to production.** Saving requires an auth token, and you cannot
+obtain one here — the backend derives its OAuth redirect from its own
+`FRONTEND_URL`, so a sign-in round-trip lands on the deployed site instead of
+localhost. Everything the calculator does in guest mode works; anything that
+would persist is simply unavailable. Use `npm run dev` when you need to test
+sign-in or saving.
+
+### Why `dev:live` pins the port
+
+The live backend accepts these requests because Django's `CORS_ALLOWED_ORIGINS`
+defaults to `http://localhost:5173` and production does not override it. That
+origin is matched **exactly**, port included — so if Vite were allowed to fall
+back to `5174` because `5173` was busy, every request would die in preflight
+with a CORS error that looks like the API being down.
+
+Hence `--port 5173 --strictPort`: it fails immediately with "Port 5173 is already
+in use" instead of starting on a port the server will reject. If you hit that,
+stop the other dev server rather than changing the port here.
+
+Two related notes: if a `CORS_ORIGIN_WHITELIST` is ever set on the DigitalOcean
+component, add the localhost origin back or `dev:live` stops working. And plain
+`npm run dev` has no such constraint — a local backend you control can be told
+about any origin.
 
 Other useful commands:
 

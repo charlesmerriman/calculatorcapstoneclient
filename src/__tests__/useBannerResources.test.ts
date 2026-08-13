@@ -18,6 +18,7 @@ import {
   WHITE_DAY_DAY,
   MONTHLY_SHOP_UMA_TICKETS,
   MONTHLY_SHOP_SUPPORT_TICKETS,
+  MONTHLY_SHOP_TICKET_DAY,
   TRAINING_PASS_START_DATE,
   TRAINING_PASS_REWARD_DAY,
   TRAINING_PASS_MONTHLY_REWARD,
@@ -29,7 +30,6 @@ import {
 } from '../constants/gameConstants'
 import {
   calculateDailyIncome,
-  calculateMonthlyOccurrences,
   calculateDayOfMonthOccurrences,
   calculateIntervalOccurrences,
   calculateAnnualDateOccurrences,
@@ -1016,7 +1016,7 @@ describe('useBannerResources', () => {
   })
 
   describe('monthly shop tickets', () => {
-    it('credits 4 uma + 4 support tickets per month boundary only when enabled', () => {
+    it('credits 4 uma + 4 support tickets per shop reset only when enabled', () => {
       const endStr = daysFromNow(50)
       const banner = [makeUmaBanner(1, endStr, 0)] // 0 pulls so tickets aren't spent
       const shared = { userPlannedBannerData: banner, ...noIncome }
@@ -1026,12 +1026,23 @@ describe('useBannerResources', () => {
       const { result: off } = renderHook(() =>
         useBannerResources({ userStatsData: { ...zeroStats, monthly_shop_tickets: false }, ...shared })
       )
-      const months = calculateMonthlyOccurrences(startOfDay(new Date()), new Date(endStr))
+      // The shop restocks on MONTHLY_SHOP_TICKET_DAY, so the count is
+      // occurrences of THAT day in the window — not 1st-of-month crossings.
+      // This asserted against calculateMonthlyOccurrences until 2026-08-12,
+      // which agrees only by coincidence: the two differ whenever the window
+      // ends between the 1st and the reset day. A 50-day window ending on
+      // October 1st contains two 1sts but only one 2nd, so the expectation was
+      // 8 against the engine's correct 4. The engine was never wrong.
+      const resets = calculateDayOfMonthOccurrences(
+        startOfDay(new Date()),
+        new Date(endStr),
+        MONTHLY_SHOP_TICKET_DAY,
+      )
 
       expect(off.current[0].umaTickets).toBe(0)
       expect(off.current[0].supportTickets).toBe(0)
-      expect(on.current[0].umaTickets).toBe(MONTHLY_SHOP_UMA_TICKETS * months)
-      expect(on.current[0].supportTickets).toBe(MONTHLY_SHOP_SUPPORT_TICKETS * months)
+      expect(on.current[0].umaTickets).toBe(MONTHLY_SHOP_UMA_TICKETS * resets)
+      expect(on.current[0].supportTickets).toBe(MONTHLY_SHOP_SUPPORT_TICKETS * resets)
     })
   })
 
