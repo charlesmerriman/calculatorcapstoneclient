@@ -7,6 +7,7 @@ import { OAuthCallback } from "./components/auth/OAuthCallback.js"
 import { BetaGate } from "./components/auth/BetaGate.js"
 import { CalculatorProvider } from "./services/CalculatorProvider.js"
 import { ErrorBoundary } from "./components/ErrorBoundary.js"
+import { ApiSourceBadge } from "./components/ApiSourceBadge.js"
 import { ThemeProvider } from "./services/ThemeProvider.js"
 import { useTheme } from "./services/ThemeContext.js"
 import { HomePage } from "./components/home/HomePage.js"
@@ -25,6 +26,9 @@ function App() {
 		<ThemeProvider>
 			<ErrorBoundary>
 				<ThemedToaster />
+				{/* Dev-only, and only when VITE_API_URL points somewhere remote.
+				    Compiles away entirely in production builds. */}
+				<ApiSourceBadge />
 				<Routes>
 					<Route path="/" element={<HomePage />} />
 					<Route path="/login" element={<Login />} />
