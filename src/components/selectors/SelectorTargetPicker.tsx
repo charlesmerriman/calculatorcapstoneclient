@@ -14,6 +14,8 @@ interface TargetOption {
 	value: number
 	label: string
 	image: string
+	/** First JP banner date — the ordering key, and what eligibility is judged on. */
+	firstJpDate: string | null
 }
 
 interface SelectorTargetPickerProps {
@@ -50,12 +52,16 @@ export const SelectorTargetPicker = ({
 		// calculator presents to users. It has card links solely for source-data
 		// bookkeeping, so it must not make those cards selector targets.
 		const isGachaBanner = (name: string) => !/^\(all\)(?:\s+\d+)?$/i.test(name.trim())
-		const seen = new Map<number, { label: string; image: string }>()
+		const seen = new Map<number, { label: string; image: string; firstJpDate: string | null }>()
 		const addEligibleCards = (cards: (Uma | SupportCard)[]) => {
 			for (const card of cards) {
 				if (seen.has(card.id)) continue
 				if (!isCardEligible(card.first_jp_date, product.jp_cutoff_date)) continue
-				seen.set(card.id, { label: card.name, image: card.image })
+				seen.set(card.id, {
+					label: card.name,
+					image: card.image,
+					firstJpDate: card.first_jp_date,
+				})
 			}
 		}
 
@@ -70,9 +76,23 @@ export const SelectorTargetPicker = ({
 				addEligibleCards(banner.support_cards)
 			}
 		}
+		// Newest JP release first: the ticket's cutoff already caps the top of the
+		// list, so the cards nearest that cutoff are the ones a user is picking
+		// between. Cards with an unknown release date sort last — they only reach
+		// this list at all under an unrestricted (null) cutoff, since
+		// `isCardEligible` refuses them under a real one. Dates are ISO strings so
+		// a plain string compare is chronological; sliced to the day because the
+		// release date carries a time of day and the ordering shouldn't. Name
+		// breaks ties, which is the common case: a banner releases several cards
+		// on the same date.
 		return [...seen.entries()]
 			.map(([value, card]) => ({ value, ...card }))
-			.sort((a, b) => a.label.localeCompare(b.label))
+			.sort((a, b) => {
+				const aDate = a.firstJpDate?.slice(0, 10) ?? ""
+				const bDate = b.firstJpDate?.slice(0, 10) ?? ""
+				if (aDate !== bDate) return bDate.localeCompare(aDate)
+				return a.label.localeCompare(b.label)
+			})
 	}, [umaBannerData, supportBannerData, isUma, product.jp_cutoff_date])
 
 	const selectedId = isUma ? targetUma : targetSupport
