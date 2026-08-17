@@ -1,4 +1,5 @@
 import "./App.css"
+import { useEffect } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 import { ApplicationViews } from "./views/ApplicationViews.js"
@@ -15,6 +16,7 @@ import { PrivacyPolicy } from "./components/legal/PrivacyPolicy.js"
 import { Changelog } from "./components/info/Changelog.js"
 import { Faq } from "./components/info/Faq.js"
 import { Feedback } from "./components/info/Feedback.js"
+import { recordVisit } from "./services/visitBeacon.js"
 
 const ThemedToaster = () => {
 	const { activeTheme } = useTheme()
@@ -22,6 +24,17 @@ const ThemedToaster = () => {
 }
 
 function App() {
+	// Traffic beacon. Deliberately here rather than inside a route element: this
+	// is the only place that sees EVERY visitor, since BetaGate and
+	// CalculatorProvider below only wrap /app. Counting further in would miss
+	// everyone who lands on the home page, the FAQ or the changelog and leaves.
+	//
+	// Empty deps = once per mount, and recordVisit() is itself idempotent per
+	// session, so StrictMode's double-invoke in development counts once.
+	useEffect(() => {
+		recordVisit()
+	}, [])
+
 	return (
 		<ThemeProvider>
 			<ErrorBoundary>

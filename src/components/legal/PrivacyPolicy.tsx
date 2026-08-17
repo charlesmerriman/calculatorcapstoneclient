@@ -28,7 +28,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: July 30, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: August 17, 2026</p>
 
 					<p className={paragraph}>
 						This Privacy Policy explains what information the Uma Musume Carat Calculator
@@ -97,6 +97,24 @@ export const PrivacyPolicy: React.FC = () => {
 						The Site stores an authentication token in your browser&apos;s local storage to
 						keep you signed in. The Site also uses cookies. In addition, once advertising is
 						enabled, third-party ad partners (see below) may set cookies on your device.
+					</p>
+
+					<h2 className={heading}>Traffic Measurement</h2>
+					<p className={paragraph}>
+						To understand how many people use the Site, we count page loads ourselves
+						rather than using a third-party analytics service. When you load the Site,
+						your browser sends a single request that increments a daily counter. It sets
+						no cookie, and it happens whether or not you have an account.
+					</p>
+					<p className={paragraph}>
+						To avoid counting the same person twice in one day, we combine your IP
+						address and browser user agent into a scrambled value that cannot be turned
+						back into either. <strong>Your IP address is never stored.</strong> That
+						scrambled value is recreated from scratch each day, so the value representing
+						you today bears no relation to tomorrow&apos;s — meaning we cannot follow any
+						visitor from one day to the next, or build a picture of anyone&apos;s activity
+						over time. The values themselves are deleted after 90 days; only the
+						anonymous daily totals are kept.
 					</p>
 
 					<h2 className={heading}>Third-Party Advertising</h2>
