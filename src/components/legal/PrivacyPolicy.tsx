@@ -107,14 +107,26 @@ export const PrivacyPolicy: React.FC = () => {
 						no cookie, and it happens whether or not you have an account.
 					</p>
 					<p className={paragraph}>
-						To avoid counting the same person twice in one day, we combine your IP
-						address and browser user agent into a scrambled value that cannot be turned
-						back into either. <strong>Your IP address is never stored.</strong> That
-						scrambled value is recreated from scratch each day, so the value representing
-						you today bears no relation to tomorrow&apos;s — meaning we cannot follow any
-						visitor from one day to the next, or build a picture of anyone&apos;s activity
-						over time. The values themselves are deleted after 90 days; only the
-						anonymous daily totals are kept.
+						So that we can tell how many separate people visit rather than just how many
+						times the Site is opened, we combine your IP address and browser user agent
+						into a scrambled value that cannot be turned back into either.{" "}
+						<strong>Your IP address is never stored.</strong> We keep only that scrambled
+						value, and we use it purely to avoid counting the same visitor twice.
+					</p>
+					<p className={paragraph}>
+						The scrambling changes at the start of every calendar month, so the value
+						representing you in one month bears no relation to the next. In practice this
+						means we can recognize a repeat visit within a single month — that is what
+						lets us report how many people used the Site that month — but we{" "}
+						<strong>cannot</strong> follow anyone from one month into the next, or build
+						a long-term picture of any individual&apos;s activity. The scrambled values
+						are deleted after 90 days; only anonymous totals are kept.
+					</p>
+					<p className={paragraph}>
+						This counting uses no cookie and no identifier stored on your device, so it
+						cannot be linked to you on any other website, or to anything else we hold. We
+						never see who you are — only that some visitor, distinguishable from other
+						visitors for the remainder of the month, was here.
 					</p>
 
 					<h2 className={heading}>Third-Party Advertising</h2>
