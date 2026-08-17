@@ -28,7 +28,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: July 30, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: August 17, 2026</p>
 
 					<p className={paragraph}>
 						This Privacy Policy explains what information the Uma Musume Carat Calculator
@@ -97,6 +97,36 @@ export const PrivacyPolicy: React.FC = () => {
 						The Site stores an authentication token in your browser&apos;s local storage to
 						keep you signed in. The Site also uses cookies. In addition, once advertising is
 						enabled, third-party ad partners (see below) may set cookies on your device.
+					</p>
+
+					<h2 className={heading}>Traffic Measurement</h2>
+					<p className={paragraph}>
+						To understand how many people use the Site, we count page loads ourselves
+						rather than using a third-party analytics service. When you load the Site,
+						your browser sends a single request that increments a daily counter. It sets
+						no cookie, and it happens whether or not you have an account.
+					</p>
+					<p className={paragraph}>
+						So that we can tell how many separate people visit rather than just how many
+						times the Site is opened, we combine your IP address and browser user agent
+						into a scrambled value that cannot be turned back into either.{" "}
+						<strong>Your IP address is never stored.</strong> We keep only that scrambled
+						value, and we use it purely to avoid counting the same visitor twice.
+					</p>
+					<p className={paragraph}>
+						The scrambling changes at the start of every calendar month, so the value
+						representing you in one month bears no relation to the next. In practice this
+						means we can recognize a repeat visit within a single month — that is what
+						lets us report how many people used the Site that month — but we{" "}
+						<strong>cannot</strong> follow anyone from one month into the next, or build
+						a long-term picture of any individual&apos;s activity. The scrambled values
+						are deleted after 90 days; only anonymous totals are kept.
+					</p>
+					<p className={paragraph}>
+						This counting uses no cookie and no identifier stored on your device, so it
+						cannot be linked to you on any other website, or to anything else we hold. We
+						never see who you are — only that some visitor, distinguishable from other
+						visitors for the remainder of the month, was here.
 					</p>
 
 					<h2 className={heading}>Third-Party Advertising</h2>

@@ -8,15 +8,9 @@
  * of the wrong dataset. This badge makes the difference impossible to miss.
  */
 
-// Read once at module scope: Vite statically replaces import.meta.env.* at build
-// time, so this is a constant, not a lookup.
-const API_URL: string = import.meta.env.VITE_API_URL ?? ""
-
-// Anything that isn't a loopback host is a remote backend — in practice the
-// live DigitalOcean app via `npm run dev:live`. Deliberately a positive test for
-// "local" rather than a match against the production hostname, so pointing at
-// any other deployment (a staging app, a tunnel) still trips the warning.
-const isRemoteBackend = !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(API_URL)
+// Shared with the traffic beacon, which suppresses itself on the same test —
+// see config/apiSource.ts for why the two must agree.
+import { API_URL, isRemoteBackend } from "../config/apiSource.js"
 
 export const ApiSourceBadge = () => {
 	// import.meta.env.DEV is false in any production build, so this guard is a
