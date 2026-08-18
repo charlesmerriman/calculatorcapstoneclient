@@ -47,8 +47,8 @@ import { startOfUtcDay, utcDaysBetween } from "../utils/utcDates"
 import { applyPullStrategy, allocateReservedCopies } from "../utils/bannerHelpers"
 import { addSelectorTickets } from "../utils/selectorTickets"
 import type { SelectorTicketBucket } from "../utils/selectorTickets"
-import { EMPTY_BANNER_RESOURCES } from "./useBannerResources"
-import type { BannerResources } from "./useBannerResources"
+import { EMPTY_BANNER_RESOURCES } from "./bannerResources"
+import type { BannerResources } from "./bannerResources"
 import type {
 	UserStats,
 	ClubRank,

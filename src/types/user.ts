@@ -18,7 +18,7 @@ export interface UserStats {
 	 *
 	 * These are current holdings, treated as unrestricted (no JP cutoff). Tickets
 	 * projected from campaigns carry their campaign's cutoff instead — see
-	 * SelectorTicketBucket in hooks/useBannerResources.
+	 * SelectorTicketBucket in utils/selectorTickets.
 	 */
 	uma_selector_ticket: number
 	support_selector_ticket: number
