@@ -3,18 +3,15 @@
 How the calculator turns a user's resources and planned banners into the numbers
 on each row. Read this before touching the maths.
 
-There are currently **two engines**. The ledger engine is what ships; the legacy
-walk is kept only as a rollback and is on its way out.
+One engine, the ledger engine, entered at `hooks/useBannerResources.ts` (the
+per-banner rows) and `hooks/useAverageMonthlyIncome.ts` (the "Income & Resources"
+tiles). Both read the same ledger, so the rows and the tiles above them cannot
+disagree — a user sees both at once, and that agreement is now structural rather
+than a rule to remember.
 
-| | Engine | Entry point |
-|---|---|---|
-| **Default** | Ledger | `hooks/useBannerResourcesV2.ts` + `hooks/useAverageMonthlyIncome.ts` (`useAverageMonthlyIncomeV2`) |
-| Fallback | Legacy walk | `hooks/useBannerResources.ts` + `useAverageMonthlyIncome` |
-
-Selected by `USE_INCOME_ENGINE_V2` in `config/featureFlags.ts`, which reads
-`VITE_INCOME_ENGINE_V2`. Set it to `"false"` to fall back. Both the per-banner
-rows and the "Income & Resources" tiles follow the **same** flag — they must
-never disagree, since a user can see both at once.
+A legacy windowed walk shipped alongside it behind `USE_INCOME_ENGINE_V2` until
+2026-08-18, when it was deleted along with the flag and the per-window occurrence
+helpers in `utils/incomeCalculationUtils.ts`. The section below is why.
 
 ---
 
@@ -27,7 +24,7 @@ never disagree, since a user can see both at once.
 That is what the source spreadsheet does, and matching it is why the rewrite
 happened.
 
-### Why this replaced the walk
+### Why the walk was replaced
 
 The legacy engine stepped a cursor banner to banner, accruing income into chained
 half-open `(prevEnd, thisEnd]` windows. Every income source needed its own
@@ -61,7 +58,7 @@ running spend total — it just stops carrying income.
 | `utils/utcDates.ts` | `DATEDIF` / `EOMONTH` / `WEEKDAY` / `CEILING` equivalents, in UTC |
 | `utils/cumulativeIncome.ts` | One closed form per income source |
 | `utils/incomeLedger.ts` | Queries over the ledger (event lumps, race counts, throughout decay) |
-| `hooks/useBannerResourcesV2.ts` | The engine: income − spend, per banner |
+| `hooks/useBannerResources.ts` | The engine: income − spend, per banner |
 | `utils/bannerHelpers.ts` | `applyPullStrategy`, `allocateReservedCopies` — **unchanged by the rewrite** |
 
 Every function in the first three names the spreadsheet cell it reproduces.
@@ -225,8 +222,8 @@ figure dripped as `monthly / 30`.
    serializer; if it's a rate or schedule, add a field to `CalculationConstants`.
 2. Add a closed form to `utils/cumulativeIncome.ts` (or a query to
    `utils/incomeLedger.ts`), naming the sheet cell it reproduces.
-3. Call it from `incomeTo()` in `useBannerResourcesV2` **and** from
-   `useAverageMonthlyIncomeV2` — unless it is one-off rather than recurring
+3. Call it from `incomeTo()` in `useBannerResources` **and** from
+   `useAverageMonthlyIncome` — unless it is one-off rather than recurring
    (campaign purchases are the standing exception; averaging them would report a
    recurring income nobody earns).
 4. Update `backend/docs/income-calculation.md`.
