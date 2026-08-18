@@ -1,10 +1,12 @@
 import type { ReactNode } from "react"
 import { Trash2, X } from "lucide-react"
+import { BannerTypeIcon } from "./BannerTypeBadge"
+import type { BannerRowType } from "../../utils/bannerHelpers"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 
 interface MobileBannerCardProps {
-	bannerType: "Uma" | "Support"
+	bannerType: BannerRowType
 	images: { name: string; image: string }[]
 	bannerSelect: ReactNode
 	dates: ReactNode
@@ -15,6 +17,28 @@ interface MobileBannerCardProps {
 	onRemove: () => void
 	removeLabel: string
 	removeIcon?: "delete" | "discard"
+}
+
+/**
+ * Per-kind presentation, in ONE place rather than three parallel ternaries down
+ * the component. Three separate `=== "Uma" ? … : …` expressions all had to be
+ * found and widened together whenever a kind was added, and a missed one failed
+ * silently by rendering the other kind's treatment.
+ *
+ * `thumbTileRadius`: the tile clips whatever it contains, so it can only be
+ * rounded where the art is too. Uma icons have a rounded frame baked in; support
+ * card art is a sharp-cornered rectangle and would get its own border sliced off.
+ */
+const TYPE_STYLES: Record<
+	BannerRowType,
+	{ label: string; tile: string; thumbTileRadius: string }
+> = {
+	Uma: { label: "UMA", tile: "bg-blue-900", thumbTileRadius: "rounded-md" },
+	Support: { label: "SUPPORT", tile: "bg-green-900", thumbTileRadius: "rounded-none" },
+	// Provisional: a step-up carries no featured cards, so the thumb radius is
+	// moot until its own artwork lands. Final treatment comes with the step-up
+	// UI phase — see step-up-banners-plan.md.
+	StepUp: { label: "STEP UP", tile: "bg-purple-900", thumbTileRadius: "rounded-md" },
 }
 
 export const MobileBannerCard = ({
@@ -31,33 +55,16 @@ export const MobileBannerCard = ({
 	removeIcon = "delete",
 }: MobileBannerCardProps) => {
 	const Icon = removeIcon === "delete" ? Trash2 : X
-	const typeClass = bannerType === "Uma" ? "bg-blue-900" : "bg-green-900"
-	// The thumbnail tile clips whatever it contains, so it can only be rounded
-	// where the art is too: uma icons have a rounded frame baked in, support card
-	// art is a sharp-cornered rectangle and would get its own border sliced off.
-	const thumbTileRadius = bannerType === "Uma" ? "rounded-md" : "rounded-none"
+	const style = TYPE_STYLES[bannerType]
 
 	return (
 		<div className="@banner-table:hidden overflow-hidden rounded-lg border border-gray-600 bg-gray-800 shadow-sm">
-			<div className={`flex min-h-[64px] items-stretch sm:min-h-[88px] ${typeClass}`}>
+			<div className={`flex min-h-[64px] items-stretch sm:min-h-[88px] ${style.tile}`}>
 				<div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 bg-black/15 px-1 sm:w-28 sm:gap-1">
 					<span className="text-xs font-bold tracking-wide text-white sm:text-sm">
-						{bannerType === "Uma" ? "UMA" : "SUPPORT"}
+						{style.label}
 					</span>
-					{bannerType === "Uma" ? (
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-5 w-5 text-white/90">
-							<path d="M5 3v9a7 7 0 0 0 14 0V3" />
-							<line x1="5" y1="3" x2="5" y2="6" />
-							<line x1="19" y1="3" x2="19" y2="6" />
-						</svg>
-					) : (
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-white/90">
-							<circle cx="9" cy="7" r="3" />
-							<circle cx="15" cy="7" r="3" />
-							<path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
-							<path d="M12 21v-1a6 6 0 0 1 9-5.4" />
-						</svg>
-					)}
+					<BannerTypeIcon type={bannerType} className="h-5 w-5 text-white/90" />
 				</div>
 
 				<div className="relative flex min-w-0 shrink-0 items-center gap-1 overflow-hidden px-1.5 py-2 sm:gap-2 sm:px-3">
@@ -65,7 +72,7 @@ export const MobileBannerCard = ({
 						images.slice(0, 2).map((img) => (
 							<div
 								key={img.name}
-								className={`flex h-12 min-w-0 shrink-0 items-center justify-center overflow-hidden ${thumbTileRadius} bg-black/10 ring-1 ring-white/10 sm:h-[80px]`}
+								className={`flex h-12 min-w-0 shrink-0 items-center justify-center overflow-hidden ${style.thumbTileRadius} bg-black/10 ring-1 ring-white/10 sm:h-[80px]`}
 							>
 								<img
 									src={img.image}

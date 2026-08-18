@@ -18,6 +18,7 @@
  * where you control both ends, this is standard practice.
  */
 
+import { plannedBannerTarget } from "../utils/bannerHelpers"
 import type { UserStats, UserPlannedBanner, UserPlannedPurchase } from "../types"
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -38,6 +39,7 @@ export interface PlannedBannerPayload {
 	reserved_copies: number
 	banner_uma: number | null
 	banner_support: number | null
+	banner_step_up: number | null
 }
 
 /**
@@ -75,16 +77,21 @@ export function toBannerPayload(
 	banners: UserPlannedBanner[]
 ): PlannedBannerPayload[] {
 	return banners
-		.filter(
-			(plannedBanner) =>
-				plannedBanner.banner_uma || plannedBanner.banner_support
-		)
+		// Rows with no banner chosen yet are dropped — the server requires
+		// exactly one target. Asked through the shared helper rather than by
+		// listing the FKs here: a row whose kind this file did not know about
+		// failed the old two-FK test and was silently discarded from EVERY save
+		// path (autosave, the Navbar save, guest migration), so the row worked
+		// perfectly until the next reload and then vanished.
+		.filter((plannedBanner) => plannedBannerTarget(plannedBanner).type !== "Empty")
 		.map((plannedBanner) => {
 			const { tempId: _tempId, ...rest } = plannedBanner
+			const target = plannedBannerTarget(plannedBanner)
 			return {
 				...rest,
-				banner_uma: plannedBanner.banner_uma?.id ?? null,
-				banner_support: plannedBanner.banner_support?.id ?? null
+				banner_uma: target.type === "Uma" ? target.banner.id : null,
+				banner_support: target.type === "Support" ? target.banner.id : null,
+				banner_step_up: target.type === "StepUp" ? target.banner.id : null,
 			}
 		})
 }

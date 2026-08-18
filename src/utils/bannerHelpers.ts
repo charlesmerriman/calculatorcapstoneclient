@@ -2,7 +2,13 @@ import { PULL_COST_CARATS, DISCOUNTED_PULL_COST_CARATS } from "../constants/game
 import { PULLS_PER_PITY_COPY } from "./probabilityCalculations"
 import { spendSelectorTickets } from "./selectorTickets"
 import type { SelectorTicketBucket } from "./selectorTickets"
-import type { UserPlannedBanner } from "../types"
+import type {
+	UserPlannedBanner,
+	BannerUma,
+	BannerSupport,
+	BannerStepUp,
+	BannerTimeline,
+} from "../types"
 
 /**
  * Inputs to the pull-economics strategy for a single banner. All carat/ticket
@@ -358,6 +364,144 @@ export function getReservedStatus(funding: ReservedFunding): PullCountStatus {
 }
 
 /**
+ * The three kinds of row the planner has. "Banner type" has always meant this
+ * axis (uma vs support); Step Up is a third VALUE on it, not a new axis.
+ *
+ * Not to be confused with `BannerTimeline.banner_category` (standard /
+ * race-prep / revival / rerun), which is a genuinely different axis.
+ */
+export type BannerRowType = "Uma" | "Support" | "StepUp"
+
+/**
+ * A planned row's resolved target: which banner it points at, and that banner's
+ * timeline, as ONE tagged value.
+ *
+ * TYPESCRIPT CONCEPT: Discriminated Unions, again
+ *
+ * The row carries three optional FKs of which at most one is ever set. Reading
+ * that shape directly means every call site re-implements the same precedence
+ * check, and every one of them has to be updated when a fourth kind appears —
+ * which is exactly the bug this replaces:
+ *
+ *     const bannerType = b.banner_support ? "Support" : (initialBannerType ?? "Uma")
+ *
+ * A row with no FK at all read as "Uma" by luck there. Narrowing on `.type`
+ * makes that unrepresentable: "Empty" is its own case and the compiler forces
+ * you to handle it. Same tag-not-shape discipline as isRaceEvent /
+ * isBannerTimeline in types/calculator.
+ *
+ * `timeline` is non-null on every non-Empty case because all three banner kinds
+ * carry the same `banner_timeline` FK — the property the whole income engine
+ * rests on.
+ */
+export type PlannedBannerTarget =
+	| { type: "Uma"; banner: BannerUma; timeline: BannerTimeline }
+	| { type: "Support"; banner: BannerSupport; timeline: BannerTimeline }
+	| { type: "StepUp"; banner: BannerStepUp; timeline: BannerTimeline }
+	| { type: "Empty"; banner: null; timeline: null }
+
+/** Fields the target helpers read. Accepting this rather than a whole
+ *  UserPlannedBanner lets staged rows and test fixtures pass too. */
+type BannerTargetFields = Pick<
+	UserPlannedBanner,
+	"banner_uma" | "banner_support" | "banner_step_up"
+>
+
+/**
+ * THE one place the three FKs are inspected. Everything else narrows on `.type`.
+ */
+export function plannedBannerTarget(
+	plannedBanner: BannerTargetFields
+): PlannedBannerTarget {
+	if (plannedBanner.banner_uma) {
+		return {
+			type: "Uma",
+			banner: plannedBanner.banner_uma,
+			timeline: plannedBanner.banner_uma.banner_timeline,
+		}
+	}
+	if (plannedBanner.banner_support) {
+		return {
+			type: "Support",
+			banner: plannedBanner.banner_support,
+			timeline: plannedBanner.banner_support.banner_timeline,
+		}
+	}
+	if (plannedBanner.banner_step_up) {
+		return {
+			type: "StepUp",
+			banner: plannedBanner.banner_step_up,
+			timeline: plannedBanner.banner_step_up.banner_timeline,
+		}
+	}
+	return { type: "Empty", banner: null, timeline: null }
+}
+
+/**
+ * The row's timeline, or null when no banner is selected.
+ *
+ * All three banner kinds point at the same BannerTimeline shape, which is what
+ * lets every date, ordering and income path treat them identically. Income is a
+ * pure function of a banner's end date, so this is the only thing the income
+ * half of the engine needs to know about a row.
+ */
+export function plannedBannerTimeline(
+	plannedBanner: BannerTargetFields
+): BannerTimeline | null {
+	return plannedBannerTarget(plannedBanner).timeline
+}
+
+/**
+ * What kind of row this is, whether or not it has picked a banner yet.
+ *
+ * Distinct from `plannedBannerTarget`: a staged row that hasn't chosen a banner
+ * is "Empty" as a target but is still definitely (say) a Support row — that is
+ * what decides which select it offers and which badge it wears.
+ *
+ * Precedence is FK first, then the staged row's declared type. The final
+ * fallback is unreachable by construction (a row either came from the server
+ * with an FK, or was staged by handleAddBanner which always sets
+ * initialBannerType) and exists only to keep the return total; it is NOT the
+ * old `?? "Uma"` guess, which sat on the FK check itself and so applied to real
+ * rows.
+ */
+export function plannedBannerRowType(
+	plannedBanner: BannerTargetFields & Pick<UserPlannedBanner, "initialBannerType">
+): BannerRowType {
+	const target = plannedBannerTarget(plannedBanner)
+	if (target.type !== "Empty") return target.type
+	return plannedBanner.initialBannerType ?? "Uma"
+}
+
+/**
+ * The planned count, read as the unit the row actually measures.
+ *
+ * `number_of_pulls` is deliberately overloaded: on a step-up row it carries
+ * STEPS, mirroring the source sheet's own overload of the same column. One
+ * column, no migration, and no second field sitting null on almost every row —
+ * but only safe as long as nothing reads the raw property and assumes pulls.
+ * These two accessors are that guarantee.
+ *
+ * Each returns 0 for the wrong kind of row, so a mixed-up call site produces a
+ * visibly empty number rather than a plausible wrong one.
+ */
+export function plannedPulls(
+	plannedBanner: BannerTargetFields & Pick<UserPlannedBanner, "number_of_pulls">
+): number {
+	return plannedBannerTarget(plannedBanner).type === "StepUp"
+		? 0
+		: plannedBanner.number_of_pulls
+}
+
+export function plannedSteps(
+	plannedBanner: BannerTargetFields & Pick<UserPlannedBanner, "number_of_pulls">
+): number {
+	return plannedBannerTarget(plannedBanner).type === "StepUp"
+		? plannedBanner.number_of_pulls
+		: 0
+}
+
+/**
  * Returns the free pull count for a planned banner, or empty string if no banner is set.
  *
  * TYPESCRIPT CONCEPT: Union Return Types
@@ -371,9 +515,18 @@ export function getReservedStatus(funding: ReservedFunding): PullCountStatus {
 export function getFreePulls(
 	plannedBanner: UserPlannedBanner
 ): number | string {
-	if (plannedBanner.banner_support) return plannedBanner.banner_support.free_pulls
-	if (plannedBanner.banner_uma) return plannedBanner.banner_uma.free_pulls
-	return ""
+	const target = plannedBannerTarget(plannedBanner)
+	switch (target.type) {
+		case "Uma":
+		case "Support":
+			return target.banner.free_pulls
+		// A step-up grants none: every one of its pulls is bought with paid
+		// carats up the cost ladder, so 0 is the real answer, not "unknown".
+		case "StepUp":
+			return 0
+		case "Empty":
+			return ""
+	}
 }
 
 /**
@@ -396,10 +549,19 @@ export function getFreePulls(
  * `string` is deliberate: it makes passing a bare id where a key is expected a
  * compile error, which is precisely the mistake this helper exists to prevent.
  */
-export type BannerKey = `uma:${number}` | `support:${number}`
+export type BannerKey =
+	| `uma:${number}`
+	| `support:${number}`
+	| `stepup:${number}`
 
-export function bannerKey(type: "Uma" | "Support", id: number): BannerKey {
-	return type === "Uma" ? `uma:${id}` : `support:${id}`
+const KEY_PREFIX: Record<BannerRowType, string> = {
+	Uma: "uma",
+	Support: "support",
+	StepUp: "stepup",
+}
+
+export function bannerKey(type: BannerRowType, id: number): BannerKey {
+	return `${KEY_PREFIX[type]}:${id}` as BannerKey
 }
 
 /**
@@ -408,11 +570,10 @@ export function bannerKey(type: "Uma" | "Support", id: number): BannerKey {
  * rows are not duplicates of each other.
  */
 export function plannedBannerKey(
-	plannedBanner: Pick<UserPlannedBanner, "banner_uma" | "banner_support">
+	plannedBanner: BannerTargetFields
 ): BannerKey | null {
-	if (plannedBanner.banner_uma) return bannerKey("Uma", plannedBanner.banner_uma.id)
-	if (plannedBanner.banner_support) return bannerKey("Support", plannedBanner.banner_support.id)
-	return null
+	const target = plannedBannerTarget(plannedBanner)
+	return target.type === "Empty" ? null : bannerKey(target.type, target.banner.id)
 }
 
 /**

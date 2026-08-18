@@ -44,7 +44,12 @@ import {
 	parseLedger,
 } from "../utils/incomeLedger"
 import { startOfUtcDay, utcDaysBetween } from "../utils/utcDates"
-import { applyPullStrategy, allocateReservedCopies } from "../utils/bannerHelpers"
+import {
+	applyPullStrategy,
+	allocateReservedCopies,
+	plannedBannerTarget,
+	plannedBannerTimeline,
+} from "../utils/bannerHelpers"
 import { addSelectorTickets } from "../utils/selectorTickets"
 import type { SelectorTicketBucket } from "../utils/selectorTickets"
 import { EMPTY_BANNER_RESOURCES } from "./bannerResources"
@@ -267,9 +272,7 @@ export function useBannerResources({
 		// day. A banner with no resolvable end date keeps its zeroed slot.
 		const walkOrder = userPlannedBannerData
 			.map((banner, index) => {
-				const timeline =
-					banner.banner_uma?.banner_timeline ??
-					banner.banner_support?.banner_timeline
+				const timeline = plannedBannerTimeline(banner)
 				const endDate = timeline?.end_date ? new Date(timeline.end_date) : null
 				const startDate = timeline?.start_date
 					? new Date(timeline.start_date)
@@ -330,9 +333,12 @@ export function useBannerResources({
 			const bannerStart = startDate ?? today
 			const discountDays = Math.max(0, utcDaysBetween(bannerStart, endDate) + 1)
 
-			const isUmaBanner = !!banner.banner_uma
+			const target = plannedBannerTarget(banner)
+			const isUmaBanner = target.type === "Uma"
 			const freePulls =
-				banner.banner_uma?.free_pulls ?? banner.banner_support?.free_pulls ?? 0
+				target.type === "Uma" || target.type === "Support"
+					? target.banner.free_pulls
+					: 0
 
 			const strategy = applyPullStrategy({
 				isUmaBanner,
@@ -351,9 +357,12 @@ export function useBannerResources({
 			// single card and the user picks which — so the OLDEST featured card
 			// sets the bar. Cards with no known release date are skipped, so an
 			// unknown neither qualifies a banner nor blocks one.
-			const featured = isUmaBanner
-				? banner.banner_uma?.umas ?? []
-				: banner.banner_support?.support_cards ?? []
+			const featured =
+				target.type === "Uma"
+					? target.banner.umas
+					: target.type === "Support"
+					? target.banner.support_cards
+					: []
 			const oldestFeaturedJpDate = featured.reduce<string | null>(
 				(oldest, card) => {
 					if (!card.first_jp_date) return oldest
