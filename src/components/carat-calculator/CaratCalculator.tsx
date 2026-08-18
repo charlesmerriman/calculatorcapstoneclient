@@ -8,7 +8,13 @@ import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { EMPTY_BANNER_RESOURCES } from "../../hooks/bannerResources"
 import { useBannerResources } from "../../hooks/useBannerResources"
-import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
+import {
+	nextTempId,
+	plannedBannerKey,
+	plannedBannerTarget,
+	plannedBannerTimeline,
+} from "../../utils/bannerHelpers"
+import type { BannerRowType } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
 export const CaratCalculator: React.FC = () => {
@@ -50,7 +56,7 @@ export const CaratCalculator: React.FC = () => {
 	// Every click stages another row. The staging area is a queue, not a single
 	// slot: a user planning several banners can line them all up, fill each one
 	// in, and confirm them independently.
-	const handleAddBanner = (bannerType: "Uma" | "Support"): void => {
+	const handleAddBanner = (bannerType: BannerRowType): void => {
 		setStagedBanners((prev) => [
 			...prev,
 			{
@@ -71,7 +77,7 @@ export const CaratCalculator: React.FC = () => {
 	const handleConfirmStagedBanner = (tempId: number): void => {
 		const banner = stagedBanners.find((b) => b.tempId === tempId)
 		if (!banner) return
-		if (!banner.banner_uma && !banner.banner_support) {
+		if (plannedBannerTarget(banner).type === "Empty") {
 			toast.error("Please select a banner before adding it to the sheet.")
 			return
 		}
@@ -87,11 +93,16 @@ export const CaratCalculator: React.FC = () => {
 			return
 		}
 
-		const updated = [...userPlannedBannerData, banner].sort((a, b) => {
-			const aDate = new Date(a.banner_uma?.banner_timeline.start_date ?? a.banner_support!.banner_timeline.start_date)
-			const bDate = new Date(b.banner_uma?.banner_timeline.start_date ?? b.banner_support!.banner_timeline.start_date)
-			return aDate.getTime() - bDate.getTime()
-		})
+		// Sorted by start date. Rows without a resolvable timeline sort last
+		// rather than throwing — the old non-null assertion on banner_support
+		// crashed on any row that was neither uma nor support.
+		const startTime = (b: UserPlannedBanner): number => {
+			const start = plannedBannerTimeline(b)?.start_date
+			return start ? new Date(start).getTime() : Infinity
+		}
+		const updated = [...userPlannedBannerData, banner].sort(
+			(a, b) => startTime(a) - startTime(b)
+		)
 
 		setUserPlannedBannerData(updated)
 		setStagedBanners((prev) => prev.filter((b) => b.tempId !== tempId))

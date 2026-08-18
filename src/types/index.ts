@@ -20,6 +20,7 @@ export type {
 	SupportCard,
 	BannerUma,
 	BannerSupport,
+	BannerStepUp,
 	BannerTimelineForViewing
 } from "./banner"
 

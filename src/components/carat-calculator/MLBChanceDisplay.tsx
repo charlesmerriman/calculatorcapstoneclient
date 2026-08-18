@@ -3,6 +3,7 @@ import {
 	calculateCopyDistribution,
 	shiftDistribution,
 } from "../../utils/probabilityCalculations"
+import { plannedBannerTarget } from "../../utils/bannerHelpers"
 
 interface MLBChanceDisplayProps {
 	pulls: number
@@ -23,7 +24,15 @@ export const MLBChanceDisplay = ({
 	plannedBanner,
 	reservedCopies = 0
 }: MLBChanceDisplayProps) => {
-	const isSupport = !!plannedBanner.banner_support
+	// Which vocabulary the six cells use. Support cards limit-break, so their
+	// copies read 0LB..MLB; umas just stack, so theirs read 1x..5x. A step-up
+	// follows its own pool: card_type says which of the two it draws from, and
+	// that is the reason a step-up row is per card type rather than the sheet's
+	// single pooled row — a pooled row cannot label its own odds column.
+	const target = plannedBannerTarget(plannedBanner)
+	const isSupport =
+		target.type === "Support" ||
+		(target.type === "StepUp" && target.banner.card_type === "support")
 
 	const labels = isSupport
 		? (["None", "0LB", "1LB", "2LB", "3LB", "MLB"] as const)

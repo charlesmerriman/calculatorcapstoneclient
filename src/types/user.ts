@@ -1,4 +1,4 @@
-import type { BannerUma, BannerSupport } from "./banner"
+import type { BannerUma, BannerSupport, BannerStepUp } from "./banner"
 
 /**
  * Represents the user's current resources and income settings.
@@ -80,7 +80,22 @@ interface BasePlannedBanner {
 	reserved_copies: number
 	banner_uma?: BannerUma | null
 	banner_support?: BannerSupport | null
-	initialBannerType?: "Uma" | "Support"
+	/**
+	 * Third banner target. Exactly one of the three FKs is set on a row that has
+	 * a banner selected — a DB check constraint enforces it server-side — but
+	 * that exclusivity is NOT expressed in this type. See the note above on why
+	 * uma-vs-support exclusivity is validated at runtime rather than in the type
+	 * system; a third member only sharpens the point. Narrow with
+	 * `plannedBannerTarget()` in utils/bannerHelpers, never by property sniffing.
+	 */
+	banner_step_up?: BannerStepUp | null
+	/**
+	 * What kind of banner this row is for, on a row that has not chosen one yet.
+	 * Set when the row is staged; server-loaded rows carry an FK instead and
+	 * don't need it. Read it through `plannedBannerRowType()`, which prefers the
+	 * FK when there is one.
+	 */
+	initialBannerType?: "Uma" | "Support" | "StepUp"
 }
 
 export interface SavedPlannedBanner extends BasePlannedBanner {

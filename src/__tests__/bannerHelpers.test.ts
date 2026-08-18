@@ -7,10 +7,16 @@ import {
   getReservedStatus,
   nextTempId,
   plannedBannerKey,
+  plannedBannerTarget,
+  plannedBannerTimeline,
+  plannedBannerRowType,
+  plannedPulls,
+  plannedSteps,
+  getFreePulls,
 } from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
 import type { SelectorTicketBucket } from '../utils/selectorTickets'
-import type { BannerSupport, BannerUma, UserPlannedBanner } from '../types'
+import type { BannerSupport, BannerUma, BannerStepUp, UserPlannedBanner } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -253,6 +259,113 @@ describe('getPullCountStatus', () => {
 })
 
 // ── bannerKey / plannedBannerKey ──────────────────────────────────────────────
+
+describe('plannedBannerTarget — the narrowing seam', () => {
+  const timeline = {
+    id: 1,
+    name: 'Window',
+    banner_category: 'standard' as const,
+    start_date: '2099-01-01T22:00:00Z',
+    end_date: '2099-02-01T21:59:59Z',
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: '2099-01-01T22:00:00Z',
+    global_end_date: '2099-02-01T21:59:59Z',
+    schedule_offset_days: 0,
+    applied_offset_days: 0,
+    image: '',
+  }
+
+  const umaBanner: BannerUma = {
+    id: 1, banner_timeline: timeline, name: 'Uma', admin_comments: '',
+    umas: [], free_pulls: 3,
+  }
+  const supportBanner: BannerSupport = {
+    id: 2, banner_timeline: timeline, name: 'Support', admin_comments: '',
+    support_cards: [], free_pulls: 5,
+  }
+  const stepUpBanner: BannerStepUp = {
+    id: 3, banner_timeline: timeline, anniversary_event: 14,
+    name: '5th Anniversary SSR Select Step-Up', card_type: 'support',
+    banner_count: 3, image: null, admin_comments: '', order: 0,
+  }
+
+  it('tags each of the three banner kinds', () => {
+    expect(plannedBannerTarget({ banner_uma: umaBanner }).type).toBe('Uma')
+    expect(plannedBannerTarget({ banner_support: supportBanner }).type).toBe('Support')
+    expect(plannedBannerTarget({ banner_step_up: stepUpBanner }).type).toBe('StepUp')
+  })
+
+  it('reports a row with no banner as Empty rather than guessing a kind', () => {
+    // The bug this replaces: `b.banner_support ? "Support" : "Uma"` read an
+    // empty row as an uma banner by luck.
+    const target = plannedBannerTarget({})
+    expect(target.type).toBe('Empty')
+    expect(target.banner).toBeNull()
+    expect(target.timeline).toBeNull()
+  })
+
+  it('treats explicit nulls as absent, not as a selection', () => {
+    expect(
+      plannedBannerTarget({ banner_uma: null, banner_support: null, banner_step_up: null }).type
+    ).toBe('Empty')
+  })
+
+  it('resolves the timeline identically for all three kinds', () => {
+    // The property the whole income engine rests on: income is a pure function
+    // of a banner's end date, and every kind carries the same timeline FK.
+    expect(plannedBannerTimeline({ banner_uma: umaBanner })).toBe(timeline)
+    expect(plannedBannerTimeline({ banner_support: supportBanner })).toBe(timeline)
+    expect(plannedBannerTimeline({ banner_step_up: stepUpBanner })).toBe(timeline)
+    expect(plannedBannerTimeline({})).toBeNull()
+  })
+
+  it('prefers the FK over a staged row\'s declared type', () => {
+    // A staged Support row that ends up holding an uma banner is an uma row.
+    expect(
+      plannedBannerRowType({ banner_uma: umaBanner, initialBannerType: 'Support' })
+    ).toBe('Uma')
+  })
+
+  it('falls back to the staged type only when there is no FK', () => {
+    expect(plannedBannerRowType({ initialBannerType: 'StepUp' })).toBe('StepUp')
+    expect(plannedBannerRowType({ initialBannerType: 'Support' })).toBe('Support')
+  })
+
+  it('reads the overloaded count as the unit the row measures', () => {
+    // number_of_pulls carries STEPS on a step-up row, mirroring the source
+    // sheet's own overload. Each accessor returns 0 for the wrong kind, so a
+    // mixed-up call site shows an empty number rather than a plausible one.
+    const stepUpRow = { banner_step_up: stepUpBanner, number_of_pulls: 10 }
+    expect(plannedSteps(stepUpRow)).toBe(10)
+    expect(plannedPulls(stepUpRow)).toBe(0)
+
+    const umaRow = { banner_uma: umaBanner, number_of_pulls: 200 }
+    expect(plannedPulls(umaRow)).toBe(200)
+    expect(plannedSteps(umaRow)).toBe(0)
+  })
+
+  it('keys a step-up separately from same-id banners of other kinds', () => {
+    // Same reason uma and support cannot share a key: three tables, three
+    // independent autoincrement PKs.
+    const keys = new Set([
+      bannerKey('Uma', 1),
+      bannerKey('Support', 1),
+      bannerKey('StepUp', 1),
+    ])
+    expect(keys.size).toBe(3)
+    expect(plannedBannerKey({ banner_step_up: stepUpBanner })).toBe(bannerKey('StepUp', 3))
+  })
+
+  it('gives a step-up zero free pulls, not an unknown', () => {
+    // Every step-up pull is bought with paid carats up the cost ladder, so 0 is
+    // the real answer. Only a row with NO banner reads as blank.
+    expect(getFreePulls({ banner_step_up: stepUpBanner } as UserPlannedBanner)).toBe(0)
+    expect(getFreePulls({ banner_uma: umaBanner } as UserPlannedBanner)).toBe(3)
+    expect(getFreePulls({} as UserPlannedBanner)).toBe('')
+  })
+})
 
 describe('bannerKey / plannedBannerKey', () => {
   // The seed data populates BannerUma and BannerSupport in lockstep, so an uma

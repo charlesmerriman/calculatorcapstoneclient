@@ -11,10 +11,18 @@ import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
-import { bannerKey, getPullCountStatus, plannedBannerKey } from "../../utils/bannerHelpers"
-import type { BannerKey } from "../../utils/bannerHelpers"
+import {
+	bannerKey,
+	getPullCountStatus,
+	plannedBannerKey,
+	plannedBannerRowType,
+	plannedBannerTarget,
+	plannedBannerTimeline,
+} from "../../utils/bannerHelpers"
+import type { BannerKey, BannerRowType } from "../../utils/bannerHelpers"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
+import { BannerTypeBadge } from "./BannerTypeBadge"
 
 interface StagedBannerRowProps {
 	stagedBanner: UserPlannedBanner
@@ -44,20 +52,24 @@ export const StagedBannerRow = ({
 	userPlannedBannerData,
 	stagedBanners
 }: StagedBannerRowProps) => {
-	const bannerType: "Uma" | "Support" = stagedBanner.banner_support
-		? "Support"
-		: (stagedBanner.initialBannerType ?? "Uma")
+	const target = plannedBannerTarget(stagedBanner)
+	const bannerType: BannerRowType = plannedBannerRowType(stagedBanner)
 
-	const targetBannerData: BannerUma[] | BannerSupport[] =
-		bannerType === "Uma" ? umaBannerData : supportBannerData
+	// Step-up banners have no client-side catalogue yet (the backend model lands
+	// in a later phase), so their select offers nothing. Inert, not a crash.
+	const targetBannerData: (BannerUma | BannerSupport)[] =
+		bannerType === "Uma"
+			? umaBannerData
+			: bannerType === "Support"
+			? supportBannerData
+			: []
 
 	const currentDate = new Date()
 
 	// Match within the type namespace only. targetBannerData is already scoped to
 	// bannerType, and uma/support ids are independent — comparing against the
 	// other type's id could resolve to an unrelated banner of the same number.
-	const selectedBannerId =
-		bannerType === "Uma" ? stagedBanner.banner_uma?.id : stagedBanner.banner_support?.id
+	const selectedBannerId = target.type === "Empty" ? undefined : target.banner.id
 	const currentBanner = targetBannerData.find((banner) => banner.id === selectedBannerId)
 
 	// Banners this row can't take, and why: those already confirmed on the sheet,
@@ -97,11 +109,14 @@ export const StagedBannerRow = ({
 			)
 			return
 		}
-		if (bannerType === "Uma") {
-			setStagedBanner({ ...stagedBanner, banner_uma: option.value as BannerUma, banner_support: undefined })
-		} else {
-			setStagedBanner({ ...stagedBanner, banner_uma: undefined, banner_support: option.value as BannerSupport })
-		}
+		// Setting one target clears the other two — exactly one may ever be set.
+		setStagedBanner({
+			...stagedBanner,
+			banner_uma: bannerType === "Uma" ? (option.value as BannerUma) : undefined,
+			banner_support:
+				bannerType === "Support" ? (option.value as BannerSupport) : undefined,
+			banner_step_up: undefined,
+		})
 	}
 
 	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -116,7 +131,7 @@ export const StagedBannerRow = ({
 		setStagedBanner({ ...stagedBanner, reserved_copies: parsed })
 	}
 
-	const hasBanner = stagedBanner.banner_uma || stagedBanner.banner_support
+	const hasBanner = target.type !== "Empty"
 
 	// A staged banner isn't on the sheet yet, so useBannerResources hasn't
 	// projected an affordability bound for it. Infinity opts out of the "over"
@@ -128,15 +143,14 @@ export const StagedBannerRow = ({
 			? "On a pity threshold — no carats stranded in a partial counter"
 			: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
 
-	const images = stagedBanner.banner_uma
-		? stagedBanner.banner_uma.umas
-		: stagedBanner.banner_support
-		? stagedBanner.banner_support.support_cards
-		: []
+	const images =
+		target.type === "Uma"
+			? target.banner.umas
+			: target.type === "Support"
+			? target.banner.support_cards
+			: []
 
-	const bannerTimeline =
-		stagedBanner.banner_uma?.banner_timeline ??
-		stagedBanner.banner_support?.banner_timeline
+	const bannerTimeline = plannedBannerTimeline(stagedBanner)
 
 	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
@@ -267,29 +281,7 @@ export const StagedBannerRow = ({
 		    row and BannerRow — never re-declare a width on a cell here. */}
 		<div className="banner-grid hidden w-full items-stretch bg-gray-800 h-16 @banner-table:grid">
 			{/* === Type badge === */}
-			<div
-				className={`banner-type-tab ${
-					bannerType === "Uma" ? "banner-type-tab--uma" : "banner-type-tab--support"
-				}`}
-			>
-				<span className="text-xs font-bold tracking-wide">
-					{bannerType === "Uma" ? "UMA" : "SUPPORT"}
-				</span>
-				{bannerType === "Uma" ? (
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 opacity-90">
-						<path d="M5 3v9a7 7 0 0 0 14 0V3" />
-						<line x1="5" y1="3" x2="5" y2="6" />
-						<line x1="19" y1="3" x2="19" y2="6" />
-					</svg>
-				) : (
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 opacity-90">
-						<circle cx="9" cy="7" r="3" />
-						<circle cx="15" cy="7" r="3" />
-						<path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
-						<path d="M12 21v-1a6 6 0 0 1 9-5.4" />
-					</svg>
-				)}
-			</div>
+			<BannerTypeBadge type={bannerType} />
 
 			{/* === Images section === */}
 			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">

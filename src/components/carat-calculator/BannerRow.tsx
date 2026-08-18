@@ -15,12 +15,22 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { formatDate } from "../../utils/dateFormat"
-import { bannerKey, getFreePulls, getPullCountStatus, getReservedStatus, plannedBannerKey } from "../../utils/bannerHelpers"
-import type { BannerKey } from "../../utils/bannerHelpers"
+import {
+	bannerKey,
+	getFreePulls,
+	getPullCountStatus,
+	getReservedStatus,
+	plannedBannerKey,
+	plannedBannerRowType,
+	plannedBannerTarget,
+	plannedBannerTimeline,
+} from "../../utils/bannerHelpers"
+import type { BannerKey, BannerRowType } from "../../utils/bannerHelpers"
 import type { BannerResources } from "../../hooks/bannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
+import { BannerTypeBadge } from "./BannerTypeBadge"
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -40,7 +50,7 @@ interface BannerRowProps {
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[]>
 	>
-	initialBannerType?: "Uma" | "Support"
+	initialBannerType?: BannerRowType
 }
 
 interface BannerOption {
@@ -58,14 +68,29 @@ export const BannerRow = ({
 	setUserPlannedBannerData,
 	initialBannerType
 }: BannerRowProps) => {
-	const bannerType: "Uma" | "Support" = plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
-	const targetBannerData: BannerUma[] | BannerSupport[] = bannerType === "Uma" ? umaBannerData : supportBannerData
+	// The row's kind: from its FK when it has one, else the kind it was staged
+	// as. Never sniffed inline — see plannedBannerRowType for why the old
+	// `?? "Uma"` on the FK check was a latent bug.
+	const target = plannedBannerTarget(plannedBanner)
+	const bannerType: BannerRowType = plannedBannerRowType({
+		...plannedBanner,
+		initialBannerType: plannedBanner.initialBannerType ?? initialBannerType,
+	})
+
+	// Step-up banners have no catalogue on the client yet (the backend model
+	// lands in a later phase), so their select has nothing to offer. Empty is
+	// correct and inert rather than a crash.
+	const targetBannerData: (BannerUma | BannerSupport)[] =
+		bannerType === "Uma"
+			? umaBannerData
+			: bannerType === "Support"
+			? supportBannerData
+			: []
 
 	// Match within the type namespace only. targetBannerData is already scoped to
 	// bannerType, and uma/support ids are independent — comparing against the
 	// other type's id could resolve to an unrelated banner of the same number.
-	const selectedBannerId =
-		bannerType === "Uma" ? plannedBanner.banner_uma?.id : plannedBanner.banner_support?.id
+	const selectedBannerId = target.type === "Empty" ? undefined : target.banner.id
 	const currentBanner = targetBannerData.find((banner) => banner.id === selectedBannerId)
 
 	const currentDate = new Date()
@@ -75,9 +100,7 @@ export const BannerRow = ({
 	// "Passed" gate for banners that have already ended. The cutoff is the START
 	// of today (local midnight), matching the projection's stable anchor — a
 	// banner ending *today* is still active, so it shows an estimate.
-	const bannerEndDateStr =
-		plannedBanner.banner_uma?.banner_timeline.end_date ??
-		plannedBanner.banner_support?.banner_timeline.end_date
+	const bannerEndDateStr = plannedBannerTimeline(plannedBanner)?.end_date
 	const bannerHasEnded =
 		!!bannerEndDateStr &&
 		new Date(bannerEndDateStr).getTime() < startOfDay(new Date()).getTime()
@@ -131,6 +154,12 @@ export const BannerRow = ({
 		})
 	}
 
+	/** Sort key: the row's start date, or last when it has no timeline yet. */
+	const startTime = (b: UserPlannedBanner): number => {
+		const start = plannedBannerTimeline(b)?.start_date
+		return start ? new Date(start).getTime() : Infinity
+	}
+
 	const handleDeleteBannerClick = (): void => {
 		const confirmed = window.confirm("Are you sure you want to delete this banner?")
 		if (!confirmed) return
@@ -167,21 +196,20 @@ export const BannerRow = ({
 			toast.error("This banner is already on your sheet.")
 			return
 		}
-		const updated = updateBannerInList((banner) => {
-			if (bannerType === "Uma") {
-				return { ...banner, banner_uma: option.value as BannerUma, banner_support: undefined }
-			}
-			return { ...banner, banner_uma: undefined, banner_support: option.value as BannerSupport }
-		})
-		const sorted = updated.sort((a, b) => {
-			const aDate = new Date(
-				a.banner_uma?.banner_timeline.start_date ?? a.banner_support!.banner_timeline.start_date
-			)
-			const bDate = new Date(
-				b.banner_uma?.banner_timeline.start_date ?? b.banner_support!.banner_timeline.start_date
-			)
-			return aDate.getTime() - bDate.getTime()
-		})
+		// Setting one target CLEARS the other two. Exactly one may be set — the
+		// server enforces it with a check constraint — so writing the new FK
+		// without clearing the rest would produce a row the PATCH rejects.
+		const updated = updateBannerInList((banner) => ({
+			...banner,
+			banner_uma: bannerType === "Uma" ? (option.value as BannerUma) : undefined,
+			banner_support:
+				bannerType === "Support" ? (option.value as BannerSupport) : undefined,
+			banner_step_up: undefined,
+		}))
+		// Rows with no resolvable timeline sort last instead of throwing; the
+		// old non-null assertion crashed on any row that was neither uma nor
+		// support.
+		const sorted = updated.sort((a, b) => startTime(a) - startTime(b))
 		setUserPlannedBannerData(sorted)
 	}
 
@@ -213,19 +241,21 @@ export const BannerRow = ({
 		pullUpperBound
 	)
 
-	const hasBanner = plannedBanner.banner_uma || plannedBanner.banner_support
+	const hasBanner = target.type !== "Empty"
 
 	const freePulls = getFreePulls(plannedBanner)
 
-	const images = plannedBanner.banner_uma
-		? plannedBanner.banner_uma.umas
-		: plannedBanner.banner_support
-		? plannedBanner.banner_support.support_cards
-		: []
+	// A step-up has no featured cards — the player picks their own from the back
+	// catalogue — so it contributes none here. Its own artwork arrives with the
+	// UI phase.
+	const images =
+		target.type === "Uma"
+			? target.banner.umas
+			: target.type === "Support"
+			? target.banner.support_cards
+			: []
 
-	const bannerTimeline =
-		plannedBanner.banner_uma?.banner_timeline ??
-		plannedBanner.banner_support?.banner_timeline
+	const bannerTimeline = plannedBannerTimeline(plannedBanner)
 
 	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
@@ -477,29 +507,7 @@ export const BannerRow = ({
 		    row and StagedBannerRow — never re-declare a width on a cell here. */}
 		<div className="banner-grid hidden w-full items-stretch bg-gray-800 h-16 @banner-table:grid">
 			{/* === Type badge (square block on left) === */}
-			<div
-				className={`banner-type-tab ${
-					bannerType === "Uma" ? "banner-type-tab--uma" : "banner-type-tab--support"
-				}`}
-			>
-				<span className="text-xs font-bold tracking-wide">
-					{bannerType === "Uma" ? "UMA" : "SUPPORT"}
-				</span>
-				{bannerType === "Uma" ? (
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 opacity-90">
-						<path d="M5 3v9a7 7 0 0 0 14 0V3" />
-						<line x1="5" y1="3" x2="5" y2="6" />
-						<line x1="19" y1="3" x2="19" y2="6" />
-					</svg>
-				) : (
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 opacity-90">
-						<circle cx="9" cy="7" r="3" />
-						<circle cx="15" cy="7" r="3" />
-						<path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
-						<path d="M12 21v-1a6 6 0 0 1 9-5.4" />
-					</svg>
-				)}
-			</div>
+			<BannerTypeBadge type={bannerType} />
 
 			{/* === Images section === */}
 			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
