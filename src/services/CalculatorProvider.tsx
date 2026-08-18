@@ -11,6 +11,7 @@ import type {
 	UserPlannedBanner,
 	BannerUma,
 	BannerSupport,
+	BannerStepUp,
 	GameEvent,
 	ChampionsMeeting,
 	LeagueOfHeroes,
@@ -60,6 +61,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [leagueOfHeroesRankData, setLeagueOfHeroesRankData] = useState<LeagueOfHeroesRank[]>([])
 	const [umaBannerData, setUmaBannerData] = useState<BannerUma[]>([])
 	const [supportBannerData, setSupportBannerData] = useState<BannerSupport[]>([])
+	const [stepUpBannerData, setStepUpBannerData] = useState<BannerStepUp[]>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
 	const [stagedBanners, setStagedBanners] = useState<UserPlannedBanner[]>([])
 	const [gameEventsData, setGameEventsData] = useState<GameEvent[]>([])
@@ -172,6 +174,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setChampionsMeetingRankData(data.champions_meeting_rank_data)
 				setUmaBannerData(data.banner_uma_data)
 				setSupportBannerData(data.banner_support_data)
+				// ?? [] because an older API predates this key — the same tolerance
+				// calculation_constants gets. A missing catalogue must not blank the page.
+				setStepUpBannerData(data.banner_step_up_data ?? [])
 				setUserPlannedBannerData(data.user_planned_banner_data)
 				// Defaulted, unlike the keys above, because these two arrived later
 				// than the rest of the payload. A backend running a build from
@@ -304,6 +309,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		leagueOfHeroesRankData,
 		umaBannerData,
 		supportBannerData,
+		stepUpBannerData,
 		userPlannedBannerData,
 		stagedBanners,
 		anniversaryEventData,

@@ -14,6 +14,7 @@ import type { Dispatch, SetStateAction } from "react"
 import type {
 	BannerUma,
 	BannerSupport,
+	BannerStepUp,
 	BannerTimelineForViewing
 } from "./banner"
 import type {
@@ -39,6 +40,8 @@ export interface CalculatorData {
 	league_of_heroes_rank_data: LeagueOfHeroesRank[]
 	banner_uma_data: BannerUma[]
 	banner_support_data: BannerSupport[]
+	/** Select Step-Up banners, the third kind of planner row. */
+	banner_step_up_data: BannerStepUp[]
 	user_planned_banner_data: UserPlannedBanner[]
 	events_data: GameEvent[]
 	champions_meeting_data: ChampionsMeeting[]
@@ -114,6 +117,7 @@ export interface CalculatorContextType {
 	leagueOfHeroesRankData: LeagueOfHeroesRank[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
+	stepUpBannerData: BannerStepUp[]
 	gameEventsData: GameEvent[]
 	championsMeetingData: ChampionsMeeting[]
 	leagueOfHeroesData: LeagueOfHeroes[]

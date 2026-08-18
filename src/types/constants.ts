@@ -55,6 +55,31 @@ export interface CalculationConstants {
 	discounted_pull_cost_carats: number
 	shards_per_crystal: number
 
+	// Step-up banners
+	/**
+	 * The five costs of one Select Step-Up ladder, in paid carats. They repeat
+	 * every five steps, so these five describe a ladder of any length:
+	 * cost(n) = floor(n / 5) * 5000 + the partial sum of the first n % 5.
+	 */
+	step_up_cost_step_1: number
+	step_up_cost_step_2: number
+	step_up_cost_step_3: number
+	step_up_cost_step_4: number
+	step_up_cost_step_5: number
+	/** Pulls per step. Each step is a 10-pull. */
+	step_up_pulls_per_step: number
+	/**
+	 * Per-pull chance of the ONE card being chased: the game's ~3% total rate
+	 * spread across the 10 cards the player selected. Derived from the pool
+	 * size, not an independent dial. Compare the 0.75% single-featured rate.
+	 */
+	step_up_target_rate: number
+	/**
+	 * Safety bound on completed ladders, NOT the live constraint — real cost and
+	 * odds clamp at a banner's own banner_count * 5, which is always lower.
+	 */
+	step_up_max_rounds: number
+
 	// Throughout-carat decay curve
 	throughout_end_offset_days: number
 	throughout_filter_grace_days: number
