@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   allocateReservedCopies,
   applyPullStrategy,
+  applyStepUpStrategy,
   bannerKey,
   getPullCountStatus,
   getReservedStatus,
@@ -16,6 +17,7 @@ import {
   getFreePulls,
 } from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
+import { DEFAULT_CONSTANTS as C } from '../constants/gameConstants'
 import type { SelectorTicketBucket } from '../utils/selectorTickets'
 import type { BannerSupport, BannerUma, BannerStepUp, UserPlannedBanner } from '../types'
 
@@ -637,5 +639,70 @@ describe('nextTempId', () => {
     }
 
     expect(staged.map((b) => b.tempId)).toEqual([3, 4, 5])
+  })
+})
+
+// ── applyStepUpStrategy ───────────────────────────────────────────────────────
+
+describe('applyStepUpStrategy', () => {
+  /** Three banners = 15 steps in existence, and carats to spare. */
+  const base = { plannedSteps: 0, bannerCount: 3, paidCarats: 20_000, constants: C }
+
+  it('charges the ladder and hands back the remainder', () => {
+    const result = applyStepUpStrategy({ ...base, plannedSteps: 5 })
+    expect(result.caratsSpent).toBe(5_000)
+    expect(result.paidCarats).toBe(15_000)
+    expect(result.chargeableSteps).toBe(5)
+    expect(result.stepLabel).toBe('5x1')
+  })
+
+  it('spends nothing at zero steps', () => {
+    const result = applyStepUpStrategy(base)
+    expect(result.caratsSpent).toBe(0)
+    expect(result.paidCarats).toBe(20_000)
+    expect(result.stepLabel).toBe('0')
+  })
+
+  it('caps maxPossibleSteps at the steps that actually exist', () => {
+    // One banner is five steps, however deep the wallet.
+    const result = applyStepUpStrategy({ ...base, bannerCount: 1, paidCarats: 999_999 })
+    expect(result.maxPossibleSteps).toBe(5)
+  })
+
+  it('caps maxPossibleSteps at what the paid carats reach', () => {
+    const result = applyStepUpStrategy({ ...base, paidCarats: 1_200 })
+    expect(result.maxPossibleSteps).toBe(2)
+  })
+
+  it('clamps chargeable steps to what exists, not to what is affordable', () => {
+    // Planning 20 steps of a 10-step campaign buys 10; there is no sixth banner.
+    const result = applyStepUpStrategy({ ...base, bannerCount: 2, plannedSteps: 20 })
+    expect(result.chargeableSteps).toBe(10)
+    expect(result.caratsSpent).toBe(10_000)
+    expect(result.stepLabel).toBe('5x2')
+  })
+
+  it('still charges in full when the plan outruns the balance', () => {
+    // The asymmetry that matters: unaffordable is reported as a deficit, not
+    // clamped away, exactly as an over-planned pull count already behaves.
+    const result = applyStepUpStrategy({ ...base, plannedSteps: 5, paidCarats: 1_000 })
+    expect(result.chargeableSteps).toBe(5)
+    expect(result.caratsSpent).toBe(5_000)
+    expect(result.paidCarats).toBe(-4_000)
+    expect(result.maxPossibleSteps).toBe(1)
+  })
+
+  it('handles a campaign with no banners at all', () => {
+    const result = applyStepUpStrategy({ ...base, bannerCount: 0, plannedSteps: 5 })
+    expect(result.chargeableSteps).toBe(0)
+    expect(result.maxPossibleSteps).toBe(0)
+    expect(result.caratsSpent).toBe(0)
+    expect(result.paidCarats).toBe(20_000)
+  })
+
+  it('labels what was charged, never what was planned', () => {
+    const result = applyStepUpStrategy({ ...base, bannerCount: 1, plannedSteps: 12 })
+    expect(result.chargeableSteps).toBe(5)
+    expect(result.stepLabel).toBe('5x1')
   })
 })

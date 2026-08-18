@@ -110,6 +110,33 @@ function umaBanner(
   }
 }
 
+function stepUpBanner(
+  id: number,
+  startDay: number,
+  endDay: number,
+  steps = 0,
+  bannerCount = 3
+): UserPlannedBanner {
+  return {
+    id,
+    user: 1,
+    // number_of_pulls carries steps on a step-up row — read via plannedSteps().
+    number_of_pulls: steps,
+    reserved_copies: 0,
+    banner_step_up: {
+      id,
+      banner_timeline: timeline(id, startDay, endDay),
+      anniversary_event: 1,
+      name: `Step-Up ${id}`,
+      card_type: 'uma',
+      banner_count: bannerCount,
+      image: null,
+      admin_comments: '',
+      order: 0,
+    },
+  }
+}
+
 function render(banners: UserPlannedBanner[], stats: Partial<UserStats> = {}, extra = {}) {
   return renderHook(() =>
     useBannerResources({
@@ -301,5 +328,109 @@ describe('result shape', () => {
       })
     ).result.current
     expect(results).toEqual([])
+  })
+})
+
+// ── Step-up rows ──────────────────────────────────────────────────────────────
+
+describe('step-up rows', () => {
+  it('reports step fields on a step-up row and omits them on a normal one', () => {
+    const [step, uma] = render([stepUpBanner(1, 1, 10, 7), umaBanner(2, 1, 10)], {
+      current_paid_carat: 20_000,
+    })
+    expect(step.chargeableSteps).toBe(7)
+    expect(step.stepLabel).toBe('5x1-2')
+    // Three banners exist (15 steps) and 20,000 carats reach 20, so existence binds.
+    expect(step.maxPossibleSteps).toBe(15)
+    // A step-up has no pulls in the "Max Pulls" sense — the row relabels the column.
+    expect(step.maxPossiblePulls).toBe(0)
+
+    expect(uma.chargeableSteps).toBeUndefined()
+    expect(uma.maxPossibleSteps).toBeUndefined()
+    expect(uma.stepLabel).toBeUndefined()
+  })
+
+  it('spends paid carats and nothing else', () => {
+    // The defining constraint. Compared against the same plan at zero steps so
+    // income is identical and only the spend differs.
+    const spent = render([stepUpBanner(1, 1, 10, 5), umaBanner(2, 20, 30)], {
+      current_carat: 3_000,
+      current_paid_carat: 10_000,
+      uma_ticket: 4,
+      support_ticket: 4,
+    })
+    const unspent = render([stepUpBanner(1, 1, 10, 0), umaBanner(2, 20, 30)], {
+      current_carat: 3_000,
+      current_paid_carat: 10_000,
+      uma_ticket: 4,
+      support_ticket: 4,
+    })
+
+    expect(spent[1].paidCarats).toBe(unspent[1].paidCarats - 5_000)
+    expect(spent[1].freeCarats).toBe(unspent[1].freeCarats)
+    expect(spent[1].umaTickets).toBe(unspent[1].umaTickets)
+    expect(spent[1].supportTickets).toBe(unspent[1].supportTickets)
+  })
+
+  it('floors a later row at zero paid carats when the plan outruns the balance', () => {
+    const results = render([stepUpBanner(1, 1, 10, 15), umaBanner(2, 20, 30)], {
+      current_paid_carat: 1_000,
+    })
+    // 15 steps cost 15,000 against 1,000 available: charged in full, floored for
+    // display on the next row, and the red input comes from maxPossibleSteps.
+    expect(results[0].maxPossibleSteps).toBe(1)
+    expect(results[1].paidCarats).toBe(0)
+  })
+
+  it('ignores reserved copies, which are disabled on step-up rows in v1', () => {
+    const banner = stepUpBanner(1, 1, 10, 5)
+    banner.reserved_copies = 3
+    const [row] = render([banner], {
+      current_paid_carat: 10_000,
+      uma_selector_ticket: 5,
+      ssr_crystals: 5,
+    })
+    expect(row.reservedFunding).toEqual({ selectors: 0, crystals: 0, unfunded: 0 })
+    expect(row.ssrCrystals).toBe(5)
+  })
+
+  it('charges rows sharing a window in display order', () => {
+    // Same timeline start, so the tiebreak is position on the sheet. Each row
+    // reports its PRE-spend balance, so the second one shows the first's damage.
+    const stepFirst = render(
+      [stepUpBanner(1, 1, 10, 5), umaBanner(2, 1, 10, 10)],
+      { current_paid_carat: 10_000 }
+    )
+    expect(stepFirst[0].paidCarats).toBe(10_000)
+    expect(stepFirst[1].paidCarats).toBe(5_000)
+
+    // Reversed, the uma row is charged first and the step-up sees the damage.
+    // Asserted against the same plan at zero pulls rather than a literal, because
+    // free carats absorb part of a full-price pull before paid carats are touched.
+    const umaFirst = render(
+      [umaBanner(2, 1, 10, 10), stepUpBanner(1, 1, 10, 5)],
+      { current_paid_carat: 10_000 }
+    )
+    const umaFirstIdle = render(
+      [umaBanner(2, 1, 10, 0), stepUpBanner(1, 1, 10, 5)],
+      { current_paid_carat: 10_000 }
+    )
+    expect(umaFirst[0].paidCarats).toBe(10_000)
+    expect(umaFirst[1].paidCarats).toBeLessThan(umaFirstIdle[1].paidCarats)
+    expect(umaFirstIdle[1].paidCarats).toBe(10_000)
+  })
+
+  it('competes with discounted pulls for the same paid pool', () => {
+    // The one user-visible interaction with no equivalent elsewhere in the
+    // projection: both draw paid carats, and walk order decides who drains it.
+    const withStepUp = render(
+      [stepUpBanner(1, 1, 10, 5), umaBanner(2, 20, 30, 20)],
+      { current_paid_carat: 10_000, discounted_paid_pulls: true }
+    )
+    const alone = render([umaBanner(2, 20, 30, 20)], {
+      current_paid_carat: 10_000,
+      discounted_paid_pulls: true,
+    })
+    expect(withStepUp[1].maxPossiblePulls).toBeLessThan(alone[0].maxPossiblePulls)
   })
 })
