@@ -47,6 +47,17 @@ export interface BannerResources {
 	usdSpent: number
 	/** Which resources paid for this banner's reserved copies. */
 	reservedFunding: ReservedFunding
+
+	// ── Step-up rows only ──
+	// Present only when the row targets a BannerStepUp. Optional rather than
+	// zeroed so a consumer can tell "not a step-up" from "a step-up you cannot
+	// afford a single step of", which are different things to display.
+	/** Steps affordable here, capped by how many the campaign actually runs. */
+	maxPossibleSteps?: number
+	/** Steps actually charged for — planned, clamped to what exists. */
+	chargeableSteps?: number
+	/** `chargeableSteps` in the sheet's spelling: "3", "5x1-2", "5x2". */
+	stepLabel?: string
 }
 
 /**

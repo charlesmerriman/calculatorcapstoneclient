@@ -1,6 +1,11 @@
 import { PULL_COST_CARATS, DISCOUNTED_PULL_COST_CARATS } from "../constants/gameConstants"
 import { PULLS_PER_PITY_COPY } from "./probabilityCalculations"
-import { STEPS_PER_ROUND } from "./stepUpLadder"
+import {
+	STEPS_PER_ROUND,
+	cumulativeStepCost,
+	stepLabel,
+	stepsAffordable,
+} from "./stepUpLadder"
 import { spendSelectorTickets } from "./selectorTickets"
 import type { SelectorTicketBucket } from "./selectorTickets"
 import type {
@@ -9,6 +14,7 @@ import type {
 	BannerSupport,
 	BannerStepUp,
 	BannerTimeline,
+	CalculationConstants,
 } from "../types"
 
 /**
@@ -215,6 +221,86 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 		supportTickets,
 		maxPossiblePulls,
 		maxPullBreakdown,
+	}
+}
+
+export interface StepUpStrategyInput {
+	/** Steps the user planned. Not clamped by the caller — see below. */
+	plannedSteps: number
+	/** How many step-up banners the campaign actually runs. Each is 5 steps. */
+	bannerCount: number
+	/** Purchased carats available before this banner. Step-ups take NOTHING else. */
+	paidCarats: number
+	constants: CalculationConstants
+}
+
+export interface StepUpStrategyResult {
+	/**
+	 * Paid carats left after climbing. MAY GO NEGATIVE when the plan outruns the
+	 * balance; the caller floors it at 0 for display, matching the sheet's
+	 * MAX(0, ...) on N43, while the debt still carries through spend attribution.
+	 */
+	paidCarats: number
+	/** What the climb cost. */
+	caratsSpent: number
+	/** The most steps this banner could support if all paid carats went to it. */
+	maxPossibleSteps: number
+	/** Steps actually charged for — planned, clamped to what exists. */
+	chargeableSteps: number
+	/** `chargeableSteps` in the sheet's spelling: "3", "5x1-2", "5x2". */
+	stepLabel: string
+}
+
+/**
+ * Applies the payment strategy for one step-up banner.
+ *
+ * Deliberately a SIBLING of applyPullStrategy rather than a branch inside it.
+ * The two share no inputs beyond paid carats and no outputs at all: a step-up
+ * has no free pulls, no tickets, no daily discount cap and no free carats —
+ * it is paid-only, which is the whole constraint the feature exists to model.
+ * Threading a mode flag through the app's most-tested function would buy a
+ * shared name and nothing else.
+ *
+ * The two clamps are asymmetric on purpose (see the plan's over-plan clamp):
+ *
+ *   maxPossibleSteps — min(what exists, what you can afford)
+ *   chargeableSteps  — min(what you planned, what EXISTS). Not affordability.
+ *
+ * Over-planning past your budget still charges (and still shows the optimistic
+ * odds) because the resulting deficit is the message, exactly as an
+ * over-planned pull count already behaves. Over-planning past what exists is
+ * simply impossible — there is no sixth banner to buy — so it is clamped away
+ * rather than reported.
+ */
+export function applyStepUpStrategy(
+	input: StepUpStrategyInput
+): StepUpStrategyResult {
+	const { plannedSteps, bannerCount, paidCarats, constants } = input
+
+	// The hard ceiling: five steps per banner the campaign actually runs. This
+	// replaces the sheet's MIN(35, ...), whose 35 was the extent of its lookup
+	// table rather than a game rule — banner_count is at most 3, so 35 could
+	// never bind anyway.
+	const stepsInExistence = Math.max(0, Math.floor(bannerCount)) * STEPS_PER_ROUND
+
+	const maxPossibleSteps = Math.min(
+		stepsInExistence,
+		stepsAffordable(paidCarats, constants)
+	)
+	const chargeableSteps = Math.min(
+		Math.max(0, Math.floor(plannedSteps)),
+		stepsInExistence
+	)
+	const caratsSpent = cumulativeStepCost(chargeableSteps, constants)
+
+	return {
+		paidCarats: paidCarats - caratsSpent,
+		caratsSpent,
+		maxPossibleSteps,
+		chargeableSteps,
+		// Labels what was CHARGED, not what was planned, so the label can never
+		// name a step that does not exist.
+		stepLabel: stepLabel(chargeableSteps),
 	}
 }
 

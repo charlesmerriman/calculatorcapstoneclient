@@ -46,10 +46,14 @@ import {
 import { startOfUtcDay, utcDaysBetween } from "../utils/utcDates"
 import {
 	applyPullStrategy,
+	applyStepUpStrategy,
 	allocateReservedCopies,
 	plannedBannerTarget,
 	plannedBannerTimeline,
+	plannedPulls,
+	plannedSteps,
 } from "../utils/bannerHelpers"
+import type { PullStrategyResult } from "../utils/bannerHelpers"
 import { addSelectorTickets } from "../utils/selectorTickets"
 import type { SelectorTicketBucket } from "../utils/selectorTickets"
 import { EMPTY_BANNER_RESOURCES } from "./bannerResources"
@@ -340,18 +344,48 @@ export function useBannerResources({
 					? target.banner.free_pulls
 					: 0
 
-			const strategy = applyPullStrategy({
-				isUmaBanner,
-				plannedPulls: banner.number_of_pulls,
-				freePulls,
-				umaTickets,
-				supportTickets,
-				freeCarats,
-				paidCarats,
-				discountDays,
-				discountedPaidPulls: userStatsData.discounted_paid_pulls,
-				fullPricePaidPulls: userStatsData.full_price_paid_pulls,
-			})
+			// A step-up is paid-carats-only: no free pulls, no tickets, no daily
+			// discount. It runs its own strategy rather than a mode flag through
+			// applyPullStrategy — see applyStepUpStrategy for why.
+			const stepUp =
+				target.type === "StepUp"
+					? applyStepUpStrategy({
+							plannedSteps: plannedSteps(banner),
+							bannerCount: target.banner.banner_count,
+							paidCarats,
+							constants,
+					  })
+					: null
+
+			// Both branches produce the same shape so the spend-banking below
+			// stays one code path. On a step-up every balance but paid carats
+			// passes through untouched, which is exactly what "paid only" means.
+			const strategy: PullStrategyResult = stepUp
+				? {
+						freeCarats,
+						paidCarats: stepUp.paidCarats,
+						umaTickets,
+						supportTickets,
+						maxPossiblePulls: 0,
+						maxPullBreakdown: {
+							freePulls: 0,
+							tickets: 0,
+							paidPulls: 0,
+							freeCaratPulls: 0,
+						},
+				  }
+				: applyPullStrategy({
+						isUmaBanner,
+						plannedPulls: plannedPulls(banner),
+						freePulls,
+						umaTickets,
+						supportTickets,
+						freeCarats,
+						paidCarats,
+						discountDays,
+						discountedPaidPulls: userStatsData.discounted_paid_pulls,
+						fullPricePaidPulls: userStatsData.full_price_paid_pulls,
+				  })
 
 			// A selector only has to reach ONE card on the banner — it takes a
 			// single card and the user picks which — so the OLDEST featured card
@@ -373,7 +407,12 @@ export function useBannerResources({
 				null
 			)
 			const reserved = allocateReservedCopies({
-				reservedCopies: banner.reserved_copies,
+				// Disabled on step-up rows in v1. Reserving a copy needs a featured
+				// card list to date a selector ticket against, and a step-up has
+				// none — it draws from the back catalogue under the campaign's own
+				// cutoff. The sheet has no equivalent concept either. Passing 0
+				// returns the buckets untouched, so tickets still carry forward.
+				reservedCopies: stepUp ? 0 : banner.reserved_copies,
 				isUmaBanner,
 				oldestFeaturedJpDate,
 				umaSelectorTickets,
@@ -395,6 +434,11 @@ export function useBannerResources({
 				ssrShards,
 				usdSpent: income.usdSpent,
 				reservedFunding: reserved.funding,
+				...(stepUp && {
+					maxPossibleSteps: stepUp.maxPossibleSteps,
+					chargeableSteps: stepUp.chargeableSteps,
+					stepLabel: stepUp.stepLabel,
+				}),
 			}
 
 			// Bank what this banner committed, so the banners after it start from
