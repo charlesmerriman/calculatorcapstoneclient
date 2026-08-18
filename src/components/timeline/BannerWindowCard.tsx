@@ -633,11 +633,17 @@ export function BannerWindowCard({
 	// A campaign strip sits flush above the card, so the card's own top corners
 	// have to square off or the two render as separate boxes with a seam between.
 	const attachedEvent = group.anniversary_event
+	// A step-up attaches to the campaign PART it runs in, so at most one banner
+	// in this group carries any — flattening is how the group reaches them
+	// without BannerWindowGroup having to hoist a second field.
+	const stepUps = group.banners.flatMap((banner) => banner.banner_step_ups ?? [])
 	const isGrouped = group.banners.length > 1
 
 	return (
 		<div className="my-3 w-full px-2">
-			{attachedEvent && <AnniversaryEventStrip event={attachedEvent} />}
+			{attachedEvent && (
+				<AnniversaryEventStrip event={attachedEvent} stepUps={stepUps} />
+			)}
 			<div
 				className={`card-panel w-full overflow-hidden p-2 sm:p-3 ${
 					attachedEvent ? "rounded-b-xl rounded-t-none" : "rounded-xl"

@@ -6,8 +6,7 @@ import type {
 	UserStats,
 	BannerUma,
 	BannerSupport,
-	BannerStepUp,
-	AnniversaryEvent
+	BannerStepUp
 } from "../../types"
 import React from "react"
 import { startOfDay } from "date-fns"
@@ -55,11 +54,6 @@ interface BannerRowProps {
 	supportBannerData: BannerSupport[]
 	stepUpBannerData: BannerStepUp[]
 	/**
-	 * Campaigns, for a step-up row's JP cutoff. A BannerStepUp carries only the
-	 * campaign's FK id; the campaign itself arrives in its own collection.
-	 */
-	anniversaryEventData: AnniversaryEvent[]
-	/**
 	 * Live calculation constants from the API. Passed rather than imported so an
 	 * admin edit to the step-up ladder reaches the odds without a rebuild.
 	 */
@@ -88,7 +82,6 @@ export const BannerRow = ({
 	umaBannerData,
 	supportBannerData,
 	stepUpBannerData,
-	anniversaryEventData,
 	constants,
 	resources,
 	setUserPlannedBannerData,
@@ -285,15 +278,11 @@ export const BannerRow = ({
 			? target.banner.support_cards
 			: []
 
-	// The campaign a step-up belongs to, for its JP cutoff. Only the FK id rides
-	// on the banner, so the campaign is looked up in its own collection.
-	const stepUpCampaign =
-		target.type === "StepUp"
-			? anniversaryEventData.find(
-					(event) => event.id === target.banner.anniversary_event
-			  ) ?? null
-			: null
-	const stepUpCutoff = stepUpCampaign?.jp_cutoff_date ?? null
+	// The campaign's cutoff, folded onto the banner by the backend exactly as it
+	// is onto a selector product. Read from there rather than joining
+	// anniversary_event_data: one place resolves the cutoff, and it is the server.
+	const stepUpCutoff =
+		target.type === "StepUp" ? target.banner.jp_cutoff_date : null
 
 	// Which pool the step-up draws from, in the game's own shorthand. Doubles as
 	// the placeholder art until a campaign image is uploaded, so the row reads

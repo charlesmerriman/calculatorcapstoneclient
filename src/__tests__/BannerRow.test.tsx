@@ -3,7 +3,6 @@ import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import { describe, it, expect, vi } from 'vitest'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
 import type {
-  AnniversaryEvent,
   BannerStepUp,
   BannerUma,
   UserPlannedBanner,
@@ -89,7 +88,6 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
       umaBannerData={[umaBanner]}
       supportBannerData={[]}
       stepUpBannerData={[]}
-      anniversaryEventData={[]}
       constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={setUserPlannedBannerData}
       resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: maxPulls }}
@@ -143,7 +141,6 @@ function renderReserved(
       umaBannerData={[umaBanner]}
       supportBannerData={[]}
       stepUpBannerData={[]}
-      anniversaryEventData={[]}
       constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={setUserPlannedBannerData}
       resources={{
@@ -334,16 +331,12 @@ const stepUpBanner: BannerStepUp = {
   name: '5th Anniversary ★3 Select Step-Up',
   card_type: 'uma',
   banner_count: 2,
+  max_steps: 10,
+  jp_cutoff_date: '2026-01-30',
   image: null,
   admin_comments: '',
   order: 0,
 }
-
-const campaign = {
-  id: 5,
-  name: '5th Anniversary',
-  jp_cutoff_date: '2026-01-30',
-} as AnniversaryEvent
 
 function renderStepUpRow(steps: number, maxSteps: number, stepLabel = '0') {
   const planned: UserPlannedBanner = {
@@ -364,7 +357,6 @@ function renderStepUpRow(steps: number, maxSteps: number, stepLabel = '0') {
       umaBannerData={[]}
       supportBannerData={[]}
       stepUpBannerData={[stepUpBanner]}
-      anniversaryEventData={[campaign]}
       constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={vi.fn()}
       resources={{

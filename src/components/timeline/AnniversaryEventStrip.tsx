@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { ArrowUpRight, Sparkles } from "lucide-react"
-import type { AttachedAnniversaryEvent } from "../../types"
+import type { AttachedAnniversaryEvent, BannerStepUpSummary } from "../../types"
+import { formatStepUpChip } from "./timelineShared"
 
 /**
  * The band that sits flush on top of a banner card when that banner is part of
@@ -32,10 +33,16 @@ const EVENT_TYPE_STYLES: Record<
 
 export const AnniversaryEventStrip = ({
 	event,
+	stepUps = [],
 }: {
 	event: AttachedAnniversaryEvent
+	/** Step-ups running in this window; see formatStepUpChip. */
+	stepUps?: BannerStepUpSummary[]
 }) => {
 	const style = EVENT_TYPE_STYLES[event.event_type] ?? EVENT_TYPE_STYLES.campaign
+	// The only place on the site that says step-ups exist without pressing the
+	// calculator's new button — the feature is otherwise undiscoverable.
+	const stepUpChip = formatStepUpChip(stepUps)
 
 	return (
 		<div
@@ -49,6 +56,14 @@ export const AnniversaryEventStrip = ({
 			{event.accent_label && (
 				<span className="text-xs font-medium opacity-90">
 					{event.accent_label}
+				</span>
+			)}
+			{stepUpChip && (
+				<span
+					title="Select Step-Up banners run during this campaign — a discounted, paid-carats-only ladder that guarantees a card you choose"
+					className="rounded-full border border-purple-400/50 bg-purple-400/15 px-2 py-0.5 text-[11px] font-semibold text-purple-200"
+				>
+					{stepUpChip}
 				</span>
 			)}
 			<Link

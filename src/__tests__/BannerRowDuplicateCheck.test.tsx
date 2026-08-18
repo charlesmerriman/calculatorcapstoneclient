@@ -136,7 +136,6 @@ function renderEmptyRow(bannerType: 'Uma' | 'Support') {
       umaBannerData={[umaBanner]}
       supportBannerData={[supportBanner]}
       stepUpBannerData={[]}
-      anniversaryEventData={[]}
       constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={setUserPlannedBannerData}
       resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: 100 }}

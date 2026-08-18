@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   groupTimelineEvents,
   timelineRowKey,
+  formatStepUpChip,
 } from '../components/timeline/timelineShared'
 import type { BannerWindowGroup, TimelineRow } from '../components/timeline/timelineShared'
 import type { BannerTimelineForViewing, ChampionsMeeting, TimelineEvent } from '../types'
@@ -37,6 +38,7 @@ function banner(
     banner_umas: [],
     banner_supports: [],
     anniversary_event: null,
+    banner_step_ups: [],
     ...overrides,
   }
 }
@@ -223,5 +225,43 @@ describe('timelineRowKey', () => {
     expect(timelineRowKey(groupTimelineEvents([one, two])[0])).toBe(
       timelineRowKey(groupTimelineEvents([two, one])[0]),
     )
+  })
+})
+
+// ── formatStepUpChip ──────────────────────────────────────────────────────────
+
+describe('formatStepUpChip', () => {
+  it('sums both pools into the caption a player recognises', () => {
+    // The 5th Anniversary: two ★3 step-ups and three SSR ones.
+    expect(
+      formatStepUpChip([
+        { card_type: 'uma', banner_count: 2 },
+        { card_type: 'support', banner_count: 3 },
+      ]),
+    ).toBe('2 ★3 + 3 SSR Step-Up')
+  })
+
+  it('names only the pool that is actually running', () => {
+    // The 3.5th and 4.5th anniversaries run SSR step-ups and no ★3 ones.
+    expect(formatStepUpChip([{ card_type: 'support', banner_count: 2 }])).toBe(
+      '2 SSR Step-Up',
+    )
+    expect(formatStepUpChip([{ card_type: 'uma', banner_count: 1 }])).toBe(
+      '1 ★3 Step-Up',
+    )
+  })
+
+  it('adds up several rows of the same pool', () => {
+    expect(
+      formatStepUpChip([
+        { card_type: 'uma', banner_count: 1 },
+        { card_type: 'uma', banner_count: 2 },
+      ]),
+    ).toBe('3 ★3 Step-Up')
+  })
+
+  it('returns null when a campaign runs none, so no chip renders', () => {
+    expect(formatStepUpChip([])).toBeNull()
+    expect(formatStepUpChip([{ card_type: 'uma', banner_count: 0 }])).toBeNull()
   })
 })

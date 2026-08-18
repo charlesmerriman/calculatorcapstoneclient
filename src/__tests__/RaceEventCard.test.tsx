@@ -134,6 +134,7 @@ describe('timeline event narrowing', () => {
     image: null,
     banner_umas: [],
     banner_supports: [], anniversary_event: null,
+ banner_step_ups: [],
   }
 
   // A banner window shares every base field with both race types, so a
