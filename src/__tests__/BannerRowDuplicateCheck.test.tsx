@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { toast } from 'sonner'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
 import type { BannerSupport, BannerUma, UserPlannedBanner, UserStats } from '../types'
-import { EMPTY_BANNER_RESOURCES } from '../hooks/useBannerResources'
+import { EMPTY_BANNER_RESOURCES } from '../hooks/bannerResources'
 
 // Render each option through the component's own formatOptionLabel so the
 // "(on sheet)" marker is observable, and expose onChange as a click. The

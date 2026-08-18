@@ -6,9 +6,8 @@ import { BannerRow } from "./BannerRow"
 import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
-import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
-import { useBannerResourcesV2 } from "../../hooks/useBannerResourcesV2"
-import { USE_INCOME_ENGINE_V2 } from "../../config/featureFlags"
+import { EMPTY_BANNER_RESOURCES } from "../../hooks/bannerResources"
+import { useBannerResources } from "../../hooks/useBannerResources"
 import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
@@ -19,9 +18,6 @@ export const CaratCalculator: React.FC = () => {
 		teamTrialsRankData,
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
-		championsMeetingData,
-		leagueOfHeroesData,
-		gameEventsData,
 		umaBannerData,
 		supportBannerData,
 		userPlannedBannerData,
@@ -34,25 +30,7 @@ export const CaratCalculator: React.FC = () => {
 		setStagedBanners,
 	} = useCalculatorData()
 
-	// Both engines run while the sheet-parity harness is being built, selected by
-	// VITE_INCOME_ENGINE_V2. Hooks can't be called conditionally, so both are
-	// invoked and one result is picked — the unused engine's useMemo is cheap
-	// relative to a render, and this keeps the swap to a single expression.
-	// See config/featureFlags.ts for the removal condition.
-	const legacyResources = useBannerResources({
-		userStatsData,
-		clubRankData,
-		teamTrialsRankData,
-		championsMeetingRankData,
-		leagueOfHeroesRankData,
-		gameEventsData,
-		championsMeetingData,
-		leagueOfHeroesData,
-		userPlannedBannerData,
-		anniversaryEventData,
-		userPlannedPurchaseData,
-	})
-	const ledgerResources = useBannerResourcesV2({
+	const bannerResources = useBannerResources({
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,
@@ -64,7 +42,6 @@ export const CaratCalculator: React.FC = () => {
 		incomeLedger,
 		constants: calculationConstants,
 	})
-	const bannerResources = USE_INCOME_ENGINE_V2 ? ledgerResources : legacyResources
 
 	if (!userStatsData) {
 		return <div>Loading...</div>
