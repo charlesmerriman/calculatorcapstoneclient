@@ -5,6 +5,7 @@ import {
   bannerKey,
   getPullCountStatus,
   getReservedStatus,
+  getStepCountStatus,
   nextTempId,
   plannedBannerKey,
   plannedBannerTarget,
@@ -241,6 +242,44 @@ describe('getPullCountStatus', () => {
   it('keeps 0 neutral even though it divides evenly', () => {
     // Every untouched row sits at 0; greening them would drain the signal.
     expect(getPullCountStatus(0, 1_000)).toBe('neutral')
+  })
+})
+
+// ── getStepCountStatus ──────────────────────────────────────────
+
+describe('getStepCountStatus', () => {
+  it('flags a count above the affordable max as "over"', () => {
+    expect(getStepCountStatus(11, 10)).toBe('over')
+  })
+
+  it('treats exactly the max as affordable, not over', () => {
+    expect(getStepCountStatus(10, 10)).toBe('ok')
+  })
+
+  it('returns "ok" on a completed round, not on the pity threshold', () => {
+    // The step-up green fires every 5, where the pull version fires every 200.
+    expect(getStepCountStatus(5, 35)).toBe('ok')
+    expect(getStepCountStatus(15, 35)).toBe('ok')
+    expect(getStepCountStatus(200, 400)).toBe('ok')
+  })
+
+  it('returns "neutral" one step either side of a round', () => {
+    expect(getStepCountStatus(4, 35)).toBe('neutral')
+    expect(getStepCountStatus(6, 35)).toBe('neutral')
+  })
+
+  it('keeps 0 neutral even though it divides evenly', () => {
+    expect(getStepCountStatus(0, 35)).toBe('neutral')
+  })
+
+  it('reports "over" ahead of "ok" when a round is also unaffordable', () => {
+    // Both states are true at 10 steps with 6 affordable; the budget is the
+    // more actionable message, exactly as getPullCountStatus decides.
+    expect(getStepCountStatus(10, 6)).toBe('over')
+  })
+
+  it('opts out of "over" entirely when no bound is known', () => {
+    expect(getStepCountStatus(35, Infinity)).toBe('ok')
   })
 
   it('prefers "over" when a count is both on-pity and unaffordable', () => {
