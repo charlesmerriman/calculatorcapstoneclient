@@ -1,5 +1,6 @@
 import { PULL_COST_CARATS, DISCOUNTED_PULL_COST_CARATS } from "../constants/gameConstants"
 import { PULLS_PER_PITY_COPY } from "./probabilityCalculations"
+import { STEPS_PER_ROUND } from "./stepUpLadder"
 import { spendSelectorTickets } from "./selectorTickets"
 import type { SelectorTicketBucket } from "./selectorTickets"
 import type {
@@ -251,6 +252,35 @@ export function getPullCountStatus(
 	// 0 is a multiple of the pity threshold, but an untouched row is not a
 	// planning achievement — greening every empty row would drain the signal.
 	if (pulls > 0 && pulls % PULLS_PER_PITY_COPY === 0) return "ok"
+	return "neutral"
+}
+
+/**
+ * How a planned STEP count should be presented — the step-up mirror of
+ * `getPullCountStatus`, sharing its vocabulary so a user reading a mixed table
+ * learns one colour scheme rather than two.
+ *
+ * The green signal means the same thing in both places (no carats stranded in a
+ * partial counter) but fires on a different number, because a step-up's unit of
+ * completion is a five-step round rather than a 200-pull pity counter. Green
+ * here is a FINISHED banner: every carat bought a full ladder, guarantee
+ * included, with nothing left half-climbed.
+ *
+ * "over" is checked first for the same reason it is there — being both past
+ * your budget and on a round boundary is possible, and the budget is the more
+ * actionable half.
+ *
+ * @param maxSteps Upper bound of affordable steps. Pass `Infinity` where no
+ *   bound is known, to opt out of the "over" state entirely.
+ */
+export function getStepCountStatus(
+	steps: number,
+	maxSteps: number
+): PullCountStatus {
+	if (steps > maxSteps) return "over"
+	// Same carve-out as the pull version: 0 is a multiple of the round length,
+	// but an untouched row has achieved nothing worth colouring.
+	if (steps > 0 && steps % STEPS_PER_ROUND === 0) return "ok"
 	return "neutral"
 }
 
