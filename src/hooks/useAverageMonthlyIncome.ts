@@ -39,7 +39,7 @@ export interface AverageMonthlyIncome {
 	srShards: number
 }
 
-interface AverageMonthlyIncomeV2Params {
+interface AverageMonthlyIncomeParams {
 	userStatsData: UserStats | null
 	clubRankData: ClubRank[]
 	teamTrialsRankData: TeamTrialsRank[]
@@ -71,7 +71,7 @@ const WINDOW_MONTHS = 5
  * averaging them across five months would report a recurring income nobody
  * earns.
  */
-export function useAverageMonthlyIncomeV2({
+export function useAverageMonthlyIncome({
 	userStatsData,
 	clubRankData,
 	teamTrialsRankData,
@@ -79,7 +79,7 @@ export function useAverageMonthlyIncomeV2({
 	leagueOfHeroesRankData,
 	incomeLedger,
 	constants,
-}: AverageMonthlyIncomeV2Params): AverageMonthlyIncome {
+}: AverageMonthlyIncomeParams): AverageMonthlyIncome {
 	return useMemo(() => {
 		const zero = { carats: 0, umaTickets: 0, supportTickets: 0, ssrShards: 0, srShards: 0 }
 		if (!userStatsData) return zero

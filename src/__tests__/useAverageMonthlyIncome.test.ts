@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { useAverageMonthlyIncomeV2 } from '../hooks/useAverageMonthlyIncome'
+import { useAverageMonthlyIncome } from '../hooks/useAverageMonthlyIncome'
 import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import type {
   UserStats,
@@ -85,7 +85,7 @@ const ledgerRow = (overrides: Partial<IncomeLedgerRow>): IncomeLedgerRow => ({
 
 function render(stats: Partial<UserStats> = {}, extra = {}) {
   return renderHook(() =>
-    useAverageMonthlyIncomeV2({
+    useAverageMonthlyIncome({
       userStatsData: { ...zeroStats, ...stats },
       ...noIncome,
       ...extra,
@@ -93,10 +93,10 @@ function render(stats: Partial<UserStats> = {}, extra = {}) {
   ).result.current
 }
 
-describe('useAverageMonthlyIncomeV2', () => {
+describe('useAverageMonthlyIncome', () => {
   it('returns zeros with no user stats', () => {
     const result = renderHook(() =>
-      useAverageMonthlyIncomeV2({ userStatsData: null, ...noIncome })
+      useAverageMonthlyIncome({ userStatsData: null, ...noIncome })
     ).result.current
     expect(result).toEqual({
       carats: 0,

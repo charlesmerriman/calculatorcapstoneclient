@@ -7,7 +7,7 @@ import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { EMPTY_BANNER_RESOURCES } from "../../hooks/bannerResources"
-import { useBannerResourcesV2 } from "../../hooks/useBannerResourcesV2"
+import { useBannerResources } from "../../hooks/useBannerResources"
 import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
@@ -30,7 +30,7 @@ export const CaratCalculator: React.FC = () => {
 		setStagedBanners,
 	} = useCalculatorData()
 
-	const bannerResources = useBannerResourcesV2({
+	const bannerResources = useBannerResources({
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,

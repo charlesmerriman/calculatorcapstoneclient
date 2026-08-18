@@ -4,7 +4,7 @@ import Select from "react-select"
 import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select"
 import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Carrot, Dumbbell, Ticket, Star, Sparkles, ChevronDown } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
-import { useAverageMonthlyIncomeV2 } from "../../hooks/useAverageMonthlyIncome"
+import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
 import { ToggleSwitch } from "../ToggleSwitch"
 import type { ClubRank, TeamTrialsRank, ChampionsMeetingRank, LeagueOfHeroesRank } from "../../types"
@@ -104,7 +104,7 @@ export const IncomeForm = () => {
 
 	// These tiles must agree with the banner rows below them: both read the same
 	// ledger engine, so a user comparing the two can never see them disagree.
-	const monthlyStats = useAverageMonthlyIncomeV2({
+	const monthlyStats = useAverageMonthlyIncome({
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,

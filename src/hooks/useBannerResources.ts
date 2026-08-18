@@ -1,14 +1,14 @@
 /**
  * The ledger-based income engine.
  *
- * HOW THIS DIFFERS FROM useBannerResources
- * ----------------------------------------
- * The original hook is an incremental WALK: a cursor steps banner to banner and
- * accrues income into chained half-open `(prevEnd, thisEnd]` windows. Every
- * income source needs its own occurrence counter and every counter has to tile —
- * `(a,b] + (b,c] === (a,c]` — or totals drift with how many banners the user
- * planned. That requirement produced a long run of drift bugs against the source
- * spreadsheet.
+ * WHY IT LOOKS LIKE THIS
+ * ----------------------
+ * It replaced an incremental WALK, deleted 2026-08-18: a cursor stepped banner
+ * to banner accruing income into chained half-open `(prevEnd, thisEnd]` windows.
+ * Every income source needed its own occurrence counter and every counter had to
+ * tile — `(a,b] + (b,c] === (a,c]` — or totals drifted with how many banners the
+ * user planned. That requirement produced a long run of drift bugs against the
+ * source spreadsheet. Do not reintroduce per-window accumulation.
  *
  * This engine does what the sheet does. Income for a banner is an ABSOLUTE
  * cumulative total from today to that banner's own end date (see
@@ -22,8 +22,8 @@
  * reached. That is why this is still a single forward pass and not something
  * quadratic — it just carries spend rather than income.
  *
- * Returns the same `BannerResources[]`, positionally aligned with
- * `userPlannedBannerData`, as the engine it replaces.
+ * Returns `BannerResources[]`, positionally aligned with
+ * `userPlannedBannerData`.
  */
 
 import { useMemo } from "react"
@@ -62,7 +62,7 @@ import type {
 } from "../types"
 import type { CalculationConstants } from "../types/constants"
 
-interface BannerResourcesV2Params {
+interface BannerResourcesParams {
 	userStatsData: UserStats | null
 	clubRankData: ClubRank[]
 	teamTrialsRankData: TeamTrialsRank[]
@@ -85,7 +85,7 @@ interface SpendTotals {
 	ssrCrystals: number
 }
 
-export function useBannerResourcesV2({
+export function useBannerResources({
 	userStatsData,
 	clubRankData,
 	teamTrialsRankData,
@@ -96,7 +96,7 @@ export function useBannerResourcesV2({
 	userPlannedPurchaseData,
 	incomeLedger,
 	constants,
-}: BannerResourcesV2Params): BannerResources[] {
+}: BannerResourcesParams): BannerResources[] {
 	return useMemo(() => {
 		if (!userStatsData) return []
 

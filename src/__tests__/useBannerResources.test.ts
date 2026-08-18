@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { useBannerResourcesV2 } from '../hooks/useBannerResourcesV2'
+import { useBannerResources } from '../hooks/useBannerResources'
 import { PULL_COST_CARATS, DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import type {
   UserStats,
@@ -112,7 +112,7 @@ function umaBanner(
 
 function render(banners: UserPlannedBanner[], stats: Partial<UserStats> = {}, extra = {}) {
   return renderHook(() =>
-    useBannerResourcesV2({
+    useBannerResources({
       userStatsData: { ...zeroStats, ...stats },
       ...noIncome,
       ...extra,
@@ -294,7 +294,7 @@ describe('result shape', () => {
 
   it('returns an empty array with no user stats', () => {
     const results = renderHook(() =>
-      useBannerResourcesV2({
+      useBannerResources({
         userStatsData: null,
         ...noIncome,
         userPlannedBannerData: [umaBanner(1, 1, 30)],
