@@ -1,7 +1,8 @@
 import type {
 	UserPlannedBanner,
 	BannerUma,
-	BannerSupport
+	BannerSupport,
+	BannerStepUp
 } from "../../types"
 import React from "react"
 import Select from "react-select"
@@ -13,13 +14,23 @@ import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/react
 import { formatDate } from "../../utils/dateFormat"
 import {
 	bannerKey,
+	bannerTargetFields,
+	bannersForRowType,
 	getPullCountStatus,
+	getStepCountStatus,
+	isSelectableBanner,
 	plannedBannerKey,
 	plannedBannerRowType,
 	plannedBannerTarget,
 	plannedBannerTimeline,
 } from "../../utils/bannerHelpers"
-import type { BannerKey, BannerRowType } from "../../utils/bannerHelpers"
+import type {
+	BannerKey,
+	BannerRowType,
+	PlannableBanner,
+} from "../../utils/bannerHelpers"
+import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
+import type { CalculationConstants } from "../../types/constants"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
@@ -31,13 +42,16 @@ interface StagedBannerRowProps {
 	onDiscard: () => void
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
+	stepUpBannerData: BannerStepUp[]
+	/** Live calculation constants, for a staged step-up's odds. */
+	constants: CalculationConstants
 	userPlannedBannerData: UserPlannedBanner[]
 	/** Every staged row, this one included — it filters itself out by tempId. */
 	stagedBanners: UserPlannedBanner[]
 }
 
 interface BannerOption {
-	value: BannerUma | BannerSupport
+	value: PlannableBanner
 	label: string
 	key: number
 }
@@ -49,20 +63,21 @@ export const StagedBannerRow = ({
 	onDiscard,
 	umaBannerData,
 	supportBannerData,
+	stepUpBannerData,
+	constants,
 	userPlannedBannerData,
 	stagedBanners
 }: StagedBannerRowProps) => {
 	const target = plannedBannerTarget(stagedBanner)
 	const bannerType: BannerRowType = plannedBannerRowType(stagedBanner)
 
-	// Step-up banners have no client-side catalogue yet (the backend model lands
-	// in a later phase), so their select offers nothing. Inert, not a crash.
-	const targetBannerData: (BannerUma | BannerSupport)[] =
-		bannerType === "Uma"
-			? umaBannerData
-			: bannerType === "Support"
-			? supportBannerData
-			: []
+	const isStepUp = bannerType === "StepUp"
+
+	const targetBannerData = bannersForRowType(bannerType, {
+		umaBannerData,
+		supportBannerData,
+		stepUpBannerData,
+	})
 
 	const currentDate = new Date()
 
@@ -112,10 +127,7 @@ export const StagedBannerRow = ({
 		// Setting one target clears the other two — exactly one may ever be set.
 		setStagedBanner({
 			...stagedBanner,
-			banner_uma: bannerType === "Uma" ? (option.value as BannerUma) : undefined,
-			banner_support:
-				bannerType === "Support" ? (option.value as BannerSupport) : undefined,
-			banner_step_up: undefined,
+			...bannerTargetFields(bannerType, option.value),
 		})
 	}
 
@@ -137,11 +149,17 @@ export const StagedBannerRow = ({
 	// projected an affordability bound for it. Infinity opts out of the "over"
 	// state rather than inventing a limit — the field still flags on/off pity,
 	// and the real red signal appears once the banner is added to the sheet.
-	const pullStatus = getPullCountStatus(stagedBanner.number_of_pulls, Infinity)
-	const pullStatusHint =
-		pullStatus === "ok"
-			? "On a pity threshold — no carats stranded in a partial counter"
-			: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
+	const countStatus = isStepUp
+		? getStepCountStatus(stagedBanner.number_of_pulls, Infinity)
+		: getPullCountStatus(stagedBanner.number_of_pulls, Infinity)
+	const countStatusHint = isStepUp
+		? countStatus === "ok"
+			? "A completed ladder — every carat bought a full banner, guarantee included"
+			: `Stops part-way up a ladder (${STEPS_PER_ROUND} steps complete one)`
+		: countStatus === "ok"
+		? "On a pity threshold — no carats stranded in a partial counter"
+		: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
+	const countLabel = isStepUp ? "Number of steps" : "Number of pulls"
 
 	const images =
 		target.type === "Uma"
@@ -149,6 +167,52 @@ export const StagedBannerRow = ({
 			: target.type === "Support"
 			? target.banner.support_cards
 			: []
+
+	// A staged step-up has no campaign lookup (no anniversaryEventData here) and
+	// so no cutoff line — that arrives with the row once it is on the sheet. The
+	// pool chip still stands in for the missing thumbnails.
+	const stepUpChip =
+		target.type === "StepUp"
+			? target.banner.card_type === "support"
+				? "SSR"
+				: "★3"
+			: null
+
+	const imagesCell =
+		target.type === "StepUp" ? (
+			target.banner.image ? (
+				<img src={target.banner.image} alt={target.banner.name} className="thumb-banner" />
+			) : (
+				<span className="text-sm font-bold leading-none text-purple-300">{stepUpChip}</span>
+			)
+		) : (
+			<>
+				{images.slice(0, 2).map((img) => (
+					<img
+						key={img.name}
+						src={img.image}
+						alt={img.name}
+						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
+					/>
+				))}
+				<ExtraCardsBadge hidden={images.length - 2} />
+			</>
+		)
+
+	// A staged row has no projection yet, so there is no chargeableSteps to read.
+	// The existence clamp still applies — applyStepUpStrategy will apply the same
+	// one once the row is on the sheet, and showing odds for a sixth banner that
+	// does not exist would be worse than showing none.
+	const stepUpOdds =
+		target.type === "StepUp"
+			? stepUpCopyDistribution(
+					Math.min(
+						stagedBanner.number_of_pulls,
+						target.banner.banner_count * STEPS_PER_ROUND
+					),
+					constants
+			  )
+			: undefined
 
 	const bannerTimeline = plannedBannerTimeline(stagedBanner)
 
@@ -161,10 +225,10 @@ export const StagedBannerRow = ({
 			}}
 			menuPortalTarget={document.body}
 			menuPosition="fixed"
-			placeholder={`Target ${bannerType} Banner`}
+			placeholder={isStepUp ? "Target Step-Up Campaign" : `Target ${bannerType} Banner`}
 			value={
 				currentBanner
-					? { value: currentBanner as BannerUma | BannerSupport, label: currentBanner.name, key: currentBanner.id }
+					? { value: currentBanner, label: currentBanner.name, key: currentBanner.id }
 					: null
 			}
 			onChange={handleBannerSelect}
@@ -182,11 +246,7 @@ export const StagedBannerRow = ({
 				)
 			}}
 			options={targetBannerData
-				.filter(
-					(banner) =>
-						(bannerType === "Uma" ? "umas" in banner : "support_cards" in banner) &&
-						new Date(banner.banner_timeline.end_date) > currentDate
-				)
+				.filter((banner) => isSelectableBanner(banner, currentDate))
 				.map((banner) => ({
 					value: banner,
 					label: banner.name,
@@ -228,9 +288,10 @@ export const StagedBannerRow = ({
 		<input
 			type="number"
 			value={stagedBanner.number_of_pulls}
-			className={`spin-arrows pull-input pull-input--${pullStatus} w-20`}
+			className={`spin-arrows pull-input pull-input--${countStatus} w-20`}
 			min={0}
-			title={pullStatusHint}
+			title={countStatusHint}
+			aria-label={countLabel}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -256,6 +317,7 @@ export const StagedBannerRow = ({
 		<MLBChanceDisplay
 			pulls={stagedBanner.number_of_pulls}
 			plannedBanner={stagedBanner}
+			distribution={stepUpOdds}
 		/>
 	) : (
 		<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
@@ -266,6 +328,7 @@ export const StagedBannerRow = ({
 		<MobileBannerCard
 			bannerType={bannerType}
 			images={images}
+			imagesSlot={isStepUp ? imagesCell : undefined}
 			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={confirmButton}
@@ -285,15 +348,7 @@ export const StagedBannerRow = ({
 
 			{/* === Images section === */}
 			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
-				{images.slice(0, 2).map((img) => (
-					<img
-						key={img.name}
-						src={img.image}
-						alt={img.name}
-						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
-					/>
-				))}
-				<ExtraCardsBadge hidden={images.length - 2} />
+				{imagesCell}
 			</div>
 
 			{/* === Banner select === */}
@@ -335,9 +390,9 @@ export const StagedBannerRow = ({
 				<input
 					type="number"
 					value={stagedBanner.number_of_pulls}
-					className={`spin-arrows pull-input pull-input--${pullStatus} w-14`}
+					className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
 					min={0}
-					title={pullStatusHint}
+					title={countStatusHint}
 					onChange={handlePullCountChange}
 				/>
 			</div>
@@ -356,6 +411,7 @@ export const StagedBannerRow = ({
 					<MLBChanceDisplay
 						pulls={stagedBanner.number_of_pulls}
 						plannedBanner={stagedBanner}
+						distribution={stepUpOdds}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>

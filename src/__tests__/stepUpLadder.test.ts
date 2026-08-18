@@ -7,9 +7,9 @@ import {
   guaranteedCopies,
   stepCosts,
   stepLabel,
+  stepUpCopyDistribution,
   stepsAffordable,
 } from '../utils/stepUpLadder'
-import { copyDistribution } from '../utils/probabilityCalculations'
 import { DEFAULT_CONSTANTS as C } from '../constants/gameConstants'
 
 // ── stepCosts ─────────────────────────────────────────────────────────────────
@@ -173,13 +173,8 @@ describe('guaranteedCopies', () => {
 
 // ── the step-up odds path through copyDistribution ────────────────────────────
 
-describe('copyDistribution on step-up terms', () => {
-  const stepUpOdds = (steps: number) =>
-    copyDistribution({
-      trials: steps * C.step_up_pulls_per_step,
-      rate: C.step_up_target_rate,
-      guaranteed: guaranteedCopies(steps),
-    })
+describe('stepUpCopyDistribution', () => {
+  const stepUpOdds = (steps: number) => stepUpCopyDistribution(steps, C)
 
   it('runs at the 0.3% target rate, not the 0.75% featured rate', () => {
     // One step, no guarantee yet: a plain binomial over 10 pulls.
@@ -195,6 +190,16 @@ describe('copyDistribution on step-up terms', () => {
     // Three completed rounds hand over three copies, so 0/1/2 are unreachable.
     expect(odds.slice(0, 3)).toEqual([0, 0, 0])
     expect(odds[3]).toBeGreaterThan(0)
+  })
+
+  it('reads one step as ten pulls, not as one', () => {
+    // The bug this helper exists to prevent: a step-up row's input is STEPS, so
+    // feeding it to the standard binomial would understate a plan tenfold.
+    const oneStep = stepUpOdds(1)[0]
+    const tenPulls = Math.pow(1 - C.step_up_target_rate, 10) * 100
+    const onePull = Math.pow(1 - C.step_up_target_rate, 1) * 100
+    expect(oneStep).toBeCloseTo(tenPulls, 9)
+    expect(oneStep).not.toBeCloseTo(onePull, 4)
   })
 
   it('clamps guarantees past MLB into a certainty', () => {

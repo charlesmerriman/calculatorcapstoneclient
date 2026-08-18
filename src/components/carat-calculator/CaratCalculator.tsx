@@ -26,6 +26,7 @@ export const CaratCalculator: React.FC = () => {
 		leagueOfHeroesRankData,
 		umaBannerData,
 		supportBannerData,
+		stepUpBannerData,
 		userPlannedBannerData,
 		stagedBanners,
 		anniversaryEventData,
@@ -153,6 +154,17 @@ export const CaratCalculator: React.FC = () => {
 								>
 									⊕ Add Support Banner
 								</button>
+								<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
+								{/* Outlined in the step-up's own purple rather than the brand
+								    colour its neighbours share: it plans a different kind of
+								    thing (a paid-only cost ladder, not pulls), and the row it
+								    creates carries that purple on its type badge. */}
+								<button
+									className="flex-1 py-2.5 rounded-lg border border-purple-400 text-purple-300 bg-transparent font-medium hover:bg-purple-400/10 transition"
+									onClick={() => handleAddBanner("StepUp")}
+								>
+									⊕ Add Step-Up Banner
+								</button>
 							</div>
 
 							{/* Staging area — slides in/out as stagedBanners are added or cleared */}
@@ -209,6 +221,8 @@ export const CaratCalculator: React.FC = () => {
 																onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
 																umaBannerData={umaBannerData}
 																supportBannerData={supportBannerData}
+																stepUpBannerData={stepUpBannerData}
+																constants={calculationConstants}
 																userPlannedBannerData={userPlannedBannerData}
 																stagedBanners={stagedBanners}
 															/>
@@ -266,6 +280,9 @@ export const CaratCalculator: React.FC = () => {
 																userStatsData={userStatsData}
 																umaBannerData={umaBannerData}
 																supportBannerData={supportBannerData}
+																stepUpBannerData={stepUpBannerData}
+																anniversaryEventData={anniversaryEventData}
+																constants={calculationConstants}
 																setUserPlannedBannerData={setUserPlannedBannerData}
 																resources={resources}
 																initialBannerType={plannedBanner.initialBannerType}

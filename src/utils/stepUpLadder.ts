@@ -1,4 +1,5 @@
 import type { CalculationConstants } from "../types/constants"
+import { copyDistribution } from "./probabilityCalculations"
 
 /**
  * Steps in one complete ladder — the "5" in every "5xN" label.
@@ -150,4 +151,31 @@ export function stepLabel(steps: number): string {
  */
 export function guaranteedCopies(steps: number): number {
 	return Math.floor(Math.max(0, steps) / STEPS_PER_ROUND)
+}
+
+/**
+ * The copy-count distribution for a step-up at `chargeableSteps` steps.
+ *
+ * Three things differ from a standard banner, which is why this cannot just
+ * call calculateCopyDistribution:
+ *
+ *   - trials are steps x 10, not the planned number itself. A step-up row's
+ *     "# Steps" input is steps; reading it as pulls understates a 5-step plan
+ *     by a factor of ten.
+ *   - the rate is the ~3% pool split across ten selected cards, not the 0.75%
+ *     single-featured rate.
+ *   - guarantees come one per completed round, not one per 200 pulls.
+ *
+ * Takes steps already clamped to what exists (applyStepUpStrategy's
+ * `chargeableSteps`), so the odds can never describe a banner that is not there.
+ */
+export function stepUpCopyDistribution(
+	chargeableSteps: number,
+	constants: CalculationConstants
+): number[] {
+	return copyDistribution({
+		trials: chargeableSteps * constants.step_up_pulls_per_step,
+		rate: constants.step_up_target_rate,
+		guaranteed: guaranteedCopies(chargeableSteps),
+	})
 }
