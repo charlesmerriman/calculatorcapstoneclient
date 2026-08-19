@@ -19,7 +19,12 @@
  */
 
 import { plannedBannerTarget } from "../utils/bannerHelpers"
-import type { UserStats, UserPlannedBanner, UserPlannedPurchase } from "../types"
+import type {
+	UserStats,
+	UserPlannedBanner,
+	UserPlannedPurchase,
+	UserStepUpSelection
+} from "../types"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -53,6 +58,27 @@ export interface PlannedPurchasePayload {
 	quantity: number
 	target_uma: number | null
 	target_support: number | null
+}
+
+/**
+ * A step-up card selection on the way out.
+ *
+ * NOTE THE ABSENT `id`, and that it is absent on purpose rather than optional.
+ * This is the only collection carrying a UNIQUE constraint
+ * (user, banner_step_up, slot). The server's reconcile updates id-carrying rows
+ * ONE AT A TIME, so moving a card from slot 3 to slot 4 while slot 4 is also
+ * being rewritten transiently duplicates slot 4 and trips the constraint.
+ * Sending every row id-less makes the reconcile a delete-all-then-create, which
+ * cannot collide — and a selection's content IS its identity, so there is
+ * nothing to preserve across the replace.
+ * → backend/docs/api-reference.md
+ */
+export interface StepUpSelectionPayload {
+	banner_step_up: number
+	uma: number | null
+	support: number | null
+	slot: number
+	is_target: boolean
 }
 
 /**
@@ -116,10 +142,31 @@ export function toPurchasePayload(
 		})
 }
 
+/**
+ * Same conversion for step-up selections. Drops the server-issued `id` (see
+ * StepUpSelectionPayload) and any row whose card has gone away — a row with
+ * neither FK set fails the server's exactly_one_selection_card constraint and
+ * would 400 the whole PATCH, taking the rest of the plan with it.
+ */
+export function toStepUpSelectionPayload(
+	selections: UserStepUpSelection[]
+): StepUpSelectionPayload[] {
+	return selections
+		.filter((selection) => selection.uma !== null || selection.support !== null)
+		.map((selection) => ({
+			banner_step_up: selection.banner_step_up,
+			uma: selection.uma ?? null,
+			support: selection.support ?? null,
+			slot: selection.slot,
+			is_target: selection.is_target
+		}))
+}
+
 export function userCalculatorDataPatch(
 	userStatsData: UserStats | null,
 	userPlannedBannerData: PlannedBannerPayload[],
-	userPlannedPurchaseData: PlannedPurchasePayload[]
+	userPlannedPurchaseData: PlannedPurchasePayload[],
+	userStepUpSelectionData: StepUpSelectionPayload[]
 ): Promise<Response> {
 	return fetch(`${API_URL}/calculator-data`, {
 		method: "PATCH",
@@ -130,7 +177,8 @@ export function userCalculatorDataPatch(
 		body: JSON.stringify({
 			user_stats_data: userStatsData,
 			user_planned_banner_data: userPlannedBannerData,
-			user_planned_purchase_data: userPlannedPurchaseData
+			user_planned_purchase_data: userPlannedPurchaseData,
+			user_step_up_selection_data: userStepUpSelectionData
 		})
 	})
 }

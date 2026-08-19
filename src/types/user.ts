@@ -136,3 +136,36 @@ export function isLocalBanner(
 ): banner is LocalPlannedBanner {
 	return banner.tempId !== undefined
 }
+
+/**
+ * One of the ten cards the user intends to select at a Select Step-Up banner.
+ *
+ * Keyed to the BANNER, not to a planned row: "which ten would I pick here" is a
+ * fact about the banner, so it needs no plan to exist and survives one being
+ * deleted. That keying is also what keeps this a flat collection in the PATCH
+ * body — see backend/docs/api-reference.md.
+ *
+ * `is_target` marks the STEP 5 pick, the copy the player chooses outright
+ * rather than being handed at random. At most one per banner.
+ *
+ * Exactly one of `uma` / `support` is set, matching the step-up's `card_type`.
+ * An empty slot is an ABSENT row, never a row with both nulls — the server's
+ * exactly_one_selection_card constraint refuses the latter.
+ *
+ * NOTHING IN THE PROJECTION READS THIS. The step-up target rate is 3% / 10 and
+ * holds whichever ten are chosen, so a partial or empty selection changes no
+ * number. It is a planning record, exactly as on the source sheet, whose
+ * Selection 1-10 columns feed no formula either. A selection is also NOT a
+ * reserved copy: a reserved copy is one taken INSTEAD of pulling, funded by a
+ * ticket or crystal; these are candidates for pulls already being paid for.
+ */
+export interface UserStepUpSelection {
+	/** Present on rows from the server. Never sent back — see toStepUpSelectionPayload. */
+	id?: number
+	banner_step_up: number
+	uma: number | null
+	support: number | null
+	/** 1-based, 1..STEP_UP_SELECTION_SLOTS. */
+	slot: number
+	is_target: boolean
+}

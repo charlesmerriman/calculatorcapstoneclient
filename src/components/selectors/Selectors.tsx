@@ -24,6 +24,9 @@ export const Selectors = () => {
 		setUserStatsData,
 		umaBannerData,
 		supportBannerData,
+		stepUpBannerData,
+		userStepUpSelectionData,
+		setUserStepUpSelectionData,
 	} = useCalculatorData()
 
 	const plan = useSelectorPlanner(
@@ -163,8 +166,11 @@ export const Selectors = () => {
 							campaign={campaign}
 							umaBannerData={umaBannerData}
 							supportBannerData={supportBannerData}
+							stepUpBannerData={stepUpBannerData}
+							stepUpSelections={userStepUpSelectionData}
 							onQuantityChange={handleQuantityChange}
 							onTargetChange={handleTargetChange}
+							onStepUpSelectionChange={setUserStepUpSelectionData}
 						/>
 					))}
 				</div>
