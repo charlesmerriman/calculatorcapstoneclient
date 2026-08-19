@@ -1,22 +1,13 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { Search, X } from "lucide-react"
-import { isCardEligible } from "../../utils/selectorTickets"
+import { useEligibleCardCatalogue } from "../../hooks/useEligibleCardCatalogue"
+import type { EligibleCard } from "../../hooks/useEligibleCardCatalogue"
 import type {
 	AnniversaryEventProduct,
 	BannerUma,
-	BannerSupport,
-	Uma,
-	SupportCard
+	BannerSupport
 } from "../../types"
-
-interface TargetOption {
-	value: number
-	label: string
-	image: string
-	/** First JP banner date — the ordering key, and what eligibility is judged on. */
-	firstJpDate: string | null
-}
 
 interface SelectorTargetPickerProps {
 	product: AnniversaryEventProduct
@@ -47,53 +38,14 @@ export const SelectorTargetPicker = ({
 	const [search, setSearch] = useState("")
 	const isUma = product.product_type === "uma_selector"
 
-	const options = useMemo<TargetOption[]>(() => {
-		// A spreadsheet's "(All)" row is a non-gacha catch-all, not a banner the
-		// calculator presents to users. It has card links solely for source-data
-		// bookkeeping, so it must not make those cards selector targets.
-		const isGachaBanner = (name: string) => !/^\(all\)(?:\s+\d+)?$/i.test(name.trim())
-		const seen = new Map<number, { label: string; image: string; firstJpDate: string | null }>()
-		const addEligibleCards = (cards: (Uma | SupportCard)[]) => {
-			for (const card of cards) {
-				if (seen.has(card.id)) continue
-				if (!isCardEligible(card.first_jp_date, product.jp_cutoff_date)) continue
-				seen.set(card.id, {
-					label: card.name,
-					image: card.image,
-					firstJpDate: card.first_jp_date,
-				})
-			}
-		}
-
-		if (isUma) {
-			for (const banner of umaBannerData) {
-				if (!isGachaBanner(banner.banner_timeline.name)) continue
-				addEligibleCards(banner.umas)
-			}
-		} else {
-			for (const banner of supportBannerData) {
-				if (!isGachaBanner(banner.banner_timeline.name)) continue
-				addEligibleCards(banner.support_cards)
-			}
-		}
-		// Newest JP release first: the ticket's cutoff already caps the top of the
-		// list, so the cards nearest that cutoff are the ones a user is picking
-		// between. Cards with an unknown release date sort last — they only reach
-		// this list at all under an unrestricted (null) cutoff, since
-		// `isCardEligible` refuses them under a real one. Dates are ISO strings so
-		// a plain string compare is chronological; sliced to the day because the
-		// release date carries a time of day and the ordering shouldn't. Name
-		// breaks ties, which is the common case: a banner releases several cards
-		// on the same date.
-		return [...seen.entries()]
-			.map(([value, card]) => ({ value, ...card }))
-			.sort((a, b) => {
-				const aDate = a.firstJpDate?.slice(0, 10) ?? ""
-				const bDate = b.firstJpDate?.slice(0, 10) ?? ""
-				if (aDate !== bDate) return bDate.localeCompare(aDate)
-				return a.label.localeCompare(b.label)
-			})
-	}, [umaBannerData, supportBannerData, isUma, product.jp_cutoff_date])
+	// The catalogue rules — "(All)" exclusion, inclusive cutoff, newest-first
+	// ordering — live in the hook, shared with the step-up selection picker.
+	const options = useEligibleCardCatalogue({
+		pool: isUma ? "uma" : "support",
+		jpCutoffDate: product.jp_cutoff_date,
+		umaBannerData,
+		supportBannerData,
+	})
 
 	const selectedId = isUma ? targetUma : targetSupport
 	const selected = options.find((option) => option.value === selectedId) ?? null
@@ -111,7 +63,7 @@ export const SelectorTargetPicker = ({
 		return () => window.removeEventListener("keydown", closeOnEscape)
 	}, [isOpen])
 
-	const choose = (option: TargetOption) => {
+	const choose = (option: EligibleCard) => {
 		onChange({
 			uma: isUma ? option.value : null,
 			support: isUma ? null : option.value,
