@@ -6,7 +6,8 @@ import type {
 	UserStats,
 	BannerUma,
 	BannerSupport,
-	BannerStepUp
+	BannerStepUp,
+	UserStepUpSelection
 } from "../../types"
 import React from "react"
 import { startOfDay } from "date-fns"
@@ -36,6 +37,10 @@ import type {
 	PlannableBanner,
 } from "../../utils/bannerHelpers"
 import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
+import {
+	findGuaranteedCardArt,
+	selectionsForStepUp
+} from "../../utils/stepUpSelection"
 import type { CalculationConstants } from "../../types/constants"
 import type { BannerResources } from "../../hooks/bannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
@@ -53,6 +58,12 @@ interface BannerRowProps {
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
 	stepUpBannerData: BannerStepUp[]
+	/**
+	 * Every step-up selection the account holds, not just this row's — the row
+	 * filters to its own banner. Flat because that is the shape the PATCH
+	 * collection has; see utils/stepUpSelection.ts.
+	 */
+	userStepUpSelectionData: UserStepUpSelection[]
 	/**
 	 * Live calculation constants from the API. Passed rather than imported so an
 	 * admin edit to the step-up ladder reaches the odds without a rebuild.
@@ -82,6 +93,7 @@ export const BannerRow = ({
 	umaBannerData,
 	supportBannerData,
 	stepUpBannerData,
+	userStepUpSelectionData,
 	constants,
 	resources,
 	setUserPlannedBannerData,
@@ -300,10 +312,29 @@ export const BannerRow = ({
 		? `Choose from ${stepUpChip} cards released on JP by ${formatDate(stepUpCutoff)}`
 		: "This campaign has no JP release cutoff on its candidates"
 
+	// The step 5 pick's art. Once the user has said which copy they'd guarantee,
+	// THAT card is what this row is about — so it outranks the campaign's own
+	// image, which is generic to the banner rather than to the plan.
+	const guaranteedCard =
+		target.type === "StepUp"
+			? findGuaranteedCardArt(
+					selectionsForStepUp(userStepUpSelectionData, target.banner.id),
+					umaBannerData,
+					supportBannerData
+				)
+			: null
+
 	/** The images cell, shared by the desktop grid and (via props) the card. */
 	const imagesCell =
 		target.type === "StepUp" ? (
-			target.banner.image ? (
+			guaranteedCard ? (
+				<img
+					src={guaranteedCard.image}
+					alt={guaranteedCard.name}
+					className="thumb-banner"
+					title={`Guaranteed at step 5: ${guaranteedCard.name}`}
+				/>
+			) : target.banner.image ? (
 				<img
 					src={target.banner.image}
 					alt={target.banner.name}

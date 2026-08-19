@@ -27,6 +27,7 @@ export const CaratCalculator: React.FC = () => {
 		umaBannerData,
 		supportBannerData,
 		stepUpBannerData,
+		userStepUpSelectionData,
 		userPlannedBannerData,
 		stagedBanners,
 		anniversaryEventData,
@@ -281,6 +282,7 @@ export const CaratCalculator: React.FC = () => {
 																umaBannerData={umaBannerData}
 																supportBannerData={supportBannerData}
 																stepUpBannerData={stepUpBannerData}
+																userStepUpSelectionData={userStepUpSelectionData}
 																constants={calculationConstants}
 																setUserPlannedBannerData={setUserPlannedBannerData}
 																resources={resources}

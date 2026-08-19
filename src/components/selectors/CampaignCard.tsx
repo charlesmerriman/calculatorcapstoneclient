@@ -3,31 +3,50 @@ import PredictedBadge from "../PredictedBadge"
 import { formatDate } from "../../utils/dateFormat"
 import { formatUsd } from "../../utils/formatCurrency"
 import { SelectorTargetPicker } from "./SelectorTargetPicker"
+import { StepUpSelectionStrip } from "./StepUpSelectionStrip"
 import type { PlannedCampaign, PlannedProduct } from "../../hooks/useSelectorPlanner"
-import type { BannerUma, BannerSupport } from "../../types"
+import type {
+	BannerUma,
+	BannerSupport,
+	BannerStepUp,
+	UserStepUpSelection
+} from "../../types"
 
 interface CampaignCardProps {
 	campaign: PlannedCampaign
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
+	/** Every step-up in the catalogue; the card filters to its own campaign. */
+	stepUpBannerData: BannerStepUp[]
+	stepUpSelections: UserStepUpSelection[]
 	onQuantityChange: (line: PlannedProduct, quantity: number) => void
 	onTargetChange: (
 		line: PlannedProduct,
 		target: { uma: number | null; support: number | null }
 	) => void
+	onStepUpSelectionChange: (next: UserStepUpSelection[]) => void
 }
 
 export const CampaignCard = ({
 	campaign,
 	umaBannerData,
 	supportBannerData,
+	stepUpBannerData,
+	stepUpSelections,
 	onQuantityChange,
 	onTargetChange,
+	onStepUpSelectionChange,
 }: CampaignCardProps) => {
 	const { event, lines, isUndated } = campaign
 	// Passed campaigns are removed before this component receives them. Undated
 	// campaigns stay visible but can't be projected, so they remain read-only.
 	const locked = isUndated
+
+	// A step-up belongs to the campaign selling it, so this is a plain filter
+	// rather than anything the planner hook has to know about.
+	const stepUps = stepUpBannerData.filter(
+		(stepUp) => stepUp.anniversary_event === event.id
+	)
 
 	const packs = lines.filter((line) => line.product.product_type === "carat_pack")
 	const selectors = lines.filter(
@@ -143,7 +162,16 @@ export const CampaignCard = ({
 				</div>
 			</div>
 
-			{lines.length === 0 && <p className="border-t border-gray-700 px-4 py-3 text-sm text-gray-500">No packs or selectors recorded for this campaign yet.</p>}
+			<StepUpSelectionStrip
+				stepUps={stepUps}
+				selections={stepUpSelections}
+				umaBannerData={umaBannerData}
+				supportBannerData={supportBannerData}
+				disabled={locked}
+				onChange={onStepUpSelectionChange}
+			/>
+
+			{lines.length === 0 && stepUps.length === 0 && <p className="border-t border-gray-700 px-4 py-3 text-sm text-gray-500">No packs or selectors recorded for this campaign yet.</p>}
 
 			<footer className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-gray-700 bg-gray-900/40 px-4 py-2 text-sm">
 				<span className="flex items-center gap-1.5 text-gray-400">

@@ -37,7 +37,8 @@ export type {
 	UserStats,
 	UserPlannedBanner,
 	SavedPlannedBanner,
-	LocalPlannedBanner
+	LocalPlannedBanner,
+	UserStepUpSelection
 } from "./user"
 
 export { isSavedBanner, isLocalBanner } from "./user"
