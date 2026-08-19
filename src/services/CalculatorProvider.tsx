@@ -33,7 +33,8 @@ import {
 import {
 	DEFAULT_GUEST_STATS,
 	readGuestPlanStash,
-	clearGuestPlanStash
+	clearGuestPlanStash,
+	mergeStepUpSelections
 } from "./guestMigration"
 import { useAutoSave } from "../hooks/useAutoSave"
 
@@ -261,12 +262,16 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 							...toPurchasePayload(data.user_planned_purchase_data ?? []),
 							...(stash.purchases ?? [])
 						],
-						// Resent verbatim rather than left out: the PATCH deletes any
-						// row absent from the body, so omitting this key would wipe
-						// the account's existing selections on every guest migration.
-						// The stash carries none of its own yet — guests picking
-						// cards is a later phase.
-						toStepUpSelectionPayload(data.user_step_up_selection_data ?? [])
+						// The account's own rows must be resent, not just the guest's:
+						// the PATCH deletes anything absent from the body, so sending
+						// only the stash would wipe selections the account already had.
+						// mergeStepUpSelections resolves the overlap per step-up —
+						// concatenating would collide on the unique slot index and 400
+						// the entire migration.
+						mergeStepUpSelections(
+							toStepUpSelectionPayload(data.user_step_up_selection_data ?? []),
+							stash.stepUpSelections ?? []
+						)
 					)
 					if (patchResponse.ok) {
 						clearGuestPlanStash()
