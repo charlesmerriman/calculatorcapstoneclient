@@ -99,6 +99,7 @@ const BASE_EVENTS: BannerTimelineForViewing[] = Array.from(
       image: null,
       banner_umas: [],
       banner_supports: [], anniversary_event: null,
+ banner_step_ups: [],
     }
   },
 )

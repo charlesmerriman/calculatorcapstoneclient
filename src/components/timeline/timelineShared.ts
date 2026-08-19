@@ -186,3 +186,29 @@ export function groupTimelineEvents(events: TimelineEvent[]): TimelineRow[] {
 
 	return rows
 }
+
+/**
+ * Caption for the step-ups running in a campaign window, e.g. "2 ★3 + 3 SSR
+ * Step-Up". Returns null when there are none, so the caller renders nothing.
+ *
+ * Counts are summed per pool rather than listed per row: a campaign stores one
+ * BannerStepUp per pool carrying how many banners it runs, and "2 ★3" is what a
+ * player recognises — the individual rows have administrative names.
+ *
+ * ★3 and SSR are the game's own words for the two pools, and are what the
+ * step-up row in the calculator shows, so the Timeline uses them too.
+ */
+export function formatStepUpChip(
+	stepUps: { card_type: "uma" | "support"; banner_count: number }[]
+): string | null {
+	const totals = { uma: 0, support: 0 }
+	for (const stepUp of stepUps) {
+		totals[stepUp.card_type] += stepUp.banner_count
+	}
+
+	const parts: string[] = []
+	if (totals.uma > 0) parts.push(`${totals.uma} ★3`)
+	if (totals.support > 0) parts.push(`${totals.support} SSR`)
+
+	return parts.length > 0 ? `${parts.join(" + ")} Step-Up` : null
+}

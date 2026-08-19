@@ -1,8 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import { describe, it, expect, vi } from 'vitest'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
-import type { BannerUma, UserPlannedBanner, UserStats } from '../types'
-import { EMPTY_BANNER_RESOURCES } from '../hooks/useBannerResources'
+import type {
+  BannerStepUp,
+  BannerUma,
+  UserPlannedBanner,
+  UserStats,
+} from '../types'
+import { EMPTY_BANNER_RESOURCES } from '../hooks/bannerResources'
 
 // react-select renders a portal-based combobox that contributes nothing to what
 // these tests assert (the pull-count field); stub it so the DOM stays small and
@@ -18,6 +24,9 @@ const timeline = {
   start_date: '2099-01-01T22:00:00Z',
   end_date: '2099-02-01T21:59:59Z',
   is_predicted: false,
+  banner_category: 'standard' as const,
+  schedule_offset_days: 0,
+  applied_offset_days: 0,
   jp_start_date: null,
   jp_end_date: null,
   global_start_date: '2099-01-01T22:00:00Z',
@@ -78,6 +87,8 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
       userStatsData={userStats}
       umaBannerData={[umaBanner]}
       supportBannerData={[]}
+      stepUpBannerData={[]}
+      constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={setUserPlannedBannerData}
       resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: maxPulls }}
       initialBannerType="Uma"
@@ -129,6 +140,8 @@ function renderReserved(
       userStatsData={userStats}
       umaBannerData={[umaBanner]}
       supportBannerData={[]}
+      stepUpBannerData={[]}
+      constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={setUserPlannedBannerData}
       resources={{
         ...EMPTY_BANNER_RESOURCES,
@@ -306,5 +319,103 @@ describe('BannerRow — reserved copies', () => {
     screen
       .getAllByText('5x')
       .forEach((label) => expect(label.parentElement).toHaveTextContent('0.0%'))
+  })
+})
+
+// ── Step-up rows ──────────────────────────────────────────────────────────────
+
+const stepUpBanner: BannerStepUp = {
+  id: 20,
+  banner_timeline: timeline,
+  anniversary_event: 5,
+  name: '5th Anniversary ★3 Select Step-Up',
+  card_type: 'uma',
+  banner_count: 2,
+  max_steps: 10,
+  jp_cutoff_date: '2026-01-30',
+  image: null,
+  admin_comments: '',
+  order: 0,
+}
+
+function renderStepUpRow(steps: number, maxSteps: number, stepLabel = '0') {
+  const planned: UserPlannedBanner = {
+    tempId: 1,
+    number_of_pulls: steps,
+    reserved_copies: 0,
+    banner_step_up: stepUpBanner,
+    initialBannerType: 'StepUp',
+  }
+  render(
+    <BannerRow
+      plannedBanner={planned}
+      userPlannedBannerData={[planned]}
+      clubRankData={[]}
+      teamTrialsRankData={[]}
+      championsMeetingRankData={[]}
+      userStatsData={userStats}
+      umaBannerData={[]}
+      supportBannerData={[]}
+      stepUpBannerData={[stepUpBanner]}
+      constants={DEFAULT_CONSTANTS}
+      setUserPlannedBannerData={vi.fn()}
+      resources={{
+        ...EMPTY_BANNER_RESOURCES,
+        maxPossibleSteps: maxSteps,
+        chargeableSteps: steps,
+        stepLabel,
+      }}
+      initialBannerType="StepUp"
+    />,
+  )
+}
+
+describe('BannerRow — step-up rows', () => {
+  it('relabels the two boxes whose meaning changes, and only those', () => {
+    renderStepUpRow(7, 10, '5x1-2')
+    // The sheet's header swaps, done per row because our headers are global.
+    expect(screen.getAllByText('Step #').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Max Steps').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('5x1-2').length).toBeGreaterThan(0)
+    // The two carat boxes mean the same thing on every kind of row.
+    expect(screen.getAllByText('Carat Est.').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Paid Carat Est.').length).toBeGreaterThan(0)
+    // ...and the pull vocabulary is gone.
+    expect(screen.queryByText('Max Pulls')).toBeNull()
+    expect(screen.queryByText('Free/Tickets/Paid')).toBeNull()
+  })
+
+  it('names the count field for steps, not pulls', () => {
+    renderStepUpRow(5, 10, '5x1')
+    expect(
+      screen.getAllByRole('spinbutton', { name: 'Number of steps' }).length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByRole('spinbutton', { name: 'Number of pulls' }),
+    ).toBeNull()
+  })
+
+  it('greens a completed ladder and stays neutral part-way up', () => {
+    renderStepUpRow(5, 10, '5x1')
+    const done = screen.getAllByRole('spinbutton', {
+      name: 'Number of steps',
+    })[0] as HTMLInputElement
+    expect(statusOf(done)).toBe('ok')
+  })
+
+  it('flags more steps than the campaign can fund', () => {
+    renderStepUpRow(9, 4, '5x1-4')
+    const over = screen.getAllByRole('spinbutton', {
+      name: 'Number of steps',
+    })[0] as HTMLInputElement
+    expect(statusOf(over)).toBe('over')
+    expect(over.getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('shows the JP cutoff so a user can see what the ladder can offer', () => {
+    // Without it a user can plan a step-up for a unit it could never hand over.
+    renderStepUpRow(5, 10, '5x1')
+    expect(screen.getAllByText(/JP cutoff/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('★3').length).toBeGreaterThan(0)
   })
 })

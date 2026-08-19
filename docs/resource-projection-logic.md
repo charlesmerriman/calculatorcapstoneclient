@@ -3,18 +3,15 @@
 How the calculator turns a user's resources and planned banners into the numbers
 on each row. Read this before touching the maths.
 
-There are currently **two engines**. The ledger engine is what ships; the legacy
-walk is kept only as a rollback and is on its way out.
+One engine, the ledger engine, entered at `hooks/useBannerResources.ts` (the
+per-banner rows) and `hooks/useAverageMonthlyIncome.ts` (the "Income & Resources"
+tiles). Both read the same ledger, so the rows and the tiles above them cannot
+disagree — a user sees both at once, and that agreement is now structural rather
+than a rule to remember.
 
-| | Engine | Entry point |
-|---|---|---|
-| **Default** | Ledger | `hooks/useBannerResourcesV2.ts` + `hooks/useAverageMonthlyIncome.ts` (`useAverageMonthlyIncomeV2`) |
-| Fallback | Legacy walk | `hooks/useBannerResources.ts` + `useAverageMonthlyIncome` |
-
-Selected by `USE_INCOME_ENGINE_V2` in `config/featureFlags.ts`, which reads
-`VITE_INCOME_ENGINE_V2`. Set it to `"false"` to fall back. Both the per-banner
-rows and the "Income & Resources" tiles follow the **same** flag — they must
-never disagree, since a user can see both at once.
+A legacy windowed walk shipped alongside it behind `USE_INCOME_ENGINE_V2` until
+2026-08-18, when it was deleted along with the flag and the per-window occurrence
+helpers in `utils/incomeCalculationUtils.ts`. The section below is why.
 
 ---
 
@@ -27,7 +24,7 @@ never disagree, since a user can see both at once.
 That is what the source spreadsheet does, and matching it is why the rewrite
 happened.
 
-### Why this replaced the walk
+### Why the walk was replaced
 
 The legacy engine stepped a cursor banner to banner, accruing income into chained
 half-open `(prevEnd, thisEnd]` windows. Every income source needed its own
@@ -61,8 +58,9 @@ running spend total — it just stops carrying income.
 | `utils/utcDates.ts` | `DATEDIF` / `EOMONTH` / `WEEKDAY` / `CEILING` equivalents, in UTC |
 | `utils/cumulativeIncome.ts` | One closed form per income source |
 | `utils/incomeLedger.ts` | Queries over the ledger (event lumps, race counts, throughout decay) |
-| `hooks/useBannerResourcesV2.ts` | The engine: income − spend, per banner |
-| `utils/bannerHelpers.ts` | `applyPullStrategy`, `allocateReservedCopies` — **unchanged by the rewrite** |
+| `hooks/useBannerResources.ts` | The engine: income − spend, per banner |
+| `utils/bannerHelpers.ts` | `applyPullStrategy`, `applyStepUpStrategy`, `allocateReservedCopies` |
+| `utils/stepUpLadder.ts` | The step-up cost ladder and its odds, in closed form |
 
 Every function in the first three names the spreadsheet cell it reproduces.
 Where we knowingly differ, the comment says so.
@@ -83,8 +81,8 @@ for each banner:
     income   = cumulativeIncome(today, now, E)     // absolute, order-independent
     free     = startingFree + income.free - spent.free
     paid     = max(0, startingPaid + income.paid - spent.paid)
-    strategy = applyPullStrategy(...)              // unchanged
-    reserved = allocateReservedCopies(...)         // unchanged
+    strategy = applyPullStrategy(...)              // OR applyStepUpStrategy on a step-up row
+    reserved = allocateReservedCopies(...)         // reservedCopies forced to 0 on a step-up
     results[displayIndex] = snapshot(...)
     spent += (pre-spend balance − post-spend balance)
 ```
@@ -215,9 +213,105 @@ figure dripped as `monthly / 30`.
 - **A selector only has to reach ONE card on a banner.** The engine derives
   `oldestFeaturedJpDate`; gating on the newest let a single recent unit make a
   whole multi-uma banner read as unfundable.
+- **A step-up spends paid carats and nothing else** — never free carats, never
+  tickets, never free pulls. Its deficit stays on the paid balance (floored at 0
+  for display on the next row, the sheet's `MAX(0, N43)`) rather than becoming a
+  free-carat debt, because there is no free-carat route to pay it.
+- **A step-up's step count clamps at `banner_count * 5` for both cost and odds.**
+  Affordability does not clamp it — see the asymmetry above.
 - **Reserved copies change the odds, not the pull maths.** Selectors first, then
   SSR crystals; uma banners can only use selectors (no ★3 crystal in this data
   model). Over-reserving is reported via `reservedFunding.unfunded`.
+
+## Step-up banners
+
+A **Select Step-Up** is a third kind of planner row, alongside Uma and Support.
+It is not a banner you pull on: it is a five-step cost ladder you climb with
+**paid carats only**, where the fifth step of each round hands over a card you
+choose from the back catalogue.
+
+### The ladder
+
+Five costs that repeat forever:
+
+| Step in round | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| Cost | 500 | 700 | 1,000 | 1,300 | 1,500 |
+| Cumulative | 500 | 1,200 | 2,200 | 3,500 | **5,000** |
+
+So a full round is 50 pulls for 5,000 paid carats, against 7,500 at the standard
+150-per-pull rate. The discount is the entire point of the format.
+
+`utils/stepUpLadder.ts` implements this as a **closed form**, not the sheet's
+36-row lookup table:
+
+```
+cumulativeStepCost(n) = floor(n / 5) * 5000 + partialCum[n % 5]
+stepsAffordable(p)    = floor(p / 5000) * 5 + largest r in 0..4 with partialCum[r] <= p % 5000
+```
+
+The table was only ever the sheet's way of writing down a repeating cycle, and it
+stopped at 35 steps because the rows ran out — not because the game does. The
+costs come from `CalculationConstants`, so an admin edit moves them.
+
+### The two clamps are asymmetric, deliberately
+
+```
+stepsInExistence = banner_count * 5              // no more banners to buy
+maxPossibleSteps = min(stepsInExistence, stepsAffordable(paidCarats))
+chargeableSteps  = min(plannedSteps, stepsInExistence)   // NOT clamped by affordability
+```
+
+Over-planning past your **budget** still charges in full and shows the optimistic
+odds, because the resulting deficit is the message — the same way an over-planned
+pull count already behaves. Over-planning past what **exists** is not
+unaffordable, it is impossible, so it is clamped away instead of reported.
+
+### Odds
+
+Three things differ from a standard banner, which is why `stepUpCopyDistribution`
+exists rather than reusing `calculateCopyDistribution`:
+
+| | Standard banner | Step-up |
+|---|---|---|
+| Trials | the planned pull count | `chargeableSteps * 10` |
+| Rate | 0.75% (single featured card) | **0.3%** — the ~3% pool split across your 10 picks |
+| Guarantees | one per 200 pulls (pity) | one per completed 5-step round |
+
+Reading a step-up's step count as a pull count would understate a plan tenfold,
+on top of the other two being wrong. `copyDistribution({ trials, rate, guaranteed })`
+in `utils/probabilityCalculations.ts` is the shared core both go through.
+
+The sheet credits only the step-5 "you choose" guarantee. Steps 3 and 4 also hand
+over a card, but a *random* one of your ten selections, and the sheet ignores
+them; we match the sheet. Modelling them properly is a second binomial at
+`p = 0.1` layered on the first — a refinement past parity, not parity.
+
+### Paid carats are contended
+
+Step-ups and discounted pulls draw from the **same paid-carat pool**, and walk
+order (banner start date) decides who drains it first. This is a real,
+user-visible interaction with no equivalent anywhere else in the projection: a
+step-up planned earlier in the timeline can leave a later banner unable to fund
+its once-per-day discounted pulls.
+
+### What a step-up does NOT touch
+
+Free carats, uma tickets, support tickets, free pulls, SSR crystals, and the
+daily discount allowance all pass through a step-up row unchanged. **Reserved
+copies are disabled** on step-up rows: allocating one needs a featured-card list
+to date a selector ticket against, and a step-up has none — its candidates are
+back-catalogue cards bounded by the campaign's `jp_cutoff_date`. The sheet has no
+equivalent concept either.
+
+### `number_of_pulls` carries steps
+
+A step-up row stores its step count in `number_of_pulls` — one column, two
+meanings. Read it through `plannedSteps()` / `plannedPulls()` in
+`utils/bannerHelpers.ts`, which return 0 for the kind of row they don't apply to.
+Never read the field directly.
+
+---
 
 ## Adding a new income source
 
@@ -225,8 +319,8 @@ figure dripped as `monthly / 30`.
    serializer; if it's a rate or schedule, add a field to `CalculationConstants`.
 2. Add a closed form to `utils/cumulativeIncome.ts` (or a query to
    `utils/incomeLedger.ts`), naming the sheet cell it reproduces.
-3. Call it from `incomeTo()` in `useBannerResourcesV2` **and** from
-   `useAverageMonthlyIncomeV2` — unless it is one-off rather than recurring
+3. Call it from `incomeTo()` in `useBannerResources` **and** from
+   `useAverageMonthlyIncome` — unless it is one-off rather than recurring
    (campaign purchases are the standing exception; averaging them would report a
    recurring income nobody earns).
 4. Update `backend/docs/income-calculation.md`.

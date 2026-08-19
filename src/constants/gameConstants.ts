@@ -175,13 +175,13 @@ export const THROUGHOUT_FILTER_GRACE_DAYS = 4
 
 // ── Pull costs ────────────────────────────────────────────────────────────────
 
-/** Carat cost of a single standard pull (after free pulls are consumed). */
 /**
  * Shards needed to build one uncap crystal. Applies to both SR and SSR.
  * Shared by the Uncap Crystals panel and the per-banner projection.
  */
 export const SHARDS_PER_CRYSTAL = 20
 
+/** Carat cost of a single standard pull (after free pulls are consumed). */
 export const PULL_COST_CARATS = 150
 
 /**
@@ -318,6 +318,17 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 	pull_cost_carats: PULL_COST_CARATS,
 	discounted_pull_cost_carats: DISCOUNTED_PULL_COST_CARATS,
 	shards_per_crystal: SHARDS_PER_CRYSTAL,
+
+	// The ladder repeats every five steps, so these five are the whole thing.
+	step_up_cost_step_1: 500,
+	step_up_cost_step_2: 700,
+	step_up_cost_step_3: 1000,
+	step_up_cost_step_4: 1300,
+	step_up_cost_step_5: 1500,
+	step_up_pulls_per_step: 10,
+	// 3% total ★3/SSR rate spread across the 10 selected cards.
+	step_up_target_rate: 0.003,
+	step_up_max_rounds: 7,
 
 	throughout_end_offset_days: THROUGHOUT_END_OFFSET_DAYS,
 	throughout_filter_grace_days: THROUGHOUT_FILTER_GRACE_DAYS,

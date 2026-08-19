@@ -5,7 +5,8 @@ import type {
 	UserPlannedBanner,
 	UserStats,
 	BannerUma,
-	BannerSupport
+	BannerSupport,
+	BannerStepUp
 } from "../../types"
 import React from "react"
 import { startOfDay } from "date-fns"
@@ -15,12 +16,32 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { formatDate } from "../../utils/dateFormat"
-import { bannerKey, getFreePulls, getPullCountStatus, getReservedStatus, plannedBannerKey } from "../../utils/bannerHelpers"
-import type { BannerKey } from "../../utils/bannerHelpers"
-import type { BannerResources } from "../../hooks/useBannerResources"
+import {
+	bannerKey,
+	bannerTargetFields,
+	bannersForRowType,
+	getFreePulls,
+	getPullCountStatus,
+	getReservedStatus,
+	getStepCountStatus,
+	isSelectableBanner,
+	plannedBannerKey,
+	plannedBannerRowType,
+	plannedBannerTarget,
+	plannedBannerTimeline,
+} from "../../utils/bannerHelpers"
+import type {
+	BannerKey,
+	BannerRowType,
+	PlannableBanner,
+} from "../../utils/bannerHelpers"
+import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
+import type { CalculationConstants } from "../../types/constants"
+import type { BannerResources } from "../../hooks/bannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
+import { BannerTypeBadge } from "./BannerTypeBadge"
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -31,6 +52,12 @@ interface BannerRowProps {
 	userPlannedBannerData: UserPlannedBanner[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
+	stepUpBannerData: BannerStepUp[]
+	/**
+	 * Live calculation constants from the API. Passed rather than imported so an
+	 * admin edit to the step-up ladder reaches the odds without a rebuild.
+	 */
+	constants: CalculationConstants
 	/**
 	 * This banner's projection snapshot (carats, max pulls, pull breakdown).
 	 * Passed whole rather than as individual scalars so adding a stat to the
@@ -40,11 +67,11 @@ interface BannerRowProps {
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[]>
 	>
-	initialBannerType?: "Uma" | "Support"
+	initialBannerType?: BannerRowType
 }
 
 interface BannerOption {
-	value: BannerUma | BannerSupport
+	value: PlannableBanner
 	label: string
 	key: number
 }
@@ -54,18 +81,33 @@ export const BannerRow = ({
 	userPlannedBannerData,
 	umaBannerData,
 	supportBannerData,
+	stepUpBannerData,
+	constants,
 	resources,
 	setUserPlannedBannerData,
 	initialBannerType
 }: BannerRowProps) => {
-	const bannerType: "Uma" | "Support" = plannedBanner.banner_support ? "Support" : (initialBannerType ?? "Uma")
-	const targetBannerData: BannerUma[] | BannerSupport[] = bannerType === "Uma" ? umaBannerData : supportBannerData
+	// The row's kind: from its FK when it has one, else the kind it was staged
+	// as. Never sniffed inline — see plannedBannerRowType for why the old
+	// `?? "Uma"` on the FK check was a latent bug.
+	const target = plannedBannerTarget(plannedBanner)
+	const bannerType: BannerRowType = plannedBannerRowType({
+		...plannedBanner,
+		initialBannerType: plannedBanner.initialBannerType ?? initialBannerType,
+	})
+
+	const isStepUp = bannerType === "StepUp"
+
+	const targetBannerData = bannersForRowType(bannerType, {
+		umaBannerData,
+		supportBannerData,
+		stepUpBannerData,
+	})
 
 	// Match within the type namespace only. targetBannerData is already scoped to
 	// bannerType, and uma/support ids are independent — comparing against the
 	// other type's id could resolve to an unrelated banner of the same number.
-	const selectedBannerId =
-		bannerType === "Uma" ? plannedBanner.banner_uma?.id : plannedBanner.banner_support?.id
+	const selectedBannerId = target.type === "Empty" ? undefined : target.banner.id
 	const currentBanner = targetBannerData.find((banner) => banner.id === selectedBannerId)
 
 	const currentDate = new Date()
@@ -75,9 +117,7 @@ export const BannerRow = ({
 	// "Passed" gate for banners that have already ended. The cutoff is the START
 	// of today (local midnight), matching the projection's stable anchor — a
 	// banner ending *today* is still active, so it shows an estimate.
-	const bannerEndDateStr =
-		plannedBanner.banner_uma?.banner_timeline.end_date ??
-		plannedBanner.banner_support?.banner_timeline.end_date
+	const bannerEndDateStr = plannedBannerTimeline(plannedBanner)?.end_date
 	const bannerHasEnded =
 		!!bannerEndDateStr &&
 		new Date(bannerEndDateStr).getTime() < startOfDay(new Date()).getTime()
@@ -131,6 +171,12 @@ export const BannerRow = ({
 		})
 	}
 
+	/** Sort key: the row's start date, or last when it has no timeline yet. */
+	const startTime = (b: UserPlannedBanner): number => {
+		const start = plannedBannerTimeline(b)?.start_date
+		return start ? new Date(start).getTime() : Infinity
+	}
+
 	const handleDeleteBannerClick = (): void => {
 		const confirmed = window.confirm("Are you sure you want to delete this banner?")
 		if (!confirmed) return
@@ -167,21 +213,14 @@ export const BannerRow = ({
 			toast.error("This banner is already on your sheet.")
 			return
 		}
-		const updated = updateBannerInList((banner) => {
-			if (bannerType === "Uma") {
-				return { ...banner, banner_uma: option.value as BannerUma, banner_support: undefined }
-			}
-			return { ...banner, banner_uma: undefined, banner_support: option.value as BannerSupport }
-		})
-		const sorted = updated.sort((a, b) => {
-			const aDate = new Date(
-				a.banner_uma?.banner_timeline.start_date ?? a.banner_support!.banner_timeline.start_date
-			)
-			const bDate = new Date(
-				b.banner_uma?.banner_timeline.start_date ?? b.banner_support!.banner_timeline.start_date
-			)
-			return aDate.getTime() - bDate.getTime()
-		})
+		const updated = updateBannerInList((banner) => ({
+			...banner,
+			...bannerTargetFields(bannerType, option.value),
+		}))
+		// Rows with no resolvable timeline sort last instead of throwing; the
+		// old non-null assertion crashed on any row that was neither uma nor
+		// support.
+		const sorted = updated.sort((a, b) => startTime(a) - startTime(b))
 		setUserPlannedBannerData(sorted)
 	}
 
@@ -208,24 +247,109 @@ export const BannerRow = ({
 	// A banner that has already ended can fund nothing, so its bound is 0 — any
 	// leftover pulls on it correctly read as unachievable.
 	const pullUpperBound = typeof maxPossiblePulls === "number" ? maxPossiblePulls : 0
-	const pullStatus = getPullCountStatus(
-		plannedBanner.number_of_pulls,
-		pullUpperBound
-	)
 
-	const hasBanner = plannedBanner.banner_uma || plannedBanner.banner_support
+	// The same "Passed" gate the pull column gets. A step-up row's engine fields
+	// are optional (absent on every other kind), so the fallback is 0 rather
+	// than a non-null assertion.
+	const maxPossibleSteps: number | "Passed" = bannerHasEnded
+		? "Passed"
+		: resources.maxPossibleSteps ?? 0
+	const stepUpperBound =
+		typeof maxPossibleSteps === "number" ? maxPossibleSteps : 0
+
+	// number_of_pulls carries STEPS on a step-up row — one column, two meanings,
+	// deliberately (see the plan's decision record). Everything downstream reads
+	// it through this pair rather than reaching for the field.
+	const plannedCount = plannedBanner.number_of_pulls
+	const countStatus = isStepUp
+		? getStepCountStatus(plannedCount, stepUpperBound)
+		: getPullCountStatus(plannedCount, pullUpperBound)
+
+	const hasBanner = target.type !== "Empty"
 
 	const freePulls = getFreePulls(plannedBanner)
 
-	const images = plannedBanner.banner_uma
-		? plannedBanner.banner_uma.umas
-		: plannedBanner.banner_support
-		? plannedBanner.banner_support.support_cards
-		: []
+	// A step-up has no featured cards — the player picks their own from the back
+	// catalogue — so it contributes none here.
+	const images =
+		target.type === "Uma"
+			? target.banner.umas
+			: target.type === "Support"
+			? target.banner.support_cards
+			: []
 
-	const bannerTimeline =
-		plannedBanner.banner_uma?.banner_timeline ??
-		plannedBanner.banner_support?.banner_timeline
+	// The campaign's cutoff, folded onto the banner by the backend exactly as it
+	// is onto a selector product. Read from there rather than joining
+	// anniversary_event_data: one place resolves the cutoff, and it is the server.
+	const stepUpCutoff =
+		target.type === "StepUp" ? target.banner.jp_cutoff_date : null
+
+	// Which pool the step-up draws from, in the game's own shorthand. Doubles as
+	// the placeholder art until a campaign image is uploaded, so the row reads
+	// correctly before Phase 6's content lands.
+	const stepUpChip =
+		target.type === "StepUp"
+			? target.banner.card_type === "support"
+				? "SSR"
+				: "★3"
+			: null
+
+	// Why the row shows a cutoff at all: a step-up's candidates are back-catalogue
+	// cards, so a user could otherwise plan one for a unit it could never offer.
+	const stepUpCutoffHint = stepUpCutoff
+		? `Choose from ${stepUpChip} cards released on JP by ${formatDate(stepUpCutoff)}`
+		: "This campaign has no JP release cutoff on its candidates"
+
+	/** The images cell, shared by the desktop grid and (via props) the card. */
+	const imagesCell =
+		target.type === "StepUp" ? (
+			target.banner.image ? (
+				<img
+					src={target.banner.image}
+					alt={target.banner.name}
+					className="thumb-banner"
+					title={stepUpCutoffHint}
+				/>
+			) : (
+				// Typographic fallback so the cell is never blank before the art is
+				// uploaded. The cutoff rides with it because this chip is exactly
+				// the statement it qualifies: "★3 cards, released by this date".
+				<div
+					title={stepUpCutoffHint}
+					className="flex flex-col items-center justify-center leading-none"
+				>
+					<span className="text-sm font-bold text-purple-300">{stepUpChip}</span>
+					{stepUpCutoff && (
+						<span className="mt-0.5 text-[9px] text-gray-400">
+							≤ {formatDate(stepUpCutoff)}
+						</span>
+					)}
+				</div>
+			)
+		) : (
+			<>
+				{images.slice(0, 2).map((img) => (
+					<img
+						key={img.name}
+						src={img.image}
+						alt={img.name}
+						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
+					/>
+				))}
+				<ExtraCardsBadge hidden={images.length - 2} />
+			</>
+		)
+
+	// A step-up's odds run on steps x 10 pulls at the pool rate, with a
+	// guarantee per completed round — none of which the standard binomial over
+	// `pulls` would get right. Built from chargeableSteps rather than the raw
+	// input so the odds and the carat deduction agree about how many steps
+	// happened. See stepUpCopyDistribution.
+	const stepUpOdds = isStepUp
+		? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
+		: undefined
+
+	const bannerTimeline = plannedBannerTimeline(plannedBanner)
 
 	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
@@ -236,10 +360,10 @@ export const BannerRow = ({
 			}}
 			menuPortalTarget={document.body}
 			menuPosition="fixed"
-			placeholder={`Target ${bannerType} Banner`}
+			placeholder={isStepUp ? "Target Step-Up Campaign" : `Target ${bannerType} Banner`}
 			value={
 				currentBanner
-					? { value: currentBanner as BannerUma | BannerSupport, label: currentBanner.name, key: currentBanner.id }
+					? { value: currentBanner, label: currentBanner.name, key: currentBanner.id }
 					: null
 			}
 			onChange={handleBannerSelect}
@@ -252,11 +376,7 @@ export const BannerRow = ({
 				</span>
 			)}
 			options={targetBannerData
-				.filter(
-					(banner) =>
-						(bannerType === "Uma" ? "umas" in banner : "support_cards" in banner) &&
-						new Date(banner.banner_timeline.end_date) > currentDate
-				)
+				.filter((banner) => isSelectableBanner(banner, currentDate))
 				.map((banner) => ({
 					value: banner,
 					label: banner.name,
@@ -273,9 +393,18 @@ export const BannerRow = ({
 	)
 
 	const dateDisplay = bannerTimeline ? (
-		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
-			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
-			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
+		<div className="flex flex-col gap-0.5">
+			<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
+				<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
+				<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
+			</div>
+			{isStepUp && stepUpCutoff && (
+				// Phone cards have vertical room the h-16 desktop track does not, so
+				// the cutoff is spelled out here and rides the images chip there.
+				<div className="text-xs text-gray-400" title={stepUpCutoffHint}>
+					JP cutoff: <span className="text-gray-100">{formatDate(stepUpCutoff)}</span>
+				</div>
+			)}
 		</div>
 	) : (
 		<span className="text-xs text-gray-600">—</span>
@@ -288,19 +417,34 @@ export const BannerRow = ({
 	// Labels follow the source spreadsheet this calculator is modelled on
 	// ("Carat Est.", "Paid Carat Est.", "Free/Tickets/Paid"), so users coming
 	// from the sheet read the same vocabulary. `title` carries the long form.
+	//
+	// Two of the four boxes say something different on a step-up row. That is how
+	// the source sheet's header swaps (Max Pulls→Max Steps, Misc Pulls→Step #)
+	// are honoured without touching the shared header: our headers are global to
+	// the table, but this strip is per row, so the relabel lands exactly where
+	// the meaning changes. Same four boxes, same widths —
+	// --container-banner-table does not move. See frontend/docs/ui-conventions.md.
 	const derivedStats: {
 		label: string
 		value: string
 		title: string
 		valueClass?: string
 	}[] = [
-		{
-			// Unspaced slashes, matching formatDate's a/b/c. No thousands separators
-			// here — these are small counts and commas would collide with the slashes.
-			label: "Free/Tickets/Paid",
-			value: `${freePulls || 0}/${ticketPulls}/${paidPulls}`,
-			title: "Pulls you don't pay free carats for: the banner's free pulls, matching tickets, and pulls funded by paid carats",
-		},
+		isStepUp
+			? {
+					label: "Step #",
+					// Where this plan reaches on the ladder. "5x2-3" is two completed
+					// banners plus three steps into a third.
+					value: resources.stepLabel ?? "0",
+					title: "How far up the ladder this plan reaches. 5xN means N completed banners; a trailing -r is r steps into the next one",
+			  }
+			: {
+					// Unspaced slashes, matching formatDate's a/b/c. No thousands separators
+					// here — these are small counts and commas would collide with the slashes.
+					label: "Free/Tickets/Paid",
+					value: `${freePulls || 0}/${ticketPulls}/${paidPulls}`,
+					title: "Pulls you don't pay free carats for: the banner's free pulls, matching tickets, and pulls funded by paid carats",
+			  },
 		{
 			label: "Carat Est.",
 			value: displayFreeCarats.toLocaleString(),
@@ -313,11 +457,17 @@ export const BannerRow = ({
 			title: "Estimated paid (purchased) carats available for this banner",
 			valueClass: "text-brand",
 		},
-		{
-			label: "Max Pulls",
-			value: String(maxPossiblePulls),
-			title: "The most pulls this banner could support if every available resource went into it",
-		},
+		isStepUp
+			? {
+					label: "Max Steps",
+					value: String(maxPossibleSteps),
+					title: "The most steps you could climb here — whichever runs out first, your paid carats or the campaign's banners",
+			  }
+			: {
+					label: "Max Pulls",
+					value: String(maxPossiblePulls),
+					title: "The most pulls this banner could support if every available resource went into it",
+			  },
 	]
 
 	const mobileStatCell = (stat: typeof derivedStats[number], index: number) => (
@@ -343,7 +493,7 @@ export const BannerRow = ({
 				</div>
 				<div className="border-t border-gray-600 p-2">
 					{hasBanner ? (
-						<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} />
+						<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
 					) : (
 						<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
 					)}
@@ -365,7 +515,7 @@ export const BannerRow = ({
 					</div>
 					<div className="col-span-2 p-2">
 						{hasBanner ? (
-							<MLBChanceDisplay pulls={plannedBanner.number_of_pulls} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} />
+							<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
 						) : (
 							<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
 						)}
@@ -378,12 +528,23 @@ export const BannerRow = ({
 	// WCAG 1.4.1 — color can't be the only carrier of this state. The same
 	// information goes out as a tooltip and, for the failure case, as
 	// aria-invalid, so it survives colorblindness and screen readers.
-	const pullStatusHint =
-		pullStatus === "over"
-			? `More pulls than you can afford here (max ${pullUpperBound})`
-			: pullStatus === "ok"
-			? "On a pity threshold — no carats stranded in a partial counter"
-			: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
+	//
+	// Both kinds say the same three things — unaffordable, cleanly completed,
+	// or stranded part-way — about different units, so the wording is per kind
+	// while the states are shared.
+	const countStatusHint = isStepUp
+		? countStatus === "over"
+			? `More steps than you can afford here (max ${stepUpperBound})`
+			: countStatus === "ok"
+			? "A completed ladder — every carat bought a full banner, guarantee included"
+			: `Stops part-way up a ladder (${STEPS_PER_ROUND} steps complete one)`
+		: countStatus === "over"
+		? `More pulls than you can afford here (max ${pullUpperBound})`
+		: countStatus === "ok"
+		? "On a pity threshold — no carats stranded in a partial counter"
+		: `Not on a pity threshold (a multiple of ${PULLS_PER_PITY_COPY} pulls)`
+
+	const countLabel = isStepUp ? "Number of steps" : "Number of pulls"
 
 	const handleReservedChange = (
 		event: React.ChangeEvent<HTMLInputElement>
@@ -411,12 +572,12 @@ export const BannerRow = ({
 	const pullsInput = (
 		<input
 			type="number"
-			value={plannedBanner.number_of_pulls}
-			className={`spin-arrows pull-input pull-input--${pullStatus} w-20`}
+			value={plannedCount}
+			className={`spin-arrows pull-input pull-input--${countStatus} w-20`}
 			min={0}
-			title={pullStatusHint}
-			aria-label="Number of pulls"
-			aria-invalid={pullStatus === "over"}
+			title={countStatusHint}
+			aria-label={countLabel}
+			aria-invalid={countStatus === "over"}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -463,6 +624,7 @@ export const BannerRow = ({
 		<MobileBannerCard
 			bannerType={bannerType}
 			images={images}
+			imagesSlot={isStepUp ? imagesCell : undefined}
 			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={statsDisplay}
@@ -477,41 +639,11 @@ export const BannerRow = ({
 		    row and StagedBannerRow — never re-declare a width on a cell here. */}
 		<div className="banner-grid hidden w-full items-stretch bg-gray-800 h-16 @banner-table:grid">
 			{/* === Type badge (square block on left) === */}
-			<div
-				className={`banner-type-tab ${
-					bannerType === "Uma" ? "banner-type-tab--uma" : "banner-type-tab--support"
-				}`}
-			>
-				<span className="text-xs font-bold tracking-wide">
-					{bannerType === "Uma" ? "UMA" : "SUPPORT"}
-				</span>
-				{bannerType === "Uma" ? (
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 opacity-90">
-						<path d="M5 3v9a7 7 0 0 0 14 0V3" />
-						<line x1="5" y1="3" x2="5" y2="6" />
-						<line x1="19" y1="3" x2="19" y2="6" />
-					</svg>
-				) : (
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 opacity-90">
-						<circle cx="9" cy="7" r="3" />
-						<circle cx="15" cy="7" r="3" />
-						<path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
-						<path d="M12 21v-1a6 6 0 0 1 9-5.4" />
-					</svg>
-				)}
-			</div>
+			<BannerTypeBadge type={bannerType} />
 
 			{/* === Images section === */}
 			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
-				{images.slice(0, 2).map((img) => (
-					<img
-						key={img.name}
-						src={img.image}
-						alt={img.name}
-						className={`thumb-banner ${bannerType === "Uma" ? "thumb-banner--uma" : ""}`}
-					/>
-				))}
-				<ExtraCardsBadge hidden={images.length - 2} />
+				{imagesCell}
 			</div>
 
 			{/* === Banner select === */}
@@ -557,11 +689,12 @@ export const BannerRow = ({
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				<input
 					type="number"
-					value={plannedBanner.number_of_pulls}
-					className={`spin-arrows pull-input pull-input--${pullStatus} w-14`}
+					value={plannedCount}
+					className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
 					min={0}
-					title={pullStatusHint}
-					aria-invalid={pullStatus === "over"}
+					title={countStatusHint}
+					aria-label={countLabel}
+					aria-invalid={countStatus === "over"}
 					onChange={handlePullCountChange}
 				/>
 			</div>
@@ -581,9 +714,10 @@ export const BannerRow = ({
 			<div className="flex items-center justify-center py-2 px-2 min-w-0">
 				{hasBanner ? (
 					<MLBChanceDisplay
-						pulls={plannedBanner.number_of_pulls}
+						pulls={plannedCount}
 						plannedBanner={plannedBanner}
 						reservedCopies={fundedReservedCopies}
+						distribution={stepUpOdds}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>

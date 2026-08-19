@@ -1,8 +1,21 @@
 import { PULL_COST_CARATS, DISCOUNTED_PULL_COST_CARATS } from "../constants/gameConstants"
 import { PULLS_PER_PITY_COPY } from "./probabilityCalculations"
+import {
+	STEPS_PER_ROUND,
+	cumulativeStepCost,
+	stepLabel,
+	stepsAffordable,
+} from "./stepUpLadder"
 import { spendSelectorTickets } from "./selectorTickets"
 import type { SelectorTicketBucket } from "./selectorTickets"
-import type { UserPlannedBanner } from "../types"
+import type {
+	UserPlannedBanner,
+	BannerUma,
+	BannerSupport,
+	BannerStepUp,
+	BannerTimeline,
+	CalculationConstants,
+} from "../types"
 
 /**
  * Inputs to the pull-economics strategy for a single banner. All carat/ticket
@@ -211,6 +224,144 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	}
 }
 
+/** Anything a planner row can point at. */
+export type PlannableBanner = BannerUma | BannerSupport | BannerStepUp
+
+/** The three catalogues the calculator holds, as the provider supplies them. */
+export interface BannerCatalogue {
+	umaBannerData: BannerUma[]
+	supportBannerData: BannerSupport[]
+	stepUpBannerData: BannerStepUp[]
+}
+
+/**
+ * The catalogue a row of this kind may choose from.
+ *
+ * Both row components (BannerRow and StagedBannerRow) used to do this inline
+ * and then re-check the result by shape — `"umas" in banner` — which is the
+ * property sniffing plannedBannerTarget exists to replace. The kind already
+ * decides the list, so once the list is picked by kind there is nothing left
+ * to sniff.
+ */
+export function bannersForRowType(
+	type: BannerRowType,
+	catalogue: BannerCatalogue
+): PlannableBanner[] {
+	if (type === "Uma") return catalogue.umaBannerData
+	if (type === "Support") return catalogue.supportBannerData
+	return catalogue.stepUpBannerData
+}
+
+/**
+ * The three target FKs for a row that has just selected `banner`.
+ *
+ * Setting one target CLEARS the other two. Exactly one may be set — the server
+ * enforces it with the `exactly_one_banner_target` check constraint — so
+ * writing the new FK without clearing the rest produces a row the PATCH
+ * rejects. Returned as a whole object rather than assigned field by field at
+ * the call site so a new kind cannot be added without clearing it here too.
+ */
+export function bannerTargetFields(
+	type: BannerRowType,
+	banner: PlannableBanner
+): Pick<UserPlannedBanner, "banner_uma" | "banner_support" | "banner_step_up"> {
+	return {
+		banner_uma: type === "Uma" ? (banner as BannerUma) : undefined,
+		banner_support: type === "Support" ? (banner as BannerSupport) : undefined,
+		banner_step_up: type === "StepUp" ? (banner as BannerStepUp) : undefined,
+	}
+}
+
+/**
+ * Whether a banner is still selectable — its window has not closed yet.
+ *
+ * All three kinds carry the same `banner_timeline`, so this is one rule rather
+ * than one per catalogue.
+ */
+export function isSelectableBanner(banner: PlannableBanner, now: Date): boolean {
+	return new Date(banner.banner_timeline.end_date) > now
+}
+
+export interface StepUpStrategyInput {
+	/** Steps the user planned. Not clamped by the caller — see below. */
+	plannedSteps: number
+	/** How many step-up banners the campaign actually runs. Each is 5 steps. */
+	bannerCount: number
+	/** Purchased carats available before this banner. Step-ups take NOTHING else. */
+	paidCarats: number
+	constants: CalculationConstants
+}
+
+export interface StepUpStrategyResult {
+	/**
+	 * Paid carats left after climbing. MAY GO NEGATIVE when the plan outruns the
+	 * balance; the caller floors it at 0 for display, matching the sheet's
+	 * MAX(0, ...) on N43, while the debt still carries through spend attribution.
+	 */
+	paidCarats: number
+	/** What the climb cost. */
+	caratsSpent: number
+	/** The most steps this banner could support if all paid carats went to it. */
+	maxPossibleSteps: number
+	/** Steps actually charged for — planned, clamped to what exists. */
+	chargeableSteps: number
+	/** `chargeableSteps` in the sheet's spelling: "3", "5x1-2", "5x2". */
+	stepLabel: string
+}
+
+/**
+ * Applies the payment strategy for one step-up banner.
+ *
+ * Deliberately a SIBLING of applyPullStrategy rather than a branch inside it.
+ * The two share no inputs beyond paid carats and no outputs at all: a step-up
+ * has no free pulls, no tickets, no daily discount cap and no free carats —
+ * it is paid-only, which is the whole constraint the feature exists to model.
+ * Threading a mode flag through the app's most-tested function would buy a
+ * shared name and nothing else.
+ *
+ * The two clamps are asymmetric on purpose (see the plan's over-plan clamp):
+ *
+ *   maxPossibleSteps — min(what exists, what you can afford)
+ *   chargeableSteps  — min(what you planned, what EXISTS). Not affordability.
+ *
+ * Over-planning past your budget still charges (and still shows the optimistic
+ * odds) because the resulting deficit is the message, exactly as an
+ * over-planned pull count already behaves. Over-planning past what exists is
+ * simply impossible — there is no sixth banner to buy — so it is clamped away
+ * rather than reported.
+ */
+export function applyStepUpStrategy(
+	input: StepUpStrategyInput
+): StepUpStrategyResult {
+	const { plannedSteps, bannerCount, paidCarats, constants } = input
+
+	// The hard ceiling: five steps per banner the campaign actually runs. This
+	// replaces the sheet's MIN(35, ...), whose 35 was the extent of its lookup
+	// table rather than a game rule — banner_count is at most 3, so 35 could
+	// never bind anyway.
+	const stepsInExistence = Math.max(0, Math.floor(bannerCount)) * STEPS_PER_ROUND
+
+	const maxPossibleSteps = Math.min(
+		stepsInExistence,
+		stepsAffordable(paidCarats, constants)
+	)
+	const chargeableSteps = Math.min(
+		Math.max(0, Math.floor(plannedSteps)),
+		stepsInExistence
+	)
+	const caratsSpent = cumulativeStepCost(chargeableSteps, constants)
+
+	return {
+		paidCarats: paidCarats - caratsSpent,
+		caratsSpent,
+		maxPossibleSteps,
+		chargeableSteps,
+		// Labels what was CHARGED, not what was planned, so the label can never
+		// name a step that does not exist.
+		stepLabel: stepLabel(chargeableSteps),
+	}
+}
+
 /**
  * How a planned pull count should be presented to the user.
  *
@@ -245,6 +396,35 @@ export function getPullCountStatus(
 	// 0 is a multiple of the pity threshold, but an untouched row is not a
 	// planning achievement — greening every empty row would drain the signal.
 	if (pulls > 0 && pulls % PULLS_PER_PITY_COPY === 0) return "ok"
+	return "neutral"
+}
+
+/**
+ * How a planned STEP count should be presented — the step-up mirror of
+ * `getPullCountStatus`, sharing its vocabulary so a user reading a mixed table
+ * learns one colour scheme rather than two.
+ *
+ * The green signal means the same thing in both places (no carats stranded in a
+ * partial counter) but fires on a different number, because a step-up's unit of
+ * completion is a five-step round rather than a 200-pull pity counter. Green
+ * here is a FINISHED banner: every carat bought a full ladder, guarantee
+ * included, with nothing left half-climbed.
+ *
+ * "over" is checked first for the same reason it is there — being both past
+ * your budget and on a round boundary is possible, and the budget is the more
+ * actionable half.
+ *
+ * @param maxSteps Upper bound of affordable steps. Pass `Infinity` where no
+ *   bound is known, to opt out of the "over" state entirely.
+ */
+export function getStepCountStatus(
+	steps: number,
+	maxSteps: number
+): PullCountStatus {
+	if (steps > maxSteps) return "over"
+	// Same carve-out as the pull version: 0 is a multiple of the round length,
+	// but an untouched row has achieved nothing worth colouring.
+	if (steps > 0 && steps % STEPS_PER_ROUND === 0) return "ok"
 	return "neutral"
 }
 
@@ -358,6 +538,144 @@ export function getReservedStatus(funding: ReservedFunding): PullCountStatus {
 }
 
 /**
+ * The three kinds of row the planner has. "Banner type" has always meant this
+ * axis (uma vs support); Step Up is a third VALUE on it, not a new axis.
+ *
+ * Not to be confused with `BannerTimeline.banner_category` (standard /
+ * race-prep / revival / rerun), which is a genuinely different axis.
+ */
+export type BannerRowType = "Uma" | "Support" | "StepUp"
+
+/**
+ * A planned row's resolved target: which banner it points at, and that banner's
+ * timeline, as ONE tagged value.
+ *
+ * TYPESCRIPT CONCEPT: Discriminated Unions, again
+ *
+ * The row carries three optional FKs of which at most one is ever set. Reading
+ * that shape directly means every call site re-implements the same precedence
+ * check, and every one of them has to be updated when a fourth kind appears —
+ * which is exactly the bug this replaces:
+ *
+ *     const bannerType = b.banner_support ? "Support" : (initialBannerType ?? "Uma")
+ *
+ * A row with no FK at all read as "Uma" by luck there. Narrowing on `.type`
+ * makes that unrepresentable: "Empty" is its own case and the compiler forces
+ * you to handle it. Same tag-not-shape discipline as isRaceEvent /
+ * isBannerTimeline in types/calculator.
+ *
+ * `timeline` is non-null on every non-Empty case because all three banner kinds
+ * carry the same `banner_timeline` FK — the property the whole income engine
+ * rests on.
+ */
+export type PlannedBannerTarget =
+	| { type: "Uma"; banner: BannerUma; timeline: BannerTimeline }
+	| { type: "Support"; banner: BannerSupport; timeline: BannerTimeline }
+	| { type: "StepUp"; banner: BannerStepUp; timeline: BannerTimeline }
+	| { type: "Empty"; banner: null; timeline: null }
+
+/** Fields the target helpers read. Accepting this rather than a whole
+ *  UserPlannedBanner lets staged rows and test fixtures pass too. */
+type BannerTargetFields = Pick<
+	UserPlannedBanner,
+	"banner_uma" | "banner_support" | "banner_step_up"
+>
+
+/**
+ * THE one place the three FKs are inspected. Everything else narrows on `.type`.
+ */
+export function plannedBannerTarget(
+	plannedBanner: BannerTargetFields
+): PlannedBannerTarget {
+	if (plannedBanner.banner_uma) {
+		return {
+			type: "Uma",
+			banner: plannedBanner.banner_uma,
+			timeline: plannedBanner.banner_uma.banner_timeline,
+		}
+	}
+	if (plannedBanner.banner_support) {
+		return {
+			type: "Support",
+			banner: plannedBanner.banner_support,
+			timeline: plannedBanner.banner_support.banner_timeline,
+		}
+	}
+	if (plannedBanner.banner_step_up) {
+		return {
+			type: "StepUp",
+			banner: plannedBanner.banner_step_up,
+			timeline: plannedBanner.banner_step_up.banner_timeline,
+		}
+	}
+	return { type: "Empty", banner: null, timeline: null }
+}
+
+/**
+ * The row's timeline, or null when no banner is selected.
+ *
+ * All three banner kinds point at the same BannerTimeline shape, which is what
+ * lets every date, ordering and income path treat them identically. Income is a
+ * pure function of a banner's end date, so this is the only thing the income
+ * half of the engine needs to know about a row.
+ */
+export function plannedBannerTimeline(
+	plannedBanner: BannerTargetFields
+): BannerTimeline | null {
+	return plannedBannerTarget(plannedBanner).timeline
+}
+
+/**
+ * What kind of row this is, whether or not it has picked a banner yet.
+ *
+ * Distinct from `plannedBannerTarget`: a staged row that hasn't chosen a banner
+ * is "Empty" as a target but is still definitely (say) a Support row — that is
+ * what decides which select it offers and which badge it wears.
+ *
+ * Precedence is FK first, then the staged row's declared type. The final
+ * fallback is unreachable by construction (a row either came from the server
+ * with an FK, or was staged by handleAddBanner which always sets
+ * initialBannerType) and exists only to keep the return total; it is NOT the
+ * old `?? "Uma"` guess, which sat on the FK check itself and so applied to real
+ * rows.
+ */
+export function plannedBannerRowType(
+	plannedBanner: BannerTargetFields & Pick<UserPlannedBanner, "initialBannerType">
+): BannerRowType {
+	const target = plannedBannerTarget(plannedBanner)
+	if (target.type !== "Empty") return target.type
+	return plannedBanner.initialBannerType ?? "Uma"
+}
+
+/**
+ * The planned count, read as the unit the row actually measures.
+ *
+ * `number_of_pulls` is deliberately overloaded: on a step-up row it carries
+ * STEPS, mirroring the source sheet's own overload of the same column. One
+ * column, no migration, and no second field sitting null on almost every row —
+ * but only safe as long as nothing reads the raw property and assumes pulls.
+ * These two accessors are that guarantee.
+ *
+ * Each returns 0 for the wrong kind of row, so a mixed-up call site produces a
+ * visibly empty number rather than a plausible wrong one.
+ */
+export function plannedPulls(
+	plannedBanner: BannerTargetFields & Pick<UserPlannedBanner, "number_of_pulls">
+): number {
+	return plannedBannerTarget(plannedBanner).type === "StepUp"
+		? 0
+		: plannedBanner.number_of_pulls
+}
+
+export function plannedSteps(
+	plannedBanner: BannerTargetFields & Pick<UserPlannedBanner, "number_of_pulls">
+): number {
+	return plannedBannerTarget(plannedBanner).type === "StepUp"
+		? plannedBanner.number_of_pulls
+		: 0
+}
+
+/**
  * Returns the free pull count for a planned banner, or empty string if no banner is set.
  *
  * TYPESCRIPT CONCEPT: Union Return Types
@@ -371,9 +689,18 @@ export function getReservedStatus(funding: ReservedFunding): PullCountStatus {
 export function getFreePulls(
 	plannedBanner: UserPlannedBanner
 ): number | string {
-	if (plannedBanner.banner_support) return plannedBanner.banner_support.free_pulls
-	if (plannedBanner.banner_uma) return plannedBanner.banner_uma.free_pulls
-	return ""
+	const target = plannedBannerTarget(plannedBanner)
+	switch (target.type) {
+		case "Uma":
+		case "Support":
+			return target.banner.free_pulls
+		// A step-up grants none: every one of its pulls is bought with paid
+		// carats up the cost ladder, so 0 is the real answer, not "unknown".
+		case "StepUp":
+			return 0
+		case "Empty":
+			return ""
+	}
 }
 
 /**
@@ -396,10 +723,19 @@ export function getFreePulls(
  * `string` is deliberate: it makes passing a bare id where a key is expected a
  * compile error, which is precisely the mistake this helper exists to prevent.
  */
-export type BannerKey = `uma:${number}` | `support:${number}`
+export type BannerKey =
+	| `uma:${number}`
+	| `support:${number}`
+	| `stepup:${number}`
 
-export function bannerKey(type: "Uma" | "Support", id: number): BannerKey {
-	return type === "Uma" ? `uma:${id}` : `support:${id}`
+const KEY_PREFIX: Record<BannerRowType, string> = {
+	Uma: "uma",
+	Support: "support",
+	StepUp: "stepup",
+}
+
+export function bannerKey(type: BannerRowType, id: number): BannerKey {
+	return `${KEY_PREFIX[type]}:${id}` as BannerKey
 }
 
 /**
@@ -408,11 +744,10 @@ export function bannerKey(type: "Uma" | "Support", id: number): BannerKey {
  * rows are not duplicates of each other.
  */
 export function plannedBannerKey(
-	plannedBanner: Pick<UserPlannedBanner, "banner_uma" | "banner_support">
+	plannedBanner: BannerTargetFields
 ): BannerKey | null {
-	if (plannedBanner.banner_uma) return bannerKey("Uma", plannedBanner.banner_uma.id)
-	if (plannedBanner.banner_support) return bannerKey("Support", plannedBanner.banner_support.id)
-	return null
+	const target = plannedBannerTarget(plannedBanner)
+	return target.type === "Empty" ? null : bannerKey(target.type, target.banner.id)
 }
 
 /**

@@ -108,6 +108,55 @@ export interface BannerSupport {
 }
 
 /**
+ * A paid-carats-only Select Step-Up banner sold during a campaign.
+ *
+ * The third peer of BannerUma and BannerSupport, and deliberately shaped like
+ * them: the same `banner_timeline` FK (pointed at the campaign's Part 2), so
+ * every date, ordering and income path in the projection resolves it through
+ * the same code as its siblings. Only the SPEND half of the engine branches.
+ *
+ * What it does NOT have is a card list. The player picks 10 cards themselves
+ * from the back catalogue, bounded by the campaign's `jp_cutoff_date`, so there
+ * are no featured cards to borrow art from — hence its own `image`.
+ *
+ * `banner_count` is how many banners of this card type the campaign sells (the
+ * sheet's Selector Planner X/Y columns). It is the hard ceiling on steps:
+ * `banner_count * 5`.
+ *
+ * NOTE: inert until the backend model lands. The exact serializer shape is
+ * settled in Phase 2 of `step-up-banners-plan.md`; this is the minimum the
+ * planner's narrowing needs.
+ */
+export interface BannerStepUp {
+	id: number
+	banner_timeline: BannerTimeline
+	/** FK id — the campaign itself arrives in `anniversary_event_data`. */
+	anniversary_event: number
+	name: string
+	/** Which pool this step-up draws from. Drives the odds labels. */
+	card_type: "uma" | "support"
+	banner_count: number
+	/**
+	 * banner_count x 5 — the real ceiling on a plan. Served rather than derived
+	 * client-side so the count and the rule that turns it into steps stay
+	 * together.
+	 */
+	max_steps: number
+	/**
+	 * The campaign's cutoff, already folded in by the backend the same way it is
+	 * onto a selector product. A step-up's candidates are back-catalogue cards
+	 * released on JP on or before this date; null means unrestricted.
+	 *
+	 * Read this rather than joining anniversary_event_data — one place resolves
+	 * the cutoff, and it is the server.
+	 */
+	jp_cutoff_date: string | null
+	image: string | null
+	admin_comments: string
+	order: number
+}
+
+/**
  * An enriched banner timeline used by the Timeline view.
  * Includes nested uma and support banner arrays so the timeline
  * can display what's available during each time window.
@@ -141,4 +190,19 @@ export interface BannerTimelineForViewing {
 	 * every part.
 	 */
 	anniversary_event: AttachedAnniversaryEvent | null
+	/**
+	 * Step-ups running in this window. A summary (name, pool, count) rather than
+	 * the whole record — the full ones arrive in banner_step_up_data. Because a
+	 * step-up attaches to the campaign PART it runs in, this is non-empty on
+	 * exactly one banner per campaign.
+	 */
+	banner_step_ups: BannerStepUpSummary[]
+}
+
+/** Just enough of a step-up to caption it on the Timeline. */
+export interface BannerStepUpSummary {
+	id: number
+	name: string
+	card_type: "uma" | "support"
+	banner_count: number
 }

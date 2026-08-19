@@ -96,6 +96,50 @@ Use a named variant for anything that switches a whole layout.
 
 The banner table is **not** on this list — see below.
 
+### Three banner-row kinds, and where each is drawn
+
+The planner has three kinds of row — Uma, Support and **Step Up** — and a row's kind is
+carried on the `BannerRowType` tag, never inferred from which FK is set (see
+`plannedBannerRowType`). Each kind's presentation lives in exactly one place:
+
+| What | Where |
+|---|---|
+| Type badge + glyph (desktop) | `BannerTypeBadge` |
+| Type glyph alone (mobile card) | `BannerTypeIcon`, same module |
+| Badge background colour | `.banner-type-tab--uma / --support / --step-up` in `App.css` |
+| Mobile tile colour + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
+| Which catalogue the row's select offers | `bannersForRowType` in `bannerHelpers` |
+
+These are stock palette classes (`bg-blue-900` / `bg-green-900` / `bg-purple-900`), not
+`@theme` tokens — the token rule applies to theme-sensitive **status** colours, which
+these are not.
+
+Adding a fourth kind means touching each row of that table once. It used to mean finding
+six hand-copied ternaries, any of which failed silently by rendering another kind's
+treatment.
+
+#### The derived-stats strip relabels per row
+
+Two of the four stat boxes say something different on a step-up row:
+
+| Box | Uma / Support | Step Up |
+|---|---|---|
+| 1 | Free/Tickets/Paid | **Step #** (`5x2-3`) |
+| 4 | Max Pulls | **Max Steps** |
+
+The source spreadsheet does this by swapping its column *headers*. Ours are global to the
+table, so the swap lives in the per-row strip instead — where the meaning actually
+changes. **Same four boxes at the same widths**: `--container-banner-table` does not move
+for it, and must not.
+
+The `# Pulls` input likewise keeps its column and changes what it counts, down to its
+`aria-label` ("Number of steps") and its green threshold — every 5 rather than every 200,
+because a step-up's unit of completion is a five-step round, not a pity counter.
+
+A step-up has no featured cards to thumbnail, so its images cell falls back to a
+typographic `★3` / `SSR` chip carrying the campaign's JP cutoff. Phone cards spell the
+cutoff out in the dates block, which has vertical room the `h-16` desktop track does not.
+
 ### The banner table: one width token, and it must never scroll
 
 `.banner-grid` in `App.css` owns every column width in the desktop banner table. Both
@@ -393,6 +437,16 @@ fold. Rebuilding the observer per append forces a fresh evaluation.
 
 Guarded by `src/__tests__/Timeline.test.tsx`, whose fake observer fires each instance
 **once**. A more permissive fake lets that regression through silently — see Testing below.
+
+### Step-ups are announced on the campaign strip
+
+`AnniversaryEventStrip` renders a chip such as "2 ★3 + 3 SSR Step-Up" from the
+`banner_step_ups` summary on each timeline row, summed per pool by `formatStepUpChip`.
+
+It is there for discoverability, not decoration: nothing else on the site indicates
+step-up banners exist until you press the calculator's third Add button. Because a
+step-up's FK points at the campaign **Part** it runs in, the chip lands on exactly one
+card per campaign with no filtering.
 
 ### Other Timeline rules
 

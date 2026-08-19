@@ -6,10 +6,15 @@ import { BannerRow } from "./BannerRow"
 import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
-import { useBannerResources, EMPTY_BANNER_RESOURCES } from "../../hooks/useBannerResources"
-import { useBannerResourcesV2 } from "../../hooks/useBannerResourcesV2"
-import { USE_INCOME_ENGINE_V2 } from "../../config/featureFlags"
-import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
+import { EMPTY_BANNER_RESOURCES } from "../../hooks/bannerResources"
+import { useBannerResources } from "../../hooks/useBannerResources"
+import {
+	nextTempId,
+	plannedBannerKey,
+	plannedBannerTarget,
+	plannedBannerTimeline,
+} from "../../utils/bannerHelpers"
+import type { BannerRowType } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
 
 export const CaratCalculator: React.FC = () => {
@@ -19,11 +24,9 @@ export const CaratCalculator: React.FC = () => {
 		teamTrialsRankData,
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
-		championsMeetingData,
-		leagueOfHeroesData,
-		gameEventsData,
 		umaBannerData,
 		supportBannerData,
+		stepUpBannerData,
 		userPlannedBannerData,
 		stagedBanners,
 		anniversaryEventData,
@@ -34,25 +37,7 @@ export const CaratCalculator: React.FC = () => {
 		setStagedBanners,
 	} = useCalculatorData()
 
-	// Both engines run while the sheet-parity harness is being built, selected by
-	// VITE_INCOME_ENGINE_V2. Hooks can't be called conditionally, so both are
-	// invoked and one result is picked — the unused engine's useMemo is cheap
-	// relative to a render, and this keeps the swap to a single expression.
-	// See config/featureFlags.ts for the removal condition.
-	const legacyResources = useBannerResources({
-		userStatsData,
-		clubRankData,
-		teamTrialsRankData,
-		championsMeetingRankData,
-		leagueOfHeroesRankData,
-		gameEventsData,
-		championsMeetingData,
-		leagueOfHeroesData,
-		userPlannedBannerData,
-		anniversaryEventData,
-		userPlannedPurchaseData,
-	})
-	const ledgerResources = useBannerResourcesV2({
+	const bannerResources = useBannerResources({
 		userStatsData,
 		clubRankData,
 		teamTrialsRankData,
@@ -64,7 +49,6 @@ export const CaratCalculator: React.FC = () => {
 		incomeLedger,
 		constants: calculationConstants,
 	})
-	const bannerResources = USE_INCOME_ENGINE_V2 ? ledgerResources : legacyResources
 
 	if (!userStatsData) {
 		return <div>Loading...</div>
@@ -73,7 +57,7 @@ export const CaratCalculator: React.FC = () => {
 	// Every click stages another row. The staging area is a queue, not a single
 	// slot: a user planning several banners can line them all up, fill each one
 	// in, and confirm them independently.
-	const handleAddBanner = (bannerType: "Uma" | "Support"): void => {
+	const handleAddBanner = (bannerType: BannerRowType): void => {
 		setStagedBanners((prev) => [
 			...prev,
 			{
@@ -94,7 +78,7 @@ export const CaratCalculator: React.FC = () => {
 	const handleConfirmStagedBanner = (tempId: number): void => {
 		const banner = stagedBanners.find((b) => b.tempId === tempId)
 		if (!banner) return
-		if (!banner.banner_uma && !banner.banner_support) {
+		if (plannedBannerTarget(banner).type === "Empty") {
 			toast.error("Please select a banner before adding it to the sheet.")
 			return
 		}
@@ -110,11 +94,16 @@ export const CaratCalculator: React.FC = () => {
 			return
 		}
 
-		const updated = [...userPlannedBannerData, banner].sort((a, b) => {
-			const aDate = new Date(a.banner_uma?.banner_timeline.start_date ?? a.banner_support!.banner_timeline.start_date)
-			const bDate = new Date(b.banner_uma?.banner_timeline.start_date ?? b.banner_support!.banner_timeline.start_date)
-			return aDate.getTime() - bDate.getTime()
-		})
+		// Sorted by start date. Rows without a resolvable timeline sort last
+		// rather than throwing — the old non-null assertion on banner_support
+		// crashed on any row that was neither uma nor support.
+		const startTime = (b: UserPlannedBanner): number => {
+			const start = plannedBannerTimeline(b)?.start_date
+			return start ? new Date(start).getTime() : Infinity
+		}
+		const updated = [...userPlannedBannerData, banner].sort(
+			(a, b) => startTime(a) - startTime(b)
+		)
 
 		setUserPlannedBannerData(updated)
 		setStagedBanners((prev) => prev.filter((b) => b.tempId !== tempId))
@@ -164,6 +153,17 @@ export const CaratCalculator: React.FC = () => {
 									onClick={() => handleAddBanner("Support")}
 								>
 									⊕ Add Support Banner
+								</button>
+								<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
+								{/* Outlined in the step-up's own purple rather than the brand
+								    colour its neighbours share: it plans a different kind of
+								    thing (a paid-only cost ladder, not pulls), and the row it
+								    creates carries that purple on its type badge. */}
+								<button
+									className="flex-1 py-2.5 rounded-lg border border-purple-400 text-purple-300 bg-transparent font-medium hover:bg-purple-400/10 transition"
+									onClick={() => handleAddBanner("StepUp")}
+								>
+									⊕ Add Step-Up Banner
 								</button>
 							</div>
 
@@ -221,6 +221,8 @@ export const CaratCalculator: React.FC = () => {
 																onDiscard={() => handleDiscardStagedBanner(banner.tempId!)}
 																umaBannerData={umaBannerData}
 																supportBannerData={supportBannerData}
+																stepUpBannerData={stepUpBannerData}
+																constants={calculationConstants}
 																userPlannedBannerData={userPlannedBannerData}
 																stagedBanners={stagedBanners}
 															/>
@@ -278,6 +280,8 @@ export const CaratCalculator: React.FC = () => {
 																userStatsData={userStatsData}
 																umaBannerData={umaBannerData}
 																supportBannerData={supportBannerData}
+																stepUpBannerData={stepUpBannerData}
+																constants={calculationConstants}
 																setUserPlannedBannerData={setUserPlannedBannerData}
 																resources={resources}
 																initialBannerType={plannedBanner.initialBannerType}

@@ -2,15 +2,24 @@ import { describe, it, expect } from 'vitest'
 import {
   allocateReservedCopies,
   applyPullStrategy,
+  applyStepUpStrategy,
   bannerKey,
   getPullCountStatus,
   getReservedStatus,
+  getStepCountStatus,
   nextTempId,
   plannedBannerKey,
+  plannedBannerTarget,
+  plannedBannerTimeline,
+  plannedBannerRowType,
+  plannedPulls,
+  plannedSteps,
+  getFreePulls,
 } from '../utils/bannerHelpers'
 import type { PullStrategyInput } from '../utils/bannerHelpers'
+import { DEFAULT_CONSTANTS as C } from '../constants/gameConstants'
 import type { SelectorTicketBucket } from '../utils/selectorTickets'
-import type { BannerSupport, BannerUma, UserPlannedBanner } from '../types'
+import type { BannerSupport, BannerUma, BannerStepUp, UserPlannedBanner } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -236,6 +245,44 @@ describe('getPullCountStatus', () => {
     // Every untouched row sits at 0; greening them would drain the signal.
     expect(getPullCountStatus(0, 1_000)).toBe('neutral')
   })
+})
+
+// ── getStepCountStatus ──────────────────────────────────────────
+
+describe('getStepCountStatus', () => {
+  it('flags a count above the affordable max as "over"', () => {
+    expect(getStepCountStatus(11, 10)).toBe('over')
+  })
+
+  it('treats exactly the max as affordable, not over', () => {
+    expect(getStepCountStatus(10, 10)).toBe('ok')
+  })
+
+  it('returns "ok" on a completed round, not on the pity threshold', () => {
+    // The step-up green fires every 5, where the pull version fires every 200.
+    expect(getStepCountStatus(5, 35)).toBe('ok')
+    expect(getStepCountStatus(15, 35)).toBe('ok')
+    expect(getStepCountStatus(200, 400)).toBe('ok')
+  })
+
+  it('returns "neutral" one step either side of a round', () => {
+    expect(getStepCountStatus(4, 35)).toBe('neutral')
+    expect(getStepCountStatus(6, 35)).toBe('neutral')
+  })
+
+  it('keeps 0 neutral even though it divides evenly', () => {
+    expect(getStepCountStatus(0, 35)).toBe('neutral')
+  })
+
+  it('reports "over" ahead of "ok" when a round is also unaffordable', () => {
+    // Both states are true at 10 steps with 6 affordable; the budget is the
+    // more actionable message, exactly as getPullCountStatus decides.
+    expect(getStepCountStatus(10, 6)).toBe('over')
+  })
+
+  it('opts out of "over" entirely when no bound is known', () => {
+    expect(getStepCountStatus(35, Infinity)).toBe('ok')
+  })
 
   it('prefers "over" when a count is both on-pity and unaffordable', () => {
     expect(getPullCountStatus(400, 300)).toBe('over')
@@ -253,6 +300,114 @@ describe('getPullCountStatus', () => {
 })
 
 // ── bannerKey / plannedBannerKey ──────────────────────────────────────────────
+
+describe('plannedBannerTarget — the narrowing seam', () => {
+  const timeline = {
+    id: 1,
+    name: 'Window',
+    banner_category: 'standard' as const,
+    start_date: '2099-01-01T22:00:00Z',
+    end_date: '2099-02-01T21:59:59Z',
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: '2099-01-01T22:00:00Z',
+    global_end_date: '2099-02-01T21:59:59Z',
+    schedule_offset_days: 0,
+    applied_offset_days: 0,
+    image: '',
+  }
+
+  const umaBanner: BannerUma = {
+    id: 1, banner_timeline: timeline, name: 'Uma', admin_comments: '',
+    umas: [], free_pulls: 3,
+  }
+  const supportBanner: BannerSupport = {
+    id: 2, banner_timeline: timeline, name: 'Support', admin_comments: '',
+    support_cards: [], free_pulls: 5,
+  }
+  const stepUpBanner: BannerStepUp = {
+    id: 3, banner_timeline: timeline, anniversary_event: 14,
+    name: '5th Anniversary SSR Select Step-Up', card_type: 'support',
+    banner_count: 3, max_steps: 15, jp_cutoff_date: '2026-01-30',
+    image: null, admin_comments: '', order: 0,
+  }
+
+  it('tags each of the three banner kinds', () => {
+    expect(plannedBannerTarget({ banner_uma: umaBanner }).type).toBe('Uma')
+    expect(plannedBannerTarget({ banner_support: supportBanner }).type).toBe('Support')
+    expect(plannedBannerTarget({ banner_step_up: stepUpBanner }).type).toBe('StepUp')
+  })
+
+  it('reports a row with no banner as Empty rather than guessing a kind', () => {
+    // The bug this replaces: `b.banner_support ? "Support" : "Uma"` read an
+    // empty row as an uma banner by luck.
+    const target = plannedBannerTarget({})
+    expect(target.type).toBe('Empty')
+    expect(target.banner).toBeNull()
+    expect(target.timeline).toBeNull()
+  })
+
+  it('treats explicit nulls as absent, not as a selection', () => {
+    expect(
+      plannedBannerTarget({ banner_uma: null, banner_support: null, banner_step_up: null }).type
+    ).toBe('Empty')
+  })
+
+  it('resolves the timeline identically for all three kinds', () => {
+    // The property the whole income engine rests on: income is a pure function
+    // of a banner's end date, and every kind carries the same timeline FK.
+    expect(plannedBannerTimeline({ banner_uma: umaBanner })).toBe(timeline)
+    expect(plannedBannerTimeline({ banner_support: supportBanner })).toBe(timeline)
+    expect(plannedBannerTimeline({ banner_step_up: stepUpBanner })).toBe(timeline)
+    expect(plannedBannerTimeline({})).toBeNull()
+  })
+
+  it('prefers the FK over a staged row\'s declared type', () => {
+    // A staged Support row that ends up holding an uma banner is an uma row.
+    expect(
+      plannedBannerRowType({ banner_uma: umaBanner, initialBannerType: 'Support' })
+    ).toBe('Uma')
+  })
+
+  it('falls back to the staged type only when there is no FK', () => {
+    expect(plannedBannerRowType({ initialBannerType: 'StepUp' })).toBe('StepUp')
+    expect(plannedBannerRowType({ initialBannerType: 'Support' })).toBe('Support')
+  })
+
+  it('reads the overloaded count as the unit the row measures', () => {
+    // number_of_pulls carries STEPS on a step-up row, mirroring the source
+    // sheet's own overload. Each accessor returns 0 for the wrong kind, so a
+    // mixed-up call site shows an empty number rather than a plausible one.
+    const stepUpRow = { banner_step_up: stepUpBanner, number_of_pulls: 10 }
+    expect(plannedSteps(stepUpRow)).toBe(10)
+    expect(plannedPulls(stepUpRow)).toBe(0)
+
+    const umaRow = { banner_uma: umaBanner, number_of_pulls: 200 }
+    expect(plannedPulls(umaRow)).toBe(200)
+    expect(plannedSteps(umaRow)).toBe(0)
+  })
+
+  it('keys a step-up separately from same-id banners of other kinds', () => {
+    // Same reason uma and support cannot share a key: three tables, three
+    // independent autoincrement PKs.
+    const keys = new Set([
+      bannerKey('Uma', 1),
+      bannerKey('Support', 1),
+      bannerKey('StepUp', 1),
+    ])
+    expect(keys.size).toBe(3)
+    expect(plannedBannerKey({ banner_step_up: stepUpBanner })).toBe(bannerKey('StepUp', 3))
+  })
+
+  it('gives a step-up zero free pulls, not an unknown', () => {
+    // Every step-up pull is bought with paid carats up the cost ladder, so 0 is
+    // the real answer. Only a row with NO banner reads as blank.
+    expect(getFreePulls({ banner_step_up: stepUpBanner } as UserPlannedBanner)).toBe(0)
+    expect(getFreePulls({ banner_uma: umaBanner } as UserPlannedBanner)).toBe(3)
+    expect(getFreePulls({} as UserPlannedBanner)).toBe('')
+  })
+})
 
 describe('bannerKey / plannedBannerKey', () => {
   // The seed data populates BannerUma and BannerSupport in lockstep, so an uma
@@ -485,5 +640,70 @@ describe('nextTempId', () => {
     }
 
     expect(staged.map((b) => b.tempId)).toEqual([3, 4, 5])
+  })
+})
+
+// ── applyStepUpStrategy ───────────────────────────────────────────────────────
+
+describe('applyStepUpStrategy', () => {
+  /** Three banners = 15 steps in existence, and carats to spare. */
+  const base = { plannedSteps: 0, bannerCount: 3, paidCarats: 20_000, constants: C }
+
+  it('charges the ladder and hands back the remainder', () => {
+    const result = applyStepUpStrategy({ ...base, plannedSteps: 5 })
+    expect(result.caratsSpent).toBe(5_000)
+    expect(result.paidCarats).toBe(15_000)
+    expect(result.chargeableSteps).toBe(5)
+    expect(result.stepLabel).toBe('5x1')
+  })
+
+  it('spends nothing at zero steps', () => {
+    const result = applyStepUpStrategy(base)
+    expect(result.caratsSpent).toBe(0)
+    expect(result.paidCarats).toBe(20_000)
+    expect(result.stepLabel).toBe('0')
+  })
+
+  it('caps maxPossibleSteps at the steps that actually exist', () => {
+    // One banner is five steps, however deep the wallet.
+    const result = applyStepUpStrategy({ ...base, bannerCount: 1, paidCarats: 999_999 })
+    expect(result.maxPossibleSteps).toBe(5)
+  })
+
+  it('caps maxPossibleSteps at what the paid carats reach', () => {
+    const result = applyStepUpStrategy({ ...base, paidCarats: 1_200 })
+    expect(result.maxPossibleSteps).toBe(2)
+  })
+
+  it('clamps chargeable steps to what exists, not to what is affordable', () => {
+    // Planning 20 steps of a 10-step campaign buys 10; there is no sixth banner.
+    const result = applyStepUpStrategy({ ...base, bannerCount: 2, plannedSteps: 20 })
+    expect(result.chargeableSteps).toBe(10)
+    expect(result.caratsSpent).toBe(10_000)
+    expect(result.stepLabel).toBe('5x2')
+  })
+
+  it('still charges in full when the plan outruns the balance', () => {
+    // The asymmetry that matters: unaffordable is reported as a deficit, not
+    // clamped away, exactly as an over-planned pull count already behaves.
+    const result = applyStepUpStrategy({ ...base, plannedSteps: 5, paidCarats: 1_000 })
+    expect(result.chargeableSteps).toBe(5)
+    expect(result.caratsSpent).toBe(5_000)
+    expect(result.paidCarats).toBe(-4_000)
+    expect(result.maxPossibleSteps).toBe(1)
+  })
+
+  it('handles a campaign with no banners at all', () => {
+    const result = applyStepUpStrategy({ ...base, bannerCount: 0, plannedSteps: 5 })
+    expect(result.chargeableSteps).toBe(0)
+    expect(result.maxPossibleSteps).toBe(0)
+    expect(result.caratsSpent).toBe(0)
+    expect(result.paidCarats).toBe(20_000)
+  })
+
+  it('labels what was charged, never what was planned', () => {
+    const result = applyStepUpStrategy({ ...base, bannerCount: 1, plannedSteps: 12 })
+    expect(result.chargeableSteps).toBe(5)
+    expect(result.stepLabel).toBe('5x1')
   })
 })

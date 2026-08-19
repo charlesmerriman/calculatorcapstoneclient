@@ -47,20 +47,20 @@ describe('statsAreDirty', () => {
 describe('stashGuestPlan / readGuestPlanStash', () => {
 	it('roundtrips dirty stats and banners', () => {
 		stashGuestPlan(dirtyStats, [
-			{ number_of_pulls: 10, reserved_copies: 0, banner_uma: 7, banner_support: null },
+			{ number_of_pulls: 10, reserved_copies: 0, banner_uma: 7, banner_support: null, banner_step_up: null },
 		])
 
 		const stash = readGuestPlanStash()
 		expect(stash).not.toBeNull()
 		expect(stash!.stats).toEqual(dirtyStats)
 		expect(stash!.banners).toEqual([
-			{ number_of_pulls: 10, reserved_copies: 0, banner_uma: 7, banner_support: null },
+			{ number_of_pulls: 10, reserved_copies: 0, banner_uma: 7, banner_support: null, banner_step_up: null },
 		])
 	})
 
 	it('omits stats that still equal the defaults (must not clobber account stats)', () => {
 		stashGuestPlan({ ...DEFAULT_GUEST_STATS }, [
-			{ number_of_pulls: 5, reserved_copies: 0, banner_uma: null, banner_support: 9 },
+			{ number_of_pulls: 5, reserved_copies: 0, banner_uma: null, banner_support: 9, banner_step_up: null },
 		])
 
 		expect(readGuestPlanStash()!.stats).toBeNull()
@@ -130,7 +130,7 @@ describe('toBannerPayload', () => {
 		}
 
 		expect(toBannerPayload([local])).toEqual([
-			{ number_of_pulls: 20, reserved_copies: 0, banner_uma: 7, banner_support: null },
+			{ number_of_pulls: 20, reserved_copies: 0, banner_uma: 7, banner_support: null, banner_step_up: null },
 		])
 	})
 
