@@ -2,7 +2,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom"
 import { CalendarDays, Calculator as CalculatorIcon, LogIn, LogOut, Save, Sparkles, UserRound } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
 import { userLogout } from "../../services/userServices"
-import { toBannerPayload } from "../../services/calculatorFetchCalls"
+import {
+	toBannerPayload,
+	toPurchasePayload,
+	toStepUpSelectionPayload
+} from "../../services/calculatorFetchCalls"
 import { stashGuestPlan } from "../../services/guestMigration"
 import { Wordmark } from "../Wordmark"
 import { ThemePicker } from "./ThemePicker"
@@ -37,7 +41,9 @@ export const Navbar = () => {
 		if (calculatorData) {
 			stashGuestPlan(
 				calculatorData.userStatsData,
-				toBannerPayload(calculatorData.userPlannedBannerData)
+				toBannerPayload(calculatorData.userPlannedBannerData),
+				toPurchasePayload(calculatorData.userPlannedPurchaseData),
+				toStepUpSelectionPayload(calculatorData.userStepUpSelectionData)
 			)
 		}
 		navigate("/login")

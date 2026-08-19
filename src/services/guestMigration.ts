@@ -14,7 +14,8 @@
 import type { UserStats } from "../types"
 import type {
 	PlannedBannerPayload,
-	PlannedPurchasePayload
+	PlannedPurchasePayload,
+	StepUpSelectionPayload
 } from "./calculatorFetchCalls"
 
 /**
@@ -72,6 +73,8 @@ export interface GuestPlanStash {
 	 * which is exactly right rather than a reason to discard the whole plan.
 	 */
 	purchases?: PlannedPurchasePayload[]
+	/** Optional for the same reason as `purchases`; absent means "picked none". */
+	stepUpSelections?: StepUpSelectionPayload[]
 }
 
 /**
@@ -94,11 +97,17 @@ export function statsAreDirty(stats: UserStats | null): boolean {
 export function stashGuestPlan(
 	stats: UserStats | null,
 	banners: PlannedBannerPayload[],
-	purchases: PlannedPurchasePayload[] = []
+	purchases: PlannedPurchasePayload[] = [],
+	stepUpSelections: StepUpSelectionPayload[] = []
 ): void {
 	try {
 		const dirtyStats = statsAreDirty(stats) ? stats : null
-		if (!dirtyStats && banners.length === 0 && purchases.length === 0) {
+		if (
+			!dirtyStats &&
+			banners.length === 0 &&
+			purchases.length === 0 &&
+			stepUpSelections.length === 0
+		) {
 			sessionStorage.removeItem(STASH_KEY)
 			return
 		}
@@ -107,7 +116,8 @@ export function stashGuestPlan(
 			createdAt: Date.now(),
 			stats: dirtyStats,
 			banners,
-			purchases
+			purchases,
+			stepUpSelections
 		}
 		sessionStorage.setItem(STASH_KEY, JSON.stringify(stash))
 	} catch {
@@ -153,4 +163,30 @@ export function clearGuestPlanStash(): void {
 	} catch {
 		// Nothing to do — worst case the stale-age guard cleans it up later.
 	}
+}
+/**
+ * Merge the guest's step-up selections into the account's for the migration PATCH.
+ *
+ * Per STEP-UP, not per row: the guest's picks for a banner are kept only when
+ * the account has none for that banner. Same conflict rule as banners — keep
+ * what is saved, add what the guest built — but applied at the banner level
+ * because rows here are not independent.
+ *
+ * That granularity is load-bearing rather than tidy. UserStepUpSelection carries
+ * a unique (user, banner_step_up, slot) index, so concatenating two partial
+ * selections for the same step-up would collide on slot 1 and the server would
+ * reject the WHOLE PATCH — stats, banners and purchases with it — and the user
+ * would land on their account with the migration silently failed. Interleaving
+ * the two into free slots would be worse still: it would invent a ten-card
+ * selection that neither side chose.
+ */
+export function mergeStepUpSelections(
+	account: StepUpSelectionPayload[],
+	guest: StepUpSelectionPayload[]
+): StepUpSelectionPayload[] {
+	const claimed = new Set(account.map((selection) => selection.banner_step_up))
+	return [
+		...account,
+		...guest.filter((selection) => !claimed.has(selection.banner_step_up))
+	]
 }
