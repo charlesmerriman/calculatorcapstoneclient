@@ -224,6 +224,64 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	}
 }
 
+/** Anything a planner row can point at. */
+export type PlannableBanner = BannerUma | BannerSupport | BannerStepUp
+
+/** The three catalogues the calculator holds, as the provider supplies them. */
+export interface BannerCatalogue {
+	umaBannerData: BannerUma[]
+	supportBannerData: BannerSupport[]
+	stepUpBannerData: BannerStepUp[]
+}
+
+/**
+ * The catalogue a row of this kind may choose from.
+ *
+ * Both row components (BannerRow and StagedBannerRow) used to do this inline
+ * and then re-check the result by shape — `"umas" in banner` — which is the
+ * property sniffing plannedBannerTarget exists to replace. The kind already
+ * decides the list, so once the list is picked by kind there is nothing left
+ * to sniff.
+ */
+export function bannersForRowType(
+	type: BannerRowType,
+	catalogue: BannerCatalogue
+): PlannableBanner[] {
+	if (type === "Uma") return catalogue.umaBannerData
+	if (type === "Support") return catalogue.supportBannerData
+	return catalogue.stepUpBannerData
+}
+
+/**
+ * The three target FKs for a row that has just selected `banner`.
+ *
+ * Setting one target CLEARS the other two. Exactly one may be set — the server
+ * enforces it with the `exactly_one_banner_target` check constraint — so
+ * writing the new FK without clearing the rest produces a row the PATCH
+ * rejects. Returned as a whole object rather than assigned field by field at
+ * the call site so a new kind cannot be added without clearing it here too.
+ */
+export function bannerTargetFields(
+	type: BannerRowType,
+	banner: PlannableBanner
+): Pick<UserPlannedBanner, "banner_uma" | "banner_support" | "banner_step_up"> {
+	return {
+		banner_uma: type === "Uma" ? (banner as BannerUma) : undefined,
+		banner_support: type === "Support" ? (banner as BannerSupport) : undefined,
+		banner_step_up: type === "StepUp" ? (banner as BannerStepUp) : undefined,
+	}
+}
+
+/**
+ * Whether a banner is still selectable — its window has not closed yet.
+ *
+ * All three kinds carry the same `banner_timeline`, so this is one rule rather
+ * than one per catalogue.
+ */
+export function isSelectableBanner(banner: PlannableBanner, now: Date): boolean {
+	return new Date(banner.banner_timeline.end_date) > now
+}
+
 export interface StepUpStrategyInput {
 	/** Steps the user planned. Not clamped by the caller — see below. */
 	plannedSteps: number

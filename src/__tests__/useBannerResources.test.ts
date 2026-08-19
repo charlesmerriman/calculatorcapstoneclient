@@ -130,6 +130,8 @@ function stepUpBanner(
       name: `Step-Up ${id}`,
       card_type: 'uma',
       banner_count: bannerCount,
+      max_steps: bannerCount * 5,
+      jp_cutoff_date: '2026-01-30',
       image: null,
       admin_comments: '',
       order: 0,

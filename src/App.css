@@ -146,6 +146,10 @@
 	@apply bg-green-900;
 }
 
+.banner-type-tab--step-up {
+	@apply bg-purple-900;
+}
+
 /* Stat label/value pair in the banner header */
 .banner-stat-label {
 	@apply text-[10px] text-gray-500 leading-tight;

@@ -8,6 +8,12 @@ import { ExtraCardsBadge } from "./ExtraCardsBadge"
 interface MobileBannerCardProps {
 	bannerType: BannerRowType
 	images: { name: string; image: string }[]
+	/**
+	 * Replaces the thumbnail strip entirely. A step-up row has no featured cards
+	 * to thumbnail — the player picks their own from the back catalogue — so it
+	 * supplies its own chip instead of an empty tile rail.
+	 */
+	imagesSlot?: ReactNode
 	bannerSelect: ReactNode
 	dates: ReactNode
 	summary: ReactNode
@@ -44,6 +50,7 @@ const TYPE_STYLES: Record<
 export const MobileBannerCard = ({
 	bannerType,
 	images,
+	imagesSlot,
 	bannerSelect,
 	dates,
 	summary,
@@ -68,6 +75,8 @@ export const MobileBannerCard = ({
 				</div>
 
 				<div className="relative flex min-w-0 shrink-0 items-center gap-1 overflow-hidden px-1.5 py-2 sm:gap-2 sm:px-3">
+					{imagesSlot ?? (
+						<>
 					{images.length > 0 ? (
 						images.slice(0, 2).map((img) => (
 							<div
@@ -83,6 +92,8 @@ export const MobileBannerCard = ({
 						))
 					) : null}
 					<ExtraCardsBadge hidden={images.length - 2} />
+						</>
+					)}
 				</div>
 
 				<div className="flex min-w-0 flex-1 items-center py-2 pr-1">

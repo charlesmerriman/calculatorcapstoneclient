@@ -17,12 +17,20 @@ interface MLBChanceDisplayProps {
 	 * would otherwise show odds it hasn't earned.
 	 */
 	reservedCopies?: number
+	/**
+	 * A pre-computed distribution, replacing the standard-banner binomial over
+	 * `pulls`. Step-up rows pass one: their input is STEPS, and reading it as
+	 * pulls would understate a plan tenfold on top of using the wrong rate and
+	 * the wrong guarantee rule. See stepUpCopyDistribution.
+	 */
+	distribution?: number[]
 }
 
 export const MLBChanceDisplay = ({
 	pulls,
 	plannedBanner,
-	reservedCopies = 0
+	reservedCopies = 0,
+	distribution
 }: MLBChanceDisplayProps) => {
 	// Which vocabulary the six cells use. Support cards limit-break, so their
 	// copies read 0LB..MLB; umas just stack, so theirs read 1x..5x. A step-up
@@ -40,7 +48,10 @@ export const MLBChanceDisplay = ({
 
 	// Discrete odds per outcome — the six cells sum to 100%, so each one answers
 	// "how likely am I to finish here?" rather than "here or better?".
-	const values = shiftDistribution(calculateCopyDistribution(pulls), reservedCopies)
+	const values = shiftDistribution(
+		distribution ?? calculateCopyDistribution(pulls),
+		reservedCopies
+	)
 
 	// Bars are scaled against the tallest cell in this row rather than a fixed
 	// 0-100%. Spreading one whole distribution across six cells keeps every

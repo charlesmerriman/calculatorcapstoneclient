@@ -329,7 +329,8 @@ describe('plannedBannerTarget — the narrowing seam', () => {
   const stepUpBanner: BannerStepUp = {
     id: 3, banner_timeline: timeline, anniversary_event: 14,
     name: '5th Anniversary SSR Select Step-Up', card_type: 'support',
-    banner_count: 3, image: null, admin_comments: '', order: 0,
+    banner_count: 3, max_steps: 15, jp_cutoff_date: '2026-01-30',
+    image: null, admin_comments: '', order: 0,
   }
 
   it('tags each of the three banner kinds', () => {

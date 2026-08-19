@@ -21,6 +21,7 @@ export type {
 	BannerUma,
 	BannerSupport,
 	BannerStepUp,
+	BannerStepUpSummary,
 	BannerTimelineForViewing
 } from "./banner"
 

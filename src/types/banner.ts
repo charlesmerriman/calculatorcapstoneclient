@@ -136,6 +136,21 @@ export interface BannerStepUp {
 	/** Which pool this step-up draws from. Drives the odds labels. */
 	card_type: "uma" | "support"
 	banner_count: number
+	/**
+	 * banner_count x 5 — the real ceiling on a plan. Served rather than derived
+	 * client-side so the count and the rule that turns it into steps stay
+	 * together.
+	 */
+	max_steps: number
+	/**
+	 * The campaign's cutoff, already folded in by the backend the same way it is
+	 * onto a selector product. A step-up's candidates are back-catalogue cards
+	 * released on JP on or before this date; null means unrestricted.
+	 *
+	 * Read this rather than joining anniversary_event_data — one place resolves
+	 * the cutoff, and it is the server.
+	 */
+	jp_cutoff_date: string | null
 	image: string | null
 	admin_comments: string
 	order: number
@@ -175,4 +190,19 @@ export interface BannerTimelineForViewing {
 	 * every part.
 	 */
 	anniversary_event: AttachedAnniversaryEvent | null
+	/**
+	 * Step-ups running in this window. A summary (name, pool, count) rather than
+	 * the whole record — the full ones arrive in banner_step_up_data. Because a
+	 * step-up attaches to the campaign PART it runs in, this is non-empty on
+	 * exactly one banner per campaign.
+	 */
+	banner_step_ups: BannerStepUpSummary[]
+}
+
+/** Just enough of a step-up to caption it on the Timeline. */
+export interface BannerStepUpSummary {
+	id: number
+	name: string
+	card_type: "uma" | "support"
+	banner_count: number
 }

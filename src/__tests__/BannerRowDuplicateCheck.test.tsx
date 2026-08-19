@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { toast } from 'sonner'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
@@ -47,6 +48,9 @@ const timeline = {
   start_date: '2099-01-01T22:00:00Z',
   end_date: '2099-02-01T21:59:59Z',
   is_predicted: false,
+  banner_category: 'standard' as const,
+  schedule_offset_days: 0,
+  applied_offset_days: 0,
   jp_start_date: null,
   jp_end_date: null,
   global_start_date: '2099-01-01T22:00:00Z',
@@ -131,6 +135,8 @@ function renderEmptyRow(bannerType: 'Uma' | 'Support') {
       userStatsData={userStats}
       umaBannerData={[umaBanner]}
       supportBannerData={[supportBanner]}
+      stepUpBannerData={[]}
+      constants={DEFAULT_CONSTANTS}
       setUserPlannedBannerData={setUserPlannedBannerData}
       resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: 100 }}
       initialBannerType={bannerType}
