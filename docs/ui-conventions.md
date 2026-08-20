@@ -476,10 +476,28 @@ USD budgeting, and the two toggles that govern whether any of it reaches the pro
   purchase upsert handlers. Follows `UncapCrystalsPanel`'s conventions.
 - **`CampaignCard.tsx`** — one campaign: packs with quantity steppers, selectors with a
   target picker, and the per-campaign / cumulative footer.
-- **`SelectorTargetPicker.tsx`** — the card picker, filtered by the selector's JP cutoff.
-  Candidates come from the calculator's past and upcoming gacha-banner catalogue, not a
-  new endpoint. Spreadsheet catch-all rows such as `(All)` are excluded from the selector
-  list.
+- **`SelectorTargetPicker.tsx`** — the single-card picker for a selector ticket,
+  filtered by that ticket's JP cutoff.
+- **`StepUpSelectionStrip.tsx`** — the band below a campaign card's three columns, one
+  disclosure row per step-up the campaign sells. It filters `stepUpBannerData` on
+  `anniversary_event` and renders nothing when a campaign sells none, so almost every
+  card is untouched by it. Each row's thumbnail resolves
+  **guaranteed pick → `BannerStepUp.image` → `★3`/`SSR` chip** — the same order the
+  planner row uses, so a step-up looks the same in both places.
+- **`StepUpSelectionPicker.tsx`** — the ten-slot dialog, laid out like the source
+  sheet's own block: the Selection 1–10 columns across the top, the eligible pool as a
+  searchable grid beneath. A dialog rather than an inline grid because the campaign card
+  is already a dense three-column layout and the 3rd Anniversary cutoff admits hundreds
+  of candidates. A pick the cutoff no longer covers is **flagged, never dropped** —
+  deleting someone's choice because shared reference data moved is worse than showing
+  them it needs revisiting.
+
+**Both pickers share `useEligibleCardCatalogue`** (`hooks/`), which owns the catalogue
+rules: candidates come from the calculator's past and upcoming gacha-banner catalogue
+rather than a new endpoint, spreadsheet catch-all rows such as `(All)` are excluded,
+cards are deduplicated across reruns, filtered inclusively against the cutoff, and sorted
+newest-JP-first with a name tiebreak. It was extracted rather than copied — this repo has
+twice paid for hand-copied duplicates of exactly that kind.
 - **`timeline/AnniversaryEventStrip.tsx`** — the band that sits flush on top of a banner
   card when that banner is part of a campaign. It keeps only its **top** corners rounded
   and the caller squares the card's top corners (`rounded-b-xl rounded-t-none`) so the

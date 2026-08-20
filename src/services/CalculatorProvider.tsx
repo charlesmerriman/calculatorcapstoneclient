@@ -18,6 +18,7 @@ import type {
 	OrganizedTimelineData,
 	AnniversaryEvent,
 	UserPlannedPurchase,
+	UserStepUpSelection,
 	IncomeLedgerRow,
 	CalculationConstants
 } from "../types"
@@ -26,12 +27,14 @@ import {
 	initialCalculatorDataFetch,
 	userCalculatorDataPatch,
 	toBannerPayload,
-	toPurchasePayload
+	toPurchasePayload,
+	toStepUpSelectionPayload
 } from "./calculatorFetchCalls"
 import {
 	DEFAULT_GUEST_STATS,
 	readGuestPlanStash,
-	clearGuestPlanStash
+	clearGuestPlanStash,
+	mergeStepUpSelections
 } from "./guestMigration"
 import { useAutoSave } from "../hooks/useAutoSave"
 
@@ -69,6 +72,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [anniversaryEventData, setAnniversaryEventData] = useState<AnniversaryEvent[]>([])
 	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
+	const [userStepUpSelectionData, setUserStepUpSelectionData] = useState<UserStepUpSelection[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
 	const [incomeLedger, setIncomeLedger] = useState<IncomeLedgerRow[]>([])
 	const [calculationConstants, setCalculationConstants] =
@@ -89,6 +93,11 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		[userPlannedPurchaseData]
 	)
 
+	const prepareStepUpSelectionData = useCallback(
+		() => toStepUpSelectionPayload(userStepUpSelectionData),
+		[userStepUpSelectionData]
+	)
+
 	const performSave = useCallback(async (): Promise<void> => {
 		// Guests never PATCH — their plan is in-memory only. The auto-save
 		// timer is already gated, but saveNow could still land here.
@@ -97,7 +106,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			const response = await userCalculatorDataPatch(
 					userStatsData,
 					prepareBannerData(),
-					preparePurchaseData()
+					preparePurchaseData(),
+					prepareStepUpSelectionData()
 				)
 			if (!response.ok) {
 				toast.error("Save failed. Your changes may not have been saved.")
@@ -107,7 +117,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		} catch {
 			toast.error("Save failed. Check your connection.")
 		}
-	}, [userStatsData, prepareBannerData, preparePurchaseData])
+	}, [userStatsData, prepareBannerData, preparePurchaseData,
+		prepareStepUpSelectionData])
 
 	const { timerIsGoing, startTimer, saveNow } = useAutoSave({
 		saveFn: performSave,
@@ -187,6 +198,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				// without them.
 				setAnniversaryEventData(data.anniversary_event_data ?? [])
 				setUserPlannedPurchaseData(data.user_planned_purchase_data ?? [])
+				// Defaulted for the same reason as the two above: an API predating
+				// step-up selections omits the key entirely.
+				setUserStepUpSelectionData(data.user_step_up_selection_data ?? [])
 				setGameEventsData(data.events_data)
 				setChampionsMeetingData(data.champions_meeting_data)
 				setLeagueOfHeroesData(data.league_of_heroes_event_data)
@@ -247,7 +261,17 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 							// raw payload, before the state above is populated.
 							...toPurchasePayload(data.user_planned_purchase_data ?? []),
 							...(stash.purchases ?? [])
-						]
+						],
+						// The account's own rows must be resent, not just the guest's:
+						// the PATCH deletes anything absent from the body, so sending
+						// only the stash would wipe selections the account already had.
+						// mergeStepUpSelections resolves the overlap per step-up —
+						// concatenating would collide on the unique slot index and 400
+						// the entire migration.
+						mergeStepUpSelections(
+							toStepUpSelectionPayload(data.user_step_up_selection_data ?? []),
+							stash.stepUpSelections ?? []
+						)
 					)
 					if (patchResponse.ok) {
 						clearGuestPlanStash()
@@ -299,7 +323,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		// also suppresses the pending-save icon and the beforeunload warning.
 		if (!localStorage.getItem("authToken")) return
 		startTimer()
-	}, [startTimer, userStatsData, userPlannedBannerData, userPlannedPurchaseData])
+	}, [startTimer, userStatsData, userPlannedBannerData, userPlannedPurchaseData,
+		userStepUpSelectionData])
 
 	const value = {
 		userStatsData,
@@ -314,6 +339,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		stagedBanners,
 		anniversaryEventData,
 		userPlannedPurchaseData,
+		userStepUpSelectionData,
 		gameEventsData,
 		championsMeetingData,
 		leagueOfHeroesData,
@@ -325,6 +351,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		setUserPlannedBannerData,
 		setStagedBanners,
 		setUserPlannedPurchaseData,
+		setUserStepUpSelectionData,
 		setUserStatsData
 	}
 

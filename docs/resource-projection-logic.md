@@ -304,6 +304,31 @@ to date a selector ticket against, and a step-up has none — its candidates are
 back-catalogue cards bounded by the campaign's `jp_cutoff_date`. The sheet has no
 equivalent concept either.
 
+### Card selections change nothing
+
+A step-up row can carry the ten cards the user intends to select
+(`UserStepUpSelection`, edited on the campaign card in `/app/selectors`). **None of
+it reaches the projection.** The target rate is `step_up_target_rate` = 3% ÷ 10 —
+the pool rate split across the ten cards you named — and that holds whichever ten
+they are, so a partial, empty or edited selection moves no number. It is a planning
+record, exactly as on the source sheet, whose Selection 1–10 columns feed no formula
+either.
+
+The tempting mistake is deriving the rate from how many slots are filled (six
+selections → 3% ÷ 6 = 0.5%). Don't: the game fixes the selection at ten, so a partial
+selection is an unfinished plan, not a narrower pool, and floating the rate on it
+would invent a number neither the sheet nor the game has.
+
+A selection is also **not a reserved copy**. A reserved copy is one taken *instead of
+pulling*, funded by a ticket or crystal; a selection is a candidate for pulls already
+being paid for. Reserved copies stay disabled on step-up rows for the reason above.
+
+The one thing selections do affect is presentation: the row named `is_target` (the
+step 5 pick) supplies the planner row's thumbnail, resolving
+guaranteed pick → `BannerStepUp.image` → the typographic `★3` / `SSR` chip.
+
+Slot bookkeeping lives in `utils/stepUpSelection.ts`, deliberately free of React.
+
 ### `number_of_pulls` carries steps
 
 A step-up row stores its step count in `number_of_pulls` — one column, two
