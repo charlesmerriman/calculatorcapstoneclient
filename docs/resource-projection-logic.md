@@ -329,6 +329,30 @@ guaranteed pick → `BannerStepUp.image` → the typographic `★3` / `SSR` chip
 
 Slot bookkeeping lives in `utils/stepUpSelection.ts`, deliberately free of React.
 
+### The default selection
+
+A step-up the user has never touched shows the **ten most recently available cards**,
+with the most recent marked as the step 5 pick. The source sheet ships its Selection 1–10
+columns pre-filled, so an untouched planner should not look emptier than the thing it
+mirrors. A *rule* is used rather than a copy of the sheet's own (hand-curated, and near
+but not equal to this one) because a hard-coded list silently rots as new banners land.
+
+`useEligibleCardCatalogue` already sorts newest-first and filters to the campaign cutoff,
+so "most recently available" is just the top of that list.
+
+**The default is virtual.** It is never written until the user edits something, at which
+point the edit lands on top of the ten and materialises all of them. That matters in both
+directions: writing it eagerly would create eighty rows per account nobody asked for and
+freeze "the ten newest" at whatever was newest the day the account first loaded the page,
+whereas leaving it virtual lets an untouched default keep tracking new releases while a
+touched selection stays exactly as its owner left it.
+
+**No stored rows means untouched, not "deliberately empty."** The game gives you ten picks
+and no way to decline them, so there is no plan a user could express by choosing nothing —
+which is why clearing every slot returns you to the default rather than stranding you on
+an empty one. Read it through `effectiveSelections()`; the picker, the campaign-card row
+and the planner thumbnail all do, so the three can never disagree.
+
 ### `number_of_pulls` carries steps
 
 A step-up row stores its step count in `number_of_pulls` — one column, two

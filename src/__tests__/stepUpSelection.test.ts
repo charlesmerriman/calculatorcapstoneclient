@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   SELECTION_SLOTS,
   clearSlot,
+  defaultSelectionFor,
+  effectiveSelections,
+  hasCustomSelection,
   findGuaranteedCardArt,
   replaceSelectionsFor,
   selectedCardIds,
@@ -269,5 +272,95 @@ describe('findGuaranteedCardArt', () => {
   it('returns null when the marked card is no longer in the catalogue', () => {
     const selections = setTarget(toggleCard([], umaStepUp, 999), 1)
     expect(findGuaranteedCardArt(selections, umaBanners, supportBanners)).toBeNull()
+  })
+})
+
+
+describe('defaultSelectionFor', () => {
+  // The catalogue arrives newest-first from useEligibleCardCatalogue, so "most
+  // recently available" is just the top of it.
+  const catalogue = Array.from({ length: 25 }, (_, i) => ({ value: 500 + i }))
+
+  it('takes the ten most recently available cards', () => {
+    const rows = defaultSelectionFor(umaStepUp, catalogue)
+    expect(rows).toHaveLength(SELECTION_SLOTS)
+    expect(rows.map((r) => r.uma)).toEqual([
+      500, 501, 502, 503, 504, 505, 506, 507, 508, 509,
+    ])
+  })
+
+  it('fills slots 1..10 in catalogue order', () => {
+    expect(defaultSelectionFor(umaStepUp, catalogue).map((r) => r.slot)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ])
+  })
+
+  it('gives the step 5 pick to the single most recent card', () => {
+    const rows = defaultSelectionFor(umaStepUp, catalogue)
+    expect(rows.filter((r) => r.is_target).map((r) => r.uma)).toEqual([500])
+  })
+
+  it('writes the card to the FK the pool implies', () => {
+    expect(defaultSelectionFor(umaStepUp, catalogue)[0]).toMatchObject({
+      uma: 500, support: null,
+    })
+    expect(defaultSelectionFor(supportStepUp, catalogue)[0]).toMatchObject({
+      uma: null, support: 500,
+    })
+  })
+
+  it('takes what exists rather than padding when fewer than ten are eligible', () => {
+    const rows = defaultSelectionFor(umaStepUp, catalogue.slice(0, 3))
+    expect(rows).toHaveLength(3)
+    expect(rows.filter((r) => r.is_target)).toHaveLength(1)
+  })
+
+  it('produces nothing when no card is eligible', () => {
+    expect(defaultSelectionFor(umaStepUp, [])).toEqual([])
+  })
+})
+
+describe('effectiveSelections — the default/custom seam', () => {
+  const catalogue = Array.from({ length: 25 }, (_, i) => ({ value: 500 + i }))
+
+  it('shows the default while the user has stored nothing', () => {
+    expect(hasCustomSelection([])).toBe(false)
+    expect(effectiveSelections([], umaStepUp, catalogue)).toHaveLength(SELECTION_SLOTS)
+  })
+
+  it('shows the stored picks once there are any, ignoring the catalogue', () => {
+    const mine = fill(umaStepUp, 2)
+    expect(hasCustomSelection(mine)).toBe(true)
+    expect(effectiveSelections(mine, umaStepUp, catalogue)).toBe(mine)
+  })
+
+  it('materialises all ten the moment one is edited', () => {
+    // The first edit lands on the DEFAULT array, so what gets stored is the
+    // whole selection with the edit applied — not one lone row.
+    const shown = effectiveSelections([], umaStepUp, catalogue)
+    const edited = clearSlot(shown, 4)
+    expect(edited).toHaveLength(SELECTION_SLOTS - 1)
+    expect(hasCustomSelection(edited)).toBe(true)
+  })
+
+  it('keeps a custom selection frozen when the catalogue gains newer cards', () => {
+    // An untouched default tracks new releases; a chosen one must not move.
+    const shown = effectiveSelections([], umaStepUp, catalogue)
+    const mine = setTarget(shown, 3)
+    const newer = [{ value: 999 }, ...catalogue]
+    expect(effectiveSelections(mine, umaStepUp, newer)).toBe(mine)
+    expect(effectiveSelections([], umaStepUp, newer)[0].uma).toBe(999)
+  })
+
+  it('returns to the default when every slot is cleared', () => {
+    // Not a trap: the game gives you ten picks and no way to decline them, so
+    // there is no plan a user could express by choosing nothing. Empty is the
+    // same "I haven't decided" state they started in.
+    let mine = effectiveSelections([], umaStepUp, catalogue)
+    for (let slot = 1; slot <= SELECTION_SLOTS; slot += 1) {
+      mine = clearSlot(mine, slot)
+    }
+    expect(mine).toEqual([])
+    expect(effectiveSelections(mine, umaStepUp, catalogue)).toHaveLength(SELECTION_SLOTS)
   })
 })

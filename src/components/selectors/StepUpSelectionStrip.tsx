@@ -1,9 +1,13 @@
 import { useState } from "react"
 import { ChevronRight, Star } from "lucide-react"
 import { StepUpSelectionPicker } from "./StepUpSelectionPicker"
+import { useEligibleCardCatalogue } from "../../hooks/useEligibleCardCatalogue"
 import {
 	SELECTION_SLOTS,
+	effectiveSelections,
 	findGuaranteedCardArt,
+	hasCustomSelection,
+	poolFor,
 	replaceSelectionsFor,
 	selectionsForStepUp,
 } from "../../utils/stepUpSelection"
@@ -23,6 +27,113 @@ interface StepUpSelectionStripProps {
 	supportBannerData: BannerSupport[]
 	disabled: boolean
 	onChange: (next: UserStepUpSelection[]) => void
+}
+
+interface StepUpRowProps {
+	stepUp: BannerStepUp
+	stored: UserStepUpSelection[]
+	umaBannerData: BannerUma[]
+	supportBannerData: BannerSupport[]
+	disabled: boolean
+	onOpen: () => void
+}
+
+/**
+ * One step-up's summary line.
+ *
+ * Its own component rather than inline JSX because it needs the eligible-card
+ * catalogue to resolve the default selection, and a hook cannot be called inside
+ * the parent's `.map`.
+ */
+const StepUpRow = ({
+	stepUp,
+	stored,
+	umaBannerData,
+	supportBannerData,
+	disabled,
+	onOpen,
+}: StepUpRowProps) => {
+	const isUma = poolFor(stepUp) === "uma"
+
+	const catalogue = useEligibleCardCatalogue({
+		pool: poolFor(stepUp),
+		jpCutoffDate: stepUp.jp_cutoff_date,
+		umaBannerData,
+		supportBannerData,
+	})
+
+	// Read through the same seam the picker uses, so the summary can never
+	// disagree with what opening it shows.
+	const isDefault = !hasCustomSelection(stored)
+	const selections = effectiveSelections(stored, stepUp, catalogue)
+	const guaranteed = findGuaranteedCardArt(
+		selections,
+		umaBannerData,
+		supportBannerData
+	)
+
+	return (
+		<button
+			type="button"
+			disabled={disabled}
+			aria-haspopup="dialog"
+			className="flex w-full min-w-0 items-center gap-3 py-2 text-left transition hover:bg-gray-700/30 disabled:cursor-not-allowed disabled:opacity-60"
+			onClick={onOpen}
+		>
+			{/* Guaranteed pick → campaign art → typographic chip. The same order the
+			    planner row uses, so a step-up looks the same in both places. */}
+			<span
+				className={`flex ${
+					isUma ? "h-12 w-12" : "h-12 w-9"
+				} shrink-0 items-center justify-center overflow-hidden rounded border border-gray-600 bg-gray-900/50`}
+			>
+				{guaranteed ? (
+					<img
+						src={guaranteed.image}
+						alt=""
+						loading="lazy"
+						decoding="async"
+						className="h-full w-full object-contain"
+					/>
+				) : stepUp.image ? (
+					<img
+						src={stepUp.image}
+						alt=""
+						loading="lazy"
+						decoding="async"
+						className="h-full w-full object-contain"
+					/>
+				) : (
+					<span className="text-xs font-bold text-purple-300">
+						{isUma ? "★3" : "SSR"}
+					</span>
+				)}
+			</span>
+
+			<span className="min-w-0 flex-1">
+				<span className="block truncate text-sm text-gray-200">
+					{stepUp.name}
+				</span>
+				<span className="block truncate text-xs text-gray-500">
+					{guaranteed
+						? `Guaranteed: ${guaranteed.name}`
+						: selections.length > 0
+							? "No step 5 pick chosen"
+							: "No eligible cards yet"}
+				</span>
+			</span>
+
+			<span className="shrink-0 text-right text-xs font-semibold tabular-nums text-gray-400">
+				{selections.length}/{SELECTION_SLOTS}
+				{isDefault && (
+					<span className="block text-[0.65rem] font-normal uppercase tracking-wide text-gray-600">
+						default
+					</span>
+				)}
+			</span>
+			<ChevronRight className="h-4 w-4 shrink-0 text-gray-500" />
+		</button>
+	)
 }
 
 /**
@@ -57,76 +168,18 @@ export const StepUpSelectionStrip = ({
 				★3/SSR Select Step-Up Banners
 			</h4>
 			<ul className="divide-y divide-gray-700/80">
-				{stepUps.map((stepUp) => {
-					const mine = selectionsForStepUp(selections, stepUp.id)
-					const guaranteed = findGuaranteedCardArt(
-						mine,
-						umaBannerData,
-						supportBannerData
-					)
-					const isUma = stepUp.card_type === "uma"
-
-					return (
-						<li key={stepUp.id}>
-							<button
-								type="button"
-								disabled={disabled}
-								aria-haspopup="dialog"
-								className="flex w-full min-w-0 items-center gap-3 py-2 text-left transition hover:bg-gray-700/30 disabled:cursor-not-allowed disabled:opacity-60"
-								onClick={() => setOpenStepUpId(stepUp.id)}
-							>
-								{/* Guaranteed pick → campaign art → typographic chip. The
-								    same order the planner row uses, so a step-up looks the
-								    same in both places. */}
-								<span
-									className={`flex ${
-										isUma ? "h-12 w-12" : "h-12 w-9"
-									} shrink-0 items-center justify-center overflow-hidden rounded border border-gray-600 bg-gray-900/50`}
-								>
-									{guaranteed ? (
-										<img
-											src={guaranteed.image}
-											alt=""
-											loading="lazy"
-											decoding="async"
-											className="h-full w-full object-contain"
-										/>
-									) : stepUp.image ? (
-										<img
-											src={stepUp.image}
-											alt=""
-											loading="lazy"
-											decoding="async"
-											className="h-full w-full object-contain"
-										/>
-									) : (
-										<span className="text-xs font-bold text-purple-300">
-											{isUma ? "★3" : "SSR"}
-										</span>
-									)}
-								</span>
-
-								<span className="min-w-0 flex-1">
-									<span className="block truncate text-sm text-gray-200">
-										{stepUp.name}
-									</span>
-									<span className="block truncate text-xs text-gray-500">
-										{guaranteed
-											? `Guaranteed: ${guaranteed.name}`
-											: mine.length > 0
-												? "No step 5 pick chosen"
-												: "No cards chosen yet"}
-									</span>
-								</span>
-
-								<span className="shrink-0 text-xs font-semibold tabular-nums text-gray-400">
-									{mine.length}/{SELECTION_SLOTS}
-								</span>
-								<ChevronRight className="h-4 w-4 shrink-0 text-gray-500" />
-							</button>
-						</li>
-					)
-				})}
+				{stepUps.map((stepUp) => (
+					<li key={stepUp.id}>
+						<StepUpRow
+							stepUp={stepUp}
+							stored={selectionsForStepUp(selections, stepUp.id)}
+							umaBannerData={umaBannerData}
+							supportBannerData={supportBannerData}
+							disabled={disabled}
+							onOpen={() => setOpenStepUpId(stepUp.id)}
+						/>
+					</li>
+				))}
 			</ul>
 
 			{openStepUp && (
