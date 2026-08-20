@@ -277,6 +277,11 @@ export function buildTimelineMarkers(
 
 	for (const event of anniversaryEvents) {
 		if (!event.start_date) continue
+		// `event_type: "campaign"` is the one-off-promotion catch-all — today only
+		// the Trainer Support Pack, a permanently purchasable bundle. It marks no
+		// moment on the calendar, so it gets no card, exactly as it gets no band
+		// in the planner. Excluded by type, not by being undated.
+		if (event.event_type === "campaign") continue
 		markers.push({
 			key: `ann-${event.id}`,
 			kind: "anniversary",

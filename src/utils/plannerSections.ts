@@ -47,6 +47,20 @@ export type PlannerRow =
 	| { kind: "banner"; banner: UserPlannedBanner; index: number }
 	| { kind: "band"; key: string; markers: PlannerMarker[] }
 
+/**
+ * Whether a campaign is a calendar landmark worth banding.
+ *
+ * `anniversary` and `new_year` are dated moments the game visibly turns on.
+ * `event_type: "campaign"` is the catch-all for one-off promotions — today only
+ * the Trainer Support Pack, a permanently purchasable bundle. Nothing about the
+ * game changes when it goes on sale, so it is not a landmark and must not
+ * interrupt the sheet. Excluded by TYPE rather than by having no dates, so it
+ * stays excluded if an editor ever links it to a banner.
+ */
+function bandsAsCampaign(event: AnniversaryEvent): boolean {
+	return event.event_type !== "campaign"
+}
+
 /** Epoch millis for an ISO instant, or null when absent/unparseable. */
 function startTime(iso: string | null | undefined): number | null {
 	if (!iso) return null
@@ -133,6 +147,7 @@ export function buildPlannerRows(
 		})
 	}
 	for (const event of anniversaryEvents) {
+		if (!bandsAsCampaign(event)) continue
 		const ms = startTime(event.start_date)
 		if (ms === null || ms <= firstStart || ms > lastStart) continue
 		markers.push({

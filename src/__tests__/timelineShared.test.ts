@@ -330,6 +330,24 @@ describe('buildTimelineMarkers', () => {
     expect(marker.endDate).toBe('2028-05-26T00:00:00Z')
   })
 
+  it('never makes a card for a one-off promotion', () => {
+    // The Trainer Support Pack is a permanently purchasable bundle, not a
+    // moment on the calendar — no card, exactly as it gets no planner band.
+    const markers = buildTimelineMarkers([], [
+      { ...campaign(6, 'Trainer Support Pack', '2028-05-01T00:00:00Z', '2028-06-01T00:00:00Z'),
+        event_type: 'campaign' as const },
+    ])
+    expect(markers).toEqual([])
+  })
+
+  it('still makes a card for a new year campaign', () => {
+    const markers = buildTimelineMarkers([], [
+      { ...campaign(2, 'New Years 2026', '2028-12-31T00:00:00Z', '2029-01-07T00:00:00Z'),
+        event_type: 'new_year' as const },
+    ])
+    expect(markers.map((m) => m.name)).toEqual(['New Years 2026'])
+  })
+
   it('drops undated rows, which have nothing to sort by', () => {
     expect(
       buildTimelineMarkers([scenario(1, 'No banner yet', null)], [campaign(2, 'No parts', null, null)]),

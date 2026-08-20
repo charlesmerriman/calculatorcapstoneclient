@@ -48,11 +48,16 @@ function scenario(
 	}
 }
 
-function anniversary(id: number, name: string, start: string | null): AnniversaryEvent {
+function anniversary(
+	id: number,
+	name: string,
+	start: string | null,
+	eventType: AnniversaryEvent['event_type'] = 'anniversary'
+): AnniversaryEvent {
 	return {
 		id,
 		name,
-		event_type: 'anniversary',
+		event_type: eventType,
 		jp_cutoff_date: null,
 		image: null,
 		accent_label: '',
@@ -265,5 +270,34 @@ describe('buildPlannerRows index integrity', () => {
 		const bannerRows = rows.filter((r) => r.kind === 'banner')
 		expect(bannerRows).toHaveLength(3)
 		expect(bannerRows.map((r) => r.kind === 'banner' && r.index)).toEqual([0, 1, 2])
+	})
+})
+
+// ── Campaign kinds that are not landmarks ─────────────────────────────────────
+
+describe('buildPlannerRows campaign kinds', () => {
+	const between = [row(1, '2028-01-01T00:00:00Z'), row(2, '2028-09-01T00:00:00Z')]
+
+	it('bands an anniversary and a new year', () => {
+		const rows = buildPlannerRows(between, [], [
+			anniversary(1, '4th Anniversary', '2028-03-01T00:00:00Z', 'anniversary'),
+			anniversary(2, 'New Years 2026', '2028-04-01T00:00:00Z', 'new_year'),
+		])
+		// Both fall before the same row, so they collapse into one band — the
+		// point here is that a new_year is banded at all, not how it is grouped.
+		expect(shape(rows).filter((s) => s.startsWith('band'))).toEqual([
+			'band:4th Anniversary|New Years 2026',
+		])
+	})
+
+	it('never bands a one-off promotion, even when it is dated', () => {
+		// The Trainer Support Pack is a permanently purchasable bundle. Nothing
+		// about the game changes when it goes on sale, so it is not a landmark —
+		// and excluding it by TYPE keeps it out even if an editor links it to a
+		// banner and gives it dates.
+		const rows = buildPlannerRows(between, [], [
+			anniversary(6, 'Trainer Support Pack', '2028-05-01T00:00:00Z', 'campaign'),
+		])
+		expect(shape(rows)).toEqual(['row:1@0', 'row:2@1'])
 	})
 })
