@@ -7,6 +7,8 @@ import {
 	SELECTION_SLOTS,
 	cardIdOf,
 	clearSlot,
+	effectiveSelections,
+	hasCustomSelection,
 	poolFor,
 	selectedCardIds,
 	setTarget,
@@ -23,7 +25,10 @@ import type {
 
 interface StepUpSelectionPickerProps {
 	stepUp: BannerStepUp
-	/** This step-up's selections only — the caller splices them back. */
+	/**
+	 * This step-up's STORED selections only — the caller splices them back.
+	 * Empty means untouched, which renders the default; see `effectiveSelections`.
+	 */
 	selections: UserStepUpSelection[]
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
@@ -44,7 +49,7 @@ interface StepUpSelectionPickerProps {
  */
 export const StepUpSelectionPicker = ({
 	stepUp,
-	selections,
+	selections: storedSelections,
 	umaBannerData,
 	supportBannerData,
 	onClose,
@@ -59,6 +64,13 @@ export const StepUpSelectionPicker = ({
 		umaBannerData,
 		supportBannerData,
 	})
+
+	// What the user is actually looking at: their own picks, or the ten newest
+	// eligible cards if they have not touched this step-up yet. Every edit below
+	// is applied to THIS array, so the first one materialises the default and
+	// their choice stops tracking new releases from that point on.
+	const isDefault = !hasCustomSelection(storedSelections)
+	const selections = effectiveSelections(storedSelections, stepUp, options)
 
 	useEffect(() => {
 		const closeOnEscape = (event: KeyboardEvent) => {
@@ -164,6 +176,13 @@ export const StepUpSelectionPicker = ({
 				type="button"
 				aria-pressed={isChosen}
 				disabled={!isChosen && isFull}
+				// The default fills all ten slots, so "full" is now the state a
+				// first-time user meets — the tile being inert needs a reason.
+				title={
+					!isChosen && isFull
+						? `All ${SELECTION_SLOTS} slots are taken — clear one to pick ${option.label}`
+						: undefined
+				}
 				className={`group flex min-w-0 flex-col items-center rounded-lg border p-2 text-center transition disabled:cursor-not-allowed disabled:opacity-40 ${
 					isChosen
 						? "border-brand bg-brand/10"
@@ -204,7 +223,8 @@ export const StepUpSelectionPicker = ({
 							{stepUp.name}
 						</h5>
 						<p className="text-xs text-gray-400">
-							{selections.length}/{SELECTION_SLOTS} chosen · {options.length}{" "}
+							{selections.length}/{SELECTION_SLOTS}{" "}
+							{isDefault ? "(default)" : "chosen"} · {options.length}{" "}
 							eligible {isUma ? "umas" : "support cards"}
 							{stepUp.jp_cutoff_date &&
 								` · JP cutoff ${formatDate(stepUp.jp_cutoff_date)}`}
@@ -241,6 +261,13 @@ export const StepUpSelectionPicker = ({
 						<Star className="inline h-3 w-3 fill-brand text-brand" /> marks the
 						one you'd take at step 5.
 					</p>
+					{isDefault && (
+						<p className="mt-1 text-xs text-gray-500">
+							Starting with the {selections.length} most recently available{" "}
+							{isUma ? "umas" : "support cards"}. Change anything here and it
+							becomes your own selection.
+						</p>
+					)}
 					{staleCount > 0 && (
 						<p className="mt-1 text-xs text-amber-400">
 							{staleCount} pick{staleCount === 1 ? "" : "s"} no longer eligible

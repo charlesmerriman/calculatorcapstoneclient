@@ -492,6 +492,13 @@ USD budgeting, and the two toggles that govern whether any of it reaches the pro
   deleting someone's choice because shared reference data moved is worse than showing
   them it needs revisiting.
 
+An untouched step-up renders a **default selection** — the ten most recently available
+cards, most recent starred — labelled `default` on the row and `(default)` in the dialog
+so it never passes as a choice the user made. It is virtual until they edit something.
+Because that leaves all ten slots full from the outset, a candidate tile that cannot be
+picked carries a `title` saying why; "full" is now the state a first-time user meets.
+→ `frontend/docs/resource-projection-logic.md` ("The default selection")
+
 **Both pickers share `useEligibleCardCatalogue`** (`hooks/`), which owns the catalogue
 rules: candidates come from the calculator's past and upcoming gacha-banner catalogue
 rather than a new endpoint, spreadsheet catch-all rows such as `(All)` are excluded,
