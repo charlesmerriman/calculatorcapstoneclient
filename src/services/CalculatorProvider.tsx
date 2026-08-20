@@ -17,6 +17,7 @@ import type {
 	LeagueOfHeroes,
 	OrganizedTimelineData,
 	AnniversaryEvent,
+	Scenario,
 	UserPlannedPurchase,
 	UserStepUpSelection,
 	IncomeLedgerRow,
@@ -71,6 +72,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [anniversaryEventData, setAnniversaryEventData] = useState<AnniversaryEvent[]>([])
+	const [scenarioData, setScenarioData] = useState<Scenario[]>([])
 	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
 	const [userStepUpSelectionData, setUserStepUpSelectionData] = useState<UserStepUpSelection[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
@@ -197,6 +199,11 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				// planned" instead — the rest of the calculator is still correct
 				// without them.
 				setAnniversaryEventData(data.anniversary_event_data ?? [])
+				// Defaulted for the same reason as the campaign keys above: this
+				// arrived later than the rest of the payload, so a backend build
+				// that predates it must degrade to "no scenarios" rather than
+				// putting undefined where the planner expects an array.
+				setScenarioData(data.scenario_data ?? [])
 				setUserPlannedPurchaseData(data.user_planned_purchase_data ?? [])
 				// Defaulted for the same reason as the two above: an API predating
 				// step-up selections omits the key entirely.
@@ -338,6 +345,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		userPlannedBannerData,
 		stagedBanners,
 		anniversaryEventData,
+		scenarioData,
 		userPlannedPurchaseData,
 		userStepUpSelectionData,
 		gameEventsData,

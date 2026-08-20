@@ -244,6 +244,11 @@ vi.mock('../services/CalculatorContext', () => ({
     supportBannerData: [],
     stagedBanners: [],
     setStagedBanners: vi.fn(),
+    // Marker sources. Empty here on purpose: these suites are about banner
+    // windows and the category filter, and a marker card would change the
+    // card counts they assert on.
+    scenarioData: [],
+    anniversaryEventData: [],
   }),
 }))
 

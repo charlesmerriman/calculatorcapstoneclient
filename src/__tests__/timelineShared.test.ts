@@ -1,11 +1,23 @@
 import { describe, it, expect } from 'vitest'
 import {
+  buildTimelineMarkers,
   groupTimelineEvents,
+  mergeTimelineMarkers,
   timelineRowKey,
   formatStepUpChip,
 } from '../components/timeline/timelineShared'
-import type { BannerWindowGroup, TimelineRow } from '../components/timeline/timelineShared'
-import type { BannerTimelineForViewing, ChampionsMeeting, TimelineEvent } from '../types'
+import type {
+  BannerWindowGroup,
+  TimelineMarker,
+  TimelineRow,
+} from '../components/timeline/timelineShared'
+import type {
+  AnniversaryEvent,
+  BannerTimelineForViewing,
+  ChampionsMeeting,
+  Scenario,
+  TimelineEvent,
+} from '../types'
 
 /**
  * Window grouping is what lets concurrent banners — most visibly the Golden
@@ -263,5 +275,152 @@ describe('formatStepUpChip', () => {
   it('returns null when a campaign runs none, so no chip renders', () => {
     expect(formatStepUpChip([])).toBeNull()
     expect(formatStepUpChip([{ card_type: 'uma', banner_count: 0 }])).toBeNull()
+  })
+})
+
+/**
+ * Markers are the Timeline's third row kind: scenario launches and campaign
+ * openings, rendered as their own cards rather than attached to a banner.
+ */
+describe('buildTimelineMarkers', () => {
+  const scenario = (id: number, name: string, start: string | null): Scenario => ({
+    id,
+    name,
+    image: null,
+    banner_timeline: null,
+    start_date: start,
+    is_predicted: false,
+    applied_offset_days: 0,
+  })
+
+  const campaign = (
+    id: number,
+    name: string,
+    start: string | null,
+    end: string | null,
+  ): AnniversaryEvent => ({
+    id,
+    name,
+    event_type: 'anniversary',
+    jp_cutoff_date: null,
+    image: null,
+    accent_label: '',
+    start_date: start,
+    end_date: end,
+    is_predicted: false,
+    applied_offset_days: 0,
+    products: [],
+    banner_parts: [],
+  })
+
+  it('gives a scenario a null end date, because it has no end', () => {
+    const [marker] = buildTimelineMarkers(
+      [scenario(1, 'Mecha', '2028-02-08T00:00:00Z')],
+      [],
+    )
+    expect(marker.endDate).toBeNull()
+    expect(marker.kind).toBe('scenario')
+  })
+
+  it('carries a campaign\'s window through', () => {
+    const [marker] = buildTimelineMarkers(
+      [],
+      [campaign(8, '4th', '2028-05-01T00:00:00Z', '2028-05-26T00:00:00Z')],
+    )
+    expect(marker.endDate).toBe('2028-05-26T00:00:00Z')
+  })
+
+  it('drops undated rows, which have nothing to sort by', () => {
+    expect(
+      buildTimelineMarkers([scenario(1, 'No banner yet', null)], [campaign(2, 'No parts', null, null)]),
+    ).toEqual([])
+  })
+
+  it('prefixes keys per kind so ids cannot collide across models', () => {
+    const markers = buildTimelineMarkers(
+      [scenario(1, 'S', '2028-01-01T00:00:00Z')],
+      [campaign(1, 'A', '2028-01-01T00:00:00Z', '2028-02-01T00:00:00Z')],
+    )
+    expect(markers.map((m) => m.key)).toEqual(['sce-1', 'ann-1'])
+  })
+})
+
+describe('mergeTimelineMarkers', () => {
+  const marker = (
+    key: string,
+    kind: TimelineMarker['kind'],
+    name: string,
+    startDate: string,
+  ): TimelineMarker => ({
+    key,
+    kind,
+    name,
+    startDate,
+    endDate: null,
+    image: null,
+    isPredicted: false,
+  })
+
+  /** A minimal banner-window row opening at `start`. */
+  const windowRow = (start: string): TimelineRow => ({
+    kind: 'banner_window',
+    group: {
+      start_date: start,
+      end_date: start,
+      is_predicted: false,
+      banners: [],
+      anniversary_event: null,
+    } as unknown as BannerWindowGroup,
+  })
+
+  it('returns the rows untouched when there are no markers', () => {
+    const rows = [windowRow('2028-01-01T00:00:00Z')]
+    expect(mergeTimelineMarkers(rows, [])).toBe(rows)
+  })
+
+  it('places a marker before the first row starting at or after it', () => {
+    const merged = mergeTimelineMarkers(
+      [windowRow('2028-01-01T00:00:00Z'), windowRow('2028-06-01T00:00:00Z')],
+      [marker('sce-1', 'scenario', 'Mecha', '2028-03-01T00:00:00Z')],
+    )
+    expect(merged.map((r) => (r.kind === 'marker' ? r.marker.name : 'row'))).toEqual([
+      'row',
+      'Mecha',
+      'row',
+    ])
+  })
+
+  it('sorts a scenario above a campaign at the same instant', () => {
+    const merged = mergeTimelineMarkers(
+      [windowRow('2028-06-01T00:00:00Z')],
+      [
+        marker('ann-1', 'anniversary', 'Campaign', '2028-03-01T00:00:00Z'),
+        marker('sce-1', 'scenario', 'Scenario', '2028-03-01T00:00:00Z'),
+      ],
+    )
+    expect(merged.map((r) => (r.kind === 'marker' ? r.marker.name : 'row'))).toEqual([
+      'Scenario',
+      'Campaign',
+      'row',
+    ])
+  })
+
+  it('appends a marker later than every row, unlike the planner bands', () => {
+    const merged = mergeTimelineMarkers(
+      [windowRow('2028-01-01T00:00:00Z')],
+      [marker('sce-1', 'scenario', 'Later', '2029-01-01T00:00:00Z')],
+    )
+    expect(merged.map((r) => (r.kind === 'marker' ? r.marker.name : 'row'))).toEqual([
+      'row',
+      'Later',
+    ])
+  })
+
+  it('keys a marker row on its own prefixed key', () => {
+    const merged = mergeTimelineMarkers(
+      [],
+      [marker('sce-3', 'scenario', 'Mecha', '2028-01-01T00:00:00Z')],
+    )
+    expect(timelineRowKey(merged[0])).toBe('sce-3')
   })
 })

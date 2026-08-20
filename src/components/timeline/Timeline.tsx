@@ -14,10 +14,13 @@ import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
 import type { BannerKey } from "../../utils/bannerHelpers"
 import { RaceEventCard } from "./RaceEventCard"
 import { BannerWindowCard } from "./BannerWindowCard"
+import { EventMarkerCard } from "./EventMarkerCard"
 import {
 	CATEGORY_LABELS,
 	CATEGORY_ORDER,
+	buildTimelineMarkers,
 	groupTimelineEvents,
+	mergeTimelineMarkers,
 	timelineRowKey,
 } from "./timelineShared"
 import { isRaceEvent } from "../../types"
@@ -196,6 +199,8 @@ export const Timeline = () => {
 		supportBannerData,
 		stagedBanners,
 		setStagedBanners,
+		scenarioData,
+		anniversaryEventData,
 	} = useCalculatorData()
 	const [showPast, setShowPast] = useState(false)
 	const [searchQuery, setSearchQuery] = useState("")
@@ -271,8 +276,34 @@ export const Timeline = () => {
 				.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
 		)
 
-		if (categoryFilter === "all") return rows
+		if (categoryFilter === "all") {
+			// Markers merge in AFTER grouping, on the final row order — running
+			// earlier would let one land inside a window that later folds together.
+			//
+			// A scenario has no end date, so it can never be "over" the way a
+			// banner is. The past/future split classifies it on its start instant
+			// instead: once it has launched it belongs behind you in the calendar,
+			// even though it is still playable. That is a deliberate reading of an
+			// endless event, not an oversight.
+			const markers = buildTimelineMarkers(scenarioData, anniversaryEventData)
+				.filter((marker) =>
+					showPast
+						? new Date(marker.startDate) < today
+						: new Date(marker.startDate) >= today
+				)
+				.filter(
+					(marker) =>
+						searchQuery === "" ||
+						marker.name.toLowerCase().includes(searchQuery.toLowerCase())
+				)
+			return mergeTimelineMarkers(rows, markers)
+		}
 
+		// Markers are deliberately absent under a category filter: they are
+		// cross-cutting context rather than banners, so a scenario card stranded
+		// in a list of reruns would answer a question nobody asked. Race events
+		// drop out below for the same reason.
+		//
 		// Applied AFTER grouping, and a group survives if ANY constituent matches.
 		// Filtering the events first would drop the ordinary banner that shares a
 		// revival's window, leaving a card that misrepresents the week — the
@@ -285,7 +316,15 @@ export const Timeline = () => {
 				row.kind === "banner_window" &&
 				row.group.banners.some((banner) => banner.banner_category === categoryFilter)
 		)
-	}, [organizedTimelineData, showPast, searchQuery, categoryFilter, today])
+	}, [
+		organizedTimelineData,
+		scenarioData,
+		anniversaryEventData,
+		showPast,
+		searchQuery,
+		categoryFilter,
+		today,
+	])
 
 	// Only offer categories the data actually contains. `race_prep_support` has
 	// no rows until the support backfill lands, and an option that can only ever
@@ -481,6 +520,8 @@ export const Timeline = () => {
 					// is a banner window, which may hold more than one concurrent banner.
 					row.kind === "race" ? (
 						<RaceEventCard key={timelineRowKey(row)} event={row.event} today={today} />
+					) : row.kind === "marker" ? (
+						<EventMarkerCard key={timelineRowKey(row)} marker={row.marker} />
 					) : (
 						<BannerWindowCard
 							key={timelineRowKey(row)}
