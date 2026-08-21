@@ -228,6 +228,33 @@ header, the sheet header (both in `CaratCalculator`) and the mobile card's cell 
 differ deliberately: `w-5` in the headers against `text-xs`, `w-4` on the card where the
 neighbouring "Dates"/"Pulls" labels are 10px caps.
 
+### Section bands: scenarios and anniversaries between planner rows
+
+`PlannerSectionBand` draws a full-width centred band between rows of the sheet, marking the
+scenarios and anniversaries occurring between the first and last planned banner.
+`utils/plannerSections.ts` builds the render list.
+
+- **The band is not `.banner-grid` and adds no track.** It spans the row stack as a plain
+  `w-full` block, which is what keeps `--container-banner-table` (and its hard ceiling)
+  out of it. That also means one component serves both display modes — the stack renders
+  mobile cards below the container width and table rows above it.
+- **`buildPlannerRows` carries each row's ORIGINAL index.** `bannerResources` is positional
+  against `userPlannedBannerData`, so reading it by position in the *banded* list
+  mis-attributes every row's resources the moment a band appears. There is a test on this.
+- **Placement**: a scenario pins immediately above its own launch banner (its start date IS
+  that banner's), whatever else shares that instant; everything else places before the
+  first row starting on or after it. Markers landing at one point collapse into a single
+  band, **scenarios above anniversaries** — they routinely launch together, and the
+  scenario is the larger statement.
+- Bands are sheet-only; the staging area is a scratch space and gets none. A sheet of fewer
+  than two rows gets none either — there is no "between".
+- Colour is the `--color-brand` token (`text-brand` / `bg-brand/10`), never a literal gold,
+  so it survives the light-theme flip. The two kinds differ by **weight and icon, not hue**
+  — see the note above on only the headline signal getting a colour.
+
+This is deliberately not `AnniversaryEventStrip`, whose `rounded-t-xl border-b-0` geometry
+exists to weld onto the top of a timeline card and which is left-aligned.
+
 ### Portaled `react-select` menus need `menuPosition="fixed"`
 
 Every select using `menuPortalTarget={document.body}` also sets `menuPosition="fixed"`.
@@ -464,6 +491,30 @@ card per campaign with no filtering.
 - Card images carry `loading="lazy"`; a banner card holds up to five, so a fully-revealed
   list is several hundred.
 
+### Marker cards: scenario launches and campaign openings
+
+`EventMarkerCard` is the timeline's third card, fed by a third `TimelineRow` kind
+(`{ kind: "marker" }`) and built by `buildTimelineMarkers` / `mergeTimelineMarkers`.
+
+- **The marker row kind is a FRONTEND union member, not a backend one.**
+  `organizedTimelineData` narrows on the backend's `event_type` tag, but
+  `AnniversaryEvent.event_type` already means the campaign kind
+  (`anniversary` / `new_year` / `campaign`). Tagging markers server-side would collide with
+  a shipped field. Key prefixes are `sce-` and `ann-`.
+- **`mergeTimelineMarkers` runs AFTER `groupTimelineEvents`**, for the same reason grouping
+  runs after filtering: it inserts against the final row order, so running earlier would
+  let a marker land inside a window that later folds together.
+- **A scenario has no end date and never will** — it stays playable after release. The card
+  branches on the *presence* of an end date rather than on the kind, showing
+  "Releases &lt;date&gt;" instead of a range. The past/future toggle classifies a scenario by
+  its start instant, since it can never be "over".
+- **Markers are suppressed under a category filter.** They are cross-cutting context rather
+  than banners, so a scenario card stranded in a list of reruns answers a question nobody
+  asked — the same reasoning that drops race events there.
+- **A missing image is the expected state**, not a degraded one: scenarios get entered
+  before the art exists. `BannerArtPlaceholder` is the designed fallback, as with the
+  step-up rows in the planner. Build and review the card with no image first.
+
 ---
 
 ## Selectors page (`components/selectors/`)
@@ -491,6 +542,13 @@ USD budgeting, and the two toggles that govern whether any of it reaches the pro
   of candidates. A pick the cutoff no longer covers is **flagged, never dropped** —
   deleting someone's choice because shared reference data moved is worse than showing
   them it needs revisiting.
+
+An untouched step-up renders a **default selection** — the ten most recently available
+cards, most recent starred — labelled `default` on the row and `(default)` in the dialog
+so it never passes as a choice the user made. It is virtual until they edit something.
+Because that leaves all ten slots full from the outset, a candidate tile that cannot be
+picked carries a `title` saying why; "full" is now the state a first-time user meets.
+→ `frontend/docs/resource-projection-logic.md` ("The default selection")
 
 **Both pickers share `useEligibleCardCatalogue`** (`hooks/`), which owns the catalogue
 rules: candidates come from the calculator's past and upcoming gacha-banner catalogue

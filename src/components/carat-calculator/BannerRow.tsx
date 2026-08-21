@@ -38,9 +38,11 @@ import type {
 } from "../../utils/bannerHelpers"
 import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
 import {
+	effectiveSelections,
 	findGuaranteedCardArt,
 	selectionsForStepUp
 } from "../../utils/stepUpSelection"
+import { buildEligibleCardCatalogue } from "../../hooks/useEligibleCardCatalogue"
 import type { CalculationConstants } from "../../types/constants"
 import type { BannerResources } from "../../hooks/bannerResources"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
@@ -85,6 +87,43 @@ interface BannerOption {
 	value: PlannableBanner
 	label: string
 	key: number
+}
+
+/**
+ * The card whose art a step-up row should show: the step 5 pick.
+ *
+ * An untouched step-up falls back to the DEFAULT selection's target — the most
+ * recently available card — read through the same `effectiveSelections` seam the
+ * picker and the campaign card use, so all three always agree about what the
+ * user is looking at.
+ *
+ * Module-level and un-memoized on purpose. The React Compiler memoizes the call
+ * for us; a manual useMemo here could not be preserved (and building the
+ * catalogue through useEligibleCardCatalogue instead would mean flattening and
+ * sorting the whole uma catalogue on every uma and support row too, since a hook
+ * cannot be skipped for the rows that do not need it).
+ */
+function resolveGuaranteedCard(
+	stepUp: BannerStepUp,
+	allSelections: UserStepUpSelection[],
+	umaBannerData: BannerUma[],
+	supportBannerData: BannerSupport[]
+) {
+	const catalogue = buildEligibleCardCatalogue({
+		pool: stepUp.card_type === "uma" ? "uma" : "support",
+		jpCutoffDate: stepUp.jp_cutoff_date,
+		umaBannerData,
+		supportBannerData,
+	})
+	return findGuaranteedCardArt(
+		effectiveSelections(
+			selectionsForStepUp(allSelections, stepUp.id),
+			stepUp,
+			catalogue
+		),
+		umaBannerData,
+		supportBannerData
+	)
 }
 
 export const BannerRow = ({
@@ -312,13 +351,12 @@ export const BannerRow = ({
 		? `Choose from ${stepUpChip} cards released on JP by ${formatDate(stepUpCutoff)}`
 		: "This campaign has no JP release cutoff on its candidates"
 
-	// The step 5 pick's art. Once the user has said which copy they'd guarantee,
-	// THAT card is what this row is about — so it outranks the campaign's own
-	// image, which is generic to the banner rather than to the plan.
+	// The step 5 pick's art (null on non-step-up rows). See resolveGuaranteedCard.
 	const guaranteedCard =
 		target.type === "StepUp"
-			? findGuaranteedCardArt(
-					selectionsForStepUp(userStepUpSelectionData, target.banner.id),
+			? resolveGuaranteedCard(
+					target.banner,
+					userStepUpSelectionData,
 					umaBannerData,
 					supportBannerData
 				)

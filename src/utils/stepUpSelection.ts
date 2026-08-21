@@ -25,6 +25,14 @@ import type {
  */
 export const SELECTION_SLOTS = 10
 
+/**
+ * The minimum a card needs to seed a default slot. Structural on purpose so this
+ * module does not depend on the catalogue hook — `EligibleCard` satisfies it.
+ */
+export interface CatalogueEntry {
+	value: number
+}
+
 /** Which catalogue a step-up draws from, in the catalogue hook's vocabulary. */
 export function poolFor(stepUp: BannerStepUp): "uma" | "support" {
 	return stepUp.card_type === "uma" ? "uma" : "support"
@@ -214,4 +222,75 @@ export function findGuaranteedCardArt(
 		if (card) return { name: card.name, image: card.image }
 	}
 	return null
+}
+
+/**
+ * The selection a step-up starts with: the ten most recently available cards,
+ * with the most recent one marked as the step 5 pick.
+ *
+ * `catalogue` must already be ordered newest-first — `useEligibleCardCatalogue`
+ * sorts it that way and filters it to the campaign's cutoff, so "most recently
+ * available" means exactly "the top of that list". Fewer than ten eligible cards
+ * yields fewer than ten slots rather than padding.
+ *
+ * WHY A DEFAULT AT ALL
+ * --------------------
+ * The source sheet ships its Selection 1-10 columns pre-filled, so an untouched
+ * planner should not look emptier than the thing it mirrors. The sheet's own
+ * picks are hand-curated and near-but-not-exactly this rule; a rule is used here
+ * instead of copying them because a hand-picked list silently rots as new
+ * banners land, while "the ten newest" is correct forever.
+ */
+export function defaultSelectionFor(
+	stepUp: BannerStepUp,
+	catalogue: CatalogueEntry[]
+): UserStepUpSelection[] {
+	const isUma = poolFor(stepUp) === "uma"
+	return catalogue.slice(0, SELECTION_SLOTS).map((card, index) => ({
+		banner_step_up: stepUp.id,
+		uma: isUma ? card.value : null,
+		support: isUma ? null : card.value,
+		slot: index + 1,
+		// Newest first, so slot 1 is the most recent card.
+		is_target: index === 0,
+	}))
+}
+
+/**
+ * True once the user has made this step-up's selection their own.
+ *
+ * NO STORED ROWS MEANS UNTOUCHED, NOT "DELIBERATELY EMPTY". That reading is safe
+ * because the game gives you ten picks and no way to decline them — there is no
+ * plan a user could express by choosing nothing. So clearing every slot returning
+ * you to the default is the correct behaviour rather than a trap: it is the same
+ * "I haven't decided" state you started in.
+ */
+export function hasCustomSelection(stored: UserStepUpSelection[]): boolean {
+	return stored.length > 0
+}
+
+/**
+ * What to SHOW for a step-up: the user's own picks, or the default if they have
+ * none yet.
+ *
+ * Every reader goes through this — the picker, the campaign-card row and the
+ * planner row's thumbnail — so the three can never disagree about what a user is
+ * looking at.
+ *
+ * The default is virtual: it is never written until the user edits something, at
+ * which point the edit lands on top of these ten and materialises all of them.
+ * That is deliberate in both directions. Writing it eagerly would create eighty
+ * rows per account nobody asked for, and would freeze the "ten newest" at
+ * whatever was newest on the day the account first loaded the page; leaving it
+ * virtual means an untouched default keeps tracking new releases, while a
+ * selection the user has actually touched stays exactly as they left it.
+ */
+export function effectiveSelections(
+	stored: UserStepUpSelection[],
+	stepUp: BannerStepUp,
+	catalogue: CatalogueEntry[]
+): UserStepUpSelection[] {
+	return hasCustomSelection(stored)
+		? stored
+		: defaultSelectionFor(stepUp, catalogue)
 }

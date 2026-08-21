@@ -11,10 +11,12 @@ import { differenceInCalendarDays } from "date-fns"
 import { parseApiDate } from "../../utils/dateFormat"
 import { isRaceEvent } from "../../types"
 import type {
+	AnniversaryEvent,
 	AttachedAnniversaryEvent,
 	BannerCategory,
 	BannerTimelineForViewing,
 	RaceEvent,
+	Scenario,
 	TimelineEvent,
 } from "../../types"
 
@@ -114,6 +116,35 @@ export interface BannerWindowGroup {
 export type TimelineRow =
 	| { kind: "race"; event: RaceEvent }
 	| { kind: "banner_window"; group: BannerWindowGroup }
+	| { kind: "marker"; marker: TimelineMarker }
+
+/**
+ * A scenario launch or a campaign opening, rendered as its own card in the
+ * stream rather than attached to a banner.
+ *
+ * A FRONTEND row kind, not a backend union member, and deliberately so:
+ * `organizedTimelineData` narrows on the backend's `event_type` tag, but
+ * `AnniversaryEvent.event_type` already means something else entirely (the
+ * campaign kind — anniversary / new_year / campaign). Tagging these server-side
+ * would collide with a shipped field.
+ *
+ * `endDate` is null for a scenario and only a scenario: a scenario is released
+ * and then stays available permanently, so it is a single dated instant with
+ * nothing to close. Branch on that rather than on `kind` when deciding whether
+ * to render a range.
+ */
+export interface TimelineMarker {
+	/** Collision-proof across kinds; see timelineRowKey. */
+	key: string
+	kind: "scenario" | "anniversary"
+	name: string
+	startDate: string
+	/** Null for scenarios — they have no end. */
+	endDate: string | null
+	/** Often null: art routinely lands after the row does. */
+	image: string | null
+	isPredicted: boolean
+}
 
 /**
  * A React key that survives re-filtering and can't collide across row kinds.
@@ -122,11 +153,14 @@ export type TimelineRow =
  * 4 and a banner window share a key. Banner windows key on their start date
  * rather than an id: grouping is by that date, so it is unique across the
  * list by construction, and it stays stable if the API reorders the banners
- * within a group.
+ * within a group. Markers carry their own already-prefixed key.
  */
 export function timelineRowKey(row: TimelineRow): string {
 	if (row.kind === "race") {
 		return `${row.event.event_type === "champions_meeting" ? "cm" : "loh"}-${row.event.id}`
+	}
+	if (row.kind === "marker") {
+		return row.marker.key
 	}
 	return `win-${row.group.start_date}`
 }
@@ -211,4 +245,108 @@ export function formatStepUpChip(
 	if (totals.support > 0) parts.push(`${totals.support} SSR`)
 
 	return parts.length > 0 ? `${parts.join(" + ")} Step-Up` : null
+}
+
+/**
+ * Turn scenarios and campaigns into timeline markers, dropping the undated.
+ *
+ * Undated is a normal state, not an error: a scenario with no launch banner
+ * yet, or a campaign with no linked parts, has nothing to sort by and so has no
+ * place in a chronological list.
+ */
+export function buildTimelineMarkers(
+	scenarios: Scenario[],
+	anniversaryEvents: AnniversaryEvent[]
+): TimelineMarker[] {
+	const markers: TimelineMarker[] = []
+
+	for (const scenario of scenarios) {
+		if (!scenario.start_date) continue
+		markers.push({
+			key: `sce-${scenario.id}`,
+			kind: "scenario",
+			name: scenario.name,
+			startDate: scenario.start_date,
+			// Not "unknown" — a scenario genuinely has no end. It stays playable
+			// after release, so there is nothing here to fill in later.
+			endDate: null,
+			image: scenario.image,
+			isPredicted: scenario.is_predicted,
+		})
+	}
+
+	for (const event of anniversaryEvents) {
+		if (!event.start_date) continue
+		// `event_type: "campaign"` is the one-off-promotion catch-all — today only
+		// the Trainer Support Pack, a permanently purchasable bundle. It marks no
+		// moment on the calendar, so it gets no card, exactly as it gets no band
+		// in the planner. Excluded by type, not by being undated.
+		if (event.event_type === "campaign") continue
+		markers.push({
+			key: `ann-${event.id}`,
+			kind: "anniversary",
+			name: event.name,
+			startDate: event.start_date,
+			endDate: event.end_date,
+			image: event.image,
+			isPredicted: event.is_predicted,
+		})
+	}
+
+	return markers
+}
+
+/**
+ * Splice marker rows into an already-grouped, already-sorted row list.
+ *
+ * Must run AFTER groupTimelineEvents, for the same reason grouping runs after
+ * filtering: it consumes the final row order and inserts against it, so running
+ * earlier would let a marker land inside a window that later folds together.
+ *
+ * A marker sits before the first row starting at or after it, and a scenario
+ * sorts above a campaign at the same instant — the same rule the calculator's
+ * section bands use, so the two surfaces agree. Markers past the last row are
+ * appended, unlike in the planner: the timeline is the whole calendar, so
+ * there is no "between" to fall outside of.
+ */
+export function mergeTimelineMarkers(
+	rows: TimelineRow[],
+	markers: TimelineMarker[]
+): TimelineRow[] {
+	if (markers.length === 0) return rows
+
+	const rowStart = (row: TimelineRow): number => {
+		const iso =
+			row.kind === "race" ? row.event.start_date
+				: row.kind === "banner_window" ? row.group.start_date
+					: row.marker.startDate
+		const ms = new Date(iso).getTime()
+		return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms
+	}
+
+	const pending = [...markers].sort((a, b) => {
+		const byTime =
+			new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+		if (byTime !== 0) return byTime
+		if (a.kind !== b.kind) return a.kind === "scenario" ? -1 : 1
+		return a.name.localeCompare(b.name)
+	})
+
+	const out: TimelineRow[] = []
+	let next = 0
+	for (const row of rows) {
+		const start = rowStart(row)
+		while (
+			next < pending.length &&
+			new Date(pending[next].startDate).getTime() <= start
+		) {
+			out.push({ kind: "marker", marker: pending[next] })
+			next += 1
+		}
+		out.push(row)
+	}
+	for (; next < pending.length; next += 1) {
+		out.push({ kind: "marker", marker: pending[next] })
+	}
+	return out
 }
