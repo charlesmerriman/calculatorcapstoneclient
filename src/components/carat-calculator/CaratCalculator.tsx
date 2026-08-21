@@ -15,7 +15,7 @@ import {
 	nextTempId,
 	plannedBannerKey,
 	plannedBannerTarget,
-	plannedBannerTimeline,
+	comparePlannedBanners,
 } from "../../utils/bannerHelpers"
 import type { BannerRowType } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
@@ -109,16 +109,11 @@ export const CaratCalculator: React.FC = () => {
 			return
 		}
 
-		// Sorted by start date. Rows without a resolvable timeline sort last
-		// rather than throwing — the old non-null assertion on banner_support
-		// crashed on any row that was neither uma nor support.
-		const startTime = (b: UserPlannedBanner): number => {
-			const start = plannedBannerTimeline(b)?.start_date
-			return start ? new Date(start).getTime() : Infinity
-		}
-		const updated = [...userPlannedBannerData, banner].sort(
-			(a, b) => startTime(a) - startTime(b)
-		)
+		// Sorted by start date, ties broken by banner kind — see
+		// comparePlannedBanners. The tie-break matters most here: appending then
+		// sorting would otherwise drop the new row BELOW every existing row
+		// sharing its start date, purely because it was added last.
+		const updated = [...userPlannedBannerData, banner].sort(comparePlannedBanners)
 
 		setUserPlannedBannerData(updated)
 		setStagedBanners((prev) => prev.filter((b) => b.tempId !== tempId))

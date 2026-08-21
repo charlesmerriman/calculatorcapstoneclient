@@ -29,6 +29,7 @@ import {
 	plannedBannerKey,
 	plannedBannerRowType,
 	plannedBannerTarget,
+	comparePlannedBanners,
 	plannedBannerTimeline,
 } from "../../utils/bannerHelpers"
 import type {
@@ -222,12 +223,6 @@ export const BannerRow = ({
 		})
 	}
 
-	/** Sort key: the row's start date, or last when it has no timeline yet. */
-	const startTime = (b: UserPlannedBanner): number => {
-		const start = plannedBannerTimeline(b)?.start_date
-		return start ? new Date(start).getTime() : Infinity
-	}
-
 	const handleDeleteBannerClick = (): void => {
 		const confirmed = window.confirm("Are you sure you want to delete this banner?")
 		if (!confirmed) return
@@ -268,10 +263,9 @@ export const BannerRow = ({
 			...banner,
 			...bannerTargetFields(bannerType, option.value),
 		}))
-		// Rows with no resolvable timeline sort last instead of throwing; the
-		// old non-null assertion crashed on any row that was neither uma nor
-		// support.
-		const sorted = updated.sort((a, b) => startTime(a) - startTime(b))
+		// Start date, ties broken by banner kind — see comparePlannedBanners.
+		// Rows with no resolvable timeline sort last instead of throwing.
+		const sorted = updated.sort(comparePlannedBanners)
 		setUserPlannedBannerData(sorted)
 	}
 

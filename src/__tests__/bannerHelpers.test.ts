@@ -4,6 +4,7 @@ import {
   applyPullStrategy,
   applyStepUpStrategy,
   bannerKey,
+  comparePlannedBanners,
   getPullCountStatus,
   getReservedStatus,
   getStepCountStatus,
@@ -406,6 +407,86 @@ describe('plannedBannerTarget — the narrowing seam', () => {
     expect(getFreePulls({ banner_step_up: stepUpBanner } as UserPlannedBanner)).toBe(0)
     expect(getFreePulls({ banner_uma: umaBanner } as UserPlannedBanner)).toBe(3)
     expect(getFreePulls({} as UserPlannedBanner)).toBe('')
+  })
+})
+
+describe('comparePlannedBanners — the planner sheet row order', () => {
+  const timelineAt = (start: string, id: number) => ({
+    id,
+    name: `Window ${id}`,
+    banner_category: 'standard' as const,
+    start_date: start,
+    end_date: '2099-12-01T21:59:59Z',
+    is_predicted: false,
+    jp_start_date: null,
+    jp_end_date: null,
+    global_start_date: start,
+    global_end_date: '2099-12-01T21:59:59Z',
+    schedule_offset_days: 0,
+    applied_offset_days: 0,
+    image: '',
+  })
+
+  const SAME = '2099-03-01T22:00:00Z'
+  const LATER = '2099-04-01T22:00:00Z'
+
+  const umaRow = (start: string): Partial<UserPlannedBanner> => ({
+    banner_uma: {
+      id: 1, banner_timeline: timelineAt(start, 1), name: 'Uma',
+      admin_comments: '', umas: [], free_pulls: 3,
+    } as BannerUma,
+  })
+  const supportRow = (start: string): Partial<UserPlannedBanner> => ({
+    banner_support: {
+      id: 2, banner_timeline: timelineAt(start, 2), name: 'Support',
+      admin_comments: '', support_cards: [], free_pulls: 5,
+    } as BannerSupport,
+  })
+  const stepUpRow = (
+    start: string,
+    card_type: 'uma' | 'support'
+  ): Partial<UserPlannedBanner> => ({
+    banner_step_up: {
+      id: card_type === 'uma' ? 3 : 4, banner_timeline: timelineAt(start, 3),
+      anniversary_event: 14, name: `Step-Up ${card_type}`, card_type,
+      banner_count: 3, max_steps: 15, jp_cutoff_date: '2026-01-30',
+      image: null, admin_comments: '', order: 0,
+    } as BannerStepUp,
+  })
+
+  const kinds = (rows: Partial<UserPlannedBanner>[]) =>
+    rows.map((r) => plannedBannerTarget(r).type)
+
+  it('orders a same-day campaign Uma, Support, Step-Up Uma, Step-Up Support', () => {
+    // Shuffled deliberately: the input order must not survive the sort.
+    const rows = [
+      stepUpRow(SAME, 'support'),
+      supportRow(SAME),
+      stepUpRow(SAME, 'uma'),
+      umaRow(SAME),
+    ]
+    const sorted = [...rows].sort(comparePlannedBanners)
+    expect(kinds(sorted)).toEqual(['Uma', 'Support', 'StepUp', 'StepUp'])
+    // The two step-ups split on card_type, which the row type alone cannot say.
+    expect(sorted[2].banner_step_up?.card_type).toBe('uma')
+    expect(sorted[3].banner_step_up?.card_type).toBe('support')
+  })
+
+  it('never lets the kind tie-break outrank the start date', () => {
+    // A step-up support banner opening first still sorts above a later uma
+    // banner — the rank is the SECOND key, not the first.
+    const sorted = [umaRow(LATER), stepUpRow(SAME, 'support')].sort(
+      comparePlannedBanners
+    )
+    expect(sorted[0].banner_step_up?.card_type).toBe('support')
+  })
+
+  it('sorts an undated row last without producing a NaN comparison', () => {
+    // Infinity - Infinity is NaN; two undated rows must still compare cleanly
+    // or the whole sort corrupts.
+    const undated = {} as UserPlannedBanner
+    const sorted = [undated, umaRow(SAME), undated].sort(comparePlannedBanners)
+    expect(kinds(sorted)).toEqual(['Uma', 'Empty', 'Empty'])
   })
 })
 
