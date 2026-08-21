@@ -1,10 +1,12 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type {
+  AnniversaryEvent,
   BannerCategory,
   BannerTimeline,
   BannerTimelineForViewing,
   ChampionsMeeting,
+  Scenario,
   SupportCard,
   TimelineEvent,
   Uma,
@@ -236,6 +238,56 @@ function categorised(
   }
 }
 
+/**
+ * Marker sources, reassignable for the same reason `events` is.
+ *
+ * Empty by default on purpose: most suites here are about banner windows, and a
+ * marker card would change the card counts they assert on. The filter suite
+ * swaps them in.
+ */
+let scenarios: Scenario[] = []
+let campaigns: AnniversaryEvent[] = []
+
+/** A dated scenario, which is all a marker needs from one. */
+function scenario(id: number, name: string): Scenario {
+  return {
+    id,
+    name,
+    image: null,
+    banner_timeline: null,
+    start_date: `2099-05-${String(id).padStart(2, '0')}T22:00:00Z`,
+    is_predicted: false,
+    applied_offset_days: 0,
+  } as Scenario
+}
+
+/**
+ * A dated campaign. `event_type` matters: buildTimelineMarkers drops
+ * `"campaign"` rows outright, so the default here is `"anniversary"` and the
+ * catch-all kind is passed explicitly by the test that checks it stays out.
+ */
+function campaign(
+  id: number,
+  name: string,
+  eventType: AnniversaryEvent['event_type'] = 'anniversary',
+): AnniversaryEvent {
+  const day = String(id).padStart(2, '0')
+  return {
+    id,
+    name,
+    event_type: eventType,
+    jp_cutoff_date: null,
+    image: null,
+    accent_label: '',
+    start_date: `2099-06-${day}T22:00:00Z`,
+    end_date: `2099-07-${day}T21:59:59Z`,
+    is_predicted: false,
+    applied_offset_days: 0,
+    products: [],
+    banner_parts: [],
+  }
+}
+
 vi.mock('../services/CalculatorContext', () => ({
   useCalculatorData: () => ({
     organizedTimelineData: events,
@@ -244,11 +296,8 @@ vi.mock('../services/CalculatorContext', () => ({
     supportBannerData: [],
     stagedBanners: [],
     setStagedBanners: vi.fn(),
-    // Marker sources. Empty here on purpose: these suites are about banner
-    // windows and the category filter, and a marker card would change the
-    // card counts they assert on.
-    scenarioData: [],
-    anniversaryEventData: [],
+    scenarioData: scenarios,
+    anniversaryEventData: campaigns,
   }),
 }))
 
@@ -283,6 +332,8 @@ beforeEach(() => {
 
 afterEach(() => {
   events = BASE_EVENTS
+  scenarios = []
+  campaigns = []
 })
 
 describe('Timeline infinite scroll', () => {
@@ -742,7 +793,9 @@ describe('Timeline banner categories', () => {
  * week that looks emptier than it was.
  */
 describe('Timeline category filter', () => {
-  const FILTER = /filter by banner type/i
+  // Renamed from "filter by banner type" when the marker kinds joined it — the
+  // control spans two axes now and naming it after one of them was misleading.
+  const FILTER = /filter events/i
 
   function selectCategory(value: string): void {
     fireEvent.change(screen.getByLabelText(FILTER), { target: { value } })
@@ -853,6 +906,124 @@ describe('Timeline category filter', () => {
 
     expect(screen.getByText('Champions Meeting 9')).toBeInTheDocument()
     expect(screen.getByAltText('Yukino Bijin')).toBeInTheDocument()
+  })
+
+  it('offers the marker kinds the data contains, grouped apart from the categories', () => {
+    // The two axes are separate lists under separate headings — a scenario has
+    // no banner_category, so a flat run would read as one list with two odd
+    // entries on the end.
+    events = [categorised(1, 'standard', ['Yukino Bijin'])]
+    scenarios = [scenario(1, 'Grand Masters')]
+    campaigns = [campaign(1, '4th Anniversary')]
+    render(<Timeline />)
+
+    const select = screen.getByLabelText(FILTER)
+    expect(
+      Array.from(select.querySelectorAll('optgroup')).map((g) => g.label),
+    ).toEqual(['Banner type', 'Other events'])
+    expect(
+      Array.from(select.querySelectorAll('option')).map((o) => o.textContent),
+    ).toEqual(['All events', 'Standard', 'Scenarios', 'Campaigns'])
+  })
+
+  it('offers a marker kind only when the data can produce a card for it', () => {
+    // A campaign with no start date has nothing to sort by and never renders,
+    // and `event_type: "campaign"` is excluded outright — the Trainer Support
+    // Pack is permanently purchasable and marks no moment on the calendar.
+    // Neither may put an option in the list that returns "No events found."
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'rerun', ['Gentildonna']),
+    ]
+    scenarios = [scenario(1, 'Grand Masters')]
+    campaigns = [
+      campaign(1, 'Trainer Support Pack', 'campaign'),
+      { ...campaign(2, 'Undated Campaign'), start_date: null },
+    ]
+    render(<Timeline />)
+
+    const options = Array.from(
+      screen.getByLabelText(FILTER).querySelectorAll('option'),
+    ).map((o) => o.textContent)
+
+    expect(options).toContain('Scenarios')
+    expect(options).not.toContain('Campaigns')
+  })
+
+  it('shows itself for one banner category plus one marker kind', () => {
+    // Neither axis reaches two options on its own, but there are still three
+    // real choices, so the control is not clutter.
+    events = [categorised(1, 'standard', ['Yukino Bijin'])]
+    scenarios = [scenario(1, 'Grand Masters')]
+    render(<Timeline />)
+
+    expect(screen.getByLabelText(FILTER)).toBeInTheDocument()
+  })
+
+  it('narrows to markers of one kind, dropping banners and the other kind', () => {
+    events = [categorised(1, 'standard', ['Yukino Bijin']), raceEvent(9, '05')]
+    scenarios = [scenario(1, 'Grand Masters')]
+    campaigns = [campaign(1, '4th Anniversary')]
+    render(<Timeline />)
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 4 of 4')
+
+    selectCategory('marker:scenario')
+
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 of 1')
+    expect(screen.getByText('Grand Masters')).toBeInTheDocument()
+    expect(screen.queryByText('4th Anniversary')).not.toBeInTheDocument()
+    expect(screen.queryByAltText('Yukino Bijin')).not.toBeInTheDocument()
+    expect(screen.queryByText('Champions Meeting 9')).not.toBeInTheDocument()
+  })
+
+  it('keeps the search box working inside a marker filter', () => {
+    events = [categorised(1, 'standard', ['Yukino Bijin'])]
+    campaigns = [campaign(1, '4th Anniversary'), campaign(2, 'Summer Festival')]
+    render(<Timeline />)
+
+    selectCategory('marker:anniversary')
+    fireEvent.change(screen.getByPlaceholderText(/search characters or events/i), {
+      target: { value: 'summer' },
+    })
+
+    expect(screen.getByText('Summer Festival')).toBeInTheDocument()
+    expect(screen.queryByText('4th Anniversary')).not.toBeInTheDocument()
+  })
+
+  it('keeps markers out of a banner category filter', () => {
+    // They are cross-cutting context, not banners: a scenario card stranded in
+    // a list of reruns answers a question nobody asked. The marker filters are
+    // how you ask for them.
+    events = [
+      categorised(1, 'standard', ['Yukino Bijin']),
+      categorised(2, 'rerun', ['Gentildonna']),
+    ]
+    scenarios = [scenario(1, 'Grand Masters')]
+    render(<Timeline />)
+    expect(screen.getByText('Grand Masters')).toBeInTheDocument()
+
+    selectCategory('rerun')
+
+    expect(screen.queryByText('Grand Masters')).not.toBeInTheDocument()
+  })
+
+  it('splits markers past from future on their start instant', () => {
+    // A scenario has no end date, so "past" can only mean "already launched".
+    events = [categorised(1, 'standard', ['Yukino Bijin'])]
+    scenarios = [
+      { ...scenario(1, 'Grand Masters'), start_date: '2099-05-01T22:00:00Z' },
+      { ...scenario(2, 'Legacy Scenario'), start_date: '2000-01-01T22:00:00Z' },
+    ]
+    render(<Timeline />)
+
+    selectCategory('marker:scenario')
+    expect(screen.getByText('Grand Masters')).toBeInTheDocument()
+    expect(screen.queryByText('Legacy Scenario')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /show past events/i }))
+
+    expect(screen.getByText('Legacy Scenario')).toBeInTheDocument()
+    expect(screen.queryByText('Grand Masters')).not.toBeInTheDocument()
   })
 
   it('resets the paged position, which could otherwise outrun the result', () => {

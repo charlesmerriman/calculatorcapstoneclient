@@ -626,6 +626,78 @@ export function plannedBannerTimeline(
 }
 
 /**
+ * Where a row sits among rows sharing its start date.
+ *
+ * The planner is sorted by start date, but a campaign routinely opens several
+ * banners on the same instant, and a bare date sort leaves those tied rows in
+ * whatever order they happened to arrive in — which differs between "just added
+ * it" (append-then-sort) and "just reloaded" (database order). This rank is the
+ * second sort key that makes the tie deterministic, in the order the sheet
+ * reads best:
+ *
+ *   Uma -> Support -> Step-Up Uma -> Step-Up Support
+ *
+ * Note the step-up split: the two step-up ranks are NOT the row type, which is
+ * a single "StepUp". They come off `BannerStepUp.card_type`, the model's own
+ * one-row-per-card-type field — a campaign sells a star-3 ladder and an SSR
+ * ladder as separate banners, and grouping each next to its ordinary
+ * counterpart is the point of the ordering.
+ *
+ * An Empty row (no banner selected yet) ranks last. It has no start date
+ * either, so it already sorts to the bottom; this only decides its order
+ * against other undated rows.
+ *
+ * MUST stay in step with `_planned_banner_kind_rank` in
+ * `backend/calculatorapi/views/calculator.py`. The server sorts the plan once
+ * on load and the client re-sorts on every edit, so the two orderings are
+ * visible to the same user minutes apart — if they disagree, rows appear to
+ * shuffle themselves on refresh.
+ */
+export function plannedBannerOrderRank(
+	plannedBanner: BannerTargetFields
+): number {
+	const target = plannedBannerTarget(plannedBanner)
+	switch (target.type) {
+		case "Uma":
+			return 0
+		case "Support":
+			return 1
+		case "StepUp":
+			return target.banner.card_type === "uma" ? 2 : 3
+		default:
+			return 4
+	}
+}
+
+/**
+ * THE comparator for the calculator sheet's row order: start date ascending,
+ * ties broken by `plannedBannerOrderRank`.
+ *
+ * Rows with no resolvable timeline sort last rather than throwing — a row can
+ * legitimately exist before it has picked a banner.
+ *
+ * Both planner sort sites go through this so that adding a banner and selecting
+ * one into an existing row cannot drift apart. `useBannerResources` does not
+ * call it: its walk breaks ties on the row's original index, so it inherits
+ * whatever order the sheet is already in, which is what keeps spend attribution
+ * matching what the user sees.
+ */
+export function comparePlannedBanners(
+	a: BannerTargetFields,
+	b: BannerTargetFields
+): number {
+	const startTime = (banner: BannerTargetFields): number => {
+		const start = plannedBannerTimeline(banner)?.start_date
+		return start ? new Date(start).getTime() : Infinity
+	}
+	const byStart = startTime(a) - startTime(b)
+	// Infinity - Infinity is NaN, which would corrupt the sort. Two undated rows
+	// are tied, so fall through to the rank rather than returning the NaN.
+	if (byStart !== 0 && !Number.isNaN(byStart)) return byStart
+	return plannedBannerOrderRank(a) - plannedBannerOrderRank(b)
+}
+
+/**
  * What kind of row this is, whether or not it has picked a banner yet.
  *
  * Distinct from `plannedBannerTarget`: a staged row that hasn't chosen a banner
