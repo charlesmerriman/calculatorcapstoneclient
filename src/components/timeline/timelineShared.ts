@@ -159,6 +159,10 @@ export interface TimelineMarker {
 	key: string
 	kind: "scenario" | "anniversary"
 	name: string
+	/**
+	 * For an anniversary this is its `main_start_date`, so the card lands on the
+	 * anniversary rather than on the Part 1 run-up that opens the campaign.
+	 */
 	startDate: string
 	/** Null for scenarios — they have no end. */
 	endDate: string | null
@@ -297,7 +301,12 @@ export function buildTimelineMarkers(
 	}
 
 	for (const event of anniversaryEvents) {
-		if (!event.start_date) continue
+		// Where the event ITSELF falls, so the card sits beside the anniversary
+		// banner rather than ten days earlier beside the Part 1 run-up. The
+		// fallback covers campaign kinds with no separate main part, for which
+		// the backend resolves both to the same instant.
+		const startDate = event.main_start_date ?? event.start_date
+		if (!startDate) continue
 		// `event_type: "campaign"` is the one-off-promotion catch-all — today only
 		// the Trainer Support Pack, a permanently purchasable bundle. It marks no
 		// moment on the calendar, so it gets no card, exactly as it gets no band
@@ -307,7 +316,10 @@ export function buildTimelineMarkers(
 			key: `ann-${event.id}`,
 			kind: "anniversary",
 			name: event.name,
-			startDate: event.start_date,
+			startDate,
+			// Deliberately NOT the main part's own end. The card reads "<the
+			// anniversary opens> through <the campaign closes>", which is the
+			// true span a player can still buy packs and pull the later parts in.
 			endDate: event.end_date,
 			image: event.image,
 			isPredicted: event.is_predicted,

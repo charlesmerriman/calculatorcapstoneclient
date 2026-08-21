@@ -60,6 +60,25 @@ export interface AnniversaryEvent {
 	 */
 	start_date: string | null
 	end_date: string | null
+	/**
+	 * When the event this campaign is NAMED AFTER actually begins — as opposed
+	 * to `start_date`, which is when the campaign opens.
+	 *
+	 * They differ for anniversaries, which run a Part 1 of login rewards
+	 * announcing the anniversary before the anniversary proper starts at Part 2
+	 * (JP 02-24 / 08-24, the game's launch date). About ten days apart.
+	 *
+	 * Prefer this over `start_date` for anything that PLACES the campaign on a
+	 * calendar — the planner's section bands, the timeline's campaign card — and
+	 * for the instant a purchase's paid carats are credited. `start_date` and
+	 * `end_date` remain the campaign's whole window, which is what a range
+	 * describing the campaign should say.
+	 *
+	 * Always inside that window, and never null when `start_date` isn't. Older
+	 * campaign kinds resolve it to the same instant as `start_date`, so a
+	 * `?? start_date` fallback is safe for a payload predating the field.
+	 */
+	main_start_date: string | null
 	is_predicted: boolean
 	applied_offset_days: number
 	products: AnniversaryEventProduct[]

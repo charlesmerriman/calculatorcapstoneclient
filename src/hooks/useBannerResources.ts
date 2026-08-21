@@ -136,7 +136,10 @@ export function useBannerResources({
 		)
 
 		// Campaign purchases, resolved to the instant they are credited: the
-		// campaign's resolved START, because packs go on sale when it opens.
+		// campaign's MAIN part start — the anniversary itself, not the Part 1
+		// run-up that opens the campaign, because that is when the packs go on
+		// sale. Its SELECTOR TICKETS are the exception and are banked up front;
+		// see the note below them.
 		const productsById = new Map(
 			anniversaryEventData.flatMap((event) =>
 				event.products.map((product) => [product.id, { product, event }] as const)
@@ -145,7 +148,8 @@ export function useBannerResources({
 		const purchaseCredits = userStatsData.include_purchases_in_projection
 			? userPlannedPurchaseData.flatMap((purchase) => {
 					const entry = productsById.get(purchase.product)
-					const startDate = entry?.event.start_date
+					const startDate =
+						entry?.event.main_start_date ?? entry?.event.start_date
 					if (!entry || !startDate) return []
 					const quantity = Math.max(0, purchase.quantity)
 					if (quantity === 0) return []

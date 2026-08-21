@@ -52,7 +52,11 @@ function anniversary(
 	id: number,
 	name: string,
 	start: string | null,
-	eventType: AnniversaryEvent['event_type'] = 'anniversary'
+	eventType: AnniversaryEvent['event_type'] = 'anniversary',
+	// Defaults to the opening date, which is exactly what the backend resolves
+	// for a campaign with no separate main part. Pass it to model an anniversary
+	// whose Part 1 run-up opens before the anniversary itself.
+	mainStart: string | null = start
 ): AnniversaryEvent {
 	return {
 		id,
@@ -62,6 +66,7 @@ function anniversary(
 		image: null,
 		accent_label: '',
 		start_date: start,
+		main_start_date: mainStart,
 		end_date: start,
 		is_predicted: false,
 		applied_offset_days: 0,
@@ -151,6 +156,51 @@ describe('buildPlannerRows placement', () => {
 			'row:2@1',
 			'row:3@2',
 		])
+	})
+
+	it('places an anniversary at its MAIN part, not at its Part 1 run-up', () => {
+		// An anniversary opens with a Part 1 of login rewards announcing itself,
+		// then the anniversary proper starts at Part 2 about ten days later. The
+		// band marks the anniversary, so it must clear the run-up row.
+		const rows = buildPlannerRows(
+			[
+				row(1, '2028-01-01T00:00:00Z'),
+				row(2, '2028-04-21T00:00:00Z'), // Part 1 — Tsurumaru Tsuyoshi
+				row(3, '2028-04-30T00:00:00Z'), // Part 2 — Orfevre, the anniversary
+				row(4, '2028-09-01T00:00:00Z'),
+			],
+			[],
+			[
+				anniversary(
+					1,
+					'4th Anniversary',
+					'2028-04-21T00:00:00Z',
+					'anniversary',
+					'2028-04-30T00:00:00Z'
+				),
+			]
+		)
+		expect(shape(rows)).toEqual([
+			'row:1@0',
+			'row:2@1',
+			'band:4th Anniversary',
+			'row:3@2',
+			'row:4@3',
+		])
+	})
+
+	it('falls back to the opening when a campaign has no separate main part', () => {
+		// New Year campaigns and one-off promotions resolve main_start_date to the
+		// same instant as start_date, so placement is unchanged for them.
+		const rows = buildPlannerRows(
+			[
+				row(1, '2028-01-01T00:00:00Z'),
+				row(2, '2028-05-01T00:00:00Z'),
+			],
+			[],
+			[anniversary(1, 'New Years 2026', '2028-04-01T00:00:00Z', 'new_year')]
+		)
+		expect(shape(rows)).toEqual(['row:1@0', 'band:New Years 2026', 'row:2@1'])
 	})
 
 	it('shows a band for a campaign the user planned no banner for', () => {
