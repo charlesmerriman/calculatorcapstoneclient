@@ -333,6 +333,95 @@ describe('result shape', () => {
   })
 })
 
+describe('campaign purchase crediting', () => {
+  /**
+   * A campaign whose Part 1 run-up opens on `openDay` and whose anniversary
+   * proper starts on `mainDay`, selling one 7500-carat pack.
+   *
+   * The two dates are what this block is about: `start_date` is when the
+   * campaign opens, `main_start_date` is when the anniversary actually is, and
+   * the packs go on sale with the anniversary.
+   */
+  function campaign(openDay: number, mainDay: number): AnniversaryEvent {
+    return {
+      id: 1,
+      name: '4th Anniversary',
+      event_type: 'anniversary',
+      jp_cutoff_date: null,
+      image: null,
+      accent_label: '',
+      start_date: daysFromNow(openDay, 'T22:00:00Z'),
+      main_start_date: daysFromNow(mainDay, 'T22:00:00Z'),
+      end_date: daysFromNow(mainDay + 30),
+      is_predicted: false,
+      applied_offset_days: 0,
+      products: [{
+        id: 50,
+        product_type: 'carat_pack',
+        name: '7500 Carat Pack',
+        usd_cost: 70,
+        paid_carat_amount: 7500,
+        webstore_multiplier: 1,
+        max_quantity: 3,
+        jp_cutoff_date: null,
+        jp_cutoff_date_override: null,
+        order: 1,
+      }],
+      banner_parts: [],
+    }
+  }
+
+  const boughtOnePack: UserPlannedPurchase[] = [
+    { id: 1, user: 1, product: 50, quantity: 1 },
+  ]
+
+  const withPurchase = (event: AnniversaryEvent) => ({
+    anniversaryEventData: [event],
+    userPlannedPurchaseData: boughtOnePack,
+  })
+
+  it('credits paid carats at the MAIN part, not at the Part 1 run-up', () => {
+    // Banner 1 closes between the run-up opening (day 10) and the anniversary
+    // (day 20); banner 2 closes after it. Only banner 2 has the pack.
+    const results = render(
+      [umaBanner(1, 5, 15), umaBanner(2, 25, 40)],
+      { include_purchases_in_projection: true },
+      withPurchase(campaign(10, 20))
+    )
+    expect(results[0].paidCarats).toBe(0)
+    expect(results[1].paidCarats).toBe(7500)
+  })
+
+  it('would have credited the earlier banner had it kept the opening date', () => {
+    // The same plan with a campaign whose main part IS its opening — a New Year
+    // campaign's shape. This is the behaviour the anniversary case used to have,
+    // pinned here so the difference between the two is explicit rather than
+    // implied by the test above.
+    const results = render(
+      [umaBanner(1, 5, 15), umaBanner(2, 25, 40)],
+      { include_purchases_in_projection: true },
+      withPurchase(campaign(10, 10))
+    )
+    expect(results[0].paidCarats).toBe(7500)
+    expect(results[1].paidCarats).toBe(7500)
+  })
+
+  it('falls back to the opening date when main_start_date is absent', () => {
+    // A payload predating the field, or a campaign kind that never had a
+    // separate main part.
+    const legacy = {
+      ...campaign(10, 20),
+      main_start_date: null,
+    }
+    const results = render(
+      [umaBanner(1, 5, 15)],
+      { include_purchases_in_projection: true },
+      withPurchase(legacy)
+    )
+    expect(results[0].paidCarats).toBe(7500)
+  })
+})
+
 // ── Step-up rows ──────────────────────────────────────────────────────────────
 
 describe('step-up rows', () => {

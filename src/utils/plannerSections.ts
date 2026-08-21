@@ -21,7 +21,12 @@ export interface PlannerMarker {
 	key: string
 	kind: "scenario" | "anniversary"
 	name: string
-	/** ISO instant. Markers with no resolved start never become a marker at all. */
+	/**
+	 * ISO instant. Markers with no resolved start never become a marker at all.
+	 *
+	 * For an anniversary this is its `main_start_date` — where the anniversary
+	 * itself falls — not the campaign's opening. See the note on that field.
+	 */
 	startDate: string
 	/**
 	 * Scenario only — the banner it launched alongside. A scenario's start date
@@ -148,13 +153,19 @@ export function buildPlannerRows(
 	}
 	for (const event of anniversaryEvents) {
 		if (!bandsAsCampaign(event)) continue
-		const ms = startTime(event.start_date)
+		// The event's own start, not the campaign's opening: an anniversary
+		// spends its Part 1 announcing itself with login rewards, and the band
+		// marks where the anniversary actually lands. The fallback covers the
+		// campaign kinds with no separate main part, where the backend resolves
+		// the two to the same instant anyway.
+		const startDate = event.main_start_date ?? event.start_date
+		const ms = startTime(startDate)
 		if (ms === null || ms <= firstStart || ms > lastStart) continue
 		markers.push({
 			key: `anniversary-${event.id}`,
 			kind: "anniversary",
 			name: event.name,
-			startDate: event.start_date as string,
+			startDate: startDate as string,
 			bannerTimelineId: null,
 		})
 	}
