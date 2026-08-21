@@ -246,6 +246,14 @@ scenarios and anniversaries occurring between the first and last planned banner.
   first row starting on or after it. Markers landing at one point collapse into a single
   band, **scenarios above anniversaries** — they routinely launch together, and the
   scenario is the larger statement.
+- **An anniversary bands at its `main_start_date`, not its `start_date`.** The campaign
+  opens with a Part 1 of login rewards announcing the anniversary; the anniversary itself
+  is Part 2, roughly ten days later, and the band marks the event rather than the run-up.
+  The Timeline's campaign card (`EventMarkerCard`) places on the same date for the same
+  reason, so the two surfaces agree — it just also states the campaign's full window,
+  reading "<the anniversary opens> through <the campaign closes>". Read it as
+  `main_start_date ?? start_date`; the two are the same instant for New Year campaigns and
+  one-off promotions.
 - Bands are sheet-only; the staging area is a scratch space and gets none. A sheet of fewer
   than two rows gets none either — there is no "between".
 - Colour is the `--color-brand` token (`text-brand` / `bg-brand/10`), never a literal gold,

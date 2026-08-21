@@ -272,6 +272,7 @@ function campaign(
   eventType: AnniversaryEvent['event_type'] = 'anniversary',
 ): AnniversaryEvent {
   const day = String(id).padStart(2, '0')
+  const start = `2099-06-${day}T22:00:00Z`
   return {
     id,
     name,
@@ -279,7 +280,10 @@ function campaign(
     jp_cutoff_date: null,
     image: null,
     accent_label: '',
-    start_date: `2099-06-${day}T22:00:00Z`,
+    start_date: start,
+    // No separate run-up part here, which is what the backend resolves for a
+    // campaign whose Part 1 IS the event.
+    main_start_date: start,
     end_date: `2099-07-${day}T21:59:59Z`,
     is_predicted: false,
     applied_offset_days: 0,
@@ -938,7 +942,9 @@ describe('Timeline category filter', () => {
     scenarios = [scenario(1, 'Grand Masters')]
     campaigns = [
       campaign(1, 'Trainer Support Pack', 'campaign'),
-      { ...campaign(2, 'Undated Campaign'), start_date: null },
+      // BOTH dates null, which is how the backend resolves a campaign with no
+      // dated parts -- main_start_date is null exactly when start_date is.
+      { ...campaign(2, 'Undated Campaign'), start_date: null, main_start_date: null },
     ]
     render(<Timeline />)
 

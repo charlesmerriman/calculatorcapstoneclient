@@ -298,6 +298,9 @@ describe('buildTimelineMarkers', () => {
     name: string,
     start: string | null,
     end: string | null,
+    // Defaults to the opening date, matching what the backend resolves for a
+    // campaign with no separate main part.
+    mainStart: string | null = start,
   ): AnniversaryEvent => ({
     id,
     name,
@@ -306,6 +309,7 @@ describe('buildTimelineMarkers', () => {
     image: null,
     accent_label: '',
     start_date: start,
+    main_start_date: mainStart,
     end_date: end,
     is_predicted: false,
     applied_offset_days: 0,
@@ -328,6 +332,49 @@ describe('buildTimelineMarkers', () => {
       [campaign(8, '4th', '2028-05-01T00:00:00Z', '2028-05-26T00:00:00Z')],
     )
     expect(marker.endDate).toBe('2028-05-26T00:00:00Z')
+  })
+
+  it('dates a campaign card from its MAIN part, through the campaign end', () => {
+    // The card sits where the anniversary actually is (Part 2), and reads
+    // "<anniversary opens> through <campaign closes>" — the span in which a
+    // player can still buy the packs and pull the later parts.
+    const [marker] = buildTimelineMarkers(
+      [],
+      [campaign(
+        11,
+        '4th Anniversary',
+        '2028-04-21T00:00:00Z', // Part 1 run-up opens the campaign
+        '2028-05-29T00:00:00Z', // Part 4 closes it
+        '2028-04-30T00:00:00Z', // Part 2 IS the anniversary
+      )],
+    )
+    expect(marker.startDate).toBe('2028-04-30T00:00:00Z')
+    expect(marker.endDate).toBe('2028-05-29T00:00:00Z')
+  })
+
+  it('sorts a campaign into the stream by its main part', () => {
+    // The run-up opens before the banner window, the anniversary starts after
+    // it. Placing on start_date would put the card above that window instead.
+    const rows = mergeTimelineMarkers(
+      [{
+        kind: 'banner_window',
+        group: {
+          start_date: '2028-04-25T00:00:00Z',
+          end_date: '2028-04-25T00:00:00Z',
+          is_predicted: false,
+          banners: [],
+          anniversary_event: null,
+        } as unknown as BannerWindowGroup,
+      }],
+      buildTimelineMarkers([], [campaign(
+        11,
+        '4th Anniversary',
+        '2028-04-21T00:00:00Z',
+        '2028-05-29T00:00:00Z',
+        '2028-04-30T00:00:00Z',
+      )]),
+    )
+    expect(rows.map((r) => r.kind)).toEqual(['banner_window', 'marker'])
   })
 
   it('never makes a card for a one-off promotion', () => {

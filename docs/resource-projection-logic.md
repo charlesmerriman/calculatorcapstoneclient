@@ -120,7 +120,7 @@ Each is a closed form from `today` to the banner's end date `E`.
 | Misc earnings | Daily drip after a ramp-in; **monthly** figure ÷ 30 | `AV42` |
 | Event lump rewards | Ledger rows with `now ≤ date ≤ E` | `AL42` |
 | Throughout carats | Decay curve, evaluated once from today | `AL43` |
-| Campaign purchases | Paid carats, credited at the campaign's resolved start | `AM42`/`AY42` |
+| Campaign purchases | Paid carats, credited at the campaign's resolved **main part** start | `AM42`/`AY42` |
 
 **The daily rate is blended, not day-by-day.** The legacy engine walked each day
 and added the bonus on specific weekdays, phased off `today`. Same long-run rate,
@@ -204,6 +204,13 @@ figure dripped as `monthly / 30`.
 - **Overplanning is reported, not clamped** — the debt cascades to later banners.
 - **Uma tickets only offset uma pulls; support tickets only support pulls.** No
   cross-substitution.
+- **A campaign's paid carats credit at its MAIN part, not at its opening.** An
+  anniversary spends its Part 1 announcing itself with login rewards; the packs
+  go on sale with the anniversary proper, which is Part 2 and about ten days
+  later. `main_start_date` on the wire carries that instant, and `start_date` /
+  `end_date` remain the campaign's whole window. Only `anniversary` campaigns
+  have a run-up — for every other kind the backend resolves the two to the same
+  instant, so `main_start_date ?? start_date` is always the right read.
 - **Selector tickets are banked up front**, outside the pass, and never fund a
   pull. A selector isn't spent at a banner — it takes a card from the back
   catalogue, which stays available after its banner ends. What constrains it is
