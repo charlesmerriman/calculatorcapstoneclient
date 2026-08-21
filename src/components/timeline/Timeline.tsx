@@ -18,11 +18,14 @@ import { EventMarkerCard } from "./EventMarkerCard"
 import {
 	CATEGORY_LABELS,
 	CATEGORY_ORDER,
+	MARKER_LABELS,
+	MARKER_ORDER,
 	buildTimelineMarkers,
 	groupTimelineEvents,
 	mergeTimelineMarkers,
 	timelineRowKey,
 } from "./timelineShared"
+import type { TimelineMarker } from "./timelineShared"
 import { isRaceEvent } from "../../types"
 import type {
 	BannerCategory,
@@ -126,10 +129,31 @@ const categorySelectClass =
 	"inline-flex min-h-10 items-center rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-100 shadow-sm transition hover:border-gray-500 hover:bg-gray-700 focus:border-gray-500 focus:outline-none md:min-h-0 md:py-1.5"
 
 /**
- * The category filter's value. `"all"` is not a category — it's the absence of
- * the filter, and the only value that keeps race events in the list.
+ * The filter's value: the absence of a filter, a banner category, or a marker
+ * kind.
+ *
+ * Three sources in one string, which is what a `<select>` gives you, so the two
+ * real axes have to stay tellable apart. Marker kinds are namespaced with a
+ * `marker:` prefix rather than sitting bare alongside the categories — a
+ * scenario has no `banner_category` and never will, and an unprefixed
+ * `"scenario"` would be one added BannerCategory away from quietly meaning both
+ * things at once. The prefix also makes narrowing a string test instead of a
+ * membership check against a list that has to be kept in sync.
+ *
+ * `"all"` is neither axis: it's the only value that keeps race events, and the
+ * only one that shows banners and markers together.
  */
-type CategoryFilter = "all" | BannerCategory
+const MARKER_FILTER_PREFIX = "marker:"
+
+type MarkerFilter = `${typeof MARKER_FILTER_PREFIX}${TimelineMarker["kind"]}`
+type EventFilter = "all" | BannerCategory | MarkerFilter
+
+/** The marker kind a filter selects, or null when it selects banners. */
+function markerFilterKind(filter: EventFilter): TimelineMarker["kind"] | null {
+	return filter.startsWith(MARKER_FILTER_PREFIX)
+		? (filter.slice(MARKER_FILTER_PREFIX.length) as TimelineMarker["kind"])
+		: null
+}
 
 type PaginationControlsProps = {
 	currentPage: number
@@ -207,7 +231,7 @@ export const Timeline = () => {
 	// Not persisted, matching the search box and the past/future toggle: it's a
 	// question you're asking right now, not a preference. Only the view mode and
 	// the paged position survive leaving the route.
-	const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all")
+	const [eventFilter, setEventFilter] = useState<EventFilter>("all")
 	const [currentPage, setCurrentPage] = useState(readStoredPage)
 	const [viewMode, setViewMode] = useState<TimelineViewMode>(readStoredViewMode)
 	const [visibleCount, setVisibleCount] = useState(INFINITE_CHUNK_SIZE)
@@ -266,26 +290,17 @@ export const Timeline = () => {
 	// match. Everything downstream — paging, the reveal window, the counts —
 	// therefore measures ROWS (cards on screen), not raw events.
 	const timelineRows = useMemo(() => {
-		const rows = groupTimelineEvents(
-			organizedTimelineData
-				.filter((event) =>
-					showPast
-						? new Date(event.end_date) < today
-						: new Date(event.end_date) >= today
-				)
-				.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
-		)
-
-		if (categoryFilter === "all") {
-			// Markers merge in AFTER grouping, on the final row order — running
-			// earlier would let one land inside a window that later folds together.
-			//
-			// A scenario has no end date, so it can never be "over" the way a
-			// banner is. The past/future split classifies it on its start instant
-			// instead: once it has launched it belongs behind you in the calendar,
-			// even though it is still playable. That is a deliberate reading of an
-			// endless event, not an oversight.
-			const markers = buildTimelineMarkers(scenarioData, anniversaryEventData)
+		// Both filter values that show markers — "all" and a marker filter — want
+		// the same past/future and search passes first, so they live here rather
+		// than being written out at each branch.
+		//
+		// A scenario has no end date, so it can never be "over" the way a banner
+		// is. The past/future split classifies it on its start instant instead:
+		// once it has launched it belongs behind you in the calendar, even though
+		// it is still playable. That is a deliberate reading of an endless event,
+		// not an oversight.
+		const matchingMarkers = (): TimelineMarker[] =>
+			buildTimelineMarkers(scenarioData, anniversaryEventData)
 				.filter((marker) =>
 					showPast
 						? new Date(marker.startDate) < today
@@ -296,13 +311,41 @@ export const Timeline = () => {
 						searchQuery === "" ||
 						marker.name.toLowerCase().includes(searchQuery.toLowerCase())
 				)
-			return mergeTimelineMarkers(rows, markers)
+
+		// A marker filter drops the banner stream entirely, so it returns before
+		// any of the event work below: asking for scenarios means asking for
+		// scenarios, not for the banners that happen to open alongside them.
+		// Merging into an empty row list is just the chronological sort — there
+		// is nothing left to splice between.
+		const markerKind = markerFilterKind(eventFilter)
+		if (markerKind !== null) {
+			return mergeTimelineMarkers(
+				[],
+				matchingMarkers().filter((marker) => marker.kind === markerKind)
+			)
 		}
 
-		// Markers are deliberately absent under a category filter: they are
+		const rows = groupTimelineEvents(
+			organizedTimelineData
+				.filter((event) =>
+					showPast
+						? new Date(event.end_date) < today
+						: new Date(event.end_date) >= today
+				)
+				.filter((event) => searchQuery === "" || eventMatchesSearch(event, searchQuery))
+		)
+
+		if (eventFilter === "all") {
+			// Markers merge in AFTER grouping, on the final row order — running
+			// earlier would let one land inside a window that later folds together.
+			return mergeTimelineMarkers(rows, matchingMarkers())
+		}
+
+		// Markers are deliberately absent under a BANNER CATEGORY filter: they are
 		// cross-cutting context rather than banners, so a scenario card stranded
-		// in a list of reruns would answer a question nobody asked. Race events
-		// drop out below for the same reason.
+		// in a list of reruns would answer a question nobody asked. The marker
+		// filters above are how you ask for them. Race events drop out below for
+		// the same reason.
 		//
 		// Applied AFTER grouping, and a group survives if ANY constituent matches.
 		// Filtering the events first would drop the ordinary banner that shares a
@@ -314,7 +357,7 @@ export const Timeline = () => {
 		return rows.filter(
 			(row) =>
 				row.kind === "banner_window" &&
-				row.group.banners.some((banner) => banner.banner_category === categoryFilter)
+				row.group.banners.some((banner) => banner.banner_category === eventFilter)
 		)
 	}, [
 		organizedTimelineData,
@@ -322,7 +365,7 @@ export const Timeline = () => {
 		anniversaryEventData,
 		showPast,
 		searchQuery,
-		categoryFilter,
+		eventFilter,
 		today,
 	])
 
@@ -336,6 +379,21 @@ export const Timeline = () => {
 		}
 		return CATEGORY_ORDER.filter((category) => present.has(category))
 	}, [organizedTimelineData])
+
+	// Same rule, one axis over: only offer a marker kind the data can actually
+	// produce a card for. Asked of buildTimelineMarkers rather than counted off
+	// scenarioData/anniversaryEventData directly, because it is the authority on
+	// what earns a card — it drops the undated, and drops `event_type:
+	// "campaign"` rows outright (the Trainer Support Pack marks no moment on the
+	// calendar). Re-deriving those exclusions here is how the option list and the
+	// list it filters drift apart.
+	const availableMarkerKinds = useMemo(() => {
+		const present = new Set<TimelineMarker["kind"]>()
+		for (const marker of buildTimelineMarkers(scenarioData, anniversaryEventData)) {
+			present.add(marker.kind)
+		}
+		return MARKER_ORDER.filter((kind) => present.has(kind))
+	}, [scenarioData, anniversaryEventData])
 
 	const totalPages = Math.max(1, Math.ceil(timelineRows.length / PAGE_SIZE))
 
@@ -472,27 +530,46 @@ export const Timeline = () => {
 					    view-mode toggles on the far side of the bar. */}
 					<div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end md:w-auto md:justify-self-end">
 						{/* Hidden only when there is nothing to choose between — a
-						    single-option filter is just clutter. */}
-						{availableCategories.length > 1 && (
+						    single-option filter is just clutter. Counted across both
+						    axes: one banner category plus one marker kind is still a
+						    real choice. */}
+						{availableCategories.length + availableMarkerKinds.length > 1 && (
 							<>
-								<label className="sr-only" htmlFor="timeline-category-filter">
-									Filter by banner type
+								<label className="sr-only" htmlFor="timeline-event-filter">
+									Filter events
 								</label>
 								<select
-									id="timeline-category-filter"
+									id="timeline-event-filter"
 									className={`${categorySelectClass} w-full sm:w-auto`}
-									value={categoryFilter}
+									value={eventFilter}
 									onChange={(e) => {
-										setCategoryFilter(e.target.value as CategoryFilter)
+										setEventFilter(e.target.value as EventFilter)
 										resetListWindow()
 									}}
 								>
 									<option value="all">All events</option>
-									{availableCategories.map((category) => (
-										<option key={category} value={category}>
-											{CATEGORY_LABELS[category]}
-										</option>
-									))}
+									{/* Grouped, because the two lists answer different
+									    questions and a flat run of options would read as one
+									    list of banner categories with two odd entries at the
+									    end. The headings are the axis names. */}
+									{availableCategories.length > 0 && (
+										<optgroup label="Banner type">
+											{availableCategories.map((category) => (
+												<option key={category} value={category}>
+													{CATEGORY_LABELS[category]}
+												</option>
+											))}
+										</optgroup>
+									)}
+									{availableMarkerKinds.length > 0 && (
+										<optgroup label="Other events">
+											{availableMarkerKinds.map((kind) => (
+												<option key={kind} value={`${MARKER_FILTER_PREFIX}${kind}`}>
+													{MARKER_LABELS[kind]}
+												</option>
+											))}
+										</optgroup>
+									)}
 								</select>
 							</>
 						)}

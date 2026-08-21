@@ -76,8 +76,12 @@ export const EventMarkerCard = ({ marker }: { marker: TimelineMarker }) => {
 			 * Capped on WIDTH and never on height: the art is 16:9, and a height
 			 * clamp on a definite percentage width squashes the picture rather
 			 * than fitting it. Same rule as the banner art.
+			 *
+			 * Centred, because a marker card has no featured-card panels — the art
+			 * is the only thing in the row, so there is no column edge to align its
+			 * left side to. Same call as BANNER_ART_ALONE in BannerWindowCard.
 			 */}
-			<div className="max-w-[41rem]">
+			<div className="mx-auto max-w-[41rem]">
 				{marker.image ? (
 					<img
 						src={marker.image}

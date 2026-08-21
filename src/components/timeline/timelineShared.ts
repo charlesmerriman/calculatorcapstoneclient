@@ -70,6 +70,27 @@ export const CATEGORY_ORDER: BannerCategory[] = [
 ]
 
 /**
+ * Display names for the marker kinds, as the filter offers them.
+ *
+ * Deliberately a SEPARATE map from CATEGORY_LABELS rather than four more
+ * entries in it. A marker kind is a different axis from a banner category — a
+ * scenario has no `banner_category` and never will — and folding them into one
+ * record would blur that boundary the same way merging `banner_type` and
+ * `banner_category` does.
+ *
+ * The words are EventMarkerCard's chips, pluralised ("New scenario" reads as an
+ * announcement on a card and as a miscount in a dropdown). A reader filtering
+ * for "Campaigns" has to recognise the cards that come back.
+ */
+export const MARKER_LABELS: Record<TimelineMarker["kind"], string> = {
+	scenario: "Scenarios",
+	anniversary: "Campaigns",
+}
+
+/** Filter order, matching how the two kinds sort against each other. */
+export const MARKER_ORDER: TimelineMarker["kind"][] = ["scenario", "anniversary"]
+
+/**
  * Banners that open at the same moment, presented as one timeline card.
  *
  * The game regularly runs two banners concurrently — most visibly the Golden
