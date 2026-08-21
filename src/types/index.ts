@@ -84,6 +84,8 @@ export type {
 	LocalPlannedPurchase
 } from "./anniversary"
 
+export type { Scenario } from "./scenario"
+
 export {
 	isSavedPurchase,
 	isLocalPurchase,

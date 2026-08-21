@@ -26,6 +26,7 @@ import type {
 import type { UserStats, UserPlannedBanner, UserStepUpSelection } from "./user"
 import type { GameEvent, ChampionsMeeting, LeagueOfHeroes, RaceEvent } from "./events"
 import type { AnniversaryEvent, UserPlannedPurchase } from "./anniversary"
+import type { Scenario } from "./scenario"
 import type { IncomeLedgerRow } from "./ledger"
 import type { CalculationConstants } from "./constants"
 
@@ -49,6 +50,8 @@ export interface CalculatorData {
 	banner_timeline_data: BannerTimelineForViewing[]
 	/** Public reference data — campaigns and their purchasable products. */
 	anniversary_event_data: AnniversaryEvent[]
+	/** Public reference data — training scenarios. Markers only, no resources. */
+	scenario_data: Scenario[]
 	/** User-scoped; `[]` for guests, same as user_planned_banner_data. */
 	user_planned_purchase_data: UserPlannedPurchase[]
 	/** User-scoped. The ten cards picked at each step-up; `[]` for guests. */
@@ -126,6 +129,7 @@ export interface CalculatorContextType {
 	userPlannedBannerData: UserPlannedBanner[]
 	stagedBanners: UserPlannedBanner[]
 	anniversaryEventData: AnniversaryEvent[]
+	scenarioData: Scenario[]
 	userPlannedPurchaseData: UserPlannedPurchase[]
 	userStepUpSelectionData: UserStepUpSelection[]
 	incomeLedger: IncomeLedgerRow[]

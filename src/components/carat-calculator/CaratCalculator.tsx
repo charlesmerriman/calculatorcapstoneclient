@@ -1,4 +1,5 @@
 import type React from "react"
+import { useMemo } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
@@ -6,6 +7,8 @@ import { BannerRow } from "./BannerRow"
 import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
+import { PlannerSectionBand } from "./PlannerSectionBand"
+import { buildPlannerRows } from "../../utils/plannerSections"
 import { EMPTY_BANNER_RESOURCES } from "../../hooks/bannerResources"
 import { useBannerResources } from "../../hooks/useBannerResources"
 import {
@@ -31,6 +34,7 @@ export const CaratCalculator: React.FC = () => {
 		userPlannedBannerData,
 		stagedBanners,
 		anniversaryEventData,
+		scenarioData,
 		userPlannedPurchaseData,
 		incomeLedger,
 		calculationConstants,
@@ -50,6 +54,16 @@ export const CaratCalculator: React.FC = () => {
 		incomeLedger,
 		constants: calculationConstants,
 	})
+
+	// The sheet's render list: the same rows, with section bands interleaved for
+	// the scenarios and anniversaries falling between the first and last banner.
+	// Each row keeps its ORIGINAL index — bannerResources is positional against
+	// userPlannedBannerData, so reading it by position in THIS list would
+	// silently mis-attribute every row's resources once a band appears.
+	const plannerRows = useMemo(
+		() => buildPlannerRows(userPlannedBannerData, scenarioData, anniversaryEventData),
+		[userPlannedBannerData, scenarioData, anniversaryEventData]
+	)
 
 	if (!userStatsData) {
 		return <div>Loading...</div>
@@ -260,8 +274,25 @@ export const CaratCalculator: React.FC = () => {
 										</div>
 										<div className="space-y-3 @banner-table:space-y-0 @banner-table:divide-y @banner-table:divide-gray-700">
 											<AnimatePresence initial={false}>
-												{userPlannedBannerData.map((plannedBanner, index) => {
-													const resources = bannerResources[index] ?? EMPTY_BANNER_RESOURCES
+												{plannerRows.map((plannerRow) => {
+													if (plannerRow.kind === "band") {
+														return (
+															<motion.div
+																key={plannerRow.key}
+																layout
+																initial={{ opacity: 0, y: -6 }}
+																animate={{ opacity: 1, y: 0 }}
+																exit={{ opacity: 0, y: -6 }}
+																transition={{ duration: 0.18 }}
+															>
+																<PlannerSectionBand markers={plannerRow.markers} />
+															</motion.div>
+														)
+													}
+
+													const plannedBanner = plannerRow.banner
+													const resources =
+														bannerResources[plannerRow.index] ?? EMPTY_BANNER_RESOURCES
 
 													return (
 														<motion.div
