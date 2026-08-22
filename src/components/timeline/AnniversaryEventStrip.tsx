@@ -2,6 +2,7 @@ import { Link } from "react-router-dom"
 import { ArrowUpRight, Sparkles } from "lucide-react"
 import type { AttachedAnniversaryEvent, BannerStepUpSummary } from "../../types"
 import { formatStepUpChip } from "./timelineShared"
+import { selectorsCampaignHref } from "../../utils/selectorsFocus"
 
 /**
  * The band that sits flush on top of a banner card when that banner is part of
@@ -66,8 +67,11 @@ export const AnniversaryEventStrip = ({
 					{stepUpChip}
 				</span>
 			)}
+			{/* Named, not bare: the Selectors page lists every upcoming campaign,
+			    so a link with no target lands the reader at the top of a page of
+			    near-identical cards to hunt for the one they just clicked. */}
 			<Link
-				to="/app/selectors"
+				to={selectorsCampaignHref(event.id)}
 				className="ml-auto flex items-center gap-1 text-xs font-semibold underline-offset-2 hover:underline"
 			>
 				Plan purchases

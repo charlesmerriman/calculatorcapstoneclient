@@ -140,6 +140,15 @@ A step-up has no featured cards to thumbnail, so its images cell falls back to a
 typographic `★3` / `SSR` chip carrying the campaign's JP cutoff. Phone cards spell the
 cutoff out in the dates block, which has vertical room the `h-16` desktop track does not.
 
+**The images cell is a link to the row's banner window on the Timeline** — on every row
+kind including step-ups and staged rows, and inert only on a row with no banner picked
+yet. See "Deep links from the sheet to the Timeline". The `<Link>` carries the cell's own
+flex box so it adds no width (`--container-banner-table` does not move for it), and it is
+*inside* the `relative` cell, which is what keeps `ExtraCardsBadge`'s absolute positioning
+resolving against the cell as before. On phone cards the href is passed to
+`MobileBannerCard` rather than the caller wrapping `imagesSlot`, because the ordinary rows
+render their thumbnails inside that component and never go through the slot.
+
 ### The banner table: one width token, and it must never scroll
 
 `.banner-grid` in `App.css` owns every column width in the desktop banner table. Both
@@ -234,6 +243,18 @@ neighbouring "Dates"/"Pulls" labels are 10px caps.
 scenarios and anniversaries occurring between the first and last planned banner.
 `utils/plannerSections.ts` builds the render list.
 
+- **Scenario bands only — `SCENARIO_BANDS_ONLY`, a constant, not a setting.** There is no
+  UI to turn anniversary bands on. A scenario launch changes how the game is played, which
+  is the landmark a planner navigates by; anniversaries recur on a schedule the user
+  already knows, and banding them doubles the number of interruptions in the sheet.
+- **`buildPlannerRows` filters by kind BEFORE placement**, via its optional fourth argument
+  (`PlannerBandVisibility`, a `Record` keyed on marker kind so a new kind can't be added
+  without a decision). Filtering after placement would leave a scenario rendering as the
+  second line of a band whose anniversary first line had been hidden. Told nothing, the
+  builder builds everything; the call site states which kinds ship. That parameter and its
+  tests are what make a future settings surface a matter of passing a different record
+  rather than reworking placement.
+
 - **The band is not `.banner-grid` and adds no track.** It spans the row stack as a plain
   `w-full` block, which is what keeps `--container-banner-table` (and its hard ceiling)
   out of it. That also means one component serves both display modes — the stack renders
@@ -254,11 +275,24 @@ scenarios and anniversaries occurring between the first and last planned banner.
   reading "<the anniversary opens> through <the campaign closes>". Read it as
   `main_start_date ?? start_date`; the two are the same instant for New Year campaigns and
   one-off promotions.
+- **Each line links to the same landmark's card on the Timeline** (see "Deep links from the
+  sheet to the Timeline" below). The whole strip is the anchor, not the label — the row is
+  otherwise empty, so a text-width target in a full-width band is needlessly hard to hit —
+  and the affordance is a hover underline plus a faint wash, with **no arrow glyph**: the
+  one thing distinguishing a scenario line from an anniversary one is having no icon.
 - Bands are sheet-only; the staging area is a scratch space and gets none. A sheet of fewer
   than two rows gets none either — there is no "between".
 - Colour is the `--color-brand` token (`text-brand` / `bg-brand/10`), never a literal gold,
-  so it survives the light-theme flip. The two kinds differ by **weight and icon, not hue**
-  — see the note above on only the headline signal getting a colour.
+  so it survives the light-theme flip. The two kinds differ by **weight, hue and the
+  anniversary's sparkle** — a scenario line carries no icon at all — see the note above on
+  only the headline signal getting a colour.
+- **Strip fills alternate per DATE, not per line.** A band collapses markers by insertion
+  point, so it can hold two moments *or* two lines that are the same moment (a scenario
+  launching the day an anniversary lands — the common case, since scenarios usually debut
+  alongside one, and reachable again the moment anniversary bands are turned back on). One
+  fill therefore means "one date" and a change of fill means "a different one". Grouped on
+  the **UTC** calendar day, like everything else in the
+  projection, so the striping can't vary by the viewer's timezone.
 
 This is deliberately not `AnniversaryEventStrip`, whose `rounded-t-xl border-b-0` geometry
 exists to weld onto the top of a timeline card and which is left-aligned.
@@ -459,16 +493,21 @@ the fetch hasn't resolved on the first render, and resetting state there would b
 the wrong list and permanently discard the saved position. Search text and the past/future
 toggle deliberately do *not* persist.
 
-### Infinite scroll — the `visibleCount` dependency is intentional
+### Infinite scroll — the reveal-count dependency is intentional
 
 The list reveals `INFINITE_CHUNK_SIZE` more cards each time a 1px sentinel `div` at the
 end of the list comes within `INFINITE_ROOT_MARGIN` of the viewport.
 
-**The effect that owns the `IntersectionObserver` lists `visibleCount` in its dependencies
+**The effect that owns the `IntersectionObserver` lists `revealCount` in its dependencies
 on purpose.** An observer fires only on a *change* in intersection, so one left attached
 across an append goes silent while the sentinel is still on screen — and the list stalls
 one chunk in. That's the failure mode on tall viewports, where a chunk doesn't fill the
 fold. Rebuilding the observer per append forces a fresh evaluation.
+
+`revealCount`, not the raw `visibleCount` state, because a deep link can widen the
+revealed prefix without touching that state — see "Deep links from the sheet to the
+Timeline". `revealMore` measures from the same value, which is what keeps every append
+visible and so keeps this dependency changing on every one of them.
 
 Guarded by `src/__tests__/Timeline.test.tsx`, whose fake observer fires each instance
 **once**. A more permissive fake lets that regression through silently — see Testing below.
@@ -498,6 +537,90 @@ card per campaign with no filtering.
   its first banner's id so the key survives the API reordering banners inside a group.
 - Card images carry `loading="lazy"`; a banner card holds up to five, so a fully-revealed
   list is several hundred.
+- **Every timeline image DECLARES its aspect ratio, and this is not decoration.** Banner,
+  marker and race art are `aspect-[16/9]`, uma tiles `aspect-square`, support tiles
+  `aspect-[3/4]` — measured across the live CDN (1024×576 / 680×383, 360×360, 450×600,
+  no exceptions). A lazy image with only `h-auto` is 0px tall until it decodes and then
+  snaps to full height: eight banner images measured in Chrome moved the content below
+  them by **2952px**, so a seventy-card reveal shifts by some 26,000px while you read.
+  That is what made the deep-link scroll below unable to arrive. `object-contain` rides
+  along with each ratio so an asset that is ever *not* that shape letterboxes instead of
+  stretching — the same distortion the width-cap rule above is about, from the other side.
+- **`BannerArtPlaceholder` holds the same 16:9 box**, not a min-height of its own. A
+  stand-in of a different height still moves the page when the real art arrives.
+
+### Deep links from the sheet to the Timeline
+
+`/app/timeline?focus=<kind>-<id>`, built by `timelineFocusHref` and parsed by
+`parseTimelineFocus` in `utils/timelineFocus.ts`. The calculator's scenario bands and its
+rows' card art both link through it; the Timeline resolves the target.
+
+- **Why not a `#hash`.** The Timeline windows its list (ten cards a page, or a growing
+  prefix under infinite scroll) and hides past events by default, so the element a browser
+  would scroll to is usually not in the DOM. The link therefore *names* a target and the
+  route widens its own window to reach it.
+- **The id is a `BannerTimeline`**, never the `BannerUma` / `BannerSupport` /
+  `BannerStepUp` a planner row points at. Concurrent banners merge into one card, and all
+  three row kinds carry the same `banner_timeline` FK, so it is the only id that identifies
+  a card from any of them. `rowMatchesFocus` matches a window by **any** banner inside it.
+- **Kind-prefixed, because ids are unique only within a model.** `banner` / `scenario` /
+  `anniversary`; the latter two are `TimelineMarker["kind"]` verbatim, so neither end needs
+  a translation table. Both marker types carry a `sourceId` for this — the primary key,
+  held separately from the React `key` rather than parsed back out of it.
+- **A malformed value degrades to "no focus".** It comes off the URL, where a user can edit
+  or truncate it. Note `Number("")` is `0` and `0` is an integer, so the parser requires a
+  *positive* id or `banner-` focuses primary key 0.
+- **Resolution is DERIVED, not pushed into state from an effect** — the past/future half
+  (`showPastOverride ?? focusIsPast ?? false`), the page, and the revealed prefix
+  (`revealCount`). Writing state once the data arrives commits the un-focused list first
+  and re-renders over it, which is the same flash `resetListWindow()` exists to avoid.
+  Only the `scrollIntoView` is an effect, because it is a genuine DOM side effect —
+  and it is guarded, since jsdom implements no `scrollIntoView` at all.
+- **The focus scroll is INSTANT, and then re-corrects until the page stops moving.**
+  Not a downgrade from the smooth scroll it replaced: `scrollIntoView` fixes its
+  destination when called, so anything growing above the target mid-animation leaves it
+  short — and because images are lazy, the animation itself drags the viewport past them
+  and triggers exactly those loads. It missed by more the further it travelled. Reserved
+  art boxes (above) remove the cause; the settle loop — `useFocusScroll`, shared with the
+  Selectors page — covers what a declared ratio cannot
+  predict — a heading that wraps, a font that swaps, a panel that renders late. It
+  re-aligns each frame until the target's `top` holds within `SETTLE_TOLERANCE_PX` for
+  `SETTLE_STABLE_FRAMES`, or `SETTLE_TIMEOUT_MS` elapses. **A `wheel`, `touchstart` or
+  `keydown` abandons it immediately** — hauling the page back under a reader who has
+  taken over is just a different way of losing their place.
+- **`revealMore` measures from `revealCount`, not from `visibleCount`.** After a jump the
+  state still says 10 while 90 rows are on screen, and `count + 10` would append nothing
+  visible for eight scrolls running.
+- **Any control that moves or narrows the list clears the parameter** (`clearFocus`, called
+  from `goToPage`). The focus target overrides the current page, so holding on to it would
+  make "Next" look broken; dropping it also retires the arrival ring
+  (`TIMELINE_FOCUS_HIGHLIGHT`) at the moment the reader moves on.
+- **A target needs ROWS BELOW IT to be scrollable to the top.** `scrollIntoView` cannot
+  scroll past the bottom of a scroller, so a card with nothing under it stays wherever the
+  last scroll position leaves it whatever `block` says. `revealCount` therefore adds
+  `FOCUS_TRAILING_ROWS` (one whole chunk) *past* the target's own chunk — without it the
+  target is always in the LAST revealed chunk, with 0–9 rows beneath it, and the landing
+  looks intermittent because it depends on where the target falls inside that chunk.
+  Measured live: Project L'Arc (row 44, five rows below) landed correctly; Grand Masters
+  (row 19, last of its chunk) did not.
+- **`FOCUS_TAILROOM` covers the case revealing cannot** — a target within one
+  chunk of the end of the whole list, where there are no more rows to reveal. One screen
+  of `dvh` padding, rendered *only* then: permanent padding would put a screen of dead air
+  under every timeline, which is worse than the bug. Paged mode keeps a residual limit —
+  a page holds ten rows, so a target last on its page has nothing below it and no way to
+  reveal more.
+- **It lands on the card's TOP (`block: "start"`), not its middle**, offset by
+  `FOCUS_SCROLL_MARGIN` (`scroll-mt-6`). Cards are tall — banner art alone is
+  ~369px — so centring one put its heading halfway down the screen. The margin goes on
+  whichever node carries `focusRef`, which is *not* always the node wearing
+  `TIMELINE_FOCUS_HIGHLIGHT`: a banner window rings its panel but scrolls its wrapper, so
+  that the campaign strip above the panel comes into view too.
+- **One ref for the focused card**, handed to whichever card matches via `TimelineFocusProps`
+  — so there is no per-row ref bookkeeping and two cards cannot claim the highlight at once.
+  On `BannerWindowCard` the ref goes on the outer wrapper (so scrolling accounts for the
+  campaign strip) and the ring on the panel (whose rounding it has to follow).
+
+Covered by `src/__tests__/timelineFocus.test.ts` and the "Timeline deep links" suite.
 
 ### Marker cards: scenario launches and campaign openings
 
@@ -524,6 +647,31 @@ card per campaign with no filtering.
   step-up rows in the planner. Build and review the card with no image first.
 
 ---
+
+### Deep links from the Timeline to the Selectors page
+
+`/app/selectors?campaign=<AnniversaryEvent id>`, built by `selectorsCampaignHref` and read
+by `parseCampaignFocus` in `utils/selectorsFocus.ts`. A timeline banner belonging to a paid
+campaign wears an `AnniversaryEventStrip`, whose "Plan purchases" link is the only route
+from seeing a campaign to planning what you'd spend at it.
+
+- **The link must NAME its campaign.** It used to be a bare `/app/selectors`, which drops
+  the reader at the top of a page listing every upcoming campaign, to find the one they
+  just clicked among a stack of near-identical cards.
+- **No `kind` prefix, unlike `timelineFocus`.** That module prefixes because the Timeline
+  holds three sorts of target and a bare id would be ambiguous between them; this page
+  holds exactly one, so a kind would never discriminate anything.
+- **A plain `#hash` would not do**, even though this page renders every campaign at once
+  with no windowing: the browser acts on a hash only for a document it is loading, not for
+  a client-side route change, so the element it names does not exist when it would look.
+- **The target legitimately may not be here.** `useSelectorPlanner` drops campaigns whose
+  last banner has closed, so a link followed from the Timeline's *past* view resolves to
+  nothing. It degrades to the ordinary page, like a malformed timeline focus.
+- **Keyed on the resolved INDEX, not the raw id** — campaigns arrive after mount, so the
+  id is known one commit before the card it names exists.
+- Both pages share `hooks/useFocusScroll` (the instant scroll plus settle loop) and its
+  `FOCUS_SCROLL_MARGIN` / `FOCUS_TAILROOM` classes. A second copy would be a second place
+  for the two to drift apart.
 
 ## Selectors page (`components/selectors/`)
 

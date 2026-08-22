@@ -5,6 +5,8 @@ import { formatUsd } from "../../utils/formatCurrency"
 import { SelectorTargetPicker } from "./SelectorTargetPicker"
 import { StepUpSelectionStrip } from "./StepUpSelectionStrip"
 import type { PlannedCampaign, PlannedProduct } from "../../hooks/useSelectorPlanner"
+import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
+import type { RefObject } from "react"
 import type {
 	BannerUma,
 	BannerSupport,
@@ -25,6 +27,12 @@ interface CampaignCardProps {
 		target: { uma: number | null; support: number | null }
 	) => void
 	onStepUpSelectionChange: (next: UserStepUpSelection[]) => void
+	/**
+	 * Set on the ONE card a `?campaign=` deep link named, and absent on every
+	 * other — the page holds a single ref and hands it to whichever card
+	 * matches, so no card can claim it twice. See utils/selectorsFocus.
+	 */
+	focusRef?: RefObject<HTMLElement | null>
 }
 
 export const CampaignCard = ({
@@ -36,6 +44,7 @@ export const CampaignCard = ({
 	onQuantityChange,
 	onTargetChange,
 	onStepUpSelectionChange,
+	focusRef,
 }: CampaignCardProps) => {
 	const { event, lines, isUndated } = campaign
 	// Passed campaigns are removed before this component receives them. Undated
@@ -54,7 +63,10 @@ export const CampaignCard = ({
 	)
 
 	return (
-		<section className={`overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-sm ${locked ? "opacity-60" : ""}`}>
+		<section
+			ref={focusRef}
+			className={`overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-sm ${FOCUS_SCROLL_MARGIN} ${locked ? "opacity-60" : ""}`}
+		>
 			<div className="grid lg:grid-cols-[11.5rem_minmax(17rem,0.85fr)_minmax(22rem,1.35fr)]">
 				<header className="flex min-w-0 flex-col justify-center border-b border-gray-700 bg-gray-900/35 px-4 py-4 lg:border-b-0 lg:border-r">
 					<div className="flex flex-wrap items-center gap-2">

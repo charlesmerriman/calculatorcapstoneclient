@@ -1,6 +1,13 @@
+import { useRef } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Sparkles } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useSelectorPlanner } from "../../hooks/useSelectorPlanner"
+import { FOCUS_TAILROOM, useFocusScroll } from "../../hooks/useFocusScroll"
+import {
+	SELECTORS_CAMPAIGN_PARAM,
+	parseCampaignFocus,
+} from "../../utils/selectorsFocus"
 import { formatUsd } from "../../utils/formatCurrency"
 import { ToggleSwitch } from "../ToggleSwitch"
 import { CampaignCard } from "./CampaignCard"
@@ -34,6 +41,30 @@ export const Selectors = () => {
 		userPlannedPurchaseData,
 		userStatsData
 	)
+
+	// The campaign a timeline strip's "Plan purchases" link named, if any.
+	const [searchParams] = useSearchParams()
+	const focusCampaignId = parseCampaignFocus(searchParams.get(SELECTORS_CAMPAIGN_PARAM))
+	const focusCardRef = useRef<HTMLElement | null>(null)
+
+	// Where the target ended up, or -1 for one this page doesn't hold. That is
+	// a real case rather than a defensive one: the planner drops campaigns whose
+	// last banner has closed, so a link followed from the Timeline's PAST view
+	// points at a campaign that is deliberately not here. It degrades to the
+	// ordinary page, the same way a malformed timeline focus does.
+	const focusIndex =
+		focusCampaignId === null
+			? -1
+			: plan.campaigns.findIndex((campaign) => campaign.event.id === focusCampaignId)
+
+	// Keyed on the resolved index, not the raw id: the campaigns arrive after
+	// mount, so the id is known one commit before the card it names exists.
+	useFocusScroll(focusCardRef, focusIndex >= 0 ? focusIndex : null)
+
+	// Nothing below the last card to scroll against — see FOCUS_TAILROOM. Every
+	// campaign renders at once here, so unlike the Timeline there are no further
+	// rows to reveal instead.
+	const focusNeedsTailroom = focusIndex >= 0 && focusIndex === plan.campaigns.length - 1
 
 	if (!userStatsData) return null
 
@@ -160,10 +191,11 @@ export const Selectors = () => {
 				</p>
 			) : (
 				<div className="flex flex-col gap-4">
-					{plan.campaigns.map((campaign) => (
+					{plan.campaigns.map((campaign, index) => (
 						<CampaignCard
 							key={campaign.event.id}
 							campaign={campaign}
+							focusRef={index === focusIndex ? focusCardRef : undefined}
 							umaBannerData={umaBannerData}
 							supportBannerData={supportBannerData}
 							stepUpBannerData={stepUpBannerData}
@@ -175,6 +207,9 @@ export const Selectors = () => {
 					))}
 				</div>
 			)}
+
+			{/* Room to scroll the last card to the top. aria-hidden: nothing to read. */}
+			{focusNeedsTailroom && <div aria-hidden="true" className={FOCUS_TAILROOM} />}
 		</div>
 	)
 }
