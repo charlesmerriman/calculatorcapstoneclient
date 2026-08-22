@@ -47,6 +47,23 @@ interface StartResponse {
 	state: string
 }
 
+/**
+ * Where the provider should send the browser back to.
+ *
+ * Sent explicitly instead of letting the backend fall back to its own default,
+ * because under `npm run dev:live` this dev server talks to a DEPLOYED backend
+ * whose default is the deployed site — so a login started on localhost would
+ * finish over there, and you could never be signed in while looking at real
+ * content. Naming our own origin fixes that.
+ *
+ * This is a REQUEST, not an instruction: the backend checks it against a
+ * server-side allowlist and refuses anything unlisted, so a page cannot steer
+ * a login (or an authorization code) to an address of its choosing.
+ */
+function callbackUrl(): string {
+	return `${window.location.origin}/auth/callback`
+}
+
 export function isSocialProvider(value: unknown): value is SocialProvider {
 	return (
 		typeof value === "string" &&
@@ -93,10 +110,20 @@ function takePendingLogin(): PendingLogin | null {
  * Does not return in the success case — the page navigates away.
  */
 export async function startSocialLogin(provider: SocialProvider): Promise<void> {
-	const response = await fetch(`${API_URL}/auth/${provider}/start`)
+	const response = await fetch(
+		`${API_URL}/auth/${provider}/start?redirect_uri=${encodeURIComponent(callbackUrl())}`
+	)
 
 	if (!response.ok) {
-		throw new ApiError("Sign in is unavailable right now. Please try again later.")
+		// 400 is specifically "this origin isn't on that backend's allowlist".
+		// In practice that means dev:live against a deployment that hasn't set
+		// OAUTH_EXTRA_REDIRECT_URIS — worth naming, because the generic message
+		// sends you looking for an outage that isn't happening.
+		throw new ApiError(
+			response.status === 400
+				? `Sign in from ${window.location.origin} is not approved on this backend.`
+				: "Sign in is unavailable right now. Please try again later."
+		)
 	}
 
 	const data = (await response.json()) as StartResponse

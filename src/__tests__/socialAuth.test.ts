@@ -23,7 +23,7 @@ beforeEach(() => {
   // location is read-only in jsdom; replace just the method we call.
   Object.defineProperty(window, 'location', {
     configurable: true,
-    value: { ...window.location, assign: assignMock },
+    value: { ...window.location, origin: 'http://localhost:5173', assign: assignMock },
   })
 })
 
@@ -56,6 +56,37 @@ describe('startSocialLogin', () => {
     expect(readPending()?.state).toBe('ST8')
     expect(readPending()?.provider).toBe('google')
     expect(assignMock).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth?x=1')
+  })
+
+  /**
+   * Under `npm run dev:live` the backend is the DEPLOYED one, whose own default
+   * redirect is the deployed site. Without this parameter a login started on
+   * localhost finishes on production and never returns a token here.
+   */
+  it('asks the backend to return the browser to this origin', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse({ authorize_url: 'https://accounts.google.com/x', state: 'ST8' }),
+    )
+
+    await startSocialLogin('google')
+
+    const requested = String(vi.mocked(fetch).mock.calls[0][0])
+    expect(requested).toContain(
+      `redirect_uri=${encodeURIComponent('http://localhost:5173/auth/callback')}`,
+    )
+  })
+
+  it('explains a 400 as this origin not being approved', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({}, false, 400))
+
+    await expect(startSocialLogin('google')).rejects.toThrow(/not approved/i)
+    expect(assignMock).not.toHaveBeenCalled()
+  })
+
+  it('still reports non-400 failures as a generic outage', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({}, false, 503))
+
+    await expect(startSocialLogin('google')).rejects.toThrow(/unavailable right now/i)
   })
 
   it('does not redirect when the API call fails', async () => {
