@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { Link } from "react-router-dom"
 import { Trash2, X } from "lucide-react"
 import { BannerTypeIcon } from "./BannerTypeBadge"
 import type { BannerRowType } from "../../utils/bannerHelpers"
@@ -14,6 +15,14 @@ interface MobileBannerCardProps {
 	 * supplies its own chip instead of an empty tile rail.
 	 */
 	imagesSlot?: ReactNode
+	/**
+	 * Where the thumbnail strip links to — this row's banner on the Timeline, or
+	 * null on a row with no banner selected yet. Passed as a href rather than the
+	 * caller wrapping `imagesSlot` itself, so the link wraps the strip on every
+	 * row kind: the ordinary rows render their thumbnails HERE, from `images`,
+	 * and never go through the slot.
+	 */
+	imagesHref?: string | null
 	bannerSelect: ReactNode
 	dates: ReactNode
 	summary: ReactNode
@@ -47,10 +56,64 @@ const TYPE_STYLES: Record<
 	StepUp: { label: "STEP UP", tile: "bg-purple-900", thumbTileRadius: "rounded-md" },
 }
 
+/**
+ * The card's thumbnail strip, wrapped in a link to the Timeline when there is a
+ * banner to link to.
+ *
+ * Split out only so the link doesn't have to be threaded through the JSX twice
+ * — the wrapper is the single branch, and what it contains is identical either
+ * way. The `<Link>` carries the same flex box the strip's parent already
+ * establishes, so wrapping changes no layout.
+ */
+const Thumbnails = ({
+	href,
+	slot,
+	images,
+	thumbTileRadius,
+}: {
+	href?: string | null
+	slot?: ReactNode
+	images: { name: string; image: string }[]
+	thumbTileRadius: string
+}) => {
+	const strip = slot ?? (
+		<>
+			{images.length > 0
+				? images.slice(0, 2).map((img) => (
+						<div
+							key={img.name}
+							className={`flex h-12 min-w-0 shrink-0 items-center justify-center overflow-hidden ${thumbTileRadius} bg-black/10 ring-1 ring-white/10 sm:h-[80px]`}
+						>
+							<img
+								src={img.image}
+								alt={img.name}
+								className="h-full w-auto object-contain"
+							/>
+						</div>
+					))
+				: null}
+			<ExtraCardsBadge hidden={images.length - 2} />
+		</>
+	)
+
+	if (!href) return strip
+
+	return (
+		<Link
+			to={href}
+			title="View this banner on the timeline"
+			className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2"
+		>
+			{strip}
+		</Link>
+	)
+}
+
 export const MobileBannerCard = ({
 	bannerType,
 	images,
 	imagesSlot,
+	imagesHref,
 	bannerSelect,
 	dates,
 	summary,
@@ -75,25 +138,12 @@ export const MobileBannerCard = ({
 				</div>
 
 				<div className="relative flex min-w-0 shrink-0 items-center gap-1 overflow-hidden px-1.5 py-2 sm:gap-2 sm:px-3">
-					{imagesSlot ?? (
-						<>
-					{images.length > 0 ? (
-						images.slice(0, 2).map((img) => (
-							<div
-								key={img.name}
-								className={`flex h-12 min-w-0 shrink-0 items-center justify-center overflow-hidden ${style.thumbTileRadius} bg-black/10 ring-1 ring-white/10 sm:h-[80px]`}
-							>
-								<img
-									src={img.image}
-									alt={img.name}
-									className="h-full w-auto object-contain"
-								/>
-							</div>
-						))
-					) : null}
-					<ExtraCardsBadge hidden={images.length - 2} />
-						</>
-					)}
+					<Thumbnails
+						href={imagesHref}
+						slot={imagesSlot}
+						images={images}
+						thumbTileRadius={style.thumbTileRadius}
+					/>
 				</div>
 
 				<div className="flex min-w-0 flex-1 items-center py-2 pr-1">

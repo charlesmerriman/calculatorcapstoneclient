@@ -5,6 +5,7 @@ import type {
 	BannerStepUp
 } from "../../types"
 import React from "react"
+import { Link } from "react-router-dom"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
@@ -12,6 +13,7 @@ import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
+import { timelineFocusHref } from "../../utils/timelineFocus"
 import {
 	bannerKey,
 	bannerTargetFields,
@@ -178,6 +180,13 @@ export const StagedBannerRow = ({
 				: "★3"
 			: null
 
+	// Same link as a confirmed row's — a staged row shows identical thumbnails
+	// right above the sheet, and having only one of the two respond to a click
+	// would read as a broken link rather than a deliberate distinction.
+	const timelineHref = target.timeline
+		? timelineFocusHref({ kind: "banner", id: target.timeline.id })
+		: null
+
 	const imagesCell =
 		target.type === "StepUp" ? (
 			target.banner.image ? (
@@ -329,6 +338,7 @@ export const StagedBannerRow = ({
 			bannerType={bannerType}
 			images={images}
 			imagesSlot={isStepUp ? imagesCell : undefined}
+			imagesHref={timelineHref}
 			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={confirmButton}
@@ -348,7 +358,17 @@ export const StagedBannerRow = ({
 
 			{/* === Images section === */}
 			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
-				{imagesCell}
+				{timelineHref ? (
+					<Link
+						to={timelineHref}
+						title={`View ${target.timeline?.name ?? "this banner"} on the timeline`}
+						className="flex items-center justify-center gap-1.5"
+					>
+						{imagesCell}
+					</Link>
+				) : (
+					imagesCell
+				)}
 			</div>
 
 			{/* === Banner select === */}

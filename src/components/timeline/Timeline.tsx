@@ -8,6 +8,7 @@ import {
 	Loader2,
 	Search,
 } from "lucide-react"
+import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { nextTempId, plannedBannerKey } from "../../utils/bannerHelpers"
@@ -23,9 +24,12 @@ import {
 	buildTimelineMarkers,
 	groupTimelineEvents,
 	mergeTimelineMarkers,
+	rowMatchesFocus,
 	timelineRowKey,
 } from "./timelineShared"
-import type { TimelineMarker } from "./timelineShared"
+import type { TimelineFocusProps, TimelineMarker } from "./timelineShared"
+import { FOCUS_TAILROOM, useFocusScroll } from "../../hooks/useFocusScroll"
+import { TIMELINE_FOCUS_PARAM, parseTimelineFocus } from "../../utils/timelineFocus"
 import { isRaceEvent } from "../../types"
 import type {
 	BannerCategory,
@@ -49,6 +53,23 @@ const PAGE_SIZE = 10
  */
 const INFINITE_CHUNK_SIZE = 10
 const INFINITE_ROOT_MARGIN = "800px"
+
+/**
+ * Extra rows revealed BELOW a deep link's target, past the chunk it sits in.
+ *
+ * Without this the target lands in the LAST revealed chunk, so between 0 and 9
+ * rows follow it — and at 0 the scroller has nothing left to scroll, so
+ * `block: "start"` cannot lift the card to the top and it strands mid-screen.
+ * It looked like an intermittent bug because it depended entirely on where the
+ * target fell inside its chunk: measured against live data, Project L'Arc (row
+ * 44, five rows below it) landed correctly while Grand Masters (row 19, the
+ * last of its chunk) did not.
+ *
+ * A whole chunk of tailroom is ~6000px against a ~900px viewport, so this is
+ * not a close-run margin. Targets within one chunk of the END of the list have
+ * no rows left to reveal and are covered by FOCUS_TAILROOM instead.
+ */
+const FOCUS_TRAILING_ROWS = INFINITE_CHUNK_SIZE
 
 /**
  * Infinite scroll needs an IntersectionObserver to advance. Where there isn't
@@ -226,7 +247,19 @@ export const Timeline = () => {
 		scenarioData,
 		anniversaryEventData,
 	} = useCalculatorData()
-	const [showPast, setShowPast] = useState(false)
+	const [searchParams, setSearchParams] = useSearchParams()
+	/**
+	 * Which half of the calendar to show, as an OVERRIDE rather than the value.
+	 *
+	 * A deep link routinely points at something that has already happened — the
+	 * scenario band above your third planned banner launched two years ago — and
+	 * the past/future split would otherwise hide the very card the link exists to
+	 * reach. Storing the user's choice as `null` until they make one lets the
+	 * focus target decide the default (see `showPast` below) without an effect
+	 * writing state after the first paint, which would flash the wrong half of
+	 * the timeline and is what `react-hooks/set-state-in-effect` warns about.
+	 */
+	const [showPastOverride, setShowPastOverride] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState("")
 	// Not persisted, matching the search box and the past/future toggle: it's a
 	// question you're asking right now, not a preference. Only the view mode and
@@ -236,11 +269,55 @@ export const Timeline = () => {
 	const [viewMode, setViewMode] = useState<TimelineViewMode>(readStoredViewMode)
 	const [visibleCount, setVisibleCount] = useState(INFINITE_CHUNK_SIZE)
 	const sentinelRef = useRef<HTMLDivElement | null>(null)
+	// One ref for whichever card is the focus target — see TimelineFocusProps.
+	const focusCardRef = useRef<HTMLDivElement | null>(null)
 
 	// Built once per mount rather than per render. Every event is compared
 	// against it, and a fresh Date each render would invalidate the memo below
 	// on every single pass — defeating the point of memoizing at all.
 	const today = useMemo(() => new Date(), [])
+
+	// The card this visit is aimed at, if the calculator sent us here. Memoized
+	// on the raw string so the parsed object is referentially stable — it feeds
+	// the dependency lists below, and a fresh object each render would defeat
+	// every one of them.
+	const focusParam = searchParams.get(TIMELINE_FOCUS_PARAM)
+	const focus = useMemo(() => parseTimelineFocus(focusParam), [focusParam])
+
+	/**
+	 * Whether the focus target is behind us — null when there is no focus, or
+	 * when the data naming it hasn't loaded yet.
+	 *
+	 * Answered from the RAW data rather than from `timelineRows`, because the
+	 * rows are already filtered by the very value this decides. The rules match
+	 * the ones the row list applies: a banner is past once it has ENDED, while a
+	 * marker is past once it has STARTED (a scenario has no end — it stays
+	 * playable — so its launch instant is the only thing to classify it on).
+	 */
+	const focusIsPast = useMemo(() => {
+		if (!focus) return null
+		if (focus.kind === "banner") {
+			// Guarded on isRaceEvent so a Champions Meeting sharing the id can't
+			// answer for a banner: ids are unique per model, not across them.
+			const event = organizedTimelineData.find(
+				(candidate) => !isRaceEvent(candidate) && candidate.id === focus.id
+			)
+			return event ? new Date(event.end_date) < today : null
+		}
+		if (focus.kind === "scenario") {
+			const scenario = scenarioData.find((candidate) => candidate.id === focus.id)
+			return scenario?.start_date ? new Date(scenario.start_date) < today : null
+		}
+		const event = anniversaryEventData.find((candidate) => candidate.id === focus.id)
+		// main_start_date ?? start_date — where the campaign actually lands, the
+		// same instant buildTimelineMarkers sorts its card on.
+		const startDate = event ? event.main_start_date ?? event.start_date : null
+		return startDate ? new Date(startDate) < today : null
+	}, [focus, organizedTimelineData, scenarioData, anniversaryEventData, today])
+
+	// The user's choice wins; failing that a deep link picks the half its target
+	// lives in; failing that, the future.
+	const showPast = showPastOverride ?? focusIsPast ?? false
 
 	// Keys of banners already on the planner sheet — used for duplicate checks and button state.
 	// Keyed by type+id, never by bare id: uma and support banners have independent
@@ -395,14 +472,42 @@ export const Timeline = () => {
 		return MARKER_ORDER.filter((kind) => present.has(kind))
 	}, [scenarioData, anniversaryEventData])
 
+	// Where the focus target ended up once filtering, grouping and marker merging
+	// are all done — -1 while the data is still loading, and for a target this
+	// timeline genuinely doesn't hold.
+	const focusRowIndex = useMemo(
+		() => (focus ? timelineRows.findIndex((row) => rowMatchesFocus(row, focus)) : -1),
+		[focus, timelineRows]
+	)
+
 	const totalPages = Math.max(1, Math.ceil(timelineRows.length / PAGE_SIZE))
+
+	/**
+	 * Drop the `focus` parameter from the URL.
+	 *
+	 * Called from every control that moves or narrows the list. Once the reader
+	 * pages, filters or searches, the deep link has been answered and holding on
+	 * to it would fight them — the focus target overrides the current page below,
+	 * so "Next" would appear to do nothing. Dropping it also retires the arrival
+	 * ring at the moment the reader moves on.
+	 *
+	 * `replace` so the back button returns to the calculator rather than stepping
+	 * through the reader's own filtering.
+	 */
+	const clearFocus = useCallback((): void => {
+		if (!searchParams.has(TIMELINE_FOCUS_PARAM)) return
+		const next = new URLSearchParams(searchParams)
+		next.delete(TIMELINE_FOCUS_PARAM)
+		setSearchParams(next, { replace: true })
+	}, [searchParams, setSearchParams])
 
 	// The only writer of the page, so every path that moves it — the buttons, the
 	// filter resets — also persists it. Nothing sets `currentPage` directly.
 	const goToPage = useCallback((page: number): void => {
 		setCurrentPage(page)
 		storePage(page)
-	}, [])
+		clearFocus()
+	}, [clearFocus])
 
 	// A restored page can outrun the list it's indexing: the events are fetched
 	// after mount (so totalPages is 1 for the first render or two), and the user
@@ -410,7 +515,45 @@ export const Timeline = () => {
 	// than correcting the state from an effect — means the list and the "Page X
 	// of Y" label are never briefly inconsistent, and the stored page is left
 	// intact so a slow fetch doesn't permanently knock the reader back to 1.
-	const effectivePage = Math.min(currentPage, totalPages)
+	// A resolved focus target takes the page over until the reader moves — every
+	// control that moves or narrows the list clears the parameter first (see
+	// clearFocus), so this can't strand them on one page.
+	const focusPage =
+		focusRowIndex >= 0 ? Math.floor(focusRowIndex / PAGE_SIZE) + 1 : null
+	const effectivePage = Math.min(focusPage ?? currentPage, totalPages)
+
+	/**
+	 * How much of the infinite list is on screen: the revealed prefix, widened to
+	 * cover the focus target.
+	 *
+	 * Derived rather than pushed into `visibleCount` from an effect, for the same
+	 * reason `showPast` is: setting state in response to the data arriving
+	 * commits the un-widened list first and then re-renders over it. Rounded up
+	 * to a whole chunk so a jump lands on the same boundaries scrolling would,
+	 * then extended by FOCUS_TRAILING_ROWS so the target has something below it
+	 * to scroll against — see that constant for why the landing was erratic
+	 * without it.
+	 */
+	const revealCount =
+		focusRowIndex >= 0
+			? Math.max(
+					visibleCount,
+					Math.ceil((focusRowIndex + 1) / INFINITE_CHUNK_SIZE) * INFINITE_CHUNK_SIZE +
+						FOCUS_TRAILING_ROWS
+				)
+			: visibleCount
+
+	/**
+	 * Whether the LIST ITSELF runs out below the target, leaving it nothing to
+	 * scroll against however much is revealed.
+	 *
+	 * Measured against every row rather than the revealed window, so it is true
+	 * only at the genuine end of the timeline — the one case revealing more
+	 * cannot fix.
+	 */
+	const focusNeedsTailroom =
+		focusRowIndex >= 0 &&
+		timelineRows.length - (focusRowIndex + 1) < FOCUS_TRAILING_ROWS
 
 	// Paged mode windows by page; infinite mode reveals a prefix that only grows.
 	// Without an IntersectionObserver there is nothing to drive the growth, so
@@ -420,13 +563,13 @@ export const Timeline = () => {
 		viewMode === "paged"
 			? timelineRows.slice((effectivePage - 1) * PAGE_SIZE, effectivePage * PAGE_SIZE)
 			: SUPPORTS_INTERSECTION_OBSERVER
-				? timelineRows.slice(0, visibleCount)
+				? timelineRows.slice(0, revealCount)
 				: timelineRows
 
 	const hasMoreToReveal =
 		viewMode === "infinite" &&
 		SUPPORTS_INTERSECTION_OBSERVER &&
-		visibleCount < timelineRows.length
+		revealCount < timelineRows.length
 
 	// Restarting both windows is the right response to any change in what the
 	// list contains: page 7 of a now-two-page result renders empty, and a search
@@ -436,6 +579,8 @@ export const Timeline = () => {
 	// from an effect means React commits the stale window first and immediately
 	// re-renders over it — a visible flash of the wrong list, and what
 	// `react-hooks/set-state-in-effect` warns about.
+	// goToPage clears the focus parameter, so every caller of this drops the deep
+	// link too — which is the intent: the reader has taken over.
 	const resetListWindow = (): void => {
 		goToPage(1)
 		setVisibleCount(INFINITE_CHUNK_SIZE)
@@ -449,9 +594,12 @@ export const Timeline = () => {
 		resetListWindow()
 	}
 
+	// Measured from `revealCount`, not from the raw state: after a focus jump the
+	// state still says 10 while 90 rows are on screen, and `count + 10` would
+	// append nothing visible for eight scrolls running.
 	const revealMore = useCallback(() => {
-		setVisibleCount((count) => count + INFINITE_CHUNK_SIZE)
-	}, [])
+		setVisibleCount((count) => Math.max(count, revealCount) + INFINITE_CHUNK_SIZE)
+	}, [revealCount])
 
 	// Reveal the next chunk as the sentinel approaches the viewport.
 	//
@@ -476,7 +624,16 @@ export const Timeline = () => {
 		)
 		observer.observe(sentinel)
 		return () => observer.disconnect()
-	}, [hasMoreToReveal, visibleCount, revealMore])
+	}, [hasMoreToReveal, revealCount, revealMore])
+
+	// Bring the focus target into view once it is rendered, and hold it there
+	// while the page settles — see hooks/useFocusScroll, shared with the
+	// Selectors page's campaign deep link.
+	//
+	// Composite key: `focusParam` alone would not re-run when the row index
+	// moves from -1 to a real position as the data arrives, and that is the
+	// commit which first puts the card in the DOM.
+	useFocusScroll(focusCardRef, focusRowIndex >= 0 ? `${focusParam}#${focusRowIndex}` : null)
 
 	return (
 		<div className="w-full bg-gray-900 pb-6">
@@ -486,7 +643,7 @@ export const Timeline = () => {
 						<button
 							type="button"
 							className={`${controlButtonClass} w-full sm:w-auto`}
-							onClick={() => { setShowPast((prev) => !prev); resetListWindow() }}
+							onClick={() => { setShowPastOverride(!showPast); resetListWindow() }}
 						>
 							<History className="h-4 w-4 text-brand" />
 							{showPast ? "Show current/future events" : "Show past events"}
@@ -591,14 +748,22 @@ export const Timeline = () => {
 				{timelineRows.length === 0 && (
 					<div className="text-gray-500 mt-8">No events found.</div>
 				)}
-				{visibleRows.map((row) =>
+				{visibleRows.map((row) => {
+					// Spread rather than passed as two props so the un-focused case —
+					// every card but at most one — stays literally empty, and the ref
+					// can only ever be claimed by the card the link named.
+					const focusProps: TimelineFocusProps =
+						focus && rowMatchesFocus(row, focus)
+							? { focusRef: focusCardRef, isFocused: true }
+							: {}
+
 					// Champions Meetings and League of Heroes events share one card — they
 					// carry the same data and are meant to look the same. Everything else
 					// is a banner window, which may hold more than one concurrent banner.
-					row.kind === "race" ? (
+					return row.kind === "race" ? (
 						<RaceEventCard key={timelineRowKey(row)} event={row.event} today={today} />
 					) : row.kind === "marker" ? (
-						<EventMarkerCard key={timelineRowKey(row)} marker={row.marker} />
+						<EventMarkerCard key={timelineRowKey(row)} marker={row.marker} {...focusProps} />
 					) : (
 						<BannerWindowCard
 							key={timelineRowKey(row)}
@@ -607,9 +772,10 @@ export const Timeline = () => {
 							plannedBannerKeys={plannedBannerKeys}
 							stagedBanners={stagedBanners}
 							onAddBanner={handleAddBanner}
+							{...focusProps}
 						/>
 					)
-				)}
+				})}
 
 				{viewMode === "infinite" && (
 					<>
@@ -631,6 +797,13 @@ export const Timeline = () => {
 							</div>
 						) : null}
 					</>
+				)}
+
+				{/* Room to scroll a target that the list runs out beneath. Last, so
+				    the reader sees the end-of-list line before the empty space, and
+				    aria-hidden because there is nothing here to read. */}
+				{focusNeedsTailroom && (
+					<div aria-hidden="true" className={FOCUS_TAILROOM} />
 				)}
 			</div>
 

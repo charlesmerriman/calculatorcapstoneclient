@@ -417,6 +417,9 @@ describe('mergeTimelineMarkers', () => {
     name: string,
     startDate: string,
   ): TimelineMarker => ({
+    // Not asserted here — mergeTimelineMarkers sorts on dates and kinds. It
+    // exists so the fixture is a real TimelineMarker.
+    sourceId: 1,
     key,
     kind,
     name,

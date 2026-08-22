@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import { describe, it, expect, vi } from 'vitest'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
@@ -77,6 +78,7 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
   }
   const setUserPlannedBannerData = vi.fn()
 
+  // The row's card art links to the Timeline, so it needs a router context.
   render(
     <BannerRow
       plannedBanner={planned}
@@ -94,6 +96,7 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
       resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: maxPulls }}
       initialBannerType="Uma"
     />,
+    { wrapper: MemoryRouter }
   )
 
   // The row renders the field twice (a mobile card and a desktop row, hidden
@@ -131,6 +134,7 @@ function renderReserved(
   }
   const setUserPlannedBannerData = vi.fn()
 
+  // The row's card art links to the Timeline, so it needs a router context.
   render(
     <BannerRow
       plannedBanner={planned}
@@ -152,6 +156,7 @@ function renderReserved(
       }}
       initialBannerType="Uma"
     />,
+    { wrapper: MemoryRouter }
   )
 
   const inputs = screen.getAllByRole('spinbutton', {
@@ -348,6 +353,7 @@ function renderStepUpRow(steps: number, maxSteps: number, stepLabel = '0') {
     banner_step_up: stepUpBanner,
     initialBannerType: 'StepUp',
   }
+  // The row's card art links to the Timeline, so it needs a router context.
   render(
     <BannerRow
       plannedBanner={planned}
@@ -370,6 +376,7 @@ function renderStepUpRow(steps: number, maxSteps: number, stepLabel = '0') {
       }}
       initialBannerType="StepUp"
     />,
+    { wrapper: MemoryRouter }
   )
 }
 
