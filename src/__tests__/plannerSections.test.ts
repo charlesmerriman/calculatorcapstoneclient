@@ -351,3 +351,56 @@ describe('buildPlannerRows campaign kinds', () => {
 		expect(shape(rows)).toEqual(['row:1@0', 'row:2@1'])
 	})
 })
+
+// ── Band visibility ───────────────────────────────────────────────────────────
+
+describe('buildPlannerRows band visibility', () => {
+	const between = [row(1, '2028-01-01T00:00:00Z'), row(2, '2028-09-01T00:00:00Z')]
+	// Same date, so with both kinds shown they collapse into one two-line band.
+	const sameDay = '2028-03-01T00:00:00Z'
+	const scenarios = [scenario(1, 'Mecha', sameDay)]
+	const events = [anniversary(1, '4th Anniversary', sameDay)]
+
+	it('shows every kind when told nothing', () => {
+		const rows = buildPlannerRows(between, scenarios, events)
+		expect(shape(rows).filter((s) => s.startsWith('band'))).toEqual([
+			'band:Mecha|4th Anniversary',
+		])
+	})
+
+	it('drops anniversaries without disturbing the scenario sharing their point', () => {
+		// The regression this guards: filtering AFTER placement would leave the
+		// scenario as the second line of a band whose first line is gone.
+		const rows = buildPlannerRows(between, scenarios, events, {
+			scenario: true,
+			anniversary: false,
+		})
+		expect(shape(rows)).toEqual(['row:1@0', 'band:Mecha', 'row:2@1'])
+	})
+
+	it('drops scenarios', () => {
+		const rows = buildPlannerRows(between, scenarios, events, {
+			scenario: false,
+			anniversary: true,
+		})
+		expect(shape(rows)).toEqual(['row:1@0', 'band:4th Anniversary', 'row:2@1'])
+	})
+
+	it('builds a bandless sheet when both kinds are hidden', () => {
+		const rows = buildPlannerRows(between, scenarios, events, {
+			scenario: false,
+			anniversary: false,
+		})
+		expect(shape(rows)).toEqual(['row:1@0', 'row:2@1'])
+	})
+
+	it('leaves row indices alone whichever kinds are hidden', () => {
+		// Bands are presentational; `index` is positional against the original
+		// banner array and must never move because a band appeared or vanished.
+		const rows = buildPlannerRows(between, scenarios, events, {
+			scenario: false,
+			anniversary: false,
+		})
+		expect(rows.map((r) => (r.kind === 'banner' ? r.index : -1))).toEqual([0, 1])
+	})
+})

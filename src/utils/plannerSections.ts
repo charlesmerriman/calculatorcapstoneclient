@@ -20,6 +20,15 @@ export interface PlannerMarker {
 	/** Collision-proof across kinds; also the React key when a band has one line. */
 	key: string
 	kind: "scenario" | "anniversary"
+	/**
+	 * The Scenario / AnniversaryEvent primary key this was built from, so the
+	 * band can link through to the same row's card on the Timeline.
+	 *
+	 * Held separately from `key` rather than parsed back out of it — `key` is a
+	 * React identity string, and its format is this module's business. Together
+	 * with `kind` it is exactly a TimelineFocus; see `utils/timelineFocus.ts`.
+	 */
+	sourceId: number
 	name: string
 	/**
 	 * ISO instant. Markers with no resolved start never become a marker at all.
@@ -35,6 +44,44 @@ export interface PlannerMarker {
 	 * several parts and place by date.
 	 */
 	bannerTimelineId: number | null
+}
+
+/**
+ * Which marker kinds the sheet is currently drawing.
+ *
+ * A Record keyed by `PlannerMarker["kind"]` rather than two named booleans: add
+ * a third kind to that union and the compiler demands a decision here and at
+ * every literal below, instead of the new kind quietly defaulting to hidden (or
+ * to shown) depending on which side of a `?:` it landed on.
+ */
+export type PlannerBandVisibility = Record<PlannerMarker["kind"], boolean>
+
+/**
+ * Every kind shown — the neutral default for a caller with no preference.
+ *
+ * This module stays a pure builder: told nothing, it builds everything. WHICH
+ * kinds ship is a product decision, and the call site states it.
+ */
+export const ALL_BANDS_VISIBLE: PlannerBandVisibility = {
+	scenario: true,
+	anniversary: true,
+}
+
+/**
+ * What the sheet currently ships: scenario bands only.
+ *
+ * A scenario launch changes how the game is played, which is the landmark a
+ * planner navigates by. Anniversaries recur on a schedule the user already
+ * knows, and banding them too doubles the number of interruptions in the sheet.
+ *
+ * There is deliberately no UI for this yet — it is a constant, not a setting.
+ * The `visible` parameter and its tests exist so that when a settings surface
+ * does arrive, turning this into a preference is a matter of passing a
+ * different record, not of rebuilding the placement logic.
+ */
+export const SCENARIO_BANDS_ONLY: PlannerBandVisibility = {
+	scenario: true,
+	anniversary: false,
 }
 
 /**
@@ -110,11 +157,16 @@ function compareMarkers(a: PlannerMarker, b: PlannerMarker): number {
  *     that context is the point of the feature.
  *  5. Markers landing at the same point collapse into ONE band row carrying
  *     several lines, scenarios first.
+ *
+ * `visible` filters by kind BEFORE any of that, not after: a hidden kind must
+ * not occupy an insertion point, or turning anniversaries off would leave the
+ * scenario sharing that point rendering as the second line of a one-line band.
  */
 export function buildPlannerRows(
 	banners: UserPlannedBanner[],
 	scenarios: Scenario[],
-	anniversaryEvents: AnniversaryEvent[]
+	anniversaryEvents: AnniversaryEvent[],
+	visible: PlannerBandVisibility = ALL_BANDS_VISIBLE
 ): PlannerRow[] {
 	const rows: PlannerRow[] = banners.map((banner, index) => ({
 		kind: "banner" as const,
@@ -140,34 +192,40 @@ export function buildPlannerRows(
 	)
 
 	const markers: PlannerMarker[] = []
-	for (const scenario of scenarios) {
-		const ms = startTime(scenario.start_date)
-		if (ms === null || ms <= firstStart || ms > lastStart) continue
-		markers.push({
-			key: `scenario-${scenario.id}`,
-			kind: "scenario",
-			name: scenario.name,
-			startDate: scenario.start_date as string,
-			bannerTimelineId: scenario.banner_timeline,
-		})
+	if (visible.scenario) {
+		for (const scenario of scenarios) {
+			const ms = startTime(scenario.start_date)
+			if (ms === null || ms <= firstStart || ms > lastStart) continue
+			markers.push({
+				key: `scenario-${scenario.id}`,
+				kind: "scenario",
+				sourceId: scenario.id,
+				name: scenario.name,
+				startDate: scenario.start_date as string,
+				bannerTimelineId: scenario.banner_timeline,
+			})
+		}
 	}
-	for (const event of anniversaryEvents) {
-		if (!bandsAsCampaign(event)) continue
-		// The event's own start, not the campaign's opening: an anniversary
-		// spends its Part 1 announcing itself with login rewards, and the band
-		// marks where the anniversary actually lands. The fallback covers the
-		// campaign kinds with no separate main part, where the backend resolves
-		// the two to the same instant anyway.
-		const startDate = event.main_start_date ?? event.start_date
-		const ms = startTime(startDate)
-		if (ms === null || ms <= firstStart || ms > lastStart) continue
-		markers.push({
-			key: `anniversary-${event.id}`,
-			kind: "anniversary",
-			name: event.name,
-			startDate: startDate as string,
-			bannerTimelineId: null,
-		})
+	if (visible.anniversary) {
+		for (const event of anniversaryEvents) {
+			if (!bandsAsCampaign(event)) continue
+			// The event's own start, not the campaign's opening: an anniversary
+			// spends its Part 1 announcing itself with login rewards, and the band
+			// marks where the anniversary actually lands. The fallback covers the
+			// campaign kinds with no separate main part, where the backend resolves
+			// the two to the same instant anyway.
+			const startDate = event.main_start_date ?? event.start_date
+			const ms = startTime(startDate)
+			if (ms === null || ms <= firstStart || ms > lastStart) continue
+			markers.push({
+				key: `anniversary-${event.id}`,
+				kind: "anniversary",
+				sourceId: event.id,
+				name: event.name,
+				startDate: startDate as string,
+				bannerTimelineId: null,
+			})
+		}
 	}
 	if (markers.length === 0) return rows
 

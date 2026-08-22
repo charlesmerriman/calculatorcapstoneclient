@@ -16,8 +16,9 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import { formatDate } from "../../utils/dateFormat"
 import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
 import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
-import { CATEGORY_LABELS, getCountdownLabel } from "./timelineShared"
-import type { BannerWindowGroup } from "./timelineShared"
+import { CATEGORY_LABELS, TIMELINE_FOCUS_HIGHLIGHT, getCountdownLabel } from "./timelineShared"
+import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
+import type { BannerWindowGroup, TimelineFocusProps } from "./timelineShared"
 import type {
 	BannerCategory,
 	BannerSupport,
@@ -186,8 +187,25 @@ const PAIR_PANEL_CELL = "grid min-w-0 xl:ml-auto xl:w-full xl:max-w-[28rem]"
  * distribute, so centring the capped shapes was the only thing that moved, and
  * it moved them out of line with every other card in the timeline.
  * BANNER_ART_ALONE is the one exception; see its own note.
+ *
+ * THE 16:9 IS DECLARED, NOT DISCOVERED, AND THAT IS THE POINT.
+ * Every banner asset is 16:9 — checked across the live CDN, 1024×576 and
+ * 680×383 with no exceptions — so stating the ratio reserves the art's full
+ * height before a single byte arrives. Without it a lazy image is 0px tall
+ * until it decodes and then snaps to ~369px, so seventy rendered cards grow the
+ * document by some 26,000px as you read. That is what used to defeat the
+ * planner's deep links: `scrollIntoView` fixes its destination when it is
+ * called, and a smooth scroll towards it dragged the viewport past exactly the
+ * images whose loading pushed the target further down. See the settle effect
+ * in Timeline.tsx for the other half of that fix.
+ *
+ * `object-contain` is what makes declaring the ratio safe. An asset that is
+ * ever NOT 16:9 letterboxes inside the reserved box instead of stretching to
+ * fill it — the same distortion the width-cap note above is about, arrived at
+ * from the other direction.
  */
-const BANNER_ART = "block h-auto w-full max-w-[41rem] rounded-xl border border-gray-600 shadow-md"
+const BANNER_ART =
+	"block aspect-[16/9] h-auto w-full max-w-[41rem] object-contain rounded-xl border border-gray-600 shadow-md"
 
 /**
  * The art-only branch: every panel banded, so the art has a full-width row to
@@ -244,6 +262,13 @@ type FeaturePanelProps = {
 	/** Widest a tile grows to. Uma art is portrait and wider; support art is smaller. */
 	tileWidthClass: string
 	/**
+	 * The tile art's intrinsic ratio, reserved before the image loads. Uma
+	 * portraits are square (360×360) and support cards are 3:4 (450×600),
+	 * uniformly, so this is a fact about the assets rather than a guess — see
+	 * BANNER_ART for why every image in the timeline has to declare one.
+	 */
+	tileAspectClass: string
+	/**
 	 * Narrowest a tile shrinks to in a band before the line starts scrolling.
 	 * Unused in column layout, where the two-across grid sets the width.
 	 */
@@ -262,6 +287,7 @@ function FeaturePanel({
 	hasBanner,
 	emptyText,
 	tileWidthClass,
+	tileAspectClass,
 	bandMinWidthClass,
 	layout = "column",
 	status,
@@ -306,7 +332,7 @@ function FeaturePanel({
 						alt={item.name}
 						loading="lazy"
 						decoding="async"
-						className="block h-auto w-full object-contain"
+						className={`block h-auto w-full object-contain ${tileAspectClass}`}
 					/>
 				</div>
 				<div className="flex min-h-16 flex-1 items-center justify-center p-2">
@@ -475,6 +501,7 @@ function BannerSection({
 			hasBanner={!!umaBanner}
 			emptyText="No Umamusume banner in this window."
 			tileWidthClass="max-w-[10rem] 2xl:max-w-[13.5rem]"
+			tileAspectClass="aspect-square"
 			// 7rem × 9 + gaps still fits the launch banner's umas on one unscrolled
 			// line at 1150px, the narrowest desktop width worth optimising for.
 			bandMinWidthClass="min-w-[7rem]"
@@ -493,6 +520,7 @@ function BannerSection({
 			hasBanner={!!supportBanner}
 			emptyText="No support banner in this window."
 			tileWidthClass="max-w-[7.75rem] 2xl:max-w-[9.5rem]"
+			tileAspectClass="aspect-[3/4]"
 			// A race-prep batch's ten cards fit unscrolled from about 1050px up.
 			// The launch banner's twenty scroll on any realistic screen, which is
 			// the intended outcome — 20 across a 1490px card is 68px a tile.
@@ -620,7 +648,7 @@ type BannerWindowCardProps = {
 	plannedBannerKeys: Set<BannerKey>
 	stagedBanners: UserPlannedBanner[]
 	onAddBanner: (banner: BannerUma | BannerSupport, type: "Uma" | "Support") => void
-}
+} & TimelineFocusProps
 
 export function BannerWindowCard({
 	group,
@@ -628,6 +656,8 @@ export function BannerWindowCard({
 	plannedBannerKeys,
 	stagedBanners,
 	onAddBanner,
+	focusRef,
+	isFocused = false,
 }: BannerWindowCardProps) {
 	const countdownLabel = getCountdownLabel(group.start_date, group.end_date, today)
 	// A campaign strip sits flush above the card, so the card's own top corners
@@ -640,14 +670,17 @@ export function BannerWindowCard({
 	const isGrouped = group.banners.length > 1
 
 	return (
-		<div className="my-3 w-full px-2">
+		// The ref goes on the outer wrapper so scrolling accounts for the campaign
+		// strip above the panel; the ring goes on the panel, which is the box a
+		// reader recognises as "the card" and the only one with the right rounding.
+		<div ref={focusRef} className={`my-3 w-full px-2 ${FOCUS_SCROLL_MARGIN}`}>
 			{attachedEvent && (
 				<AnniversaryEventStrip event={attachedEvent} stepUps={stepUps} />
 			)}
 			<div
 				className={`card-panel w-full overflow-hidden p-2 sm:p-3 ${
 					attachedEvent ? "rounded-b-xl rounded-t-none" : "rounded-xl"
-				}`}
+				} ${isFocused ? TIMELINE_FOCUS_HIGHLIGHT : ""}`}
 			>
 				<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex min-w-0 items-center gap-3">

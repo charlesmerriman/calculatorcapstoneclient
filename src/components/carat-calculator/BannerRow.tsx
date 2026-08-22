@@ -10,6 +10,7 @@ import type {
 	UserStepUpSelection
 } from "../../types"
 import React from "react"
+import { Link } from "react-router-dom"
 import { startOfDay } from "date-fns"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
@@ -17,6 +18,7 @@ import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { formatDate } from "../../utils/dateFormat"
+import { timelineFocusHref } from "../../utils/timelineFocus"
 import {
 	bannerKey,
 	bannerTargetFields,
@@ -356,6 +358,26 @@ export const BannerRow = ({
 				)
 			: null
 
+	// Hoisted above the images cell because the cell links to this banner's
+	// window on the Timeline; the date column further down reads the same value.
+	const bannerTimeline = plannedBannerTimeline(plannedBanner)
+
+	/**
+	 * Where the card art points: this row's banner window on the Timeline.
+	 *
+	 * The sheet shows what a banner COSTS. What is actually on it — every
+	 * featured card beyond the two that fit, the campaign it belongs to, its
+	 * artwork — lives on the Timeline, and the thumbnails are the natural handle
+	 * for "show me this banner". Keyed on the BannerTimeline rather than the
+	 * BannerUma/Support/StepUp because concurrent banners share one timeline
+	 * card; see utils/timelineFocus.ts.
+	 *
+	 * Null on a row with no banner picked yet, which renders the cell unlinked.
+	 */
+	const timelineHref = bannerTimeline
+		? timelineFocusHref({ kind: "banner", id: bannerTimeline.id })
+		: null
+
 	/** The images cell, shared by the desktop grid and (via props) the card. */
 	const imagesCell =
 		target.type === "StepUp" ? (
@@ -411,8 +433,6 @@ export const BannerRow = ({
 	const stepUpOdds = isStepUp
 		? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
 		: undefined
-
-	const bannerTimeline = plannedBannerTimeline(plannedBanner)
 
 	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
@@ -688,6 +708,7 @@ export const BannerRow = ({
 			bannerType={bannerType}
 			images={images}
 			imagesSlot={isStepUp ? imagesCell : undefined}
+			imagesHref={timelineHref}
 			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
 			summary={statsDisplay}
@@ -706,7 +727,19 @@ export const BannerRow = ({
 
 			{/* === Images section === */}
 			<div className="relative flex items-center justify-center gap-1.5 py-1 px-1">
-				{imagesCell}
+				{/* The link carries the cell's own flex box so wrapping moves nothing.
+				    An unselected row has no banner to link to and stays inert. */}
+				{timelineHref ? (
+					<Link
+						to={timelineHref}
+						title={`View ${bannerTimeline?.name ?? "this banner"} on the timeline`}
+						className="flex items-center justify-center gap-1.5"
+					>
+						{imagesCell}
+					</Link>
+				) : (
+					imagesCell
+				)}
 			</div>
 
 			{/* === Banner select === */}

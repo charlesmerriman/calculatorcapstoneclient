@@ -1,11 +1,16 @@
 /**
- * Dev-only marker showing that the running app is reading a REMOTE backend.
+ * Dev-only marker showing that the running app is talking to a REMOTE backend.
  *
  * `npm run dev` and `npm run dev:live` look identical in the browser — same
  * localhost:5173, same source — but one is showing your local database and the
  * other is showing live production content. Mistaking the second for the first
  * is how you conclude a bug is fixed, or that data is missing, on the strength
  * of the wrong dataset. This badge makes the difference impossible to miss.
+ *
+ * It used to read "read-only", which was true while dev:live could not sign in.
+ * It can now -- the backend allowlists this origin's callback -- so a signed-in
+ * session here WRITES TO PRODUCTION under your real account. The badge has to
+ * say so; a stale reassurance is worse than no badge at all.
  */
 
 // Shared with the traffic beacon, which suppresses itself on the same test —
@@ -26,9 +31,9 @@ export const ApiSourceBadge = () => {
 			           rounded-md border border-amber-500/60 bg-amber-500/15
 			           px-2.5 py-1 text-xs font-semibold tracking-wide
 			           text-amber-700 dark:text-amber-300 backdrop-blur-sm"
-			title={`Reading ${API_URL} — production data, read-only (sign-in and saving are unavailable)`}
+			title={`Connected to ${API_URL} — this is production. Signed in, anything you save is written to the live database.`}
 		>
-			LIVE DATA · read-only
+			LIVE DATA · writes are real
 		</div>
 	)
 }

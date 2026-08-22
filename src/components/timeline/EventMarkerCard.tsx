@@ -1,8 +1,10 @@
-import { Gamepad2, Sparkles } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import PredictedBadge from "../PredictedBadge"
 import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
 import { formatDate } from "../../utils/dateFormat"
-import type { TimelineMarker } from "./timelineShared"
+import { TIMELINE_FOCUS_HIGHLIGHT } from "./timelineShared"
+import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
+import type { TimelineFocusProps, TimelineMarker } from "./timelineShared"
 
 /**
  * The timeline card for a scenario launch or a campaign opening.
@@ -19,12 +21,15 @@ import type { TimelineMarker } from "./timelineShared"
  * made in the planner.
  */
 
+/**
+ * `icon` is optional: a scenario chip carries no icon, so its label and the
+ * brand accent alone distinguish it from a campaign.
+ */
 const MARKER_CHROME: Record<
 	TimelineMarker["kind"],
-	{ icon: typeof Sparkles; label: string; accent: string }
+	{ icon?: typeof Sparkles; label: string; accent: string }
 > = {
 	scenario: {
-		icon: Gamepad2,
 		label: "New scenario",
 		accent: "border-brand/50 bg-brand/15 text-brand",
 	},
@@ -35,7 +40,11 @@ const MARKER_CHROME: Record<
 	},
 }
 
-export const EventMarkerCard = ({ marker }: { marker: TimelineMarker }) => {
+export const EventMarkerCard = ({
+	marker,
+	focusRef,
+	isFocused = false,
+}: { marker: TimelineMarker } & TimelineFocusProps) => {
 	const chrome = MARKER_CHROME[marker.kind]
 	const Icon = chrome.icon
 	// A scenario announces a change in how the game is played, so it gets the
@@ -43,16 +52,21 @@ export const EventMarkerCard = ({ marker }: { marker: TimelineMarker }) => {
 	const isScenario = marker.kind === "scenario"
 
 	return (
+		// The root IS the panel here (a marker card has no strip above it), so the
+		// scroll target and the arrival ring land on the same node.
 		<div
+			ref={focusRef}
 			className={`card-panel w-full overflow-hidden rounded-xl p-3 sm:p-4 ${
-				isScenario ? "border-brand/40" : ""
+				FOCUS_SCROLL_MARGIN
+			} ${isScenario ? "border-brand/40" : ""} ${
+				isFocused ? TIMELINE_FOCUS_HIGHLIGHT : ""
 			}`}
 		>
 			<div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
 				<span
 					className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${chrome.accent}`}
 				>
-					<Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+					{Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
 					{chrome.label}
 				</span>
 				<h3
@@ -77,6 +91,10 @@ export const EventMarkerCard = ({ marker }: { marker: TimelineMarker }) => {
 			 * clamp on a definite percentage width squashes the picture rather
 			 * than fitting it. Same rule as the banner art.
 			 *
+			 * The 16:9 is also DECLARED, so the box exists before the image
+			 * loads and nothing below it moves when it does — see BANNER_ART in
+			 * BannerWindowCard for why that matters to the planner's deep links.
+			 *
 			 * Centred, because a marker card has no featured-card panels — the art
 			 * is the only thing in the row, so there is no column edge to align its
 			 * left side to. Same call as BANNER_ART_ALONE in BannerWindowCard.
@@ -88,7 +106,7 @@ export const EventMarkerCard = ({ marker }: { marker: TimelineMarker }) => {
 						alt={marker.name}
 						loading="lazy"
 						decoding="async"
-						className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+						className="aspect-[16/9] h-auto w-full object-contain rounded-xl border border-gray-600 shadow-md"
 					/>
 				) : (
 					<BannerArtPlaceholder />
