@@ -7,9 +7,11 @@
  * live in their own files) so React Fast Refresh isn't disabled here.
  */
 
+import type { RefObject } from "react"
 import { differenceInCalendarDays } from "date-fns"
 import { parseApiDate } from "../../utils/dateFormat"
 import { isRaceEvent } from "../../types"
+import type { TimelineFocus } from "../../utils/timelineFocus"
 import type {
 	AnniversaryEvent,
 	AttachedAnniversaryEvent,
@@ -158,6 +160,15 @@ export interface TimelineMarker {
 	/** Collision-proof across kinds; see timelineRowKey. */
 	key: string
 	kind: "scenario" | "anniversary"
+	/**
+	 * The Scenario / AnniversaryEvent primary key this was built from.
+	 *
+	 * Held alongside `key` rather than parsed back out of it: `key` is a React
+	 * identity string whose format is this module's business, and a deep link
+	 * has to survive that format changing. `kind` + `sourceId` is exactly a
+	 * TimelineFocus, which is what makes rowMatchesFocus a plain comparison.
+	 */
+	sourceId: number
 	name: string
 	/**
 	 * For an anniversary this is its `main_start_date`, so the card lands on the
@@ -189,6 +200,61 @@ export function timelineRowKey(row: TimelineRow): string {
 	}
 	return `win-${row.group.start_date}`
 }
+
+/**
+ * Whether a rendered row is the one a deep link is pointing at.
+ *
+ * The counterpart to `timelineFocusHref` on the calculator side — see
+ * `utils/timelineFocus.ts` for why the link names a target instead of using a
+ * plain `#hash`.
+ *
+ * A banner focus matches a WINDOW containing that BannerTimeline, not a row
+ * whose id equals it: concurrent banners merge into one card (see
+ * BannerWindowGroup), so the card a reader lands on is routinely shared with a
+ * banner they did not click. Race events can never match — nothing links to
+ * one — and they are excluded by falling through rather than by a guard, so a
+ * fourth row kind is a compile error at the switch above rather than a silent
+ * "never focusable" here.
+ */
+export function rowMatchesFocus(row: TimelineRow, focus: TimelineFocus): boolean {
+	if (focus.kind === "banner") {
+		return (
+			row.kind === "banner_window" &&
+			row.group.banners.some((banner) => banner.id === focus.id)
+		)
+	}
+	return (
+		row.kind === "marker" &&
+		row.marker.kind === focus.kind &&
+		row.marker.sourceId === focus.id
+	)
+}
+
+/**
+ * What a timeline card needs in order to BE a deep link's target.
+ *
+ * Both props are absent on every card but one, which is the point: the Timeline
+ * holds a single ref for the focused card and hands it to whichever card that
+ * is, so there is no per-row ref bookkeeping and no way for two cards to claim
+ * the highlight at once.
+ */
+export interface TimelineFocusProps {
+	/** Attached to the card's outermost node, for scrollIntoView. */
+	focusRef?: RefObject<HTMLDivElement | null>
+	/** Draws the arrival highlight — see TIMELINE_FOCUS_HIGHLIGHT. */
+	isFocused?: boolean
+}
+
+/**
+ * The ring that says "this is the card you clicked through for".
+ *
+ * Applied to the card PANEL rather than a card's outer wrapper, so it follows
+ * the panel's own rounding and sits flush against its edge. `ring-offset-gray-900`
+ * matches the Timeline's page background.
+ */
+export const TIMELINE_FOCUS_HIGHLIGHT =
+	"ring-2 ring-brand ring-offset-2 ring-offset-gray-900"
+
 
 /**
  * Folds banner events that open at the same instant into one row, leaving race
@@ -290,6 +356,7 @@ export function buildTimelineMarkers(
 		markers.push({
 			key: `sce-${scenario.id}`,
 			kind: "scenario",
+			sourceId: scenario.id,
 			name: scenario.name,
 			startDate: scenario.start_date,
 			// Not "unknown" — a scenario genuinely has no end. It stays playable
@@ -315,6 +382,7 @@ export function buildTimelineMarkers(
 		markers.push({
 			key: `ann-${event.id}`,
 			kind: "anniversary",
+			sourceId: event.id,
 			name: event.name,
 			startDate,
 			// Deliberately NOT the main part's own end. The card reads "<the

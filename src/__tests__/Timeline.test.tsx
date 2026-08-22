@@ -1,4 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { TIMELINE_FOCUS_HIGHLIGHT } from '../components/timeline/timelineShared'
+import { FOCUS_TAILROOM } from '../hooks/useFocusScroll'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type {
   AnniversaryEvent,
@@ -308,6 +311,19 @@ vi.mock('../services/CalculatorContext', () => ({
 // Imported after the mocks above are registered.
 const { Timeline } = await import('../components/timeline/Timeline')
 
+/**
+ * Timeline reads its deep-link target from the query string (see
+ * utils/timelineFocus), so every render needs a router context. `initialEntries`
+ * defaults to "/" — no focus — which is what all the pre-existing tests assume.
+ */
+function renderTimeline(initialUrl = '/app/timeline') {
+  return render(
+    <MemoryRouter initialEntries={[initialUrl]}>
+      <Timeline />
+    </MemoryRouter>
+  )
+}
+
 /** One per rendered event card. */
 function cardCount(): number {
   return screen.getAllByText('No Umamusume banner in this window.').length
@@ -342,7 +358,7 @@ afterEach(() => {
 
 describe('Timeline infinite scroll', () => {
   it('starts with one chunk and appends another each time the sentinel appears', () => {
-    render(<Timeline />)
+    renderTimeline()
 
     expect(cardCount()).toBe(10)
     expect(screen.getByText('Loading more events...')).toBeInTheDocument()
@@ -355,7 +371,7 @@ describe('Timeline infinite scroll', () => {
   })
 
   it('stops at the full list and says so instead of spinning forever', () => {
-    render(<Timeline />)
+    renderTimeline()
 
     scrollToSentinel()
     scrollToSentinel()
@@ -368,7 +384,7 @@ describe('Timeline infinite scroll', () => {
   })
 
   it('reaches every event, which paging alone could not do in one view', () => {
-    render(<Timeline />)
+    renderTimeline()
     for (let i = 0; i < TOTAL_EVENTS; i++) {
       if (cardCount() >= TOTAL_EVENTS) break
       scrollToSentinel()
@@ -379,7 +395,7 @@ describe('Timeline infinite scroll', () => {
   })
 
   it('restarts the reveal window when the search filter changes', () => {
-    render(<Timeline />)
+    renderTimeline()
     scrollToSentinel()
     expect(cardCount()).toBe(20)
 
@@ -395,7 +411,7 @@ describe('Timeline infinite scroll', () => {
 
 describe('Timeline view mode', () => {
   it('defaults to infinite scroll and offers a switch to pages', () => {
-    render(<Timeline />)
+    renderTimeline()
 
     // The count interleaves an element, so assert on full text content rather
     // than a text-node match.
@@ -406,7 +422,7 @@ describe('Timeline view mode', () => {
   })
 
   it('switches to the original paged view and persists the choice', () => {
-    render(<Timeline />)
+    renderTimeline()
 
     fireEvent.click(screen.getByRole('button', { name: /use pages/i }))
 
@@ -419,7 +435,7 @@ describe('Timeline view mode', () => {
 
   it('honours a stored paged preference on mount', () => {
     localStorage.setItem('uma-planner-timeline-view', 'paged')
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.getByRole('button', { name: /use infinite scroll/i })).toBeInTheDocument()
     expect(cardCount()).toBe(10)
@@ -427,7 +443,7 @@ describe('Timeline view mode', () => {
 
   it('pages through the list, reaching the last event on the final page', () => {
     localStorage.setItem('uma-planner-timeline-view', 'paged')
-    render(<Timeline />)
+    renderTimeline()
 
     // 25 events / 10 per page = 3 pages.
     const next = screen.getAllByRole('button', { name: /next/i })[0]
@@ -453,13 +469,13 @@ describe('Timeline paged position', () => {
   }
 
   it('returns to the page the user left, not page 1', () => {
-    const view = render(<Timeline />)
+    const view = renderTimeline()
 
     fireEvent.click(screen.getAllByRole('button', { name: /next/i })[0])
     expect(pageIndicator()).toHaveTextContent('Page 2 of 3')
 
     view.unmount()
-    render(<Timeline />)
+    renderTimeline()
 
     expect(pageIndicator()).toHaveTextContent('Page 2 of 3')
     // Page 2 of 25 events is windows 11-20.
@@ -470,7 +486,7 @@ describe('Timeline paged position', () => {
   it('clamps a stored page that now exceeds the list instead of rendering empty', () => {
     // As if the user left from a longer list — 25 events only reach page 3.
     sessionStorage.setItem('uma-planner-timeline-page', '9')
-    render(<Timeline />)
+    renderTimeline()
 
     expect(pageIndicator()).toHaveTextContent('Page 3 of 3')
     expect(cardCount()).toBe(5)
@@ -478,13 +494,13 @@ describe('Timeline paged position', () => {
 
   it('ignores a corrupt stored page', () => {
     sessionStorage.setItem('uma-planner-timeline-page', 'not-a-page')
-    render(<Timeline />)
+    renderTimeline()
 
     expect(pageIndicator()).toHaveTextContent('Page 1 of 3')
   })
 
   it('drops the stored position when the filter changes, so it cannot be restored stale', () => {
-    render(<Timeline />)
+    renderTimeline()
     fireEvent.click(screen.getAllByRole('button', { name: /next/i })[0])
 
     fireEvent.change(screen.getByPlaceholderText('Search characters or events...'), {
@@ -497,7 +513,7 @@ describe('Timeline paged position', () => {
 
 describe('Timeline date formatting', () => {
   it('renders banner windows as YYYY/M/D', () => {
-    render(<Timeline />)
+    renderTimeline()
     // 2099-01-01T22:00:00Z through 2099-02-01T21:59:59Z, as local calendar days.
     const start = new Date('2099-01-01T22:00:00Z')
     const end = new Date('2099-02-01T21:59:59Z')
@@ -523,7 +539,7 @@ describe('Timeline concurrent banners', () => {
       windowAt(1, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
       windowAt(2, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(headerCount()).toBe(1)
     // Both banners still render their own panels and their own add buttons
@@ -539,7 +555,7 @@ describe('Timeline concurrent banners', () => {
       windowAt(1, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
       windowAt(2, '2099-03-01T22:00:00Z', '2099-03-17T21:59:59Z'),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     const start = new Date('2099-03-01T22:00:00Z')
     const unionEnd = new Date('2099-03-17T21:59:59Z')
@@ -562,7 +578,7 @@ describe('Timeline concurrent banners', () => {
       windowAt(1, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
       windowAt(2, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z'),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.queryByText(/This banner ends/)).not.toBeInTheDocument()
   })
@@ -573,7 +589,7 @@ describe('Timeline concurrent banners', () => {
     const past = windowAt(1, '2099-03-01T22:00:00Z', '2000-01-01T00:00:00Z')
     const future = windowAt(2, '2099-03-01T22:00:00Z', '2099-03-08T21:59:59Z')
     events = [past, future]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(headerCount()).toBe(1)
     expect(cardCount()).toBe(1)
@@ -637,7 +653,7 @@ describe('Timeline banner categories', () => {
       categorised(1, 'golden_week_revival', ['Oguri Cap (Christmas)']),
       categorised(2, 'standard', ['Yukino Bijin'], ['Smart Falcon']),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     // Queried by class rather than text: the category filter's dropdown carries
     // the same words in an <option>, and this assertion is about the chip.
@@ -649,7 +665,7 @@ describe('Timeline banner categories', () => {
 
   it('opens a revival into one row of tiles, with no cap and no clip', () => {
     events = [categorised(1, 'golden_week_revival', REVIVAL_UMAS)]
-    render(<Timeline />)
+    renderTimeline()
 
     const { scroller, row } = bandFor('Hishi Miracle')
     // Eleven umas, eleven tiles, one row — at every width, not just xl.
@@ -668,7 +684,7 @@ describe('Timeline banner categories', () => {
     // three-column section would spend two thirds of a full-width row on
     // placeholders.
     events = [categorised(1, 'golden_week_revival', REVIVAL_UMAS)]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.queryByText('Banner art coming soon')).not.toBeInTheDocument()
     expect(
@@ -681,14 +697,14 @@ describe('Timeline banner categories', () => {
     events = [
       categorised(1, 'golden_week_revival', ['Oguri Cap (Christmas)'], ['Kitasan Black']),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.getByAltText('Kitasan Black')).toBeInTheDocument()
   })
 
   it('labels a rerun without changing its layout', () => {
     events = [categorised(1, 'rerun', ['Gentildonna'], ['Kitasan Black'])]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.getByText('Rerun')).toBeInTheDocument()
     // Still the ordinary three-column section, art placeholder included.
@@ -702,7 +718,7 @@ describe('Timeline banner categories', () => {
     events = [
       categorised(1, 'race_prep_support', [], ['Kitasan Black', 'Super Creek']),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.getByText('Race Prep Support')).toBeInTheDocument()
     expect(screen.getByText('No Umamusume banner in this window.')).toBeInTheDocument()
@@ -716,7 +732,7 @@ describe('Timeline banner categories', () => {
     const umas = Array.from({ length: 9 }, (_, i) => `Launch Uma ${i + 1}`)
     const supports = Array.from({ length: 20 }, (_, i) => `Launch Card ${i + 1}`)
     events = [categorised(1, 'standard', umas, supports)]
-    render(<Timeline />)
+    renderTimeline()
 
     // Both sides get their own horizontal line, each holding all of its cards.
     expect(bandFor('Launch Uma 9').row.children).toHaveLength(9)
@@ -733,7 +749,7 @@ describe('Timeline banner categories', () => {
     // race-prep rows are exactly this, so it is the shape that matters most.
     const supports = Array.from({ length: 10 }, (_, i) => `Card ${i + 1}`)
     events = [categorised(1, 'race_prep_support', ['Satono Crown'], supports)]
-    render(<Timeline />)
+    renderTimeline()
 
     // The ten that don't fit get the full-width line...
     expect(bandFor('Card 10').row.children).toHaveLength(10)
@@ -751,7 +767,7 @@ describe('Timeline banner categories', () => {
     // the row renders art | uma | nothing with the band repeating below.
     const supports = Array.from({ length: 10 }, (_, i) => `Card ${i + 1}`)
     events = [categorised(1, 'race_prep_support', ['Satono Crown'], supports)]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(
       screen.queryByText('No support banner in this window.'),
@@ -763,7 +779,7 @@ describe('Timeline banner categories', () => {
   it('keeps an ordinary two-card banner in the compact columns', () => {
     // The overwhelmingly common row must be untouched by all of the above.
     events = [categorised(1, 'standard', ['A', 'B'], ['C', 'D'])]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(gridFor('A').className).not.toContain('xl:grid-cols-')
     expect(gridFor('C').className).not.toContain('xl:grid-cols-')
@@ -781,7 +797,7 @@ describe('Timeline banner categories', () => {
     // in a 2×2 block with a gutter of dead space beside them is what the
     // one-line rule replaces.
     events = [categorised(1, 'standard', ['A Uma', 'B Uma', 'C Uma', 'D Uma'])]
-    render(<Timeline />)
+    renderTimeline()
 
     const { row } = bandFor('D Uma')
     expect(row.children).toHaveLength(4)
@@ -812,7 +828,7 @@ describe('Timeline category filter', () => {
       categorised(1, 'standard', ['Yukino Bijin']),
       categorised(2, 'golden_week_revival', ['Oguri Cap (Christmas)']),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     const options = Array.from(
       screen.getByLabelText(FILTER).querySelectorAll('option'),
@@ -823,7 +839,7 @@ describe('Timeline category filter', () => {
 
   it('hides itself when there is nothing to choose between', () => {
     events = [categorised(1, 'standard', ['Yukino Bijin'])]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.queryByLabelText(FILTER)).not.toBeInTheDocument()
   })
@@ -836,7 +852,7 @@ describe('Timeline category filter', () => {
       categorised(1, 'standard', ['Yukino Bijin']),
       categorised(2, 'golden_week_revival', ['Oguri Cap (Christmas)']),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     const filter = screen.getByLabelText(FILTER)
     const search = screen.getByPlaceholderText(/search characters or events/i)
@@ -853,7 +869,7 @@ describe('Timeline category filter', () => {
       categorised(2, 'golden_week_revival', ['Oguri Cap (Christmas)']),
       categorised(3, 'rerun', ['Gentildonna']),
     ]
-    render(<Timeline />)
+    renderTimeline()
     expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 3 of 3')
 
     selectCategory('golden_week_revival')
@@ -873,7 +889,7 @@ describe('Timeline category filter', () => {
       end_date: revival.end_date,
     }
     events = [revival, alongside]
-    render(<Timeline />)
+    renderTimeline()
 
     selectCategory('golden_week_revival')
 
@@ -887,7 +903,7 @@ describe('Timeline category filter', () => {
       categorised(2, 'rerun', ['Gentildonna']),
       raceEvent(9, '05'),
     ]
-    render(<Timeline />)
+    renderTimeline()
     expect(screen.getByText('Champions Meeting 9')).toBeInTheDocument()
 
     // A Champions Meeting has no banner category, so it cannot match one.
@@ -903,7 +919,7 @@ describe('Timeline category filter', () => {
       categorised(2, 'rerun', ['Gentildonna']),
       raceEvent(9, '05'),
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     selectCategory('rerun')
     selectCategory('all')
@@ -919,7 +935,7 @@ describe('Timeline category filter', () => {
     events = [categorised(1, 'standard', ['Yukino Bijin'])]
     scenarios = [scenario(1, 'Grand Masters')]
     campaigns = [campaign(1, '4th Anniversary')]
-    render(<Timeline />)
+    renderTimeline()
 
     const select = screen.getByLabelText(FILTER)
     expect(
@@ -946,7 +962,7 @@ describe('Timeline category filter', () => {
       // dated parts -- main_start_date is null exactly when start_date is.
       { ...campaign(2, 'Undated Campaign'), start_date: null, main_start_date: null },
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     const options = Array.from(
       screen.getByLabelText(FILTER).querySelectorAll('option'),
@@ -961,7 +977,7 @@ describe('Timeline category filter', () => {
     // real choices, so the control is not clutter.
     events = [categorised(1, 'standard', ['Yukino Bijin'])]
     scenarios = [scenario(1, 'Grand Masters')]
-    render(<Timeline />)
+    renderTimeline()
 
     expect(screen.getByLabelText(FILTER)).toBeInTheDocument()
   })
@@ -970,7 +986,7 @@ describe('Timeline category filter', () => {
     events = [categorised(1, 'standard', ['Yukino Bijin']), raceEvent(9, '05')]
     scenarios = [scenario(1, 'Grand Masters')]
     campaigns = [campaign(1, '4th Anniversary')]
-    render(<Timeline />)
+    renderTimeline()
     expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 4 of 4')
 
     selectCategory('marker:scenario')
@@ -985,7 +1001,7 @@ describe('Timeline category filter', () => {
   it('keeps the search box working inside a marker filter', () => {
     events = [categorised(1, 'standard', ['Yukino Bijin'])]
     campaigns = [campaign(1, '4th Anniversary'), campaign(2, 'Summer Festival')]
-    render(<Timeline />)
+    renderTimeline()
 
     selectCategory('marker:anniversary')
     fireEvent.change(screen.getByPlaceholderText(/search characters or events/i), {
@@ -1005,7 +1021,7 @@ describe('Timeline category filter', () => {
       categorised(2, 'rerun', ['Gentildonna']),
     ]
     scenarios = [scenario(1, 'Grand Masters')]
-    render(<Timeline />)
+    renderTimeline()
     expect(screen.getByText('Grand Masters')).toBeInTheDocument()
 
     selectCategory('rerun')
@@ -1020,7 +1036,7 @@ describe('Timeline category filter', () => {
       { ...scenario(1, 'Grand Masters'), start_date: '2099-05-01T22:00:00Z' },
       { ...scenario(2, 'Legacy Scenario'), start_date: '2000-01-01T22:00:00Z' },
     ]
-    render(<Timeline />)
+    renderTimeline()
 
     selectCategory('marker:scenario')
     expect(screen.getByText('Grand Masters')).toBeInTheDocument()
@@ -1039,12 +1055,241 @@ describe('Timeline category filter', () => {
       ...Array.from({ length: 12 }, (_, i) => categorised(i + 1, 'standard', [`Uma ${i + 1}`])),
       categorised(13, 'rerun', ['Gentildonna']),
     ]
-    render(<Timeline />)
+    renderTimeline()
     expect(screen.getAllByText(/Page/)[0]).toHaveTextContent('Page 2 of 2')
 
     selectCategory('rerun')
 
     expect(sessionStorage.getItem('uma-planner-timeline-page')).toBe('1')
     expect(screen.getByAltText('Gentildonna')).toBeInTheDocument()
+  })
+})
+
+/**
+ * Deep links from the calculator sheet.
+ *
+ * The link names a target and this route resolves it — see utils/timelineFocus
+ * for why a `#hash` cannot: the list is windowed and hides the past by default,
+ * so the element the browser would scroll to usually isn't in the DOM.
+ */
+describe('Timeline deep links', () => {
+  /** The one card wearing the arrival ring, if any. */
+  function highlighted(): NodeListOf<Element> {
+    return document.querySelectorAll(`.${TIMELINE_FOCUS_HIGHLIGHT.split(' ').join('.')}`)
+  }
+
+  /**
+   * The end-of-list scroll padding, if it is being rendered.
+   *
+   * Matched on the className rather than by a CSS selector: the class carries
+   * Tailwind's arbitrary-value brackets (`h-[100dvh]`), which are not legal in
+   * a selector without escaping every one of them.
+   */
+  function tailroom(): Element[] {
+    return Array.from(document.querySelectorAll('div[aria-hidden="true"]')).filter(
+      (el) => el.className === FOCUS_TAILROOM
+    )
+  }
+
+  it('reveals a whole chunk BELOW a target that lands on a chunk boundary', () => {
+    // Window 10 is the last row of the first chunk. Revealing only its own
+    // chunk leaves nothing under it, and a scroller with nothing left to
+    // scroll cannot lift the card to the top however it is asked to — which
+    // is what made the landing look intermittent rather than broken.
+    renderTimeline('/app/timeline?focus=banner-10')
+
+    expect(cardCount()).toBe(20)
+  })
+
+  it('pads the end of the list so the last rows can still reach the top', () => {
+    // Window 25 is the last of 25: no amount of revealing puts anything below
+    // it, so the padding is the only thing that can give it room.
+    renderTimeline('/app/timeline?focus=banner-25')
+
+    expect(tailroom()).toHaveLength(1)
+  })
+
+  it('adds no padding when the list already runs on past the target', () => {
+    renderTimeline('/app/timeline?focus=banner-10')
+
+    // A screen of dead air under every deep link would be a worse bug than
+    // the one the padding fixes.
+    expect(tailroom()).toHaveLength(0)
+  })
+
+  it('reveals a target that sits far past the first infinite-scroll chunk', () => {
+    // Window 25 is the last of 25 — two appends away under normal scrolling.
+    renderTimeline('/app/timeline?focus=banner-25')
+
+    expect(cardCount()).toBe(25)
+    expect(screen.getByText(/2099\/1\/25 through/)).toBeInTheDocument()
+  })
+
+  it('shows the past half of the calendar when the target has already ended', () => {
+    events = [...BASE_EVENTS, windowAt(99, '2020-01-01T22:00:00Z', '2020-02-01T21:59:59Z')]
+    renderTimeline('/app/timeline?focus=banner-99')
+
+    // The default view would have hidden the only card the link exists to reach.
+    expect(cardCount()).toBe(1)
+    expect(screen.getByText(/2020\/1\/1 through/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /show current\/future events/i })
+    ).toBeInTheDocument()
+  })
+
+  it('rings exactly the card that was linked to', () => {
+    renderTimeline('/app/timeline?focus=banner-3')
+
+    expect(highlighted()).toHaveLength(1)
+  })
+
+  it('scrolls the target into view once it has rendered', () => {
+    // jsdom implements no scrollIntoView at all, which is why the component
+    // guards the call — installing one here is what lets it run.
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    renderTimeline('/app/timeline?focus=banner-3')
+
+    expect(scrollIntoView).toHaveBeenCalled()
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+  })
+
+  /**
+   * Stand-ins for the three browser APIs the settle loop drives.
+   *
+   * jsdom has a real `requestAnimationFrame`, but it fires on a timer a test
+   * would have to wait out; driving the queue by hand makes "one frame passed"
+   * an assertion rather than a sleep. `getBoundingClientRect` is jsdom's
+   * all-zero stub otherwise, i.e. a page that never shifts — precisely the one
+   * condition under which this loop has nothing to do, so leaving it in place
+   * would test nothing.
+   *
+   * Torn down from an afterEach rather than at the end of each test, so a
+   * failing assertion can't leak a patched Element.prototype into the rest of
+   * the file.
+   */
+  let harness: ReturnType<typeof installLayoutHarness> | null = null
+
+  function installLayoutHarness() {
+    const originalRect = Element.prototype.getBoundingClientRect
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+
+    let top = 0
+    Element.prototype.getBoundingClientRect = function (): DOMRect {
+      return {
+        top, y: top, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    }
+
+    const queue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queue.push(cb))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+
+    return {
+      scrollIntoView,
+      /** Move the focused card, as an image loading above it would. */
+      shiftTo(next: number) { top = next },
+      /** Run whatever the loop queued for the next frame. */
+      frame() {
+        const pending = queue.splice(0, queue.length)
+        act(() => { pending.forEach((cb) => cb(0)) })
+      },
+      restore() {
+        Element.prototype.getBoundingClientRect = originalRect
+        delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+        vi.unstubAllGlobals()
+      },
+    }
+  }
+
+  afterEach(() => {
+    harness?.restore()
+    harness = null
+  })
+
+  it('scrolls instantly, so nothing can grow under a running animation', () => {
+    harness = installLayoutHarness()
+    renderTimeline('/app/timeline?focus=banner-3')
+
+    // No `behavior: "smooth"`. A smooth scroll fixes its destination when it
+    // is called, and lazy images above the target load *because* the animation
+    // drags the viewport past them — so it always landed short.
+    //
+    // `start` rather than `center`: cards are tall enough that centring one
+    // leaves its heading halfway down the screen.
+    expect(harness.scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
+  })
+
+  it('re-aligns the target when late content shifts it', () => {
+    harness = installLayoutHarness()
+    renderTimeline('/app/timeline?focus=banner-3')
+    expect(harness.scrollIntoView).toHaveBeenCalledTimes(1)
+
+    // An image above the target finishes decoding and pushes it down the page.
+    harness.shiftTo(500)
+    harness.frame()
+
+    expect(harness.scrollIntoView).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops correcting once the target holds still', () => {
+    harness = installLayoutHarness()
+    renderTimeline('/app/timeline?focus=banner-3')
+
+    harness.frame()
+    harness.frame()
+    // Two stable frames is the exit condition, so by this third one the loop
+    // must have queued nothing. One that never stops leaves the page twitching
+    // and the reader unable to scroll away from the card.
+    harness.frame()
+
+    expect(harness.scrollIntoView).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up the moment the reader scrolls for themselves', () => {
+    harness = installLayoutHarness()
+    renderTimeline('/app/timeline?focus=banner-3')
+
+    act(() => { window.dispatchEvent(new WheelEvent('wheel')) })
+    harness.shiftTo(500)
+    harness.frame()
+
+    // Hauling the page back under someone who has taken over is just a
+    // different way of losing their place.
+    expect(harness.scrollIntoView).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens on the page holding the target in paged mode', () => {
+    localStorage.setItem('uma-planner-timeline-view', 'paged')
+    renderTimeline('/app/timeline?focus=banner-25')
+
+    expect(screen.getAllByText(/Page/)[0]).toHaveTextContent('Page 3 of 3')
+  })
+
+  it('hands the list back as soon as the reader uses a control', () => {
+    localStorage.setItem('uma-planner-timeline-view', 'paged')
+    renderTimeline('/app/timeline?focus=banner-25')
+
+    fireEvent.click(screen.getAllByRole('button', { name: /previous/i })[0])
+
+    // The focus target would otherwise keep forcing page 3 and make the button
+    // look broken.
+    expect(screen.getAllByText(/Page/)[0]).toHaveTextContent('Page 2 of 3')
+    expect(highlighted()).toHaveLength(0)
+  })
+
+  it('renders the ordinary timeline for a focus it cannot resolve', () => {
+    renderTimeline('/app/timeline?focus=banner-9999')
+
+    expect(cardCount()).toBe(10)
+    expect(highlighted()).toHaveLength(0)
+  })
+
+  it('ignores a malformed focus parameter rather than breaking the route', () => {
+    renderTimeline('/app/timeline?focus=not-a-target')
+
+    expect(cardCount()).toBe(10)
   })
 })

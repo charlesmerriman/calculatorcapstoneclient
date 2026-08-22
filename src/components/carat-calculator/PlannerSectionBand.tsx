@@ -1,4 +1,6 @@
-import { Gamepad2, Sparkles } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Sparkles } from "lucide-react"
+import { timelineFocusHref } from "../../utils/timelineFocus"
 import type { PlannerMarker } from "../../utils/plannerSections"
 
 /**
@@ -15,19 +17,26 @@ import type { PlannerMarker } from "../../utils/plannerSections"
  * This is not AnniversaryEventStrip. That strip is left-aligned with squared
  * bottom corners because it welds onto the top of a timeline card; this is a
  * centred divider that belongs to neither neighbour.
+ *
+ * Each line links through to the same landmark's card on the Timeline. The band
+ * names a scenario or a campaign and says nothing else about it — what launched
+ * with it, what it looks like, how long it runs — and the Timeline is where all
+ * of that already lives. See `utils/timelineFocus.ts` for why the link names a
+ * target instead of pointing at a `#hash`.
  */
 
-/** Per-kind chrome. Scenario reads louder — see the note in the component. */
+/**
+ * Per-kind chrome. Scenario reads louder — see the note in the component.
+ * `icon` is optional: a scenario band carries no icon, so weight and colour
+ * alone distinguish it from an anniversary.
+ */
 const MARKER_STYLES: Record<
 	PlannerMarker["kind"],
-	{ text: string; icon: typeof Sparkles; iconSize: string; textColor: string; iconShell: string }
+	{ text: string; icon?: typeof Sparkles; iconSize?: string; textColor: string; iconShell?: string }
 > = {
 	scenario: {
 		text: "text-sm font-semibold tracking-wide sm:text-base",
-		icon: Gamepad2,
-		iconSize: "h-4 w-4 sm:h-5 sm:w-5",
 		textColor: "text-brand",
-		iconShell: "text-brand",
 	},
 	anniversary: {
 		text: "text-sm font-medium tracking-wide sm:text-base",
@@ -44,36 +53,94 @@ const STRIP_TONES = [
 	"bg-brand/[0.07]",
 ]
 
-export const PlannerSectionBand = ({ markers }: { markers: PlannerMarker[] }) => (
+/**
+ * The UTC calendar day an ISO instant falls on, for grouping lines by date.
+ *
+ * UTC because the whole projection is (see utils/utcDates.ts) — reading these
+ * as local days would move the grouping around by the viewer's timezone, so two
+ * users could see the same band striped differently. Parsed rather than sliced
+ * off the string: an instant carrying an offset would otherwise report its local
+ * date as if it were the UTC one. An unparseable value falls back to its own raw
+ * text, so two identical bad values still group together instead of each
+ * becoming its own "date".
+ */
+function utcDayKey(iso: string): string {
+	const ms = Date.parse(iso)
+	return Number.isNaN(ms) ? iso : new Date(ms).toISOString().slice(0, 10)
+}
+
+/**
+ * The tone index for each line: advance only when the DATE changes.
+ *
+ * Markers collapse into one band by insertion POINT, not by date, so a band can
+ * hold two different moments — and it can equally hold two lines that are the
+ * same moment (a scenario launching the day an anniversary lands, the common
+ * case since scenarios usually debut alongside one). Alternating per line split
+ * that shared moment across two fills, which reads as two events on two dates.
+ * Alternating per distinct day makes one fill mean "one date" and a change of
+ * fill mean "a different one".
+ */
+function toneIndices(markers: PlannerMarker[]): number[] {
+	let tone = 0
+	let previousDay: string | null = null
+	return markers.map((marker) => {
+		const day = utcDayKey(marker.startDate)
+		if (previousDay !== null && day !== previousDay) tone += 1
+		previousDay = day
+		return tone
+	})
+}
+
+export const PlannerSectionBand = ({ markers }: { markers: PlannerMarker[] }) => {
+	// Markers arrive sorted by date (see compareMarkers), which is what lets the
+	// tone walk be a single pass over neighbours rather than a grouping pass.
+	const tones = toneIndices(markers)
+
 	/*
 	 * role="presentation" so the band doesn't read as a data row to a screen
 	 * reader: it's a landmark between rows, and its text is already announced.
 	 * The outer surface uses the semantic gray ramp and the scenario treatment
 	 * uses --color-brand, so every theme supplies its own contrast and accent.
-	 * Strip fills alternate by visual order, while the scenario/anniversary icon
-	 * and weight still communicate what kind of landmark it is. The surrounding
-	 * rules make the otherwise empty row width read as a deliberate ledger
-	 * divider rather than a large button.
+	 * Strip fills alternate per DATE rather than per line, while weight, colour
+	 * and the anniversary's sparkle still communicate what kind of landmark it
+	 * is. The surrounding rules make the otherwise empty row width read as a
+	 * deliberate ledger divider rather than a large button.
 	 */
-	<div
-		role="presentation"
-		className="flex w-full flex-col border-y border-brand/20 bg-gray-900/20"
-	>
-		{markers.map((marker, index) => {
-			const style = MARKER_STYLES[marker.kind]
-			const Icon = style.icon
-			const tone = STRIP_TONES[index % STRIP_TONES.length]
-			return (
-				<div
-					key={marker.key}
-					className={`flex min-h-9 w-full items-center justify-center px-4 py-1.5 ${index > 0 ? "border-t border-gray-700/80" : ""} ${tone}`}
-				>
-					<div className={`flex shrink-0 items-center gap-2 text-center ${style.text} ${style.textColor}`}>
-						<Icon className={`${style.iconSize} ${style.iconShell}`} aria-hidden="true" />
-						<span>{marker.name}</span>
-					</div>
-				</div>
-			)
-		})}
-	</div>
-)
+	return (
+		<div
+			role="presentation"
+			className="flex w-full flex-col border-y border-brand/20 bg-gray-900/20"
+		>
+			{markers.map((marker, index) => {
+				const style = MARKER_STYLES[marker.kind]
+				const Icon = style.icon
+				const tone = STRIP_TONES[tones[index] % STRIP_TONES.length]
+				return (
+					/*
+					 * The whole strip is the link rather than just the label: the row is
+					 * otherwise empty, so a text-width target in the middle of a
+					 * full-width band would be needlessly hard to hit. `group` lets the
+					 * name underline on hover — the affordance is carried by the text
+					 * and a faint wash, with no arrow glyph, because a scenario line is
+					 * distinguished from an anniversary one by having NO icon.
+					 *
+					 * `hover:` fills only. The alternating tone is the sole bare `bg-`
+					 * class on this element, and adding a second one would change which
+					 * fill a reader (and the band's test) sees as the strip's colour.
+					 */
+					<Link
+						key={marker.key}
+						to={timelineFocusHref({ kind: marker.kind, id: marker.sourceId })}
+						title={`View ${marker.name} on the timeline`}
+						className={`group flex min-h-9 w-full items-center justify-center px-4 py-1.5 transition-colors hover:bg-brand/10 ${index > 0 ? "border-t border-gray-700/80" : ""} ${tone}`}
+					>
+						<div className={`flex shrink-0 items-center gap-2 text-center ${style.text} ${style.textColor}`}>
+							{Icon && <Icon className={`${style.iconSize} ${style.iconShell}`} aria-hidden="true" />}
+							<span className="underline-offset-4 group-hover:underline">{marker.name}</span>
+						</div>
+					</Link>
+				)
+			})}
+		</div>
+	)
+}

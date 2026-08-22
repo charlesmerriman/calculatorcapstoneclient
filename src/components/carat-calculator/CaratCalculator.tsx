@@ -8,7 +8,7 @@ import { IncomeForm } from "./IncomeForm"
 import { StagedBannerRow } from "./StagedBannerRow"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
 import { PlannerSectionBand } from "./PlannerSectionBand"
-import { buildPlannerRows } from "../../utils/plannerSections"
+import { buildPlannerRows, SCENARIO_BANDS_ONLY } from "../../utils/plannerSections"
 import { EMPTY_BANNER_RESOURCES } from "../../hooks/bannerResources"
 import { useBannerResources } from "../../hooks/useBannerResources"
 import {
@@ -56,12 +56,22 @@ export const CaratCalculator: React.FC = () => {
 	})
 
 	// The sheet's render list: the same rows, with section bands interleaved for
-	// the scenarios and anniversaries falling between the first and last banner.
+	// the scenarios launching between the first and last banner.
 	// Each row keeps its ORIGINAL index — bannerResources is positional against
 	// userPlannedBannerData, so reading it by position in THIS list would
 	// silently mis-attribute every row's resources once a band appears.
+	// Scenario bands only, by constant rather than by setting — see
+	// SCENARIO_BANDS_ONLY. anniversaryEventData is still passed because the
+	// builder is what filters; the argument is not dead, it is just fully
+	// filtered out today.
 	const plannerRows = useMemo(
-		() => buildPlannerRows(userPlannedBannerData, scenarioData, anniversaryEventData),
+		() =>
+			buildPlannerRows(
+				userPlannedBannerData,
+				scenarioData,
+				anniversaryEventData,
+				SCENARIO_BANDS_ONLY
+			),
 		[userPlannedBannerData, scenarioData, anniversaryEventData]
 	)
 

@@ -91,12 +91,15 @@ export function RaceEventCard({ event, today }: { event: RaceEvent; today: Date 
 				>
 					<div className="min-w-0">
 						{event.image ? (
+							/* 16:9 declared so the box is reserved before the image
+							   loads; object-contain keeps an off-ratio asset
+							   letterboxed rather than stretched. See BANNER_ART. */
 							<img
 								src={event.image}
 								alt={event.name}
 								loading="lazy"
 								decoding="async"
-								className="h-auto w-full rounded-xl border border-gray-600 shadow-md"
+								className="aspect-[16/9] h-auto w-full object-contain rounded-xl border border-gray-600 shadow-md"
 							/>
 						) : (
 							<BannerArtPlaceholder />
