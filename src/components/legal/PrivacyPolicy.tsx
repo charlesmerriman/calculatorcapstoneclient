@@ -28,7 +28,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: August 17, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: August 24, 2026</p>
 
 					<p className={paragraph}>
 						This Privacy Policy explains what information the Uma Musume Carat Calculator
@@ -90,6 +90,22 @@ export const PrivacyPolicy: React.FC = () => {
 						account you signed in with. If that happens, your saved plan cannot be
 						recovered, and you would need to start a new plan. This is a deliberate
 						trade-off in exchange for holding none of your personal data.
+					</p>
+
+					<h2 className={heading}>Feedback You Send Us</h2>
+					<p className={paragraph}>
+						If you use the feedback form, we store the message you write and the category
+						you pick, so we can read and act on it. The form deliberately has{" "}
+						<strong>no contact field</strong>. We do not ask for your email address or any
+						other way to reach you, which also means we cannot reply to what you send. If
+						you are signed in, the message is linked to your anonymous account reference so
+						we can tell repeat reports apart; if you are a guest, it is stored with no
+						account attached at all.
+					</p>
+					<p className={paragraph}>
+						Because the message box is free text, please do not put personal details in it. It is
+						stored exactly as you write it. As with the traffic counting described
+						above, <strong>no IP address is recorded</strong> when you submit feedback.
 					</p>
 
 					<h2 className={heading}>Cookies and Local Storage</h2>

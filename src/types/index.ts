@@ -74,6 +74,11 @@ export type {
 } from "./changelog"
 
 export type {
+	FeedbackCategory,
+	FeedbackPayload
+} from "./feedback"
+
+export type {
 	AnniversaryEvent,
 	AnniversaryEventType,
 	AnniversaryEventProduct,
