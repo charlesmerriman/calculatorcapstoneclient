@@ -443,7 +443,11 @@ export const BannerRow = ({
 			}}
 			menuPortalTarget={document.body}
 			menuPosition="fixed"
-			placeholder={isStepUp ? "Target Step-Up Campaign" : `Target ${bannerType} Banner`}
+			// Phrased as the action, not as a heading. "Target Support Banner" is a
+			// noun phrase and read as this card's title rather than as an empty
+			// field waiting to be filled — the same thing the transparent control
+			// styling was doing (see mobileBannerSelectStyles).
+			placeholder={isStepUp ? "Select a step-up campaign…" : `Select a ${bannerType.toLowerCase()} banner…`}
 			value={
 				currentBanner
 					? { value: currentBanner, label: currentBanner.name, key: currentBanner.id }
@@ -477,7 +481,13 @@ export const BannerRow = ({
 
 	const dateDisplay = bannerTimeline ? (
 		<div className="flex flex-col gap-0.5">
-			<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
+			{/* ALWAYS one per line, at every card width. Side by side these two want
+			    ~234px and the card's date track can only spare ~150 of a 390px
+			    viewport, which used to push "End: …" out under the pulls field —
+			    and a range that reads down at one width and across at the next is
+			    harder to scan than one that always reads down. The desktop table
+			    stacks them too; it renders its own pair, not this. */}
+			<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px] sm:text-sm">
 				<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 				<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			</div>
@@ -553,13 +563,38 @@ export const BannerRow = ({
 			  },
 	]
 
+	// The pull ceiling, rendered beside the pulls field rather than in the strip
+	// below — see MobileBannerCard's `maxCount`. Built from derivedStats[3] rather
+	// than from `maxPossiblePulls` directly so the step-up relabel (Max Pulls →
+	// Max Steps) keeps happening in exactly one place.
+	//
+	// The value sits in its own h-9 box so its baseline lands where the adjacent
+	// input's does; without it the pair floats above a field twice its height.
+	const maxCountCell = (
+		<div title={derivedStats[3].title} className="flex min-w-0 flex-col items-center">
+			<span className="banner-stat-box-label mb-0.5 whitespace-normal">{derivedStats[3].label}</span>
+			<span className={`banner-stat-box-value flex h-9 items-center ${derivedStats[3].valueClass ?? ""}`}>
+				{derivedStats[3].value}
+			</span>
+		</div>
+	)
+
+	// Three across in a single row, matching the shape the `sm:` strip already
+	// uses. Two rows of two is what the fourth box used to force; with it moved up
+	// beside the pulls field, the remaining three fit one row and the strip costs
+	// a line instead of two.
+	//
+	// The label may wrap ("Free/Tickets/Paid" is the long one) rather than being
+	// clipped — a ~320px card gives each box about 93px, which is the width that
+	// label wants exactly. Growing the row there beats truncating a label that
+	// names what the number underneath it means.
 	const mobileStatCell = (stat: typeof derivedStats[number], index: number) => (
 		<div
 			key={stat.label}
 			title={stat.title}
-			className={`flex flex-col items-center justify-center px-2 py-2${index % 2 === 0 ? " border-r border-gray-600" : ""}${index < 2 ? " border-b border-gray-600" : ""}`}
+			className={`flex min-w-0 flex-col items-center justify-center px-1 py-1.5 text-center${index < 2 ? " border-r border-gray-700" : ""}`}
 		>
-			<span className="banner-stat-box-label">{stat.label}</span>
+			<span className="banner-stat-box-label whitespace-normal">{stat.label}</span>
 			<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
 		</div>
 	)
@@ -568,21 +603,29 @@ export const BannerRow = ({
 	// "Max Pulls" share the second row. Once the card is wide enough, the
 	// reference-style three-across strip returns and shares its lower row with
 	// the odds display.
+	//
+	// The phone half runs EDGE TO EDGE — no inset card, no rounded border of its
+	// own. It reads as another band of the card (like the dates/pulls row above
+	// it) instead of a panel floating inside one, and that drops both the 24px
+	// gutter MobileBannerCard used to add and the strip's own border inset.
 	const statsDisplay = (
-		<div className="overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
+		<>
 			<div className="sm:hidden">
-				<div className="grid grid-cols-2">
-					{derivedStats.map(mobileStatCell)}
+				{/* Three boxes, not four — the fourth (Max Pulls / Max Steps) is up in
+				    the number band, beside the field it bounds. */}
+				<div className="grid grid-cols-3">
+					{derivedStats.slice(0, 3).map(mobileStatCell)}
 				</div>
-				<div className="border-t border-gray-600 p-2">
+				<div className="border-t border-gray-700">
 					{hasBanner ? (
 						<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
 					) : (
-						<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
+						<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
 					)}
 				</div>
 			</div>
-			<div className="hidden sm:block">
+			<div className="hidden p-3 sm:block">
+			<div className="overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
 				<div className="grid grid-cols-3 divide-x divide-gray-600">
 					{derivedStats.slice(0, 3).map((stat) => (
 						<div key={stat.label} title={stat.title} className="flex flex-col items-center justify-center px-2 py-2">
@@ -605,7 +648,8 @@ export const BannerRow = ({
 					</div>
 				</div>
 			</div>
-		</div>
+			</div>
+		</>
 	)
 
 	// WCAG 1.4.1 — color can't be the only carrier of this state. The same
@@ -656,7 +700,7 @@ export const BannerRow = ({
 		<input
 			type="number"
 			value={plannedCount}
-			className={`spin-arrows pull-input pull-input--${countStatus} w-20`}
+			className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
 			min={0}
 			title={countStatusHint}
 			aria-label={countLabel}
@@ -711,9 +755,10 @@ export const BannerRow = ({
 			imagesHref={timelineHref}
 			bannerSelect={mobileBannerSelect}
 			dates={dateDisplay}
+			maxCount={maxCountCell}
 			summary={statsDisplay}
 			pullsInput={pullsInput}
-			reservedInput={renderReservedInput("w-20")}
+			reservedInput={renderReservedInput("w-14")}
 			chanceDisplay={null}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"

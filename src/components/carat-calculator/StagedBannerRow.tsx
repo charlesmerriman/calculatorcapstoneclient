@@ -234,7 +234,11 @@ export const StagedBannerRow = ({
 			}}
 			menuPortalTarget={document.body}
 			menuPosition="fixed"
-			placeholder={isStepUp ? "Target Step-Up Campaign" : `Target ${bannerType} Banner`}
+			// Phrased as the action, not as a heading. "Target Support Banner" is a
+			// noun phrase and read as this card's title rather than as an empty
+			// field waiting to be filled — the same thing the transparent control
+			// styling was doing (see mobileBannerSelectStyles).
+			placeholder={isStepUp ? "Select a step-up campaign…" : `Select a ${bannerType.toLowerCase()} banner…`}
 			value={
 				currentBanner
 					? { value: currentBanner, label: currentBanner.name, key: currentBanner.id }
@@ -272,7 +276,8 @@ export const StagedBannerRow = ({
 	)
 
 	const dateDisplay = bannerTimeline ? (
-		<div className="grid grid-cols-[max-content_max-content] gap-x-3 text-xs text-gray-400 sm:gap-x-10 sm:text-sm">
+		// Always one per line, at every card width — same reason as BannerRow's.
+		<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px] sm:text-sm">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 		</div>
@@ -280,7 +285,12 @@ export const StagedBannerRow = ({
 		<span className="text-xs text-gray-600">—</span>
 	)
 
+	// Wrapped rather than bare: MobileBannerCard's summary slot is edge-to-edge
+	// now, and a button welded to the card's sides reads as a footer bar rather
+	// than an action. The stats strip that fills this slot on a saved row wants
+	// exactly the opposite, which is why the padding belongs to the caller.
 	const confirmButton = (
+		<div className="p-3 pb-0">
 		<button
 			onClick={onConfirm}
 			disabled={!hasBanner}
@@ -291,13 +301,14 @@ export const StagedBannerRow = ({
 			</svg>
 			Add to sheet
 		</button>
+		</div>
 	)
 
 	const pullsInput = (
 		<input
 			type="number"
 			value={stagedBanner.number_of_pulls}
-			className={`spin-arrows pull-input pull-input--${countStatus} w-20`}
+			className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
 			min={0}
 			title={countStatusHint}
 			aria-label={countLabel}
@@ -322,14 +333,18 @@ export const StagedBannerRow = ({
 		/>
 	)
 
-	const chanceDisplay = hasBanner ? (
-		<MLBChanceDisplay
-			pulls={stagedBanner.number_of_pulls}
-			plannedBanner={stagedBanner}
-			distribution={stepUpOdds}
-		/>
-	) : (
-		<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
+	const chanceDisplay = (
+		<div className="p-3">
+			{hasBanner ? (
+				<MLBChanceDisplay
+					pulls={stagedBanner.number_of_pulls}
+					plannedBanner={stagedBanner}
+					distribution={stepUpOdds}
+				/>
+			) : (
+				<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
+			)}
+		</div>
 	)
 
 	return (
@@ -343,7 +358,7 @@ export const StagedBannerRow = ({
 			dates={dateDisplay}
 			summary={confirmButton}
 			pullsInput={pullsInput}
-			reservedInput={renderReservedInput("w-20")}
+			reservedInput={renderReservedInput("w-14")}
 			chanceDisplay={chanceDisplay}
 			onRemove={onDiscard}
 			removeLabel="Discard staged banner"

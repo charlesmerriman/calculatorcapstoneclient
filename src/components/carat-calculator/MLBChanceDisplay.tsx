@@ -59,11 +59,15 @@ export const MLBChanceDisplay = ({
 	const peak = Math.max(...values)
 
 	return (
-		<div className="w-full grid grid-cols-3 sm:grid-cols-6 rounded-lg bg-gray-700 border border-gray-600 overflow-hidden">
+		// Six across at every width, phones included. Wrapping to 3x2 below `sm`
+		// doubled the strip's height for six cells that each need ~30px — a 320px
+		// card gives every one of them ~53px, which is roomier than the desktop
+		// table's own 14rem track manages.
+		<div className="w-full grid grid-cols-6 bg-gray-700 border-gray-600 sm:rounded-lg sm:border overflow-hidden">
 			{labels.map((label, i) => (
 				<div
 					key={label}
-					className={`flex flex-col items-center justify-center px-1 py-1.5 text-[10px] leading-tight text-center${i < labels.length - 1 ? " border-r border-gray-600" : ""}${i < 3 ? " border-b border-gray-600 sm:border-b-0" : ""}`}
+					className={`flex flex-col items-center justify-center px-0.5 py-1.5 text-[10px] leading-tight text-center sm:px-1${i < labels.length - 1 ? " border-r border-gray-600" : ""}`}
 				>
 					<div className="mlb-label">{label}</div>
 					<div className="mlb-value">{values[i].toFixed(1)}%</div>

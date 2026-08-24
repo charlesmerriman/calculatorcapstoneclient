@@ -73,16 +73,29 @@ const selectStyles: StylesConfig<any, false> = {
 // Padding is symmetric: the spin arrows are positioned out of flow (see
 // .spin-arrows in App.css), so text-center already lands optically centered —
 // the old asymmetric pl-4.5 counterweight would now push the value off-center.
+// Width is NOT set here — the two call sites differ (a phone's resource grid gives
+// each field a hair under 4rem, the rank badges a full 5rem) and baking one in
+// meant overriding it at the site that disagreed.
 const numInputClass =
-	"spin-arrows w-20 border border-gray-600 rounded py-1 px-2 text-sm text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500"
+	"spin-arrows border border-gray-600 rounded py-1 px-1 text-xs text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500 sm:px-2 sm:text-sm"
 
 // ── ResourceRow ───────────────────────────────────────────────────────
 
+// Eight of these stacked in one column ran to ~355px on a phone, the single
+// biggest block in the panel. Two columns of smaller rows is ~140px: the icon
+// drops to 24px, the label to 11px and wraps rather than pushing the field off
+// the row, and the field keeps a 3.5rem tap target.
 const ResourceRow = ({ icon, label, value, onChange }: { icon: ReactNode; label: string; value: number; onChange: (v: number) => void }) => (
-	<div className="flex min-w-0 items-center gap-2">
-		<span className="shrink-0 w-8 h-8 flex items-center justify-center">{icon}</span>
-		<span className="min-w-0 flex-1 text-sm text-gray-400 leading-tight">{label}</span>
-		<input type="number" min={0} value={value} className={numInputClass} onChange={(e) => onChange(Number(e.target.value))} />
+	<div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+		<span className="shrink-0 w-6 h-6 flex items-center justify-center sm:w-8 sm:h-8">{icon}</span>
+		<span className="min-w-0 flex-1 text-[11px] text-gray-400 leading-tight sm:text-sm">{label}</span>
+		<input
+			type="number"
+			min={0}
+			value={value}
+			className={`${numInputClass} w-14 shrink-0 sm:w-20`}
+			onChange={(e) => onChange(Number(e.target.value))}
+		/>
 	</div>
 )
 
@@ -171,10 +184,23 @@ export const IncomeForm = () => {
 				type="button"
 				onClick={() => setIsOpen((v) => !v)}
 				aria-expanded={isOpen}
-				className="flex w-full cursor-pointer items-center justify-between bg-gray-800/50 px-4 py-3 text-left transition-colors hover:bg-gray-800/80 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+				className="flex w-full cursor-pointer items-center justify-between gap-2 border-b border-gray-700 bg-gray-800/50 px-4 py-3 text-left transition-colors hover:bg-gray-800/80 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
 			>
-				<span className="text-base font-semibold text-brand uppercase tracking-wide">Income &amp; Resources</span>
-				<ChevronDown className={`h-5 w-5 shrink-0 text-brand transition-transform ${isOpen ? "rotate-180" : ""}`} />
+				<span className="min-w-0 truncate text-base font-semibold text-brand uppercase tracking-wide">Income &amp; Resources</span>
+				{/* A title with a chevron beside it reads as a title. The word and the
+				    boxed chevron together read as a control — and this panel starts
+				    CLOSED on a phone, so the header is all there is to go on: if it
+				    doesn't look openable, the whole form is invisible. The word is
+				    phone-only; a desktop load has the panel already open and the
+				    chevron alone is enough beside a visible body. */}
+				<span className="flex shrink-0 items-center gap-1.5">
+					<span className="text-[11px] font-medium uppercase tracking-wide text-gray-400 sm:hidden">
+						{isOpen ? "Hide" : "Show"}
+					</span>
+					<span className="flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 bg-brand/10">
+						<ChevronDown className={`h-4 w-4 shrink-0 text-brand transition-transform ${isOpen ? "rotate-180" : ""}`} />
+					</span>
+				</span>
 			</button>
 
 			{/* initial={false} skips the mount animation, so a desktop load paints
@@ -192,165 +218,178 @@ export const IncomeForm = () => {
 					<div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr]">
 						{/* Related settings share one bordered surface; dividers describe the
 					    relationship without turning each group into its own card. */}
-						<div className="p-4 sm:p-5">
+						<div className="p-3 sm:p-5">
 							<div className="grid grid-cols-1 gap-4 xl:grid-cols-[3fr_auto_2fr]">
 								{/* Competitive Progress */}
 								<div className="min-w-0">
-									<h3 className="font-semibold text-center text-sm text-brand mb-4 flex items-center justify-center gap-1.5">
+									<h3 className="font-semibold text-center text-sm text-brand mb-2 flex items-center justify-center gap-1.5 sm:mb-4">
 										<Trophy className={iconCls} />
 										Competitive Progress
 									</h3>
-									<div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-3 sm:grid-cols-[auto_auto_1fr_auto]">
-										<Sword className={iconCls} />
-										<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">Team Trials:</span>
-										<Select
-											className="col-span-2 min-w-0 sm:col-span-1"
-											styles={selectStyles}
-											menuPortalTarget={document.body}
-											menuPosition="fixed"
-											// Controlled, not defaultValue: userStatsData can be replaced
-											// from outside this component (guest→account migration, a save
-											// round-trip), and an uncontrolled select would keep showing the
-											// rank it mounted with.
-											value={
-												teamTrialsRank
-													? {
-															value: teamTrialsRank,
-															label: teamTrialsRank.name,
-															key: teamTrialsRank.id,
-														}
-													: null
-											}
-											onChange={(o: SingleValue<RankOption<TeamTrialsRank>>) => {
-												if (!o) return
-												setUserStatsData({
-													...userStatsData,
-													team_trials_rank: o.value.id,
-												})
-											}}
-											options={teamTrialsRankData.map((r) => ({
-												value: r,
-												label: r.name,
-												key: r.id,
-											}))}
-										/>
-										<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
-											{teamTrialsRank && (
-												<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-													{`+${teamTrialsRank.income_amount.toLocaleString()}/mo`}
-												</div>
-											)}
+									{/* One row per rank on a phone: icon, label and income badge on the
+									    first line, the select spanning the second. It used to take THREE
+									    lines — the badge could not share a line with the label because a
+									    single grid holds all four ranks and `order` is container-wide, so
+									    each rank now owns a wrapper that `sm:contents` dissolves again. */}
+									<div className="grid grid-cols-1 gap-y-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-center sm:gap-x-2 sm:gap-y-3">
+										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:contents">
+											<Sword className={iconCls} />
+											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight sm:pr-2 sm:text-sm sm:text-right sm:whitespace-nowrap">Team Trials:</span>
+											<Select
+												className="order-last w-full min-w-0 sm:order-none sm:col-span-1 sm:w-auto"
+												styles={selectStyles}
+												menuPortalTarget={document.body}
+												menuPosition="fixed"
+												// Controlled, not defaultValue: userStatsData can be replaced
+												// from outside this component (guest→account migration, a save
+												// round-trip), and an uncontrolled select would keep showing the
+												// rank it mounted with.
+												value={
+													teamTrialsRank
+														? {
+																value: teamTrialsRank,
+																label: teamTrialsRank.name,
+																key: teamTrialsRank.id,
+															}
+														: null
+												}
+												onChange={(o: SingleValue<RankOption<TeamTrialsRank>>) => {
+													if (!o) return
+													setUserStatsData({
+														...userStatsData,
+														team_trials_rank: o.value.id,
+													})
+												}}
+												options={teamTrialsRankData.map((r) => ({
+													value: r,
+													label: r.name,
+													key: r.id,
+												}))}
+											/>
+											<div className="ml-auto w-20 sm:ml-0 sm:w-20 sm:col-span-1 sm:justify-self-end">
+												{teamTrialsRank && (
+													<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
+														{`+${teamTrialsRank.income_amount.toLocaleString()}/mo`}
+													</div>
+												)}
+											</div>
 										</div>
 
-										<Users className={iconCls} />
-										<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">Club Rank:</span>
-										<Select
-											className="col-span-2 min-w-0 sm:col-span-1"
-											styles={selectStyles}
-											menuPortalTarget={document.body}
-											menuPosition="fixed"
-											value={
-												clubRank
-													? {
-															value: clubRank,
-															label: clubRank.name,
-															key: clubRank.id,
-														}
-													: null
-											}
-											onChange={(o: SingleValue<RankOption<ClubRank>>) => {
-												if (!o) return
-												setUserStatsData({
-													...userStatsData,
-													club_rank: o.value.id,
-												})
-											}}
-											options={clubRankData.map((r) => ({
-												value: r,
-												label: r.name,
-												key: r.id,
-											}))}
-										/>
-										<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
-											{clubRank && (
-												<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-													{`+${clubRank.income_amount.toLocaleString()}/mo`}
-												</div>
-											)}
+										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:contents">
+											<Users className={iconCls} />
+											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight sm:pr-2 sm:text-sm sm:text-right sm:whitespace-nowrap">Club Rank:</span>
+											<Select
+												className="order-last w-full min-w-0 sm:order-none sm:col-span-1 sm:w-auto"
+												styles={selectStyles}
+												menuPortalTarget={document.body}
+												menuPosition="fixed"
+												value={
+													clubRank
+														? {
+																value: clubRank,
+																label: clubRank.name,
+																key: clubRank.id,
+															}
+														: null
+												}
+												onChange={(o: SingleValue<RankOption<ClubRank>>) => {
+													if (!o) return
+													setUserStatsData({
+														...userStatsData,
+														club_rank: o.value.id,
+													})
+												}}
+												options={clubRankData.map((r) => ({
+													value: r,
+													label: r.name,
+													key: r.id,
+												}))}
+											/>
+											<div className="ml-auto w-20 sm:ml-0 sm:w-20 sm:col-span-1 sm:justify-self-end">
+												{clubRank && (
+													<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
+														{`+${clubRank.income_amount.toLocaleString()}/mo`}
+													</div>
+												)}
+											</div>
 										</div>
 
-										<Crown className={iconCls} />
-										<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">Champion's Meeting:</span>
-										<Select
-											className="col-span-2 min-w-0 sm:col-span-1"
-											styles={selectStyles}
-											menuPortalTarget={document.body}
-											menuPosition="fixed"
-											value={
-												championsMeetingRank
-													? {
-															value: championsMeetingRank,
-															label: championsMeetingRank.name,
-															key: championsMeetingRank.id,
-														}
-													: null
-											}
-											onChange={(o: SingleValue<RankOption<ChampionsMeetingRank>>) => {
-												if (!o) return
-												setUserStatsData({
-													...userStatsData,
-													champions_meeting_rank: o.value.id,
-												})
-											}}
-											options={championsMeetingRankData.map((r) => ({
-												value: r,
-												label: r.name,
-												key: r.id,
-											}))}
-										/>
-										<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
-											{championsMeetingRank && (
-												<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-													{`+${championsMeetingRank.income_amount.toLocaleString()}/event`}
-												</div>
-											)}
+										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:contents">
+											<Crown className={iconCls} />
+											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight sm:pr-2 sm:text-sm sm:text-right sm:whitespace-nowrap">Champion's Meeting:</span>
+											<Select
+												className="order-last w-full min-w-0 sm:order-none sm:col-span-1 sm:w-auto"
+												styles={selectStyles}
+												menuPortalTarget={document.body}
+												menuPosition="fixed"
+												value={
+													championsMeetingRank
+														? {
+																value: championsMeetingRank,
+																label: championsMeetingRank.name,
+																key: championsMeetingRank.id,
+															}
+														: null
+												}
+												onChange={(o: SingleValue<RankOption<ChampionsMeetingRank>>) => {
+													if (!o) return
+													setUserStatsData({
+														...userStatsData,
+														champions_meeting_rank: o.value.id,
+													})
+												}}
+												options={championsMeetingRankData.map((r) => ({
+													value: r,
+													label: r.name,
+													key: r.id,
+												}))}
+											/>
+											<div className="ml-auto w-20 sm:ml-0 sm:w-20 sm:col-span-1 sm:justify-self-end">
+												{championsMeetingRank && (
+													<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
+														{`+${championsMeetingRank.income_amount.toLocaleString()}/event`}
+													</div>
+												)}
+											</div>
 										</div>
 
-										<Flame className={iconCls} />
-										<span className="text-sm text-gray-400 text-left leading-tight sm:pr-2 sm:text-right sm:whitespace-nowrap">League of Heroes:</span>
-										<Select
-											className="col-span-2 min-w-0 sm:col-span-1"
-											styles={selectStyles}
-											menuPortalTarget={document.body}
-											menuPosition="fixed"
-											value={
-												leagueOfHeroesRank
-													? {
-															value: leagueOfHeroesRank,
-															label: leagueOfHeroesRank.name,
-															key: leagueOfHeroesRank.id,
-														}
-													: null
-											}
-											onChange={(o: SingleValue<RankOption<LeagueOfHeroesRank>>) => {
-												if (!o) return
-												setUserStatsData({
-													...userStatsData,
-													league_of_heroes_rank: o.value.id,
-												})
-											}}
-											options={leagueOfHeroesRankData.map((r) => ({
-												value: r,
-												label: r.name,
-												key: r.id,
-											}))}
-										/>
-										<div className="col-span-2 w-24 justify-self-end sm:col-span-1 sm:w-20">
-											{leagueOfHeroesRank && (
-												<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-													{`+${leagueOfHeroesRank.income_amount.toLocaleString()}/event`}
-												</div>
-											)}
+										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:contents">
+											<Flame className={iconCls} />
+											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight sm:pr-2 sm:text-sm sm:text-right sm:whitespace-nowrap">League of Heroes:</span>
+											<Select
+												className="order-last w-full min-w-0 sm:order-none sm:col-span-1 sm:w-auto"
+												styles={selectStyles}
+												menuPortalTarget={document.body}
+												menuPosition="fixed"
+												value={
+													leagueOfHeroesRank
+														? {
+																value: leagueOfHeroesRank,
+																label: leagueOfHeroesRank.name,
+																key: leagueOfHeroesRank.id,
+															}
+														: null
+												}
+												onChange={(o: SingleValue<RankOption<LeagueOfHeroesRank>>) => {
+													if (!o) return
+													setUserStatsData({
+														...userStatsData,
+														league_of_heroes_rank: o.value.id,
+													})
+												}}
+												options={leagueOfHeroesRankData.map((r) => ({
+													value: r,
+													label: r.name,
+													key: r.id,
+												}))}
+											/>
+											<div className="ml-auto w-20 sm:ml-0 sm:w-20 sm:col-span-1 sm:justify-self-end">
+												{leagueOfHeroesRank && (
+													<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
+														{`+${leagueOfHeroesRank.income_amount.toLocaleString()}/event`}
+													</div>
+												)}
+											</div>
 										</div>
 									</div>
 								</div>
@@ -360,14 +399,14 @@ export const IncomeForm = () => {
 
 								{/* Purchases / Bonuses */}
 								<div className="flex min-w-0 flex-col">
-									<h3 className="font-semibold text-center text-sm text-brand mb-4 flex items-center justify-center gap-1.5">
+									<h3 className="font-semibold text-center text-sm text-brand mb-2 flex items-center justify-center gap-1.5 sm:mb-4">
 										<Gift className={iconCls} />
 										Purchases / Bonuses
 									</h3>
 									<div className="flex-1 flex items-center justify-center">
-										<div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-3 sm:w-auto sm:grid-cols-[auto_auto_auto_auto] sm:gap-x-4 sm:gap-y-4">
-											<Carrot className="w-8 h-8 shrink-0 text-brand" />
-											<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Daily Carat Pack:</span>
+										<div className="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 gap-y-2 sm:w-auto sm:gap-x-4 sm:gap-y-4">
+											<Carrot className="w-6 h-6 shrink-0 text-brand sm:w-8 sm:h-8" />
+											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight sm:text-sm sm:text-right sm:whitespace-nowrap">Daily Carat Pack:</span>
 											<ToggleSwitch
 												ariaLabel="Daily Carat Pack"
 												checked={userStatsData.daily_carat}
@@ -382,7 +421,7 @@ export const IncomeForm = () => {
 										    repurchase are projected but won't fit the badge, so the
 										    tooltip carries them (same pattern as Training Pass below). */}
 											<div
-												className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20"
+												className="h-7 w-20 justify-self-end flex items-center justify-center text-[11px] font-semibold text-brand bg-gray-700 border border-brand rounded sm:h-8 sm:w-20 sm:text-xs"
 												title={
 													userStatsData.daily_carat
 														? "Daily Carat Pack: +50 carats every day, plus 500 paid carats each time it is re-bought (every 30 days, starting 30 days from today)"
@@ -392,8 +431,8 @@ export const IncomeForm = () => {
 												{userStatsData.daily_carat ? "+50/day" : "+0/day"}
 											</div>
 
-											<Dumbbell className="w-8 h-8 shrink-0 text-brand" />
-											<span className="min-w-0 text-sm text-gray-400 text-left leading-tight sm:text-right sm:whitespace-nowrap">Training Pass:</span>
+											<Dumbbell className="w-6 h-6 shrink-0 text-brand sm:w-8 sm:h-8" />
+											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight sm:text-sm sm:text-right sm:whitespace-nowrap">Training Pass:</span>
 											<ToggleSwitch
 												ariaLabel="Training Pass"
 												checked={userStatsData.training_pass}
@@ -408,7 +447,7 @@ export const IncomeForm = () => {
 										    shown here, to keep the badge in step with the rows above.
 										    The tooltip carries the full breakdown for anyone who wants it. */}
 											<div
-												className="col-span-3 h-8 w-24 justify-self-end flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded sm:col-span-1 sm:w-20"
+												className="h-7 w-20 justify-self-end flex items-center justify-center text-[11px] font-semibold text-brand bg-gray-700 border border-brand rounded sm:h-8 sm:w-20 sm:text-xs"
 												title={
 													userStatsData.training_pass
 														? "Paid Training Pass: +2,200 carats each month (1,850 free carats plus 350 paid carats), 4 uma tickets and 4 support tickets"
@@ -424,12 +463,12 @@ export const IncomeForm = () => {
 						</div>
 
 						{/* Current Resources */}
-						<div className="border-t border-gray-700 p-4 sm:p-5 lg:border-t-0 lg:border-l">
-							<h3 className="font-semibold text-center text-sm text-brand mb-4 flex items-center justify-center gap-1.5">
+						<div className="border-t border-gray-700 p-3 sm:p-5 lg:border-t-0 lg:border-l">
+							<h3 className="font-semibold text-center text-sm text-brand mb-2 flex items-center justify-center gap-1.5 sm:mb-4">
 								<Diamond className={iconCls} />
 								Current Resources
 							</h3>
-							<div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+							<div className="grid grid-cols-2 gap-x-2 gap-y-1.5 sm:gap-x-6 sm:gap-y-2 lg:grid-cols-1 xl:grid-cols-2">
 								<ResourceRow
 									icon={<img src="/item_icon_00043.png" alt="Carats" className="w-8 h-8 object-contain" />}
 									label="Carats"
@@ -489,21 +528,26 @@ export const IncomeForm = () => {
 
 					{/* ── Bottom row: Average Monthly Income + Uncap Crystals ── */}
 					<div className="grid grid-cols-1 border-t border-gray-700 lg:grid-cols-[2fr_1fr]">
-						<div className="p-4 sm:p-5 flex flex-col">
-							<h3 className="font-semibold text-sm text-brand mb-3 flex items-center justify-center gap-1.5">
+						<div className="p-3 sm:p-5 flex flex-col">
+							<h3 className="font-semibold text-sm text-brand mb-2 flex items-center justify-center gap-1.5 sm:mb-3">
 								<TrendingUp className={iconCls} />
 								Average Monthly Income
 							</h3>
+							{/* Five stacked tiles cost ~395px on a phone — the panel's second
+							    worst block — for five numbers. Below `sm:` each one is a row
+							    (label left, figure right) at ~34px; from `sm:` the tiles come
+							    back unchanged. Same markup either way: the tile is a flex box
+							    that runs across on a phone and down on a tile. */}
 							<div className="flex-1 grid grid-cols-1 overflow-hidden rounded-lg border border-gray-700 sm:grid-cols-2 xl:grid-cols-5">
 								{monthlyItems.map((item) => (
 									<div
 										key={item.label}
-										className="border-b border-gray-700 bg-gray-900 p-3 flex flex-col items-center justify-center gap-1 last:border-b-0 sm:odd:border-r xl:border-b-0 xl:border-r xl:last:border-r-0"
+										className="flex items-center justify-between gap-2 border-b border-gray-700 bg-gray-900 px-3 py-1.5 last:border-b-0 sm:flex-col sm:justify-center sm:gap-1 sm:p-3 sm:odd:border-r xl:border-b-0 xl:border-r xl:last:border-r-0"
 									>
-										<span className="text-xs text-gray-400 text-center leading-tight">{item.label}</span>
-										<div className="flex w-full items-center justify-center gap-1.5">
+										<span className="min-w-0 text-xs text-gray-400 leading-tight sm:text-center">{item.label}</span>
+										<div className="flex shrink-0 items-center gap-1.5 sm:w-full sm:justify-center">
 											<span className="text-brand">{item.icon}</span>
-											<span className="text-xl font-bold text-brand sm:text-2xl">{item.value.toLocaleString()}</span>
+											<span className="text-lg font-bold text-brand sm:text-xl xl:text-2xl">{item.value.toLocaleString()}</span>
 										</div>
 									</div>
 								))}

@@ -140,6 +140,111 @@ A step-up has no featured cards to thumbnail, so its images cell falls back to a
 typographic `★3` / `SSR` chip carrying the campaign's JP cutoff. Phone cards spell the
 cutoff out in the dates block, which has vertical room the `h-16` desktop track does not.
 
+#### The Income & Resources panel on a phone
+
+This panel is the first thing on the calculator page and it is a form, not a summary, so
+on a phone it starts **collapsed** — the banner sheet below it is what most visits are
+for. Two consequences follow, and both are load-bearing:
+
+- **The header is the only thing a phone user sees**, so it has to look openable. A title
+  with a chevron beside it reads as a title; the boxed chevron plus a `Show` / `Hide` word
+  reads as a control. The word is phone-only — a desktop load has the panel already open,
+  where a chevron beside a visible body is unambiguous.
+- **The panel is square-cornered below `sm:`.** The calculator's container carries the
+  radius, and with only an 8px gutter either side on a phone the panel is all but
+  full-bleed; a 12px radius across a band that wide reads as a stray curve rather than a
+  card, most visibly on this header because it is the top edge.
+
+Open, it used to run ~1690px on a 390px viewport — over four screens for four selects,
+two toggles, eight fields and five figures. It is now ~1070px, and the savings came from
+the same idea applied four times: **a phone gets a denser arrangement of the same content,
+never less of it.**
+
+| Block | Phone | From `sm:` |
+|---|---|---|
+| Competitive Progress | 2 lines per rank — icon, label, income badge; select below | one 4-column grid row |
+| Purchases / Bonuses | badge shares the toggle's line | unchanged |
+| Current Resources | 2 columns, 24px icons, 11px labels, `w-14` fields | 1–2 columns, full size |
+| Average Monthly Income | a row list, label left / figure right | tiles, label over figure |
+
+The rank rows are the subtle one. All four ranks live in **one** grid so their columns line
+up on desktop, which means `order` (container-wide) cannot move a single rank's badge onto
+its label's line. Each rank therefore owns a wrapper that is a `flex` row on a phone and
+`sm:contents` above it — `display: contents` dissolves the wrapper so its children join the
+parent grid exactly as they did before. Reach for that pairing whenever a phone needs
+per-item grouping that desktop needs flattened.
+
+#### The banner select must read as a control, not a title
+
+On the card, the banner select sits in the coloured header where the row's name belongs,
+and it used to be styled to disappear into it — transparent fill, transparent border, a
+lone chevron. A chosen banner then read as the card's title, which was the intent; an
+**unchosen** one read as a title too, which was not. The empty state is exactly where the
+control has to look clickable, and it was the least obvious of the two.
+
+Two things fix it together, and neither works alone:
+
+- **The control is a field.** Translucent black fill, a white-alpha border, and a real
+  focus state. Alphas rather than theme tokens because this control has three different
+  backgrounds to read against — the row's type colour, blue / green / purple from
+  `TYPE_STYLES` — and no single token suits all three. The old style also set
+  `boxShadow: "none"` unconditionally, which took the keyboard focus ring with it.
+- **The placeholder is an action.** `Target Support Banner` is a noun phrase and reads as a
+  heading; `Select a support banner…` reads as an empty field. Same string on the desktop
+  select, which shares the call site.
+
+The field's border and padding come out of the banner name, which is the first thing in
+this header to ellipsis. That is why the gutters around it are as tight as they are
+(`px-1`/`gap-0.5` on the thumbnail rail, `mr-1` on the delete button, 3px on the chevron):
+they were retuned to hand the name back the ~14px the border cost it. Widen any of them
+and the name starts truncating a word earlier.
+
+#### The phone card is four bands, and each one owns its own padding
+
+`MobileBannerCard` stacks four full-bleed bands: the coloured identity header, a
+dates/pulls/reserved row, the derived-stats strip, and the odds. Nothing is inset inside
+anything else, and the `summary` / `chanceDisplay` slots are handed to the caller
+**edge to edge** — the card adds no gutter of its own. `BannerRow` fills them with a strip
+that wants to read as another band; `StagedBannerRow` fills them with a confirm button
+that wants a gutter and adds its own `p-3`. A shared `p-3` in the card charged 24px of
+height to every row to satisfy only one of them.
+
+Four rules keep the phone card short, and each replaced something that measurably didn't
+fit at 390px:
+
+- **The dates always stack**, at every card width. `Start:` / `End:` side by side want
+  ~234px and the date column can only spare ~150 of a 390px viewport, so "End: …" used to
+  slide underneath the pulls field and read as clipped. A range that runs down at one
+  width and across at the next is also harder to scan than one that always runs down, and
+  the desktop table stacks them too — it renders its own pair, not `dateDisplay`. There is
+  no "Dates" caps label for the same width reason; `Start:` and `End:` label the column
+  well enough alone.
+- **The pull ceiling sits beside the pulls field, not in the strip.** "Max Pulls" (or
+  "Max Steps") is the bound the field is judged against, and reading it three bands down
+  meant looking away from the number you were editing. It is `MobileBannerCard`'s
+  `maxCount` slot, built from `derivedStats[3]` so the step-up relabel keeps happening in
+  one place, and it is **phone only** — above `sm:` the cell hides and the stat returns to
+  the strip, which has room for four boxes. The band's `sm:` template therefore has three
+  tracks against the phone's four; a `display:none` cell isn't placed, so the remaining
+  three line up on their own. A **staged** row passes no `maxCount` at all: it has no
+  projection yet (`useBannerResources` hasn't run for it), so there is no ceiling to name.
+- **The stats strip is three across in one row.** With the fourth box moved up beside the
+  pulls field, the remaining three fit a single row instead of two. Their labels wrap
+  rather than truncate — a ~320px card gives each box about 93px, which is exactly what
+  "Free/Tickets/Paid" wants — so never put `truncate` on a stat label or value.
+- **The odds strip is six across at every width.** Wrapping to 3x2 below `sm:` doubled its
+  height for cells needing ~30px each; a 320px card still gives every one ~53px, which is
+  more than the desktop table's own 14rem track manages.
+
+Together those took a phone row from ~370px to ~225px — roughly four rows per screen
+instead of two. The `sm:` layout (a card between 640px and the table switch) keeps its
+inset three-across panel and its four-box strip; only the stacked dates reach it.
+
+The one width the phone card cannot simply absorb is ~320px, where the date line wants 3px
+more than its column has. That is handled with a container-query variant on the date text
+(`@max-[18rem]:text-[11px]`), not a media query: the question is how wide *this card* is,
+and the card is already inside the `@container` that decides card-vs-table.
+
 **The images cell is a link to the row's banner window on the Timeline** — on every row
 kind including step-ups and staged rows, and inert only on a row with no banner picked
 yet. See "Deep links from the sheet to the Timeline". The `<Link>` carries the cell's own
@@ -235,7 +340,7 @@ tooltip wording stays one string. **A column label appears in three places** —
 header, the sheet header (both in `CaratCalculator`) and the mobile card's cell label in
 `MobileBannerCard`. Changing only the headers leaves the phone showing the old text. Sizes
 differ deliberately: `w-5` in the headers against `text-xs`, `w-4` on the card where the
-neighbouring "Dates"/"Pulls" labels are 10px caps.
+neighbouring "Pulls" label is 10px caps.
 
 ### Section bands: scenarios and anniversaries between planner rows
 

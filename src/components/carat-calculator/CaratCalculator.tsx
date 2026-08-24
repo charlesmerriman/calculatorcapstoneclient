@@ -1,5 +1,5 @@
 import type React from "react"
-import { useMemo } from "react"
+import { Fragment, useMemo } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { useCalculatorData } from "../../services/CalculatorContext"
@@ -19,6 +19,44 @@ import {
 } from "../../utils/bannerHelpers"
 import type { BannerRowType } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
+
+/**
+ * The three "add a row" buttons, in one place rather than three near-identical
+ * blocks — the same reason `TYPE_STYLES` exists in MobileBannerCard. A fourth
+ * banner kind is one entry here.
+ *
+ * `short` is what a phone shows; `full` is the accessible name at every width.
+ * The step-up is outlined in its own purple rather than the brand colour its
+ * neighbours share: it plans a different kind of thing (a paid-only cost ladder,
+ * not pulls), and the row it creates carries that purple on its type badge.
+ */
+const ADD_BANNER_BUTTONS: {
+	type: BannerRowType
+	short: string
+	full: string
+	className: string
+}[] = [
+	{
+		type: "Uma",
+		short: "Uma",
+		full: "Add Uma Banner",
+		className: "bg-brand text-black hover:bg-brand/90",
+	},
+	{
+		type: "Support",
+		short: "Support",
+		full: "Add Support Banner",
+		className: "border border-brand bg-transparent text-brand hover:bg-brand/10",
+	},
+	{
+		type: "StepUp",
+		// "Step Up", unhyphenated, matching the type tile on the row this creates.
+		short: "Step Up",
+		full: "Add Step-Up Banner",
+		className:
+			"border border-purple-400 bg-transparent text-purple-300 hover:bg-purple-400/10",
+	},
+]
 
 export const CaratCalculator: React.FC = () => {
 	const {
@@ -155,36 +193,42 @@ export const CaratCalculator: React.FC = () => {
 					{/* Income inputs first, then the banner sheet they feed. IncomeForm
 				    owns its own collapse state — it is a zero-prop panel like every
 				    other one here, reading everything from the calculator context. */}
-					<div className="w-full overflow-hidden rounded-xl border border-gray-600 bg-gray-900 shadow-sm">
+					{/* Square-cornered on a phone. With only an 8px gutter either side the
+					    panel is all but full-bleed there, and a 12px radius on a band that
+					    wide reads as a stray curve rather than a card — most visibly on the
+					    Income & Resources header, which is the top edge. The card shape
+					    returns from `sm:`, where the gutter is wide enough to earn it. */}
+					<div className="w-full overflow-hidden rounded-none border border-gray-600 bg-gray-900 shadow-sm sm:rounded-xl">
 						<IncomeForm />
 
 						<div className="border-t border-gray-700 pb-4">
-							{/* Add banner buttons */}
-							<div className="flex w-full flex-col gap-3 px-3 py-4 sm:flex-row sm:gap-4 sm:px-4">
-								<button
-									className="flex-1 py-2.5 rounded-lg bg-brand text-black font-medium hover:bg-brand/90 transition"
-									onClick={() => handleAddBanner("Uma")}
-								>
-									⊕ Add Uma Banner
-								</button>
-								<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
-								<button
-									className="flex-1 py-2.5 rounded-lg border border-brand text-brand bg-transparent font-medium hover:bg-brand/10 transition"
-									onClick={() => handleAddBanner("Support")}
-								>
-									⊕ Add Support Banner
-								</button>
-								<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
-								{/* Outlined in the step-up's own purple rather than the brand
-								    colour its neighbours share: it plans a different kind of
-								    thing (a paid-only cost ladder, not pulls), and the row it
-								    creates carries that purple on its type badge. */}
-								<button
-									className="flex-1 py-2.5 rounded-lg border border-purple-400 text-purple-300 bg-transparent font-medium hover:bg-purple-400/10 transition"
-									onClick={() => handleAddBanner("StepUp")}
-								>
-									⊕ Add Step-Up Banner
-								</button>
+							{/* Add banner buttons — one row at EVERY width. Stacked, the three
+							    of them cost ~156px of a phone screen before a single planner
+							    row appeared; side by side they cost ~44px. */}
+							<div className="flex w-full gap-2 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4">
+								{ADD_BANNER_BUTTONS.map((button, index) => (
+									<Fragment key={button.type}>
+										{index > 0 && (
+											<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
+										)}
+										<button
+											className={`flex-1 rounded-lg py-2.5 font-medium transition ${button.className}`}
+											onClick={() => handleAddBanner(button.type)}
+										>
+											⊕{" "}
+											{/* Short visible label on a phone, full one from `sm:` — but
+											    the full text is in the DOM at both widths, so the
+											    button's ACCESSIBLE NAME never changes with the viewport.
+											    A screen reader always hears "Add Uma Banner", never a
+											    bare "Uma", and selectors that query by name keep working
+											    on a phone. */}
+											<span className="sm:hidden" aria-hidden="true">
+												{button.short}
+											</span>
+											<span className="sr-only sm:not-sr-only">{button.full}</span>
+										</button>
+									</Fragment>
+								))}
 							</div>
 
 							{/* Staging area — slides in/out as stagedBanners are added or cleared */}

@@ -25,9 +25,29 @@ interface MobileBannerCardProps {
 	imagesHref?: string | null
 	bannerSelect: ReactNode
 	dates: ReactNode
+	/**
+	 * The row's pull ceiling ("Max Pulls", or "Max Steps" on a step-up), shown
+	 * immediately LEFT of the pulls field — phone cards only. It is the bound the
+	 * field is judged against, and reading it out of a stats strip further down
+	 * the card meant looking away from the number you were editing to find out
+	 * what the limit was.
+	 *
+	 * Optional because a staged row has no projection yet: `useBannerResources`
+	 * hasn't run for it, so it has no ceiling to name and the band drops back to
+	 * three columns. Above `sm:` the cell hides and the stat returns to the
+	 * strip, which has the room for it — hence "phone only".
+	 */
+	maxCount?: ReactNode
+	/**
+	 * The block below the number row, rendered EDGE TO EDGE — it owns its own
+	 * padding. The card used to wrap it in a p-3, which cost 24px of height on
+	 * every row for a gutter the stats strip doesn't want (it reads as a band,
+	 * like the number row above it) and only the staged row's button does.
+	 */
 	summary: ReactNode
 	pullsInput: ReactNode
 	reservedInput: ReactNode
+	/** Optional block under `summary`. Owns its own padding, as `summary` does. */
 	chanceDisplay: ReactNode
 	onRemove: () => void
 	removeLabel: string
@@ -116,6 +136,7 @@ export const MobileBannerCard = ({
 	imagesHref,
 	bannerSelect,
 	dates,
+	maxCount,
 	summary,
 	pullsInput,
 	reservedInput,
@@ -137,7 +158,9 @@ export const MobileBannerCard = ({
 					<BannerTypeIcon type={bannerType} className="h-5 w-5 text-white/90" />
 				</div>
 
-				<div className="relative flex min-w-0 shrink-0 items-center gap-1 overflow-hidden px-1.5 py-2 sm:gap-2 sm:px-3">
+				{/* Tight gutters: every pixel here comes off the banner name, which is
+				    the row's primary identifier and the first thing to ellipsis. */}
+				<div className="relative flex min-w-0 shrink-0 items-center gap-0.5 overflow-hidden px-1 py-2 sm:gap-2 sm:px-3">
 					<Thumbnails
 						href={imagesHref}
 						slot={imagesSlot}
@@ -154,28 +177,52 @@ export const MobileBannerCard = ({
 					onClick={onRemove}
 					aria-label={removeLabel}
 					title={removeLabel}
-					className="my-auto mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-400/40 bg-black/10 text-red-400 transition hover:bg-black/25 sm:mr-3 sm:h-12 sm:w-12"
+					className="my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-400/40 bg-black/10 text-red-400 transition hover:bg-black/25 sm:mr-3 sm:h-12 sm:w-12"
 				>
 					<Icon className="h-5 w-5" />
 				</button>
 			</div>
 
 			<div className="bg-gray-900/35">
-				<div className="grid grid-cols-[minmax(0,1fr)_6rem_6rem] border-b border-gray-700 sm:grid-cols-[minmax(0,1fr)_6.25rem_6.25rem]">
-					<div className="min-w-0 border-r border-gray-700 px-4 py-2.5">
-						<div className="mb-1 text-[10px] font-medium uppercase text-gray-500">Dates</div>
+				{/* Tracks are narrow and there is no "Dates" caps label, both to buy
+				    width for the dates — the flexible track, and the one that used to
+				    lose: `Start:` and `End:` side by side want ~234px and a 390px
+				    viewport can only spare ~150 here, so "End: …" slid underneath the
+				    pulls field. They stack instead (see BannerRow's dateDisplay) and
+				    label the column well enough on their own.
+
+				    The `sm:` template has three tracks, not four: `maxCount` hides
+				    there and its stat returns to the derived-stats strip. A
+				    display:none cell isn't placed, so the three that remain line up
+				    with the three tracks on their own. */}
+				<div
+					className={`grid border-b border-gray-700 sm:grid-cols-[minmax(0,1fr)_6.25rem_6.25rem] ${
+						maxCount
+							? "grid-cols-[minmax(0,1fr)_3.5rem_4.25rem_4.25rem]"
+							: "grid-cols-[minmax(0,1fr)_4.25rem_4.25rem]"
+					}`}
+				>
+					<div className="min-w-0 self-center px-2 py-2 sm:px-4">
 						{dates}
 					</div>
-					<div className="flex min-w-0 flex-col items-center justify-center border-r border-gray-700 px-2 py-2.5">
-						<div className="mb-1 text-[10px] font-medium uppercase text-gray-500">Pulls</div>
+					{maxCount && (
+						<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2 sm:hidden">
+							{maxCount}
+						</div>
+					)}
+					<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2 sm:px-2">
+						{/* Title case, not uppercase: it now sits directly beside the
+						    "Max Pulls" stat label, and it matches the desktop table's own
+						    "# Pulls" header. */}
+						<div className="mb-0.5 text-[10px] font-medium text-gray-500">Pulls</div>
 						{pullsInput}
 					</div>
-					<div className="flex min-w-0 flex-col items-center justify-center px-2 py-2.5">
+					<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2 sm:px-2">
 						{/* Icons rather than the word, matching the desktop table header.
-						    w-4 here, not the header's w-5: these sit in a row of 10px
-						    caps labels ("Dates", "Pulls") and 20px would tower over them. */}
+						    w-4 here, not the header's w-5: these sit beside a 10px caps
+						    label ("Pulls") and 20px would tower over it. */}
 						<div
-							className="mb-1 flex items-center justify-center gap-1"
+							className="mb-0.5 flex items-center justify-center gap-1"
 							title={RESERVED_COLUMN_TITLE}
 						>
 							<ReservedColumnIcons size="w-4 h-4" />
@@ -184,10 +231,8 @@ export const MobileBannerCard = ({
 					</div>
 				</div>
 
-				<div className="p-3">
-					{summary}
-					{chanceDisplay && <div className="mt-3">{chanceDisplay}</div>}
-				</div>
+				{summary}
+				{chanceDisplay}
 			</div>
 		</div>
 	)

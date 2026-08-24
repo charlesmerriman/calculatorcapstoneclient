@@ -122,31 +122,48 @@ export const compactSelectStyles: AnyOptionStyles = {
  */
 export const mobileBannerSelectStyles: AnyOptionStyles = {
 	...compactSelectStyles,
-	control: (provided: CSSObjectWithLabel) => ({
+	/**
+	 * A field, not a heading.
+	 *
+	 * This control used to be fully transparent — no fill, no border — so that a
+	 * chosen banner read as the card's title. It read as a title when nothing was
+	 * chosen either, which is the state where being obviously clickable matters
+	 * most: a lone chevron beside what looks like a heading is not an affordance.
+	 *
+	 * The fill and border are white/black alphas rather than theme tokens on
+	 * purpose. This control sits on the row's TYPE colour — blue, green or purple
+	 * (`TYPE_STYLES` in MobileBannerCard) — so it has three different backgrounds
+	 * to read against and no single token can suit all three. Alphas darken and
+	 * outline whatever is behind them.
+	 */
+	control: (provided: CSSObjectWithLabel, state: { isFocused: boolean }) => ({
 		...provided,
 		height: "auto",
 		minHeight: "40px",
 		width: "100%",
-		backgroundColor: "transparent",
-		borderColor: "transparent",
-		boxShadow: "none",
-		"&:hover": { borderColor: "transparent" },
+		backgroundColor: state.isFocused ? "rgba(0,0,0,0.34)" : "rgba(0,0,0,0.22)",
+		borderColor: state.isFocused ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.3)",
+		borderRadius: "6px",
+		// The old `boxShadow: "none"` applied in every state, which took the
+		// keyboard focus ring with it — the control had no visible focus at all.
+		boxShadow: state.isFocused ? "0 0 0 1px rgba(255,255,255,0.45)" : "none",
+		"&:hover": { borderColor: "rgba(255,255,255,0.55)" },
 	}),
 	valueContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		height: "40px",
-		padding: "0",
+		height: "38px",
+		padding: "0 0 0 6px",
 		justifyContent: "flex-start",
 	}),
 	indicatorsContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		height: "40px",
+		height: "38px",
 	}),
 	indicatorSeparator: () => ({ display: "none" }),
 	dropdownIndicator: (provided: CSSObjectWithLabel) => ({
 		...provided,
-		padding: "4px",
-		color: "var(--color-gray-300)",
+		padding: "4px 3px",
+		color: "rgba(255,255,255,0.85)",
 	}),
 	singleValue: (provided: CSSObjectWithLabel) => ({
 		...provided,
