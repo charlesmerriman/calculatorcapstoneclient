@@ -193,10 +193,18 @@ export const CampaignCard = ({
 				<span className="text-gray-200">
 					{campaign.paidCarats.toLocaleString()} paid carats
 				</span>
+				{campaign.freeCarats > 0 && (
+					<span className="text-gray-400">
+						+ {campaign.freeCarats.toLocaleString()} free
+					</span>
+				)}
 				<span className="text-gray-200">{formatUsd(campaign.usd)}</span>
 				<span className="ml-auto text-xs text-gray-500">
-					Cumulative: {campaign.cumulativePaidCarats.toLocaleString()} carats ·{" "}
-					{formatUsd(campaign.cumulativeUsd)}
+					Cumulative: {campaign.cumulativePaidCarats.toLocaleString()} paid
+					{campaign.cumulativeFreeCarats > 0
+						? ` + ${campaign.cumulativeFreeCarats.toLocaleString()} free`
+						: ""}{" "}
+					· {formatUsd(campaign.cumulativeUsd)}
 				</span>
 			</footer>
 		</section>

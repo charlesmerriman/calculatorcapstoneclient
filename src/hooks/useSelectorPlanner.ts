@@ -9,6 +9,7 @@
 
 import { useMemo } from "react"
 import { parseApiDate } from "../utils/dateFormat"
+import { purchaseCarats } from "../utils/campaignPurchases"
 import type {
 	AnniversaryEvent,
 	AnniversaryEventProduct,
@@ -21,8 +22,10 @@ export interface PlannedProduct {
 	/** The user's planned row, if they've planned this product at all. */
 	purchase: UserPlannedPurchase | undefined
 	quantity: number
-	/** Paid carats this line contributes, webstore bonus already applied. */
+	/** Paid carats this line contributes — the pack's own carats, bonus excluded. */
 	paidCarats: number
+	/** The webstore bonus on top, which the game grants as FREE carats. */
+	freeCarats: number
 	usd: number
 }
 
@@ -31,9 +34,11 @@ export interface PlannedCampaign {
 	lines: PlannedProduct[]
 	/** This campaign's own totals. */
 	paidCarats: number
+	freeCarats: number
 	usd: number
 	/** Running totals through this campaign, in date order — the sheet's "Cumulative". */
 	cumulativePaidCarats: number
+	cumulativeFreeCarats: number
 	cumulativeUsd: number
 	/** True when the campaign has no linked banner parts to take dates from. */
 	isUndated: boolean
@@ -42,24 +47,11 @@ export interface PlannedCampaign {
 export interface SelectorPlan {
 	campaigns: PlannedCampaign[]
 	totalPaidCarats: number
+	totalFreeCarats: number
 	totalUsd: number
 	/** Selector tickets planned, by type. Display only — the projection buckets them. */
 	umaSelectors: number
 	supportSelectors: number
-}
-
-/**
- * Paid carats one line contributes. Rounded because a fractional multiplier on
- * an odd carat count can land on a fraction, and carats are whole — the same
- * rounding the projection applies, so the page and the banner rows agree.
- */
-export function lineCarats(
-	product: AnniversaryEventProduct,
-	quantity: number,
-	webstoreBonus: boolean
-): number {
-	const multiplier = webstoreBonus ? product.webstore_multiplier : 1
-	return Math.round(product.paid_carat_amount * quantity * multiplier)
 }
 
 export function useSelectorPlanner(
@@ -95,6 +87,7 @@ export function useSelectorPlanner(
 			})
 
 		let cumulativePaidCarats = 0
+		let cumulativeFreeCarats = 0
 		let cumulativeUsd = 0
 		let umaSelectors = 0
 		let supportSelectors = 0
@@ -108,19 +101,25 @@ export function useSelectorPlanner(
 			const lines: PlannedProduct[] = event.products.map((product) => {
 				const purchase = byProduct.get(product.id)
 				const quantity = purchase?.quantity ?? 0
+				const { paidCarats, freeCarats } = purchaseCarats(
+					product, quantity, webstoreBonus
+				)
 				return {
 					product,
 					purchase,
 					quantity,
-					paidCarats: lineCarats(product, quantity, webstoreBonus),
+					paidCarats,
+					freeCarats,
 					usd: product.usd_cost * quantity,
 				}
 			})
 
 			let paidCarats = 0
+			let freeCarats = 0
 			let usd = 0
 			for (const line of lines) {
 				paidCarats += line.paidCarats
+				freeCarats += line.freeCarats
 				usd += line.usd
 				if (line.quantity <= 0) continue
 				if (line.product.product_type === "uma_selector") {
@@ -131,14 +130,17 @@ export function useSelectorPlanner(
 			}
 
 			cumulativePaidCarats += paidCarats
+			cumulativeFreeCarats += freeCarats
 			cumulativeUsd += usd
 
 			campaigns.push({
 				event,
 				lines,
 				paidCarats,
+				freeCarats,
 				usd,
 				cumulativePaidCarats,
+				cumulativeFreeCarats,
 				cumulativeUsd,
 				isUndated: !event.start_date,
 			})
@@ -147,6 +149,7 @@ export function useSelectorPlanner(
 		return {
 			campaigns,
 			totalPaidCarats: cumulativePaidCarats,
+			totalFreeCarats: cumulativeFreeCarats,
 			totalUsd: cumulativeUsd,
 			umaSelectors,
 			supportSelectors,
