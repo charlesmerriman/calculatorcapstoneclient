@@ -200,8 +200,16 @@ export const CaratCalculator: React.FC = () => {
 					    panel is all but full-bleed there, and a 12px radius on a band that
 					    wide reads as a stray curve rather than a card — most visibly on the
 					    Income & Resources header, which is the top edge. The card shape
-					    returns from `sm:`, where the gutter is wide enough to earn it. */}
-					<div className="w-full overflow-hidden rounded-none border border-gray-600 bg-gray-900 shadow-sm sm:rounded-xl">
+					    returns from `sm:`, where the gutter is wide enough to earn it.
+
+					    @container: IncomeForm's whole layout is keyed to THIS box's width
+					    (`@income-wide:`, see --container-income-wide in index.css), so the
+					    income panel and the banner sheet below it switch to their desktop
+					    forms together. The sheet's own `@container`s are nested inside this
+					    one and shadow it, so `@banner-table:` still measures the sheet's
+					    box, not this one — that is the whole reason the two tokens differ
+					    by the gutter. */}
+					<div className="@container w-full overflow-hidden rounded-none border border-gray-600 bg-gray-900 shadow-sm sm:rounded-xl">
 						<IncomeForm />
 
 						<div className="border-t border-gray-700 pb-4">
