@@ -145,7 +145,11 @@ A flat, date-sorted row per reward instant, built server-side from `GameEvent`,
 `ChampionsMeeting` and `LeagueOfHeroes`. See `backend/docs/api-reference.md`
 (`IncomeLedgerRow`) for the field-by-field contract. Four things matter here:
 
-- **`date` is when the reward lands** — an event's start, a race event's **end**.
+- **`date` is when the reward lands** — an event's start; a race event's **end,
+  less that kind's lead time**. A Champions Meeting settles 24 hours before its
+  window closes, so its row is a day ahead of the end date the Timeline shows;
+  League of Heroes has no lead time. The offset lives server-side
+  (`RACE_REWARD_LEAD_TIME`) so nothing on the client re-derives it.
 - **Race rows carry no amounts.** They are indicators; what a placement pays
   depends on the user's rank, which only the client knows.
 - **`throughout_end` is the linked banner's end**, with the game-event buffer

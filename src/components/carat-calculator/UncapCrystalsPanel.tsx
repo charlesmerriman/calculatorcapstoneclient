@@ -29,16 +29,19 @@ const CrystalCell = ({ value, selected, green, className = "" }: { value: number
 )
 
 export const UncapCrystalsPanel = () => {
-	const { userStatsData, gameEventsData, championsMeetingData, championsMeetingRankData, leagueOfHeroesData, leagueOfHeroesRankData, organizedTimelineData } =
+	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, organizedTimelineData } =
 		useCalculatorData()
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null)
 
+	// Race payouts come from incomeLedger, not championsMeetingData /
+	// leagueOfHeroesData: the ledger is where a race event's reward instant is
+	// decided (a CM settles 24h before its listed end), so reading the raw event
+	// lists here would put this panel a day out of step with the banner rows.
 	const crystals = useUncapCrystals(
 		userStatsData,
 		gameEventsData,
-		championsMeetingData,
+		incomeLedger,
 		championsMeetingRankData,
-		leagueOfHeroesData,
 		leagueOfHeroesRankData,
 		selectedEndDate,
 	)

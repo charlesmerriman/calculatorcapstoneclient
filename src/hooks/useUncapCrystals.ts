@@ -4,11 +4,31 @@ import { sumUncapAccrual } from "../utils/incomeCalculationUtils"
 import type {
 	UserStats,
 	GameEvent,
-	ChampionsMeeting,
 	ChampionsMeetingRank,
-	LeagueOfHeroes,
 	LeagueOfHeroesRank,
 } from "../types"
+import type { IncomeLedgerRow, LedgerRowKind } from "../types/ledger"
+
+/**
+ * The race payout instants of one kind, taken from the ledger.
+ *
+ * This panel used to read `end_date` straight off championsMeetingData /
+ * leagueOfHeroesData, which quietly made it a SECOND opinion about when a race
+ * event pays. It is not: a Champions Meeting settles its placements 24 hours
+ * before its window closes (`RACE_REWARD_LEAD_TIME` in
+ * `backend/calculatorapi/ledger.py`), so the raw end date paid the shards a day
+ * later here than the carats landed in the banner rows — the same event on two
+ * clocks. Reading the ledger means the offset lives in exactly one place and
+ * this panel inherits it rather than re-deriving it.
+ *
+ * Undated events are already dropped server-side, so there is no invalid date
+ * to guard against.
+ */
+function racePayoutDates(ledger: IncomeLedgerRow[], kind: LedgerRowKind) {
+	return ledger
+		.filter((row) => row.kind === kind)
+		.map((row) => ({ parsedDate: new Date(row.date) }))
+}
 
 export interface UncapCrystals {
 	ssrCrystals: number
@@ -27,14 +47,16 @@ export interface UncapCrystals {
  *   2. Champions Meeting payouts (based on the user's rank)
  *   3. League of Heroes payouts (based on the user's rank)
  *
+ * The two race sources come from the income ledger rather than from the event
+ * lists, so they land on the same instant the carats do — see racePayoutDates.
+ *
  * Finally, accumulated shards are converted to crystals using the 20-shards-per-crystal rule.
  */
 export function useUncapCrystals(
 	userStatsData: UserStats | null,
 	gameEventsData: GameEvent[],
-	championsMeetingData: ChampionsMeeting[],
+	incomeLedger: IncomeLedgerRow[],
 	championsMeetingRankData: ChampionsMeetingRank[],
-	leagueOfHeroesData: LeagueOfHeroes[],
 	leagueOfHeroesRankData: LeagueOfHeroesRank[],
 	selectedEndDate: string | null
 ): UncapCrystals {
@@ -55,12 +77,8 @@ export function useUncapCrystals(
 				...ge,
 				parsedStart: ge.start_date ? new Date(ge.start_date) : null,
 			})),
-			meetings: championsMeetingData.map((m) => ({
-				parsedDate: new Date(m.end_date),
-			})),
-			leagueEvents: leagueOfHeroesData.map((l) => ({
-				parsedDate: new Date(l.end_date),
-			})),
+			meetings: racePayoutDates(incomeLedger, "champions_meeting"),
+			leagueEvents: racePayoutDates(incomeLedger, "league_of_heroes"),
 			championsMeetingRank: championsMeetingRankData.find(
 				(r) => r.id === userStatsData.champions_meeting_rank
 			),
@@ -87,9 +105,8 @@ export function useUncapCrystals(
 	}, [
 		userStatsData,
 		gameEventsData,
-		championsMeetingData,
+		incomeLedger,
 		championsMeetingRankData,
-		leagueOfHeroesData,
 		leagueOfHeroesRankData,
 		selectedEndDate,
 	])

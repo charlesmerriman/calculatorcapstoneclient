@@ -105,6 +105,10 @@ export function cumulativeEventRewards(
  *   the day after a banner closes. That is the sheet's behaviour and it is
  *   ported deliberately; the parity harness is what confirms it.
  *
+ * The lead time a Champions Meeting settles ahead of its listed end is already
+ * baked into `row.date` by the backend, so there is nothing to subtract here —
+ * these bounds are about the banner window, not about when the event pays.
+ *
  * The caller multiplies by the user's rank payout — the ledger rows are
  * indicators and carry no amounts.
  */
