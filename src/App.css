@@ -371,32 +371,9 @@ input[type="number"] {
 	-moz-appearance: textfield;
 }
 
-/* Opt-in class to re-enable spinners.
-   Chrome only *paints* the spin arrows on hover/focus, but by default they
-   still *reserve* ~15px of the input's content box at all times — which pushed
-   long values (100,000+) out of view. Taking the spin button out of flow with
-   position:absolute gives the number the full box; the arrows now paint over
-   the value on hover/focus instead of permanently shrinking it.
-   Note: this is a -webkit- pseudo-element, so Firefox's spinner still reserves
-   width and will clip a digit or two sooner. */
-input[type="number"].spin-arrows::-webkit-outer-spin-button,
-input[type="number"].spin-arrows::-webkit-inner-spin-button {
-	-webkit-appearance: auto;
-	position: absolute;
-	right: 1px; /* clear the input's 1px border */
-	top: 0;
-	height: 100%;
-}
-input[type="number"].spin-arrows {
-	-moz-appearance: auto;
-	color-scheme: dark;
-	position: relative; /* containing block for the absolute spin button */
-}
-
-/* The arrows are painted by the browser, not by us, so `color-scheme` is the
-   only lever on them. Left at `dark` they render as light glyphs, which vanish
-   against the light theme's pale input fill — the one part of this field CSS
-   can't recolor directly. */
-[data-theme="light"] input[type="number"].spin-arrows {
-	color-scheme: light;
-}
+/* The planner's count fields no longer use type="number" at all — they are
+   NumberField (src/components/NumberField.tsx), a text input with
+   role="spinbutton". The `.spin-arrows` opt-in that used to re-enable and
+   absolutely-position the native arrows here was removed with them: users
+   reported the arrows sitting on top of the value in a 56px field. The rule
+   above still applies to any remaining stock number input. */

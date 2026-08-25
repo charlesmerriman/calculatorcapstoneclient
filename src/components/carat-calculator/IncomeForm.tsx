@@ -7,6 +7,7 @@ import { useCalculatorData } from "../../services/CalculatorContext"
 import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
 import { ToggleSwitch } from "../ToggleSwitch"
+import { NumberField } from "../NumberField"
 import type { ClubRank, TeamTrialsRank, ChampionsMeetingRank, LeagueOfHeroesRank } from "../../types"
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -70,14 +71,14 @@ const selectStyles: StylesConfig<any, false> = {
 	menuPortal: (base: CSSObjectWithLabel) => ({ ...base, zIndex: 9999 }),
 }
 
-// Padding is symmetric: the spin arrows are positioned out of flow (see
-// .spin-arrows in App.css), so text-center already lands optically centered —
-// the old asymmetric pl-4.5 counterweight would now push the value off-center.
+// Padding is symmetric: NumberField renders no spinner arrows at all, so
+// text-center lands optically centered — the old asymmetric pl-4.5
+// counterweight would push the value off-center.
 // Width is NOT set here — the two call sites differ (a phone's resource grid gives
 // each field a hair under 4rem, the rank badges a full 5rem) and baking one in
 // meant overriding it at the site that disagreed.
 const numInputClass =
-	"spin-arrows border border-gray-600 rounded py-1 px-1 text-xs text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500 @income-wide:px-2 @income-wide:text-sm"
+	"border border-gray-600 rounded py-1 px-1 text-xs text-center bg-gray-700 text-gray-100 outline-none focus:border-gray-500 @income-wide:px-2 @income-wide:text-sm"
 
 // ── ResourceRow ───────────────────────────────────────────────────────
 
@@ -89,12 +90,11 @@ const ResourceRow = ({ icon, label, value, onChange }: { icon: ReactNode; label:
 	<div className="flex min-w-0 items-center gap-1.5 @income-wide:gap-2">
 		<span className="shrink-0 w-6 h-6 flex items-center justify-center @income-wide:w-8 @income-wide:h-8">{icon}</span>
 		<span className="min-w-0 flex-1 text-[11px] text-gray-400 leading-tight @income-wide:text-sm">{label}</span>
-		<input
-			type="number"
-			min={0}
+		<NumberField
 			value={value}
 			className={`${numInputClass} w-14 shrink-0 @income-wide:w-20`}
-			onChange={(e) => onChange(Number(e.target.value))}
+			ariaLabel={label}
+			onChange={onChange}
 		/>
 	</div>
 )

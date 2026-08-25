@@ -17,6 +17,7 @@ import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
+import { NumberField } from "../NumberField"
 import { formatDate } from "../../utils/dateFormat"
 import { timelineFocusHref } from "../../utils/timelineFocus"
 import {
@@ -271,22 +272,20 @@ export const BannerRow = ({
 		setUserPlannedBannerData(sorted)
 	}
 
-	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-		// Sanitise to a whole, non-negative number of pulls. The floor matters:
-		// a typed decimal like "2.5" would flow into getExactProbability (which
-		// assumes integer trials) and into the carat deduction, corrupting both.
+	const handlePullCountChange = (count: number): void => {
+		// Arrives already whole and non-negative — NumberField owns that, and its
+		// sanitise() carries the note on why a decimal must never reach
+		// getExactProbability (which assumes integer trials) or the carat
+		// deduction.
 		//
 		// Deliberately NOT capped at maxPossiblePulls. Planning past what you can
 		// afford is a legitimate thing to want to see — applyPullStrategy turns
 		// the shortfall into a negative carat balance that carries to later
 		// banners, and pullStatus below surfaces it as a red field rather than
 		// silently rewriting what the user typed.
-		const parsed = Math.floor(Number(e.target.value))
-		const nonNegative = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
-
 		const updated = updateBannerInList((banner) => ({
 			...banner,
-			number_of_pulls: nonNegative
+			number_of_pulls: count
 		}))
 		setUserPlannedBannerData(updated)
 	}
@@ -649,14 +648,11 @@ export const BannerRow = ({
 
 	const countLabel = isStepUp ? "Number of steps" : "Number of pulls"
 
-	const handleReservedChange = (
-		event: React.ChangeEvent<HTMLInputElement>
-	): void => {
-		// Floored and non-negative like the pull input, and deliberately NOT
-		// capped at what's affordable — an over-reserve is shown, not prevented.
-		const parsed = Math.max(0, Math.floor(Number(event.target.value) || 0))
+	const handleReservedChange = (copies: number): void => {
+		// Whole and non-negative via NumberField, and deliberately NOT capped at
+		// what's affordable — an over-reserve is shown, not prevented.
 		setUserPlannedBannerData(
-			updateBannerInList((banner) => ({ ...banner, reserved_copies: parsed }))
+			updateBannerInList((banner) => ({ ...banner, reserved_copies: copies }))
 		)
 	}
 
@@ -673,14 +669,12 @@ export const BannerRow = ({
 			: "Copies taken with a support selector or SSR crystal instead of pulling"
 
 	const pullsInput = (
-		<input
-			type="number"
+		<NumberField
 			value={plannedCount}
-			className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
-			min={0}
+			className={`pull-input pull-input--${countStatus} w-14`}
 			title={countStatusHint}
-			aria-label={countLabel}
-			aria-invalid={countStatus === "over"}
+			ariaLabel={countLabel}
+			ariaInvalid={countStatus === "over"}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -691,14 +685,12 @@ export const BannerRow = ({
 	// factory shape as renderBannerSelect above.
 	const renderReservedInput = (widthClass: string) => (
 		<div className={`flex ${widthClass} flex-col items-center gap-0.5`}>
-			<input
-				type="number"
+			<NumberField
 				value={plannedBanner.reserved_copies}
-				className={`spin-arrows pull-input pull-input--${reservedStatus} ${widthClass}`}
-				min={0}
+				className={`pull-input pull-input--${reservedStatus} ${widthClass}`}
 				title={reservedHint}
-				aria-label="Copies obtained without pulling"
-				aria-invalid={reservedStatus === "over"}
+				ariaLabel="Copies obtained without pulling"
+				ariaInvalid={reservedStatus === "over"}
 				disabled={!hasBanner}
 				onChange={handleReservedChange}
 			/>
@@ -804,14 +796,12 @@ export const BannerRow = ({
 			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
-				<input
-					type="number"
+				<NumberField
 					value={plannedCount}
-					className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
-					min={0}
+					className={`pull-input pull-input--${countStatus} w-14`}
 					title={countStatusHint}
-					aria-label={countLabel}
-					aria-invalid={countStatus === "over"}
+					ariaLabel={countLabel}
+					ariaInvalid={countStatus === "over"}
 					onChange={handlePullCountChange}
 				/>
 			</div>
