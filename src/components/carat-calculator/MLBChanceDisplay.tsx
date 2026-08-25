@@ -63,11 +63,21 @@ export const MLBChanceDisplay = ({
 		// doubled the strip's height for six cells that each need ~30px — a 320px
 		// card gives every one of them ~53px, which is roomier than the desktop
 		// table's own 14rem track manages.
-		<div className="w-full grid grid-cols-6 bg-gray-700 border-gray-600 sm:rounded-lg sm:border overflow-hidden">
+		//
+		// The framing is on `@banner-table:`, the SAME container query that decides
+		// card vs table, not on a viewport `sm:`. In a card the strip is a full-bleed
+		// band of that card and must not draw its own box; in the table it sits in a
+		// padded cell and needs one. Keyed to the viewport those two states drifted
+		// apart in the band where the viewport is wide but the container isn't.
+		<div className="w-full grid grid-cols-6 bg-gray-700 border-gray-600 @banner-table:rounded-lg @banner-table:border overflow-hidden">
 			{labels.map((label, i) => (
 				<div
 					key={label}
-					className={`flex flex-col items-center justify-center px-0.5 py-1.5 text-[10px] leading-tight text-center sm:px-1${i < labels.length - 1 ? " border-r border-gray-600" : ""}`}
+					// Note the space before `${`: Tailwind extracts class names from the
+					// raw source text, and a token welded to an interpolation isn't
+					// recognised as one — the old `text-center${…}` meant `sm:px-1` was
+					// never actually generated. Keep interpolations space-separated.
+					className={`flex flex-col items-center justify-center px-0.5 py-1.5 text-[10px] leading-tight text-center @banner-table:px-1 ${i < labels.length - 1 ? "border-r border-gray-600" : ""}`}
 				>
 					<div className="mlb-label">{label}</div>
 					<div className="mlb-value">{values[i].toFixed(1)}%</div>

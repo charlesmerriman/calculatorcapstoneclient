@@ -277,7 +277,7 @@ export const StagedBannerRow = ({
 
 	const dateDisplay = bannerTimeline ? (
 		// Always one per line, at every card width — same reason as BannerRow's.
-		<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px] sm:text-sm">
+		<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px]">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 		</div>

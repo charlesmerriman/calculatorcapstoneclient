@@ -27,15 +27,14 @@ interface MobileBannerCardProps {
 	dates: ReactNode
 	/**
 	 * The row's pull ceiling ("Max Pulls", or "Max Steps" on a step-up), shown
-	 * immediately LEFT of the pulls field — phone cards only. It is the bound the
-	 * field is judged against, and reading it out of a stats strip further down
-	 * the card meant looking away from the number you were editing to find out
-	 * what the limit was.
+	 * immediately LEFT of the pulls field. It is the bound the field is judged
+	 * against, and reading it out of a stats strip further down the card meant
+	 * looking away from the number you were editing to find out what the limit
+	 * was.
 	 *
 	 * Optional because a staged row has no projection yet: `useBannerResources`
 	 * hasn't run for it, so it has no ceiling to name and the band drops back to
-	 * three columns. Above `sm:` the cell hides and the stat returns to the
-	 * strip, which has the room for it — hence "phone only".
+	 * three columns.
 	 */
 	maxCount?: ReactNode
 	/**
@@ -102,7 +101,7 @@ const Thumbnails = ({
 				? images.slice(0, 2).map((img) => (
 						<div
 							key={img.name}
-							className={`flex h-12 min-w-0 shrink-0 items-center justify-center overflow-hidden ${thumbTileRadius} bg-black/10 ring-1 ring-white/10 sm:h-[80px]`}
+							className={`flex h-12 min-w-0 shrink-0 items-center justify-center overflow-hidden ${thumbTileRadius} bg-black/10 ring-1 ring-white/10`}
 						>
 							<img
 								src={img.image}
@@ -122,7 +121,7 @@ const Thumbnails = ({
 		<Link
 			to={href}
 			title="View this banner on the timeline"
-			className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2"
+			className="flex min-w-0 shrink-0 items-center gap-1"
 		>
 			{strip}
 		</Link>
@@ -150,9 +149,9 @@ export const MobileBannerCard = ({
 
 	return (
 		<div className="@banner-table:hidden overflow-hidden rounded-lg border border-gray-600 bg-gray-800 shadow-sm">
-			<div className={`flex min-h-[64px] items-stretch sm:min-h-[88px] ${style.tile}`}>
-				<div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 bg-black/15 px-1 sm:w-28 sm:gap-1">
-					<span className="text-xs font-bold tracking-wide text-white sm:text-sm">
+			<div className={`flex min-h-[64px] items-stretch ${style.tile}`}>
+				<div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 bg-black/15 px-1">
+					<span className="text-xs font-bold tracking-wide text-white">
 						{style.label}
 					</span>
 					<BannerTypeIcon type={bannerType} className="h-5 w-5 text-white/90" />
@@ -160,7 +159,7 @@ export const MobileBannerCard = ({
 
 				{/* Tight gutters: every pixel here comes off the banner name, which is
 				    the row's primary identifier and the first thing to ellipsis. */}
-				<div className="relative flex min-w-0 shrink-0 items-center gap-0.5 overflow-hidden px-1 py-2 sm:gap-2 sm:px-3">
+				<div className="relative flex min-w-0 shrink-0 items-center gap-0.5 overflow-hidden px-1 py-2">
 					<Thumbnails
 						href={imagesHref}
 						slot={imagesSlot}
@@ -177,7 +176,7 @@ export const MobileBannerCard = ({
 					onClick={onRemove}
 					aria-label={removeLabel}
 					title={removeLabel}
-					className="my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-400/40 bg-black/10 text-red-400 transition hover:bg-black/25 sm:mr-3 sm:h-12 sm:w-12"
+					className="my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-400/40 bg-black/10 text-red-400 transition hover:bg-black/25"
 				>
 					<Icon className="h-5 w-5" />
 				</button>
@@ -191,33 +190,32 @@ export const MobileBannerCard = ({
 				    pulls field. They stack instead (see BannerRow's dateDisplay) and
 				    label the column well enough on their own.
 
-				    The `sm:` template has three tracks, not four: `maxCount` hides
-				    there and its stat returns to the derived-stats strip. A
-				    display:none cell isn't placed, so the three that remain line up
-				    with the three tracks on their own. */}
+				    Fixed tracks on the right, flexible date track on the left, at
+				    EVERY card width — the card has exactly one layout now, and the
+				    extra width a wide container gives it goes to the dates. */}
 				<div
-					className={`grid border-b border-gray-700 sm:grid-cols-[minmax(0,1fr)_6.25rem_6.25rem] ${
+					className={`grid border-b border-gray-700 ${
 						maxCount
 							? "grid-cols-[minmax(0,1fr)_3.5rem_4.25rem_4.25rem]"
 							: "grid-cols-[minmax(0,1fr)_4.25rem_4.25rem]"
 					}`}
 				>
-					<div className="min-w-0 self-center px-2 py-2 sm:px-4">
+					<div className="min-w-0 self-center px-2 py-2">
 						{dates}
 					</div>
 					{maxCount && (
-						<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2 sm:hidden">
+						<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2">
 							{maxCount}
 						</div>
 					)}
-					<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2 sm:px-2">
+					<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2">
 						{/* Title case, not uppercase: it now sits directly beside the
 						    "Max Pulls" stat label, and it matches the desktop table's own
 						    "# Pulls" header. */}
 						<div className="mb-0.5 text-[10px] font-medium text-gray-500">Pulls</div>
 						{pullsInput}
 					</div>
-					<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2 sm:px-2">
+					<div className="flex min-w-0 flex-col items-center justify-center border-l border-gray-700 px-1 py-2">
 						{/* Icons rather than the word, matching the desktop table header.
 						    w-4 here, not the header's w-5: these sit beside a 10px caps
 						    label ("Pulls") and 20px would tower over it. */}

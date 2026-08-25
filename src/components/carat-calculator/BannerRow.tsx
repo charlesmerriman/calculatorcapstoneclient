@@ -487,7 +487,7 @@ export const BannerRow = ({
 			    and a range that reads down at one width and across at the next is
 			    harder to scan than one that always reads down. The desktop table
 			    stacks them too; it renders its own pair, not this. */}
-			<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px] sm:text-sm">
+			<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px]">
 				<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 				<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			</div>
@@ -579,10 +579,9 @@ export const BannerRow = ({
 		</div>
 	)
 
-	// Three across in a single row, matching the shape the `sm:` strip already
-	// uses. Two rows of two is what the fourth box used to force; with it moved up
-	// beside the pulls field, the remaining three fit one row and the strip costs
-	// a line instead of two.
+	// Three across in a single row. Two rows of two is what the fourth box used to
+	// force; with it moved up beside the pulls field, the remaining three fit one
+	// row and the strip costs a line instead of two.
 	//
 	// The label may wrap ("Free/Tickets/Paid" is the long one) rather than being
 	// clipped — a ~320px card gives each box about 93px, which is the width that
@@ -599,55 +598,32 @@ export const BannerRow = ({
 		</div>
 	)
 
-	// Phone cards use a true 2x2 estimate grid, so "Paid Carat Est." and
-	// "Max Pulls" share the second row. Once the card is wide enough, the
-	// reference-style three-across strip returns and shares its lower row with
-	// the odds display.
+	// ONE stats strip, at every card width. There used to be a second, wider
+	// treatment from `sm:` — an inset panel with a 2x2 estimate grid — which meant
+	// the card had two quite different looks inside the range where cards render
+	// at all: viewport >= 640px but container < --container-banner-table still got
+	// the roomy one. The card/table switch is a CONTAINER query and the card's own
+	// internals were on VIEWPORT queries, so the two disagreed by design. Nothing
+	// inside the card may key off the viewport now; if a stat ever needs a wider
+	// layout again it belongs behind a `@`-variant on the same container.
 	//
-	// The phone half runs EDGE TO EDGE — no inset card, no rounded border of its
-	// own. It reads as another band of the card (like the dates/pulls row above
-	// it) instead of a panel floating inside one, and that drops both the 24px
-	// gutter MobileBannerCard used to add and the strip's own border inset.
+	// The strip runs EDGE TO EDGE — no inset card, no rounded border of its own.
+	// It reads as another band of the card (like the dates/pulls row above it)
+	// instead of a panel floating inside one, and that drops both the 24px gutter
+	// MobileBannerCard used to add and the strip's own border inset.
 	const statsDisplay = (
 		<>
-			<div className="sm:hidden">
-				{/* Three boxes, not four — the fourth (Max Pulls / Max Steps) is up in
-				    the number band, beside the field it bounds. */}
-				<div className="grid grid-cols-3">
-					{derivedStats.slice(0, 3).map(mobileStatCell)}
-				</div>
-				<div className="border-t border-gray-700">
-					{hasBanner ? (
-						<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
-					) : (
-						<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
-					)}
-				</div>
+			{/* Three boxes, not four — the fourth (Max Pulls / Max Steps) is up in
+			    the number band, beside the field it bounds. */}
+			<div className="grid grid-cols-3">
+				{derivedStats.slice(0, 3).map(mobileStatCell)}
 			</div>
-			<div className="hidden p-3 sm:block">
-			<div className="overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
-				<div className="grid grid-cols-3 divide-x divide-gray-600">
-					{derivedStats.slice(0, 3).map((stat) => (
-						<div key={stat.label} title={stat.title} className="flex flex-col items-center justify-center px-2 py-2">
-						<span className="banner-stat-box-label">{stat.label}</span>
-						<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
-					</div>
-				))}
-				</div>
-				<div className="grid grid-cols-3 border-t border-gray-600">
-					<div title={derivedStats[3].title} className="flex flex-col items-center justify-center border-r border-gray-600 px-2 py-2">
-						<span className="banner-stat-box-label">{derivedStats[3].label}</span>
-						<span className={`banner-stat-box-value ${derivedStats[3].valueClass ?? ""}`}>{derivedStats[3].value}</span>
-					</div>
-					<div className="col-span-2 p-2">
-						{hasBanner ? (
-							<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
-						) : (
-							<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
-						)}
-					</div>
-				</div>
-			</div>
+			<div className="border-t border-gray-700">
+				{hasBanner ? (
+					<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
+				) : (
+					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
+				)}
 			</div>
 		</>
 	)
