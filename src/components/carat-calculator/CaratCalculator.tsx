@@ -19,6 +19,7 @@ import {
 } from "../../utils/bannerHelpers"
 import type { BannerRowType } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 /**
  * The three "add a row" buttons, in one place rather than three near-identical
@@ -59,6 +60,8 @@ const ADD_BANNER_BUTTONS: {
 ]
 
 export const CaratCalculator: React.FC = () => {
+	useDocumentMeta("Calculator", "Plan your Uma Musume banner pulls and see how many carats, tickets and pulls you will have available for each one.")
+
 	const {
 		userStatsData,
 		clubRankData,

@@ -5,6 +5,7 @@ import { Footer } from "../footer/Footer"
 import { Wordmark } from "../Wordmark"
 import { completeSocialLogin } from "../../services/socialAuth"
 import { ApiError } from "../../services/userServices"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 /**
  * Where the provider sends the browser back to: /auth/callback?code=…&state=…
@@ -14,6 +15,8 @@ import { ApiError } from "../../services/userServices"
  * the old password login.
  */
 export const OAuthCallback: React.FC = () => {
+	useDocumentMeta("Signing In", "Completing sign-in.", true)
+
 	const [searchParams] = useSearchParams()
 	const navigate = useNavigate()
 	const [exchangeError, setExchangeError] = useState<string | null>(null)

@@ -839,3 +839,30 @@ at module scope.
 **Keep its fire-once-per-instance behaviour.** It models the real API (an observer reports
 a *transition* into view, then stays silent) and is what makes the infinite-scroll stall
 regression detectable.
+
+### Every page route sets its own `<head>` tags
+
+This is a single-page app, so `index.html` is served for every URL and React only
+replaces `#root`. Nothing updates `<head>` unless a component does it, and before
+`useDocumentMeta` all ten routes shared one title and one description.
+
+**A new page route must call `useDocumentMeta(title, description)` as its first
+statement**, or it silently inherits whatever the previously visited route set.
+Pass `null` as the title only for the homepage, which should read as the site name
+rather than "Home | …". The third argument, `noindex`, is for pages that are
+plumbing rather than content — `/login` and `/auth/callback` — and those two paths
+are also `Disallow`ed in `public/robots.txt`; change one and change the other.
+
+The canonical URL comes from `window.location.origin` at runtime rather than a
+build-time constant, so it follows the site across localhost, the DigitalOcean
+hostname and the custom domain without config.
+
+**The hook cannot fix link previews.** Discord, Slack, Reddit and Twitter fetch the
+raw HTML and never run JavaScript, so they only ever see the static `og:` tags in
+`index.html`. Those are a site-wide default; per-route previews would need
+prerendering. `index.html` still has no `og:image` — it wants a 1200x630 PNG,
+the same branding gap as the stock Vite favicon.
+
+`public/robots.txt` and `public/sitemap.xml` are real static files that Vite copies
+to `dist/`, where they match before the DigitalOcean catch-all. Both carry absolute
+URLs that **do not survive a domain move** — update them together.

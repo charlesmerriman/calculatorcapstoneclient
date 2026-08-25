@@ -1,0 +1,16 @@
+# Uma Musume Carat Calculator
+#
+# Everything here is public and safe to index. The two excluded paths are
+# transient auth plumbing, not content: /login is a staff-only form and
+# /auth/callback only ever holds a single-use OAuth code in its query string.
+# Neither has anything for a crawler to read, and /auth/callback appearing in
+# search results would be actively confusing.
+
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /auth/callback
+
+# NOTE: absolute URL required by the sitemap spec, so this line does not survive
+# a domain move. Update it together with public/sitemap.xml.
+Sitemap: https://umamusme-calculator-7zdcg.ondigitalocean.app/sitemap.xml

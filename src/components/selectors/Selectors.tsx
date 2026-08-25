@@ -13,6 +13,7 @@ import { ToggleSwitch } from "../ToggleSwitch"
 import { CampaignCard } from "./CampaignCard"
 import type { PlannedProduct } from "../../hooks/useSelectorPlanner"
 import type { UserPlannedPurchase } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 /** A stat tile in the summary strip. */
 const Total = ({ label, value }: { label: string; value: string }) => (
@@ -23,6 +24,8 @@ const Total = ({ label, value }: { label: string; value: string }) => (
 )
 
 export const Selectors = () => {
+	useDocumentMeta("Selector Tickets", "Plan which Uma Musume support cards and umas to take with your selector tickets, filtered by each ticket's eligibility cutoff.")
+
 	const {
 		userStatsData,
 		anniversaryEventData,

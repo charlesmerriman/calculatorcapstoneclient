@@ -6,6 +6,7 @@ import { Wordmark } from "../Wordmark"
 import { readGuestPlanStash } from "../../services/guestMigration"
 import { startSocialLogin, type SocialProvider } from "../../services/socialAuth"
 import { ApiError } from "../../services/userServices"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 /** Google's four-colour "G". Inline because a strict CSP blocks remote assets
  *  and lucide-react (our icon set) deliberately ships no brand marks. */
@@ -25,6 +26,8 @@ const DiscordMark: React.FC = () => (
 )
 
 export const Login: React.FC = () => {
+	useDocumentMeta("Sign In", "Staff sign-in for the Uma Musume Carat Calculator.", true)
+
 	// Which provider is mid-redirect, so only that button shows a pending state.
 	const [pendingProvider, setPendingProvider] = useState<SocialProvider | null>(null)
 	const [error, setError] = useState<string | null>(null)
