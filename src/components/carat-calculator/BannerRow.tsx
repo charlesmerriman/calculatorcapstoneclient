@@ -17,6 +17,7 @@ import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
+import { NumberField } from "../NumberField"
 import { formatDate } from "../../utils/dateFormat"
 import { timelineFocusHref } from "../../utils/timelineFocus"
 import {
@@ -271,22 +272,20 @@ export const BannerRow = ({
 		setUserPlannedBannerData(sorted)
 	}
 
-	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-		// Sanitise to a whole, non-negative number of pulls. The floor matters:
-		// a typed decimal like "2.5" would flow into getExactProbability (which
-		// assumes integer trials) and into the carat deduction, corrupting both.
+	const handlePullCountChange = (count: number): void => {
+		// Arrives already whole and non-negative — NumberField owns that, and its
+		// sanitise() carries the note on why a decimal must never reach
+		// getExactProbability (which assumes integer trials) or the carat
+		// deduction.
 		//
 		// Deliberately NOT capped at maxPossiblePulls. Planning past what you can
 		// afford is a legitimate thing to want to see — applyPullStrategy turns
 		// the shortfall into a negative carat balance that carries to later
 		// banners, and pullStatus below surfaces it as a red field rather than
 		// silently rewriting what the user typed.
-		const parsed = Math.floor(Number(e.target.value))
-		const nonNegative = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
-
 		const updated = updateBannerInList((banner) => ({
 			...banner,
-			number_of_pulls: nonNegative
+			number_of_pulls: count
 		}))
 		setUserPlannedBannerData(updated)
 	}
@@ -487,7 +486,7 @@ export const BannerRow = ({
 			    and a range that reads down at one width and across at the next is
 			    harder to scan than one that always reads down. The desktop table
 			    stacks them too; it renders its own pair, not this. */}
-			<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px] sm:text-sm">
+			<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px]">
 				<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 				<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 			</div>
@@ -579,10 +578,9 @@ export const BannerRow = ({
 		</div>
 	)
 
-	// Three across in a single row, matching the shape the `sm:` strip already
-	// uses. Two rows of two is what the fourth box used to force; with it moved up
-	// beside the pulls field, the remaining three fit one row and the strip costs
-	// a line instead of two.
+	// Three across in a single row. Two rows of two is what the fourth box used to
+	// force; with it moved up beside the pulls field, the remaining three fit one
+	// row and the strip costs a line instead of two.
 	//
 	// The label may wrap ("Free/Tickets/Paid" is the long one) rather than being
 	// clipped — a ~320px card gives each box about 93px, which is the width that
@@ -599,55 +597,32 @@ export const BannerRow = ({
 		</div>
 	)
 
-	// Phone cards use a true 2x2 estimate grid, so "Paid Carat Est." and
-	// "Max Pulls" share the second row. Once the card is wide enough, the
-	// reference-style three-across strip returns and shares its lower row with
-	// the odds display.
+	// ONE stats strip, at every card width. There used to be a second, wider
+	// treatment from `sm:` — an inset panel with a 2x2 estimate grid — which meant
+	// the card had two quite different looks inside the range where cards render
+	// at all: viewport >= 640px but container < --container-banner-table still got
+	// the roomy one. The card/table switch is a CONTAINER query and the card's own
+	// internals were on VIEWPORT queries, so the two disagreed by design. Nothing
+	// inside the card may key off the viewport now; if a stat ever needs a wider
+	// layout again it belongs behind a `@`-variant on the same container.
 	//
-	// The phone half runs EDGE TO EDGE — no inset card, no rounded border of its
-	// own. It reads as another band of the card (like the dates/pulls row above
-	// it) instead of a panel floating inside one, and that drops both the 24px
-	// gutter MobileBannerCard used to add and the strip's own border inset.
+	// The strip runs EDGE TO EDGE — no inset card, no rounded border of its own.
+	// It reads as another band of the card (like the dates/pulls row above it)
+	// instead of a panel floating inside one, and that drops both the 24px gutter
+	// MobileBannerCard used to add and the strip's own border inset.
 	const statsDisplay = (
 		<>
-			<div className="sm:hidden">
-				{/* Three boxes, not four — the fourth (Max Pulls / Max Steps) is up in
-				    the number band, beside the field it bounds. */}
-				<div className="grid grid-cols-3">
-					{derivedStats.slice(0, 3).map(mobileStatCell)}
-				</div>
-				<div className="border-t border-gray-700">
-					{hasBanner ? (
-						<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
-					) : (
-						<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
-					)}
-				</div>
+			{/* Three boxes, not four — the fourth (Max Pulls / Max Steps) is up in
+			    the number band, beside the field it bounds. */}
+			<div className="grid grid-cols-3">
+				{derivedStats.slice(0, 3).map(mobileStatCell)}
 			</div>
-			<div className="hidden p-3 sm:block">
-			<div className="overflow-hidden rounded-lg border border-gray-600 bg-gray-700">
-				<div className="grid grid-cols-3 divide-x divide-gray-600">
-					{derivedStats.slice(0, 3).map((stat) => (
-						<div key={stat.label} title={stat.title} className="flex flex-col items-center justify-center px-2 py-2">
-						<span className="banner-stat-box-label">{stat.label}</span>
-						<span className={`banner-stat-box-value ${stat.valueClass ?? ""}`}>{stat.value}</span>
-					</div>
-				))}
-				</div>
-				<div className="grid grid-cols-3 border-t border-gray-600">
-					<div title={derivedStats[3].title} className="flex flex-col items-center justify-center border-r border-gray-600 px-2 py-2">
-						<span className="banner-stat-box-label">{derivedStats[3].label}</span>
-						<span className={`banner-stat-box-value ${derivedStats[3].valueClass ?? ""}`}>{derivedStats[3].value}</span>
-					</div>
-					<div className="col-span-2 p-2">
-						{hasBanner ? (
-							<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
-						) : (
-							<div className="py-3 text-center text-xs text-gray-500">Select a banner</div>
-						)}
-					</div>
-				</div>
-			</div>
+			<div className="border-t border-gray-700">
+				{hasBanner ? (
+					<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
+				) : (
+					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
+				)}
 			</div>
 		</>
 	)
@@ -673,14 +648,11 @@ export const BannerRow = ({
 
 	const countLabel = isStepUp ? "Number of steps" : "Number of pulls"
 
-	const handleReservedChange = (
-		event: React.ChangeEvent<HTMLInputElement>
-	): void => {
-		// Floored and non-negative like the pull input, and deliberately NOT
-		// capped at what's affordable — an over-reserve is shown, not prevented.
-		const parsed = Math.max(0, Math.floor(Number(event.target.value) || 0))
+	const handleReservedChange = (copies: number): void => {
+		// Whole and non-negative via NumberField, and deliberately NOT capped at
+		// what's affordable — an over-reserve is shown, not prevented.
 		setUserPlannedBannerData(
-			updateBannerInList((banner) => ({ ...banner, reserved_copies: parsed }))
+			updateBannerInList((banner) => ({ ...banner, reserved_copies: copies }))
 		)
 	}
 
@@ -697,14 +669,12 @@ export const BannerRow = ({
 			: "Copies taken with a support selector or SSR crystal instead of pulling"
 
 	const pullsInput = (
-		<input
-			type="number"
+		<NumberField
 			value={plannedCount}
-			className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
-			min={0}
+			className={`pull-input pull-input--${countStatus} w-14`}
 			title={countStatusHint}
-			aria-label={countLabel}
-			aria-invalid={countStatus === "over"}
+			ariaLabel={countLabel}
+			ariaInvalid={countStatus === "over"}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -715,14 +685,12 @@ export const BannerRow = ({
 	// factory shape as renderBannerSelect above.
 	const renderReservedInput = (widthClass: string) => (
 		<div className={`flex ${widthClass} flex-col items-center gap-0.5`}>
-			<input
-				type="number"
+			<NumberField
 				value={plannedBanner.reserved_copies}
-				className={`spin-arrows pull-input pull-input--${reservedStatus} ${widthClass}`}
-				min={0}
+				className={`pull-input pull-input--${reservedStatus} ${widthClass}`}
 				title={reservedHint}
-				aria-label="Copies obtained without pulling"
-				aria-invalid={reservedStatus === "over"}
+				ariaLabel="Copies obtained without pulling"
+				ariaInvalid={reservedStatus === "over"}
 				disabled={!hasBanner}
 				onChange={handleReservedChange}
 			/>
@@ -828,14 +796,12 @@ export const BannerRow = ({
 			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
-				<input
-					type="number"
+				<NumberField
 					value={plannedCount}
-					className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
-					min={0}
+					className={`pull-input pull-input--${countStatus} w-14`}
 					title={countStatusHint}
-					aria-label={countLabel}
-					aria-invalid={countStatus === "over"}
+					ariaLabel={countLabel}
+					ariaInvalid={countStatus === "over"}
 					onChange={handlePullCountChange}
 				/>
 			</div>

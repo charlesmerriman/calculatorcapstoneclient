@@ -6,6 +6,7 @@ import { Footer } from "../footer/Footer"
 import { changelogFetch } from "../../services/changelogFetchCalls"
 import { formatDate } from "../../utils/dateFormat"
 import type { ChangeCategory, ChangelogEntry } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 /** Subtle fade/slide-up on mount — matches the motion used elsewhere in the app. */
 const fadeUp = {
@@ -36,6 +37,8 @@ const categoryLabel: Record<ChangeCategory, string> = {
  * newest-first timeline of dated cards, each listing categorized change lines.
  */
 export const Changelog: React.FC = () => {
+	useDocumentMeta("Changelog", "Recent updates to the Uma Musume Carat Calculator: new banners, corrected event data and calculator changes.")
+
 	const [entries, setEntries] = useState<ChangelogEntry[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState(false)

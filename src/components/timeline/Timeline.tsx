@@ -38,6 +38,7 @@ import type {
 	UserPlannedBanner,
 	TimelineEvent,
 } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 const PAGE_SIZE = 10
 
@@ -237,6 +238,8 @@ function eventMatchesSearch(event: TimelineEvent, query: string): boolean {
 }
 
 export const Timeline = () => {
+	useDocumentMeta("Banner Timeline", "Every Uma Musume banner, event and campaign on one timeline, with predicted global release dates derived from the JP schedule.")
+
 	const {
 		organizedTimelineData,
 		userPlannedBannerData,

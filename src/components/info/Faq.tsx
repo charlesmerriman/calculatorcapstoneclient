@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
 import { FAQ_CATEGORIES } from "../../constants/faqContent"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 // Same text-style vocabulary as PrivacyPolicy, so the two public content pages stay
 // visually consistent without a shared layout component that would have to accommodate
@@ -24,6 +25,8 @@ const paragraph = "mt-3 leading-relaxed text-gray-300"
  * Content lives in constants/faqContent.tsx — see the note there on why it is static.
  */
 export const Faq: React.FC = () => {
+	useDocumentMeta("FAQ", "How the Uma Musume carat calculator works, where its numbers come from, whether you need an account, and what it does with your data.")
+
 	const { hash } = useLocation()
 
 	// The browser scrolls to a #fragment on a full page load, but not on a

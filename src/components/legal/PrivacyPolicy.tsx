@@ -1,6 +1,7 @@
 import type React from "react"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 // Shared text styles so the sections stay visually consistent and easy to tweak.
 const heading = "mt-8 text-xl font-semibold text-gray-100"
@@ -16,6 +17,8 @@ const link = "text-brand transition hover:text-brand/75"
  * should be reviewed before going live with ads.
  */
 export const PrivacyPolicy: React.FC = () => {
+	useDocumentMeta("Privacy Policy", "What the Uma Musume Carat Calculator collects, how it is used, and the choices you have. No email address, no real name and no IP address is ever stored.")
+
 	return (
 		// flex-1 on <main> absorbs any leftover viewport height so the footer keeps its
 		// fixed ~53px band at the bottom of a short page — leftover space sits above it,

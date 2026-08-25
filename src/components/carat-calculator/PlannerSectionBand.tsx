@@ -35,13 +35,13 @@ const MARKER_STYLES: Record<
 	{ text: string; icon?: typeof Sparkles; iconSize?: string; textColor: string; iconShell?: string }
 > = {
 	scenario: {
-		text: "text-sm font-semibold tracking-wide sm:text-base",
+		text: "text-sm font-semibold tracking-wide @banner-table:text-base",
 		textColor: "text-brand",
 	},
 	anniversary: {
-		text: "text-sm font-medium tracking-wide sm:text-base",
+		text: "text-sm font-medium tracking-wide @banner-table:text-base",
 		icon: Sparkles,
-		iconSize: "h-3.5 w-3.5 sm:h-4 sm:w-4",
+		iconSize: "h-3.5 w-3.5 @banner-table:h-4 @banner-table:w-4",
 		textColor: "text-gray-200",
 		iconShell: "text-brand/85",
 	},

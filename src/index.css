@@ -58,6 +58,26 @@
 	   comment on .banner-grid) if the table ever needs another column. */
 	--container-banner-table: 76.625rem;
 
+	/* The income panel's desktop layout, keyed to the SAME box as the banner
+	   table so the two halves of the calculator switch on the same frame. The
+	   panel used to run on plain `sm:`/`lg:`/`xl:` viewport breakpoints, which
+	   meant the income form went "desktop" at 640px while the sheet below it was
+	   still rendering cards until ~1226px — a 600px band in which the two halves
+	   of one panel disagreed about which layout they were in.
+
+	   The value is --container-banner-table PLUS 2rem, because the two are
+	   measured on different boxes: the `@container` for this token sits on the
+	   panel wrapper, and the banner sheet's own `@container` sits inside the
+	   sheet's `mx-4` gutter — 1rem either side. So the sheet's box is always
+	   exactly 2rem narrower than this one, and adding that back makes the two
+	   queries fire at the same page width.
+
+	   IT CANNOT BE WRITTEN AS A calc() OF THE OTHER: custom properties don't
+	   resolve inside a container-query condition. If --container-banner-table
+	   moves, move this by the same amount. If the sheet's gutter changes, change
+	   the 2rem. */
+	--container-income-wide: 78.625rem;
+
 	/* Display face for the brand wordmark only — body text stays on the default
 	   system stack. The font itself is imported in main.tsx (@fontsource-variable),
 	   so it is bundled rather than fetched from a CDN. Exposed as a theme token so

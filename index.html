@@ -6,6 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Uma Musume Carat Calculator</title>
     <meta name="description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
+
+    <!--
+      Site-wide social defaults. These are the ONLY tags link unfurlers ever see:
+      Discord, Reddit, Slack and Twitter fetch this raw HTML and never run the JS
+      that sets per-route titles, so a shared link to any page previews with the
+      text below. useDocumentMeta handles tabs and search engines; this handles
+      the preview card. Per-route previews would need prerendering.
+
+      TODO: og:image. Wants a 1200x630 PNG, and there isn't one yet — the same
+      branding gap as the stock Vite favicon. Without it the card renders as
+      title and description with no thumbnail, which is still far better than
+      the nothing that was here before.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Uma Musume Carat Calculator" />
+    <meta property="og:title" content="Uma Musume Carat Calculator" />
+    <meta property="og:description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Uma Musume Carat Calculator" />
+    <meta name="twitter:description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
   </head>
   <body class="bg-neutral-200">
     <div id="root"></div>

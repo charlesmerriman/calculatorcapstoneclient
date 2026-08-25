@@ -4,13 +4,13 @@ import type {
 	BannerSupport,
 	BannerStepUp
 } from "../../types"
-import React from "react"
 import { Link } from "react-router-dom"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
+import { NumberField } from "../NumberField"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
 import { timelineFocusHref } from "../../utils/timelineFocus"
@@ -133,16 +133,15 @@ export const StagedBannerRow = ({
 		})
 	}
 
-	const handlePullCountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-		setStagedBanner({ ...stagedBanner, number_of_pulls: Number(e.target.value) })
+	const handlePullCountChange = (count: number): void => {
+		setStagedBanner({ ...stagedBanner, number_of_pulls: count })
 	}
 
-	const handleReservedChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-		// Floored and clamped, unlike handlePullCountChange above. This value
-		// carries onto the sheet on confirm, where a decimal would reach
-		// getExactProbability — which assumes integer trials.
-		const parsed = Math.max(0, Math.floor(Number(e.target.value) || 0))
-		setStagedBanner({ ...stagedBanner, reserved_copies: parsed })
+	const handleReservedChange = (copies: number): void => {
+		// Whole and non-negative via NumberField. It matters on this field in
+		// particular: the value carries onto the sheet on confirm, where a
+		// decimal would reach getExactProbability — which assumes integer trials.
+		setStagedBanner({ ...stagedBanner, reserved_copies: copies })
 	}
 
 	const hasBanner = target.type !== "Empty"
@@ -277,7 +276,7 @@ export const StagedBannerRow = ({
 
 	const dateDisplay = bannerTimeline ? (
 		// Always one per line, at every card width — same reason as BannerRow's.
-		<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px] sm:text-sm">
+		<div className="flex flex-col text-xs leading-snug text-gray-400 @max-[18rem]:text-[11px]">
 			<div>Start: <span className="text-gray-100">{formatDate(bannerTimeline.start_date)}</span></div>
 			<div>End: <span className="text-gray-100">{formatDate(bannerTimeline.end_date)}</span></div>
 		</div>
@@ -305,13 +304,11 @@ export const StagedBannerRow = ({
 	)
 
 	const pullsInput = (
-		<input
-			type="number"
+		<NumberField
 			value={stagedBanner.number_of_pulls}
-			className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
-			min={0}
+			className={`pull-input pull-input--${countStatus} w-14`}
 			title={countStatusHint}
-			aria-label={countLabel}
+			ariaLabel={countLabel}
 			onChange={handlePullCountChange}
 		/>
 	)
@@ -321,13 +318,11 @@ export const StagedBannerRow = ({
 	// "over" above. Colouring it here would be inventing a funding split. The
 	// real one, and the "2s 1c" hint, appear once the banner is added.
 	const renderReservedInput = (widthClass: string) => (
-		<input
-			type="number"
+		<NumberField
 			value={stagedBanner.reserved_copies}
-			className={`spin-arrows pull-input pull-input--neutral ${widthClass}`}
-			min={0}
+			className={`pull-input pull-input--neutral ${widthClass}`}
 			title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is on the sheet."
-			aria-label="Copies obtained without pulling"
+			ariaLabel="Copies obtained without pulling"
 			disabled={!hasBanner}
 			onChange={handleReservedChange}
 		/>
@@ -422,12 +417,11 @@ export const StagedBannerRow = ({
 			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
-				<input
-					type="number"
+				<NumberField
 					value={stagedBanner.number_of_pulls}
-					className={`spin-arrows pull-input pull-input--${countStatus} w-14`}
-					min={0}
+					className={`pull-input pull-input--${countStatus} w-14`}
 					title={countStatusHint}
+					ariaLabel={countLabel}
 					onChange={handlePullCountChange}
 				/>
 			</div>

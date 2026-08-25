@@ -420,6 +420,31 @@ describe('campaign purchase crediting', () => {
     )
     expect(results[0].paidCarats).toBe(7500)
   })
+
+  it('credits the webstore bonus as FREE carats, leaving the pack paid', () => {
+    // The whole point of the split: buying through the webstore must not
+    // enlarge the PAID balance, because that is what step-ups and discounted
+    // pulls spend. Only the free pool grows.
+    const base = campaign(10, 10)
+    const webstoreCampaign: AnniversaryEvent = {
+      ...base,
+      products: [{ ...base.products[0], webstore_multiplier: 1.1 }],
+    }
+    const bonus = render(
+      [umaBanner(1, 25, 40)],
+      { include_purchases_in_projection: true, webstore_bonus: true },
+      withPurchase(webstoreCampaign)
+    )
+    const plain = render(
+      [umaBanner(1, 25, 40)],
+      { include_purchases_in_projection: true, webstore_bonus: false },
+      withPurchase(webstoreCampaign)
+    )
+
+    expect(plain[0].paidCarats).toBe(7500)
+    expect(bonus[0].paidCarats).toBe(7500)
+    expect(bonus[0].freeCarats - plain[0].freeCarats).toBe(750)
+  })
 })
 
 // ── Step-up rows ──────────────────────────────────────────────────────────────

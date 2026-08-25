@@ -120,7 +120,7 @@ Each is a closed form from `today` to the banner's end date `E`.
 | Misc earnings | Daily drip after a ramp-in; **monthly** figure ÷ 30 | `AV42` |
 | Event lump rewards | Ledger rows with `now ≤ date ≤ E` | `AL42` |
 | Throughout carats | Decay curve, evaluated once from today | `AL43` |
-| Campaign purchases | Paid carats, credited at the campaign's resolved **main part** start | `AM42`/`AY42` |
+| Campaign purchases | Paid carats (plus free carats for the webstore bonus), credited at the campaign's resolved **main part** start | `AM42`/`AY42` |
 
 **The daily rate is blended, not day-by-day.** The legacy engine walked each day
 and added the bonus on specific weekdays, phased off `today`. Same long-run rate,
@@ -145,7 +145,11 @@ A flat, date-sorted row per reward instant, built server-side from `GameEvent`,
 `ChampionsMeeting` and `LeagueOfHeroes`. See `backend/docs/api-reference.md`
 (`IncomeLedgerRow`) for the field-by-field contract. Four things matter here:
 
-- **`date` is when the reward lands** — an event's start, a race event's **end**.
+- **`date` is when the reward lands** — an event's start; a race event's **end,
+  less that kind's lead time**. A Champions Meeting settles 24 hours before its
+  window closes, so its row is a day ahead of the end date the Timeline shows;
+  League of Heroes has no lead time. The offset lives server-side
+  (`RACE_REWARD_LEAD_TIME`) so nothing on the client re-derives it.
 - **Race rows carry no amounts.** They are indicators; what a placement pays
   depends on the user's rank, which only the client knows.
 - **`throughout_end` is the linked banner's end**, with the game-event buffer
@@ -211,6 +215,12 @@ figure dripped as `monthly / 30`.
   `end_date` remain the campaign's whole window. Only `anniversary` campaigns
   have a run-up — for every other kind the backend resolves the two to the same
   instant, so `main_start_date ?? start_date` is always the right read.
+- **The webstore bonus is FREE carats, not paid.** A pack's own carats are paid —
+  they were bought. The extra the webstore adds on top (`webstore_multiplier`,
+  1.1x or 1.2x) is granted as free currency, so it never enlarges the paid
+  balance a step-up or a discounted pull may spend. Both the Selectors totals and
+  the projection go through `purchaseCarats()` in
+  `utils/campaignPurchases.ts`; never re-multiply at a call site.
 - **Selector tickets are banked up front**, outside the pass, and never fund a
   pull. A selector isn't spent at a banner — it takes a card from the back
   catalogue, which stays available after its banner ends. What constrains it is

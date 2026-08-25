@@ -8,6 +8,7 @@ import { Footer } from "../footer/Footer"
 import { feedbackSubmit } from "../../services/feedbackFetchCalls"
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from "../../types/feedback"
 import type { FeedbackCategory } from "../../types/feedback"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 const CATEGORIES: { value: FeedbackCategory; label: string; hint: string }[] = [
 	{ value: "bug", label: "Bug", hint: "Something is broken or behaving oddly." },
@@ -29,6 +30,8 @@ const COUNTER_WARNING_THRESHOLD = FEEDBACK_MESSAGE_MAX_LENGTH - 200
  * "Feedback you send us" section of the privacy policy.
  */
 export const Feedback: React.FC = () => {
+	useDocumentMeta("Feedback", "Report a bug, flag wrong banner data or suggest a feature for the Uma Musume Carat Calculator. No account needed.")
+
 	const location = useLocation()
 	const [category, setCategory] = useState<FeedbackCategory>("bug")
 	const [message, setMessage] = useState("")

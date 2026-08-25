@@ -26,7 +26,26 @@ export const ApplicationViews = () => {
 						    Otherwise that slack renders as gray-900 directly beneath a gray-900
 						    footer, and the footer's top border makes the whole band read as one
 						    enormous footer. */}
-						<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+						{/* `relative` is load-bearing, not cosmetic. This scroller is the
+						    app's clipping context, but `overflow` alone does NOT make an
+						    element a containing block for absolutely positioned descendants.
+						    Any `absolute` inside here with no positioned ancestor therefore
+						    resolves against the INITIAL containing block, escapes the clip,
+						    and extends the DOCUMENT to wherever its static position falls.
+
+						    Tailwind's `sr-only` is `position: absolute`, so a screen-reader
+						    label deep in a long list (ReservedColumnIcons, once per
+						    MobileBannerCard) dragged the document ~400px past the viewport.
+						    On the fixed-height shell that produced a SECOND scrollbar: the
+						    document's, beside this scroller's own. It only showed between
+						    1024px and --container-banner-table, because that is the one band
+						    where the shell is clipped AND rows render as cards — the desktop
+						    table's cells are `relative`, so the same spans stay contained.
+
+						    Making this element the containing block fixes the whole class of
+						    bug rather than that one span. It creates no stacking context
+						    (no z-index) and does not affect `fixed` descendants. */}
+						<div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
 							{/* Plain block wrapper (not <Outlet /> directly) so the calculator and
 							    timeline keep a normal block formatting context and don't become
 							    flex items themselves. flex-1 grows it into the slack; min-height:auto

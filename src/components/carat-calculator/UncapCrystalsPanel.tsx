@@ -29,16 +29,19 @@ const CrystalCell = ({ value, selected, green, className = "" }: { value: number
 )
 
 export const UncapCrystalsPanel = () => {
-	const { userStatsData, gameEventsData, championsMeetingData, championsMeetingRankData, leagueOfHeroesData, leagueOfHeroesRankData, organizedTimelineData } =
+	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, organizedTimelineData } =
 		useCalculatorData()
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null)
 
+	// Race payouts come from incomeLedger, not championsMeetingData /
+	// leagueOfHeroesData: the ledger is where a race event's reward instant is
+	// decided (a CM settles 24h before its listed end), so reading the raw event
+	// lists here would put this panel a day out of step with the banner rows.
 	const crystals = useUncapCrystals(
 		userStatsData,
 		gameEventsData,
-		championsMeetingData,
+		incomeLedger,
 		championsMeetingRankData,
-		leagueOfHeroesData,
 		leagueOfHeroesRankData,
 		selectedEndDate,
 	)
@@ -59,7 +62,9 @@ export const UncapCrystalsPanel = () => {
 	const selectedOption = bannerOptions.find((o) => o.value === selectedEndDate) ?? null
 
 	return (
-		<div className="p-4 sm:p-5">
+		// Capped and centred while the income panel is compact, matching the
+		// blocks above it — see the rank grid in IncomeForm.
+		<div className="mx-auto max-w-[34rem] p-4 @income-wide:max-w-none @income-wide:p-5">
 			<h3 className="font-semibold text-sm text-brand mb-2 flex items-center justify-center gap-1.5">
 				<Gem className={iconCls} />
 				Uncap Crystals

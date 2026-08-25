@@ -13,16 +13,28 @@ import { ToggleSwitch } from "../ToggleSwitch"
 import { CampaignCard } from "./CampaignCard"
 import type { PlannedProduct } from "../../hooks/useSelectorPlanner"
 import type { UserPlannedPurchase } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
-/** A stat tile in the summary strip. */
-const Total = ({ label, value }: { label: string; value: string }) => (
+/** A stat tile in the summary strip. `note` is an optional second line. */
+const Total = ({
+	label,
+	value,
+	note,
+}: {
+	label: string
+	value: string
+	note?: string
+}) => (
 	<div className="flex min-w-0 flex-col rounded-lg border border-gray-700 bg-gray-800 px-4 py-2">
 		<span className="text-xs uppercase tracking-wide text-gray-500">{label}</span>
 		<span className="truncate text-lg font-bold text-gray-100">{value}</span>
+		{note && <span className="truncate text-xs text-gray-400">{note}</span>}
 	</div>
 )
 
 export const Selectors = () => {
+	useDocumentMeta("Selector Tickets", "Plan which Uma Musume support cards and umas to take with your selector tickets, filtered by each ticket's eligibility cutoff.")
+
 	const {
 		userStatsData,
 		anniversaryEventData,
@@ -149,6 +161,14 @@ export const Selectors = () => {
 					<Total
 						label="Paid carats"
 						value={plan.totalPaidCarats.toLocaleString()}
+						// The webstore bonus is free currency, so it is called out
+						// separately rather than swelling the paid figure — paid is the
+						// balance that funds step-ups and discounted pulls.
+						note={
+							plan.totalFreeCarats > 0
+								? `+ ${plan.totalFreeCarats.toLocaleString()} free from webstore`
+								: undefined
+						}
 					/>
 					<Total label="Uma selectors" value={String(plan.umaSelectors)} />
 					<Total label="Support selectors" value={String(plan.supportSelectors)} />

@@ -54,6 +54,7 @@ import {
 	plannedSteps,
 } from "../utils/bannerHelpers"
 import type { PullStrategyResult } from "../utils/bannerHelpers"
+import { purchaseCarats } from "../utils/campaignPurchases"
 import { addSelectorTickets } from "../utils/selectorTickets"
 import type { SelectorTicketBucket } from "../utils/selectorTickets"
 import { EMPTY_BANNER_RESOURCES } from "./bannerResources"
@@ -154,16 +155,19 @@ export function useBannerResources({
 					const quantity = Math.max(0, purchase.quantity)
 					if (quantity === 0) return []
 					const { product } = entry
-					const multiplier = userStatsData.webstore_bonus
-						? product.webstore_multiplier
-						: 1
+					// The pack's own carats are paid; the webstore bonus on top is
+					// granted as FREE carats. Split here rather than folding the
+					// multiplier into paidCarats, or the bonus would silently
+					// enlarge the balance a step-up is allowed to spend.
+					const { paidCarats, freeCarats } = purchaseCarats(
+						product, quantity, userStatsData.webstore_bonus
+					)
 					return [{
 						creditAt: new Date(startDate),
 						productType: product.product_type,
 						jpCutoff: product.jp_cutoff_date,
-						paidCarats: Math.round(
-							product.paid_carat_amount * quantity * multiplier
-						),
+						paidCarats,
+						freeCarats,
 						usd: product.usd_cost * quantity,
 						quantity,
 					}]
@@ -213,6 +217,20 @@ export function useBannerResources({
 				? cumulativeMonthlyShopTickets(today, end, constants)
 				: { umaTickets: 0, supportTickets: 0 }
 
+			// One pass over the campaign credits: free carats, paid carats and
+			// USD all come off the same rows and share the same window test, so
+			// splitting them across two loops would only invite the two filters
+			// to drift apart.
+			let purchaseFree = 0
+			let purchasePaid = 0
+			let purchaseUsd = 0
+			for (const credit of purchaseCredits) {
+				if (credit.creditAt < now || credit.creditAt > end) continue
+				purchaseFree += credit.freeCarats
+				purchasePaid += credit.paidCarats
+				purchaseUsd += credit.usd
+			}
+
 			const freeCarats =
 				events.carats +
 				cumulativeThroughoutCarats(ledger, now, end, constants) +
@@ -226,18 +244,15 @@ export function useBannerResources({
 					? cumulativeMiscEarningsCarats(today, end, constants)
 					: 0) +
 				pack.freeCarats +
-				pass.freeCarats
+				pass.freeCarats +
+				purchaseFree
 
-			// Campaign packs are PAID carats — they were bought, so they land in
-			// the balance that funds discounted pulls. Credited at an absolute
-			// instant, never per-window.
-			let paidCarats = pack.paidCarats + pass.paidCarats
-			let usdSpent = 0
-			for (const credit of purchaseCredits) {
-				if (credit.creditAt < now || credit.creditAt > end) continue
-				paidCarats += credit.paidCarats
-				usdSpent += credit.usd
-			}
+			// A campaign pack's own carats are PAID — they were bought, so they
+			// land in the balance that funds discounted pulls and step-ups. Its
+			// webstore bonus is free and is summed into `freeCarats` above.
+			// Credited at an absolute instant, never per-window.
+			const paidCarats = pack.paidCarats + pass.paidCarats + purchasePaid
+			const usdSpent = purchaseUsd
 
 			const umaTickets =
 				events.umaTickets +

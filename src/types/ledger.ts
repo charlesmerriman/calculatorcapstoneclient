@@ -13,7 +13,13 @@
 export type LedgerRowKind = "event" | "champions_meeting" | "league_of_heroes"
 
 export interface IncomeLedgerRow {
-	/** ISO instant the reward lands: an event's start, a race event's END. */
+	/**
+	 * ISO instant the reward lands: an event's start; for a race event, its end
+	 * MINUS that kind's lead time. A Champions Meeting settles its placements
+	 * 24h before its window closes, so this deliberately sits a day ahead of the
+	 * end date the Timeline card shows. The backend owns that offset
+	 * (`RACE_REWARD_LEAD_TIME`); never re-apply it here.
+	 */
 	date: string
 	kind: LedgerRowKind
 	/** Primary key within `kind` — NOT unique across the ledger. */

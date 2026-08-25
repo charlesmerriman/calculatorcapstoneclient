@@ -19,6 +19,7 @@ import { changelogFetch } from "../../services/changelogFetchCalls"
 import { formatRelativeDate } from "../../utils/relativeDate"
 import { HOMEPAGE_FAQ_IDS, faqItemsByIds } from "../../constants/faqContent"
 import type { ChangelogEntry } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 const YOUTUBE_CHANNEL_URL = "https://www.youtube.com/@HenryHandsomeDerby"
 const YOUTUBE_UPLOADS_PLAYLIST_ID = "UUbKJl479CjOtg57eF-GhUDw"
@@ -72,6 +73,8 @@ const infoLinks = [
 ]
 
 export const HomePage = () => {
+	useDocumentMeta(null, "Plan your Uma Musume gacha pulls. Forecast how many carats and tickets you will have for any upcoming banner, based on your rank income, events and campaigns.")
+
 	const [latestChangelogDate, setLatestChangelogDate] = useState<string | null>(null)
 
 	useEffect(() => {

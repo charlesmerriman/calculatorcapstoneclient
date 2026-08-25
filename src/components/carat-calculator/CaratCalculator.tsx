@@ -19,6 +19,7 @@ import {
 } from "../../utils/bannerHelpers"
 import type { BannerRowType } from "../../utils/bannerHelpers"
 import type { UserPlannedBanner } from "../../types"
+import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 /**
  * The three "add a row" buttons, in one place rather than three near-identical
@@ -59,6 +60,8 @@ const ADD_BANNER_BUTTONS: {
 ]
 
 export const CaratCalculator: React.FC = () => {
+	useDocumentMeta("Calculator", "Plan your Uma Musume banner pulls and see how many carats, tickets and pulls you will have available for each one.")
+
 	const {
 		userStatsData,
 		clubRankData,
@@ -196,9 +199,19 @@ export const CaratCalculator: React.FC = () => {
 					{/* Square-cornered on a phone. With only an 8px gutter either side the
 					    panel is all but full-bleed there, and a 12px radius on a band that
 					    wide reads as a stray curve rather than a card — most visibly on the
-					    Income & Resources header, which is the top edge. The card shape
-					    returns from `sm:`, where the gutter is wide enough to earn it. */}
-					<div className="w-full overflow-hidden rounded-none border border-gray-600 bg-gray-900 shadow-sm sm:rounded-xl">
+					    Income & Resources header, which is the top edge. The BOTTOM corners
+					    take the card shape back from `sm:`, where the gutter is wide enough to
+					    earn it — but the TOP stays square at EVERY width, so the Income &
+					    Resources header meets the band above it on a straight edge.
+
+					    @container: IncomeForm's whole layout is keyed to THIS box's width
+					    (`@income-wide:`, see --container-income-wide in index.css), so the
+					    income panel and the banner sheet below it switch to their desktop
+					    forms together. The sheet's own `@container`s are nested inside this
+					    one and shadow it, so `@banner-table:` still measures the sheet's
+					    box, not this one — that is the whole reason the two tokens differ
+					    by the gutter. */}
+					<div className="@container w-full overflow-hidden rounded-none border border-gray-600 bg-gray-900 shadow-sm sm:rounded-b-xl">
 						<IncomeForm />
 
 						<div className="border-t border-gray-700 pb-4">
