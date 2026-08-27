@@ -79,6 +79,12 @@ export type {
 } from "./feedback"
 
 export type {
+	PatreonTier,
+	PatreonSupporter,
+	SupportersResponse
+} from "./supporters"
+
+export type {
 	AnniversaryEvent,
 	AnniversaryEventType,
 	AnniversaryEventProduct,

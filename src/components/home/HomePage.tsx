@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
+import { SupportersSection } from "./SupportersSection"
 import { changelogFetch } from "../../services/changelogFetchCalls"
 import { formatRelativeDate } from "../../utils/relativeDate"
 import { HOMEPAGE_FAQ_IDS, faqItemsByIds } from "../../constants/faqContent"
@@ -215,6 +216,11 @@ export const HomePage = () => {
 							))}
 						</div>
 					</section>
+
+					{/* Last section on the page: it thanks people rather than explaining
+					    anything, so it sits below the pitch and the FAQ teaser. Renders
+					    nothing at all until there is somebody to thank. */}
+					<SupportersSection />
 				</div>
 			</main>
 			<Footer />
