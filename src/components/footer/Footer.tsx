@@ -30,6 +30,14 @@ export const Footer = () => {
 					Privacy Policy
 				</Link>
 				<span aria-hidden="true">·</span>
+				{/* Plain anchor, not <Link>: react-router does not scroll to a hash on
+				    navigation, whereas the browser does. From the home page this is a
+				    same-document jump; from anywhere else it is a normal navigation
+				    that lands on the anchor. */}
+				<a href="/#supporters" className="text-gray-400 transition hover:text-brand">
+					Supporters
+				</a>
+				<span aria-hidden="true">·</span>
 				<a
 					href="mailto:Henryhandsomederby@gmail.com"
 					className="text-gray-400 transition hover:text-brand"
