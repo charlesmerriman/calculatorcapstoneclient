@@ -56,6 +56,18 @@ describe('SupportersSection', () => {
     expect(screen.getByText('Chrom')).toBeInTheDocument()
   })
 
+  it('labels each group with its tier name', async () => {
+    mockedFetch.mockResolvedValue(jsonResponse(body({
+      supporters: [
+        { id: 1, display_name: 'Egg', tier_name: 'Senior Class', tier_order: 10 },
+        { id: 2, display_name: 'Chrom', tier_name: 'Classic Class', tier_order: 20 },
+      ],
+    })))
+    render(<SupportersSection />)
+    expect(await screen.findByRole('heading', { name: 'Senior Class' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Classic Class' })).toBeInTheDocument()
+  })
+
   it('emphasises by tier POSITION, so renaming or renumbering tiers changes nothing', async () => {
     // Orders 500/900 — nowhere near a 0-based index. The top tier present must
     // still take the first emphasis style.
@@ -67,16 +79,32 @@ describe('SupportersSection', () => {
     })))
     render(<SupportersSection />)
 
-    expect((await screen.findByText('Top')).closest('li')).toHaveClass('font-bold', 'text-brand')
-    expect(screen.getByText('Second').closest('li')).toHaveClass('font-semibold', 'text-gray-100')
+    expect((await screen.findByText('Top')).closest('li')).toHaveClass('font-semibold', 'text-brand')
+    expect(screen.getByText('Second').closest('li')).toHaveClass('font-medium', 'text-gray-100')
   })
 
-  it('falls back to the base style for a supporter with no tier', async () => {
+  it('falls back to the base style for a supporter with no tier, and gives them no heading', async () => {
     mockedFetch.mockResolvedValue(jsonResponse(body({
       supporters: [{ id: 1, display_name: 'Untiered', tier_name: null, tier_order: null }],
     })))
     render(<SupportersSection />)
-    expect((await screen.findByText('Untiered')).closest('li')).toHaveClass('text-gray-300')
+    expect((await screen.findByText('Untiered')).closest('li')).toHaveClass('text-gray-200')
+    // "Other" would rank people the admin never ranked, so the group is unlabelled.
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
+  })
+
+  it('renders untiered supporters last, whichever order the API returned them in', async () => {
+    // SQLite sorts a NULL tier to the front and PostgreSQL sorts it to the back,
+    // so the response order is not something the component can trust.
+    mockedFetch.mockResolvedValue(jsonResponse(body({
+      supporters: [
+        { id: 1, display_name: 'NoTier', tier_name: null, tier_order: null },
+        { id: 2, display_name: 'Tiered', tier_name: 'Junior Class', tier_order: 10 },
+      ],
+    })))
+    render(<SupportersSection />)
+    await screen.findByText('Tiered')
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Tiered', 'NoTier'])
   })
 
   it('falls back to the base style once tiers run past the emphasis styles', async () => {
@@ -88,7 +116,7 @@ describe('SupportersSection', () => {
       ],
     })))
     render(<SupportersSection />)
-    expect((await screen.findByText('Third')).closest('li')).toHaveClass('text-gray-300')
+    expect((await screen.findByText('Third')).closest('li')).toHaveClass('text-gray-200')
   })
 
   it('appends the anonymous count alongside named supporters', async () => {

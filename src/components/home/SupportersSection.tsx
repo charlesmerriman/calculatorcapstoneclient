@@ -1,24 +1,83 @@
 import { useEffect, useState } from "react"
 import { ArrowUpRight, Heart } from "lucide-react"
 import { supportersFetch } from "../../services/supportersFetchCalls"
-import type { SupportersResponse } from "../../types"
+import type { PatreonSupporter, SupportersResponse } from "../../types"
 
 const PATREON_URL = "https://www.patreon.com/cw/UmaCaratCalculator"
 
 /**
- * Emphasis by tier, strongest first. Indexed by a tier's POSITION in the
+ * Chip emphasis by tier, strongest first. Indexed by a tier's POSITION in the
  * ordered tier list rather than by its name or its id, so the client can
  * rename, add or reorder tiers in the admin without touching this file — the
  * top tier is always whatever they put first.
  *
  * Tiers past the end of this array fall back to BASE_TIER_STYLE. That is the
- * common case, not an edge case: most supporters sit on the entry tier.
+ * common case, not an edge case: most supporters sit on the entry tier, and
+ * that tier is the one the dense chip field is designed around — a wall of
+ * quiet chips reads as a crowd, which is the impression the block wants.
+ *
+ * Accents go through `brand` with a slash opacity rather than a stock palette
+ * class. The seven themes override only --color-brand and the gray ramp, so a
+ * literal `border-amber-400` would survive one theme and fail the other six.
+ * A brand-FILLED chip is deliberately avoided too: black-on-brand drops to
+ * ~3.5:1 against the light theme's bronze, which is fine on a large button and
+ * not fine on 13px of name.
  */
 const TIER_STYLES = [
-	"font-bold text-brand",
-	"font-semibold text-gray-100",
+	"border-brand/55 bg-brand/10 font-semibold text-brand",
+	"border-brand/25 bg-gray-700 font-medium text-gray-100",
 ]
-const BASE_TIER_STYLE = "text-gray-300"
+const BASE_TIER_STYLE = "border-gray-600 bg-gray-700 text-gray-200"
+
+/** Shape shared by every chip; only the colours above vary by tier. */
+const CHIP_BASE = "inline-block rounded-full border px-2.5 py-1 text-sm leading-tight"
+
+/**
+ * One rendered block: a tier's label and the supporters on it.
+ *
+ * `rank` is the tier's position in the admin's chosen order — the index
+ * TIER_STYLES is keyed by — and is null for supporters with no tier at all.
+ */
+type SupporterGroup = {
+	key: string
+	label: string | null
+	rank: number | null
+	members: PatreonSupporter[]
+}
+
+/**
+ * Group supporters by tier, strongest tier first, untiered last.
+ *
+ * The ordering is derived here rather than trusted from the response. The
+ * backend orders by `tier__order`, but where a NULL tier lands in that sort is
+ * database-dependent — last on PostgreSQL, first on SQLite — so an untiered
+ * supporter would head the list in dev and tail it in prod. Deriving it makes
+ * both agree.
+ *
+ * Within a tier the API's order is kept as-is: it is longest-standing first
+ * (`patron_since`, nulls last), which is a deliberate editorial choice on the
+ * model and not ours to re-sort.
+ */
+function groupByTier(supporters: PatreonSupporter[]): SupporterGroup[] {
+	const orders = Array.from(
+		new Set(supporters.map((s) => s.tier_order).filter((o): o is number => o !== null)),
+	).sort((a, b) => a - b)
+
+	const groups: SupporterGroup[] = orders.map((order, rank) => {
+		const members = supporters.filter((s) => s.tier_order === order)
+		// Every member of a group shares one tier, so any of them carries its
+		// name. `tier_name` and `tier_order` are set and cleared together by the
+		// serializer, so a non-null order always has a name alongside it.
+		return { key: String(order), label: members[0].tier_name, rank, members }
+	})
+
+	const untiered = supporters.filter((s) => s.tier_order === null)
+	if (untiered.length > 0) {
+		groups.push({ key: "untiered", label: null, rank: null, members: untiered })
+	}
+
+	return groups
+}
 
 /**
  * Public thank-you list for Patreon supporters.
@@ -53,20 +112,10 @@ export const SupportersSection = () => {
 	// request failed. Hiding the whole section beats an empty heading.
 	if (supporters.length === 0 && anonymousCount === 0) return null
 
-	// Position of each tier in the admin's chosen order, keyed by `order` so a
-	// supporter's flat `tier_order` can be looked up directly. Built from the
-	// tiers actually present on supporters, so an empty tier doesn't consume
-	// the top emphasis slot.
-	const tierRanks = new Map<number, number>()
-	Array.from(new Set(supporters.map((s) => s.tier_order).filter((o): o is number => o !== null)))
-		.sort((a, b) => a - b)
-		.forEach((order, index) => tierRanks.set(order, index))
+	const groups = groupByTier(supporters)
 
-	const styleFor = (tierOrder: number | null) => {
-		if (tierOrder === null) return BASE_TIER_STYLE
-		const rank = tierRanks.get(tierOrder)
-		return rank === undefined ? BASE_TIER_STYLE : TIER_STYLES[rank] ?? BASE_TIER_STYLE
-	}
+	const chipStyle = (rank: number | null) =>
+		rank === null ? BASE_TIER_STYLE : TIER_STYLES[rank] ?? BASE_TIER_STYLE
 
 	return (
 		<section id="supporters" className="mt-10 scroll-mt-20 border-t border-gray-800 pt-8">
@@ -91,25 +140,47 @@ export const SupportersSection = () => {
 			</p>
 
 			<div className="mt-5 rounded-xl border border-gray-700 bg-gray-800 p-4 shadow-md">
-				{supporters.length > 0 && (
-					<ul className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1.5 text-sm leading-relaxed">
-						{supporters.map((supporter, index) => (
-							<li key={supporter.id} className={styleFor(supporter.tier_order)}>
-								{supporter.display_name}
-								{/* Separator lives inside the item so it wraps with the name it
-								    follows, and is hidden from screen readers — the list
-								    semantics already convey the separation. */}
-								{index < supporters.length - 1 && (
-									<span aria-hidden="true" className="font-normal text-gray-600">,</span>
-								)}
-							</li>
-						))}
-					</ul>
-				)}
+				{groups.map((group, index) => (
+					<div
+						key={group.key}
+						className={index > 0 ? "mt-4 border-t border-dashed border-gray-700 pt-4" : ""}
+					>
+						{/* No label for the untiered group — there is no honest one to
+						    write, and a heading like "Other" ranks people the admin
+						    never ranked. It reads as a trailing run of chips instead. */}
+						{group.label && (
+							<div className="mb-2.5 flex items-center gap-2.5">
+								<h3
+									className={`text-xs font-bold tracking-wider uppercase ${
+										group.rank === 0 ? "text-brand" : "text-gray-400"
+									}`}
+								>
+									{group.label}
+								</h3>
+								<span aria-hidden="true" className="h-px flex-1 bg-gray-700" />
+								{/* The list below already tells a screen reader how many
+								    items it holds, so the visible count is decoration. */}
+								<span aria-hidden="true" className="text-xs text-gray-500">
+									{group.members.length}
+								</span>
+							</div>
+						)}
+
+						<ul className="flex flex-wrap gap-1.5">
+							{group.members.map((supporter) => (
+								<li key={supporter.id} className={`${CHIP_BASE} ${chipStyle(group.rank)}`}>
+									{supporter.display_name}
+								</li>
+							))}
+						</ul>
+					</div>
+				))}
 
 				{anonymousCount > 0 && (
 					<p
-						className={`text-sm text-gray-500 ${supporters.length > 0 ? "mt-3" : ""}`}
+						className={`text-sm text-gray-500 ${
+							supporters.length > 0 ? "mt-4 border-t border-gray-700 pt-3" : ""
+						}`}
 					>
 						{supporters.length > 0 ? "… and " : "Thank you to "}
 						{anonymousCount} anonymous {anonymousCount === 1 ? "supporter" : "supporters"}.
