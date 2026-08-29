@@ -16,6 +16,7 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import { RaceEventCard } from "./RaceEventCard"
 import { BannerWindowCard } from "./BannerWindowCard"
 import { EventMarkerCard } from "./EventMarkerCard"
+import { BackToTopButton, FloatingBackToTop } from "../BackToTop"
 import {
 	CATEGORY_LABELS,
 	CATEGORY_ORDER,
@@ -29,6 +30,7 @@ import {
 } from "./timelineShared"
 import type { TimelineFocusProps, TimelineMarker } from "./timelineShared"
 import { FOCUS_TAILROOM, useFocusScroll } from "../../hooks/useFocusScroll"
+import { useBackToTop } from "../../hooks/useBackToTop"
 import { TIMELINE_FOCUS_PARAM, parseTimelineFocus } from "../../utils/timelineFocus"
 import { isRaceEvent } from "../../types"
 import type {
@@ -274,6 +276,10 @@ export const Timeline = () => {
 	const sentinelRef = useRef<HTMLDivElement | null>(null)
 	// One ref for whichever card is the focus target — see TimelineFocusProps.
 	const focusCardRef = useRef<HTMLDivElement | null>(null)
+
+	// Back to top. Measured off an anchor node rather than window.scrollY,
+	// which is always 0 on the desktop shell — see hooks/useBackToTop.
+	const { topRef, isAwayFromTop, scrollToTop } = useBackToTop()
 
 	// Built once per mount rather than per render. Every event is compared
 	// against it, and a fresh Date each render would invalidate the memo below
@@ -640,9 +646,37 @@ export const Timeline = () => {
 
 	return (
 		<div className="w-full bg-gray-900 pb-6">
-			<div className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+			{/* Scroll anchor for "back to top" — zero-height, so it costs no layout.
+			    First child, above the controls band, so returning to it returns to the
+			    top of the PAGE rather than to the top of the list. */}
+			<div ref={topRef} aria-hidden="true" />
+			{/* Pinned only at app-shell: that is both where there is vertical room for
+			    a three-column band and where `sticky` has a scroller to resolve
+			    against. Below that breakpoint the shell is only min-h-dvh, the document
+			    scrolls, and this band sits inside a div that is not a scrollport —
+			    sticky there would simply never engage.
+
+			    Opaque at that breakpoint too. The resting bg-gray-950/40 reads as a
+			    darker band against the page, but 60% of a banner card would show
+			    through it once cards start passing underneath. The two colors are
+			    within a few percent of each other on every theme, so nothing visibly
+			    changes at rest. z-30 sits above the cards, below FloatingBackToTop. */}
+			<div className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)] app-shell:sticky app-shell:top-0 app-shell:z-30 app-shell:bg-gray-950">
 				<div className="mx-auto grid w-full max-w-[96rem] grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
 					<div className="flex w-full flex-col gap-2 justify-self-start sm:flex-row sm:flex-wrap md:w-auto">
+						{/* Desktop only — on a phone this band scrolls away, so the floating
+						    button at the foot of the component carries the arrow instead.
+						    Hidden through a wrapper because controlButtonClass already sets
+						    inline-flex, and two display utilities on one element resolve by
+						    stylesheet order rather than class order; `contents` keeps the
+						    button itself a direct flex child of this row. */}
+						<span className="hidden app-shell:contents">
+							<BackToTopButton
+								onClick={scrollToTop}
+								disabled={!isAwayFromTop}
+								className={`${controlButtonClass} px-2.5`}
+							/>
+						</span>
 						<button
 							type="button"
 							className={`${controlButtonClass} w-full sm:w-auto`}
@@ -820,6 +854,14 @@ export const Timeline = () => {
 					/>
 				</div>
 			)}
+
+			{/* Phones and short viewports, where the band above is not pinned and the
+			    arrow would otherwise be 250 cards out of reach. */}
+			<FloatingBackToTop
+				onClick={scrollToTop}
+				visible={isAwayFromTop}
+				className="app-shell:hidden"
+			/>
 		</div>
 	)
 }
