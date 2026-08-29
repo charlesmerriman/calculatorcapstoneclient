@@ -203,9 +203,19 @@ const PAIR_PANEL_CELL = "grid min-w-0 xl:ml-auto xl:w-full xl:max-w-[28rem]"
  * ever NOT 16:9 letterboxes inside the reserved box instead of stretching to
  * fill it — the same distortion the width-cap note above is about, arrived at
  * from the other direction.
+ *
+ * NO border AND NO shadow, deliberately — both draw the BOX, not the picture.
+ * The reserved 16:9 is only a layout device, so any chrome on it outlines
+ * whatever `object-contain` didn't fill: letterbox bars, or the transparent
+ * margins of a cut-out asset like the scenario art, which is square and fills
+ * barely half the width. The shadow is the subtler of the two and outlasted the
+ * border — it darkens the card around the box rather than drawing on it, which
+ * reads as a raised panel floating behind the art. Chrome belongs to
+ * BannerArtPlaceholder, where the box IS the content and its edge is what says
+ * "something goes here".
  */
 const BANNER_ART =
-	"block aspect-[16/9] h-auto w-full max-w-[41rem] object-contain rounded-xl border border-gray-600 shadow-md"
+	"block aspect-[16/9] h-auto w-full max-w-[41rem] object-contain rounded-xl"
 
 /**
  * The art-only branch: every panel banded, so the art has a full-width row to

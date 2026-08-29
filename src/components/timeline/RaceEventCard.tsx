@@ -99,7 +99,7 @@ export function RaceEventCard({ event, today }: { event: RaceEvent; today: Date 
 								alt={event.name}
 								loading="lazy"
 								decoding="async"
-								className="aspect-[16/9] h-auto w-full object-contain rounded-xl border border-gray-600 shadow-md"
+								className="aspect-[16/9] h-auto w-full object-contain rounded-xl"
 							/>
 						) : (
 							<BannerArtPlaceholder />
