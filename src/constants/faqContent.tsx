@@ -18,6 +18,12 @@ import { Link } from "react-router-dom"
  *   frontend/docs/carat-income-explained.md   (income, free/paid split, pull colours)
  *   frontend/docs/state-and-guest-mode.md     (guest mode, auto-save)
  *   CLAUDE.md invariants                      (step-ups, selector eligibility)
+ *
+ * TWO ANSWERS QUOTE LIVE NUMBERS and will read as wrong if the constants move. Both
+ * come from the admin-editable `CalculationConstants` served by `/calculator-data`,
+ * NOT from the bundle, so a content editor can change them without touching this file:
+ *   - "90 carats a day" is `misc_earnings_monthly / 30` (2,700 / 30 at time of writing).
+ *   - the 500/700/1000/1300/1500 ladder is `step_up_cost_step_1..5`.
  */
 
 const link = "text-brand transition hover:text-brand/75"
@@ -53,10 +59,10 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "What does this calculator actually do?",
 				answer: [
 					<>
-						It projects how many carats and tickets you will have on the day each banner you
-						care about ends. You tell it what you hold today and which income sources apply
+						It projects how many carats and tickets you will have by the end date of each
+						banner. You tell it what your resources are today and which income sources apply
 						to you, add the banners you are planning for, and it walks forward through the
-						calendar adding up everything the game will give you between now and then.
+						calendar, adding up everything the game will give you between now and then.
 					</>,
 					<>
 						The point is to answer the question you actually have, "can I afford to go for
@@ -71,12 +77,13 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				answer: [
 					<>
 						No. The calculator is fully usable as a guest, with nothing to sign up for. An
-						account only adds one thing: saving. As a guest your plan lives in your browser
-						for as long as the tab is open and is discarded when you leave.
+						account only adds one thing: saving. As a guest your plan lives in the page for
+						as long as you stay on it, and is discarded when you leave or reload.
 					</>,
 					<>
-						If you sign in later, the plan you built as a guest comes with you rather than
-						being thrown away.
+						Nothing you build as a guest is lost by signing up. Use the "Sign in to save"
+						button and the plan you have already built comes with you onto the new account
+						rather than being thrown away.
 					</>,
 				],
 			},
@@ -87,8 +94,8 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 					<>
 						Open the calculator and enter your current carats and tickets, then set your
 						income ranks so the forecast matches how much you actually earn. Add the banners
-						you want to plan for, set how far you intend to pull on each, and read the
-						forecast against each banner's end date.
+						you want to plan for, set how many pulls you plan on performing on each, and
+						read the forecast against each banner's end date.
 					</>,
 				],
 			},
@@ -97,18 +104,16 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "What is the difference between free and paid carats?",
 				answer: [
 					<>
-						The calculator keeps two piles. <strong>Free carats</strong> come from almost
-						everything (daily login, events, rank and club payouts, campaigns) and buy
-						normal pulls at 150 each. <strong>Paid carats</strong> come only from things you
-						buy with real money, and can buy either a normal pull at 150 or the discounted
-						daily pull at 50.
+						<strong>Paid carats</strong> are carats bought with real money.{" "}
+						<strong>Free carats</strong> come from everything else: daily login, events,
+						rank and club payouts, campaigns. Both buy a normal pull at 150, but only paid
+						carats can pay for the once-a-day discounted pull at 50, and only paid carats
+						can climb a step-up banner.
 					</>,
 					<>
-						The split exists because that once-a-day discount only works with purchased
-						carats, so the calculator has to know which of yours are which. If you do not
-						buy anything your paid pile stays at zero and the split never affects your
-						numbers. The figure shown on a banner card is always the two piles added
-						together.
+						That is the whole reason the calculator keeps two piles. If you do not buy
+						anything your paid pile stays at zero and the split never affects your numbers.
+						The figure shown on a banner card is always the two piles added together.
 					</>,
 				],
 			},
@@ -124,11 +129,11 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 						to the next multiple of 200 and it brightens.
 					</>,
 					<>
-						<strong>Red</strong> means more pulls than you can pay for. The number is kept
-						exactly as you typed it, it just will not be funded. Red wins when both apply,
-						because not being able to afford something is the more useful thing to know. A
-						banner that has already ended can afford nothing, so anything left on it reads as
-						red too.
+						<strong>Red</strong> means the calculator does not expect you to have the
+						resources for that many pulls. The number is kept exactly as you typed it, it
+						just will not be funded. Red wins when both apply, because not being able to
+						afford something is the more useful thing to know. A banner that has already
+						ended can afford nothing, so anything left on it reads as red too.
 					</>,
 				],
 			},
@@ -143,11 +148,26 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "Where do the carat numbers come from?",
 				answer: [
 					<>
-						From your income sources, added on the days the game actually pays them out
-						rather than smeared evenly across the month. Daily login pays every day, Team
-						Trials pays weekly on Mondays, club rank pays monthly on the 1st, and Champions
-						Meeting and League of Heroes pay on the event's end date. Game events, login
-						campaigns and seasonal rewards are added on their own schedules.
+						From the income sources you set, from game events, and from an estimate for
+						miscellaneous earnings. Each is added on the day the game actually pays it out
+						rather than smeared evenly across the month: daily login pays every day, Team
+						Trials pays weekly on Mondays, club rank pays monthly on the 1st, Champions
+						Meeting pays when its finals resolve (a day before the event's listed end), and
+						League of Heroes pays on its end date.
+					</>,
+					<>
+						Game events cover every known event, login bonus and mission, with their carat,
+						ticket and shard rewards. Tickets and shards are awarded on the first day of the
+						banner. Carats are either awarded on the first day or spread throughout the
+						banner — most are spread, tapering day by day to model how far through an event
+						a typical player has got.
+					</>,
+					<>
+						Misc Earnings adds a flat 90 carats a day, starting 30 days from today. It
+						stands in for the carats that cannot be listed as fixed data: gifts from
+						Cygames, Team Trials rank-ups and win rewards, career race rewards, uma stories,
+						main missions and archive level-ups. It is what keeps a long projection from
+						drifting steadily low.
 					</>,
 					<>
 						A few sources are toggles because they depend on what you buy or how you play:
@@ -164,14 +184,18 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 						It is a projection, not a promise. The usual reasons it drifts: your starting
 						balance is whatever you typed, and nothing is read from the game, so if that is
 						stale everything downstream is off by the same amount. Misc Earnings is a flat
-						average rather than your real gifts and career clears. Rank income assumes you
-						hold your current rank rather than getting promoted or slipping.
+						average rather than your real gifts and career clears, so out-earning or
+						under-earning it pulls the forecast off over time. Rank income assumes you hold
+						your current rank rather than getting promoted or slipping.
 					</>,
 					<>
-						Dates for unannounced banners are predictions based on the Japanese server's
-						schedule, and anything predicted can move. Event income models typical play, so
-						clearing an event on day one puts you ahead of the projection and leaving it to
-						the last weekend puts you behind.
+						Event income models typical play, so clearing an event on day one puts you ahead
+						of the projection and leaving it to the last weekend puts you behind. Dates for
+						unannounced banners are predictions based on the Japanese server's schedule, and
+						anything predicted can move. Those predictions are deliberately kept slightly
+						fast, which makes the forecast lean low on purpose: finding you have more carats
+						than expected is a better outcome than being caught short by a banner that
+						arrived earlier than we said it would.
 					</>,
 				],
 			},
@@ -180,52 +204,73 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: 'What does "average monthly income" mean?',
 				answer: [
 					<>
-						It is a single headline figure for how much you earn in a typical month at your
-						current settings, useful for sanity-checking whether a plan is realistic at a
-						glance. It is deliberately a smoothed average, because the per-banner forecasts are the
-						precise numbers, because those land on real dates.
+						It is a flat average over a fixed window. The calculator totals every carat,
+						ticket and shard your current settings earn over the next five months, starting
+						today, and divides by five. Nothing is deducted along the way — pull costs never
+						enter it, so it is what you earn, not what you have left over.
+					</>,
+					<>
+						It runs on the same income ledger as the banner rows below it, so the headline
+						figure and the per-banner forecasts cannot disagree. Carats are reported as a
+						single number here rather than split into free and paid, because that split only
+						matters where the two balances buy pulls at different prices.
 					</>,
 					<>
 						One deliberate exception: one-off campaign purchases are left out of it. They
-						are not recurring income, so folding them in would flatter the average.
+						are not recurring income, so folding them into a monthly average would report
+						earnings nobody actually earns every month.
 					</>,
 				],
 			},
 			{
 				id: "how-do-step-up-banners-work-here",
-				question: "How do step-up banners work here?",
+				question: "How do step-up banners work?",
 				answer: [
 					<>
-						Step-ups are priced and counted differently from normal banners, so they get
-						their own row type. You enter <strong>steps</strong>, not pulls. One step is
-						worth ten pulls' worth of chances, so reading a step count as a pull count
-						understates a plan tenfold.
+						Step-up banners are paid-carat-only. You select 10 characters or support cards
+						to populate the ★3/SSR rate-up pool, then climb a ladder of five steps costing
+						500, 700, 1,000, 1,300 and 1,500 — 5,000 paid carats for 50 pulls, against
+						7,500 at the normal rate.
 					</>,
 					<>
-						A step-up is paid for with <strong>paid carats only</strong>. It never spends
-						free carats, tickets, free pulls or the daily discount. Each completed round of
-						five steps carries a guarantee, and the ladder clamps at the number of steps
-						that actually exist on the banner. Planning past your budget is allowed on
-						purpose, because the shortfall is the thing you wanted to find out.
+						Steps 1 and 2 are ordinary 10-pulls. Steps 3 and 4 each guarantee a random
+						★3/SSR from your selection, and on step 5 you choose which ★3/SSR to guarantee.
+						Across 50 pulls the odds of spooking an extra card from your selection are good.
+					</>,
+					<>
+						The row asks for <strong>steps</strong>, not pulls — one step is ten pulls, so
+						reading the box as a pull count understates a plan tenfold. A step-up never
+						spends free carats, tickets, free pulls or the daily discount, and the number of
+						steps you can enter is capped at what the Japanese server actually offered.
 					</>,
 				],
 			},
 			{
 				id: "why-can-i-not-use-a-selector",
-				question: "Why can I not use a selector ticket on a newer banner?",
+				question: "Why can I not select certain characters or support cards?",
 				answer: [
 					<>
-						Selector tickets have a cutoff: they can only take a card that was released on
-						or before a certain date. The calculator works that out from each card's
-						earliest Japanese release date and compares it to the ticket's cutoff, so a card
-						newer than the cutoff is not selectable and a card with no known release date is
-						not assumed to qualify.
+						Selector tickets and step-up banners both have a cutoff date: they can only take
+						a card that was released on or before it. The calculator works that out from
+						each card's earliest Japanese release date and compares it to the cutoff, so a
+						card newer than the cutoff is not selectable, and a card with no known release
+						date is not assumed to qualify.
 					</>,
 					<>
-						A ticket only has to reach <em>one</em> featured card on a banner to be usable
-						there, not all of them. Note also that selector tickets are not gacha tickets:
-						a selector takes a card outright rather than buying a pull, so it never counts
-						toward your pull budget.
+						Separately, some characters are <strong>semi-limited</strong>: they can only be
+						obtained through the gacha, either on their own release banner or as a spook off
+						another one. They cannot be taken with a selector ticket or picked on a step-up
+						banner, whatever the cutoff date allows.
+					</>,
+					<>
+						The restricted list currently covers Jungle Pocket, Gentildona, Orfevre, Still in
+						Love, Oguri Cap (Anime Collab), Stay Gold, Almond Eye and Epiphaneia.
+					</>,
+					<>
+						A selector ticket only has to reach <em>one</em> featured card on a banner to be
+						usable there, not all of them. Note also that selector tickets are not gacha
+						tickets: a selector takes a card outright rather than buying a pull, so it never
+						counts toward your pull budget.
 					</>,
 				],
 			},
