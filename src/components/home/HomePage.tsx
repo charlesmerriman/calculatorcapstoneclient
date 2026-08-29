@@ -51,7 +51,7 @@ const COVERAGE = [
 	},
 	{
 		title: "How you spend",
-		body: "Pity at 200 pulls, free pulls, gacha and selector tickets, and step-up ladders costed on paid carats with their own odds.",
+		body: "Pity at 200 pulls, free pulls, uma and support tickets, selector tickets, and paid-only step-up banners with their own odds.",
 	},
 ]
 
