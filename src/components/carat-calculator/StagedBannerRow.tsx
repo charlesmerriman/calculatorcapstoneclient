@@ -288,8 +288,12 @@ export const StagedBannerRow = ({
 	// now, and a button welded to the card's sides reads as a footer bar rather
 	// than an action. The stats strip that fills this slot on a saved row wants
 	// exactly the opposite, which is why the padding belongs to the caller.
+	//
+	// A full `p-3`, not `p-3 pb-0`: with no odds band under it this is the card's
+	// last band, so the bottom gutter it used to borrow from `chanceDisplay` has
+	// to come from here.
 	const confirmButton = (
-		<div className="p-3 pb-0">
+		<div className="p-3">
 		<button
 			onClick={onConfirm}
 			disabled={!hasBanner}
@@ -328,20 +332,6 @@ export const StagedBannerRow = ({
 		/>
 	)
 
-	const chanceDisplay = (
-		<div className="p-3">
-			{hasBanner ? (
-				<MLBChanceDisplay
-					pulls={stagedBanner.number_of_pulls}
-					plannedBanner={stagedBanner}
-					distribution={stepUpOdds}
-				/>
-			) : (
-				<div className="w-full rounded-lg border border-gray-700 bg-gray-900/60 py-3 text-center text-xs text-gray-500">Select a banner</div>
-			)}
-		</div>
-	)
-
 	return (
 		<>
 		<MobileBannerCard
@@ -354,7 +344,6 @@ export const StagedBannerRow = ({
 			summary={confirmButton}
 			pullsInput={pullsInput}
 			reservedInput={renderReservedInput("w-14")}
-			chanceDisplay={chanceDisplay}
 			onRemove={onDiscard}
 			removeLabel="Discard staged banner"
 			removeIcon="discard"

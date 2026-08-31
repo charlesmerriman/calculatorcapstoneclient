@@ -35,10 +35,9 @@ export const DEFAULT_GUEST_STATS: UserStats = {
 	// On by default to mirror the source sheet (and the backend model default),
 	// so guest estimates match the sheet out of the box.
 	misc_earnings: true,
-	// New opt-in features start off; full-price paid pulls stays on to match the
-	// historical behavior where paid carats always counted toward pulls.
-	monthly_shop_tickets: false,
-	discounted_paid_pulls: false,
+	// All four projection toggles ship on, matching the backend model defaults.
+	monthly_shop_tickets: true,
+	discounted_paid_pulls: true,
 	full_price_paid_pulls: true,
 	// Off so planned purchases stay budgeting-only until explicitly opted into,
 	// and estimates never move on their own.

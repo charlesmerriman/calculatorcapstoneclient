@@ -159,7 +159,7 @@ Tickets work differently from carats here: everyone gets 2 uma + 2 support ticke
 the 24th, and the paid pass adds 2 more of each on top. So a free-tier account gets its
 carats on the 1st but its tickets on the 24th.
 
-### Monthly Shop Tickets — *your toggle, off by default*
+### Monthly Shop Tickets — *your toggle, on by default*
 
 **4 uma + 4 support tickets on the 2nd of each month.** These cost no carats, because
 in-game you buy them with a currency this calculator doesn't track.
