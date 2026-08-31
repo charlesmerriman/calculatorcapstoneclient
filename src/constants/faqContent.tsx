@@ -14,16 +14,20 @@ import { Link } from "react-router-dom"
  * markup with the prose beats threading a parallel array of link metadata through the
  * component.
  *
- * Source material — keep these in step when the behaviour changes:
- *   frontend/docs/carat-income-explained.md   (income, free/paid split, pull colours)
- *   frontend/docs/state-and-guest-mode.md     (guest mode, auto-save)
- *   CLAUDE.md invariants                      (step-ups, selector eligibility)
+ * COPY OWNERSHIP — the two sections below marked "verbatim from the FAQ doc" are
+ * transcribed word-for-word from the maintainer's source document and are NOT to be
+ * reworded, expanded or "corrected" against the code. If an answer there disagrees with
+ * behaviour, raise it; do not edit it here. The remaining two sections are not covered
+ * by that document and are maintained in this file.
  *
- * TWO ANSWERS QUOTE LIVE NUMBERS and will read as wrong if the constants move. Both
- * come from the admin-editable `CalculationConstants` served by `/calculator-data`,
- * NOT from the bundle, so a content editor can change them without touching this file:
- *   - "90 carats a day" is `misc_earnings_monthly / 30` (2,700 / 30 at time of writing).
- *   - the 500/700/1000/1300/1500 ladder is `step_up_cost_step_1..5`.
+ * Source material for the sections this file still owns:
+ *   frontend/docs/state-and-guest-mode.md     (guest mode, auto-save)
+ *   backend/docs/auth-and-privacy.md          (what we store)
+ *
+ * ONE ANSWER QUOTES A LIVE NUMBER and will read as wrong if the constant moves. It comes
+ * from the admin-editable `CalculationConstants` served by `/calculator-data`, NOT from
+ * the bundle, so a content editor can change it without touching this file:
+ *   - "90 carats per day" is `misc_earnings_monthly / 30` (2,700 / 30 at time of writing).
  */
 
 const link = "text-brand transition hover:text-brand/75"
@@ -51,6 +55,7 @@ export interface FaqCategory {
 
 export const FAQ_CATEGORIES: FaqCategory[] = [
 	{
+		// Verbatim from the FAQ doc — see COPY OWNERSHIP above.
 		id: "using-the-calculator",
 		title: "Using the calculator",
 		items: [
@@ -65,9 +70,9 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 						calendar, adding up everything the game will give you between now and then.
 					</>,
 					<>
-						The point is to answer the question you actually have, "can I afford to go for
-						both of these, or do I have to pick one?", before the banner arrives rather
-						than after.
+						The point is to answer the question you actually have, "Can I afford to go for
+						both of these, or do I have to pick one?", before the banner arrives rather than
+						after.
 					</>,
 				],
 			},
@@ -76,14 +81,13 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "Do I need an account?",
 				answer: [
 					<>
-						No. The calculator is fully usable as a guest, with nothing to sign up for. An
-						account only adds one thing: saving. As a guest your plan lives in the page for
-						as long as you stay on it, and is discarded when you leave or reload.
+						The calculator is fully usable as a guest; an account only adds one thing:
+						saving. As a guest, your plan lives in your browser for as long as the tab is
+						open and is discarded when you leave or reload the page.
 					</>,
 					<>
-						Nothing you build as a guest is lost by signing up. Use the "Sign in to save"
-						button and the plan you have already built comes with you onto the new account
-						rather than being thrown away.
+						If you create an account the plan built with your guest account will not be lost.
+						It will be transferred to your account.
 					</>,
 				],
 			},
@@ -95,7 +99,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 						Open the calculator and enter your current carats and tickets, then set your
 						income ranks so the forecast matches how much you actually earn. Add the banners
 						you want to plan for, set how many pulls you plan on performing on each, and
-						read the forecast against each banner's end date.
+						read the forecasted results.
 					</>,
 				],
 			},
@@ -104,42 +108,33 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "What is the difference between free and paid carats?",
 				answer: [
 					<>
-						<strong>Paid carats</strong> are carats bought with real money.{" "}
-						<strong>Free carats</strong> come from everything else: daily login, events,
-						rank and club payouts, campaigns. Both buy a normal pull at 150, but only paid
-						carats can pay for the once-a-day discounted pull at 50, and only paid carats
-						can climb a step-up banner.
-					</>,
-					<>
-						That is the whole reason the calculator keeps two piles. If you do not buy
-						anything your paid pile stays at zero and the split never affects your numbers.
-						The figure shown on a banner card is always the two piles added together.
+						<strong>Paid carats</strong> are carats that have been purchased. Unlike free
+						carats, they can be used for daily discounted pulls and step-up banners. The
+						calculator tracks them separately and the spending of paid carats can be toggled
+						in the settings menu.
 					</>,
 				],
 			},
 			{
 				id: "what-do-the-colours-on-the-pulls",
-				question: 'What do the colours on the "# Pulls" box mean?',
+				question: 'What do the colors on the "# Pulls" box mean?',
 				answer: [
 					<>
-						<strong>Bright green</strong> means the number lands exactly on a pity threshold
-						(a multiple of 200), so nothing is stranded in a part-finished pity counter.{" "}
-						<strong>Faded green</strong> means you can afford it, but some pulls sit past the
-						last multiple of 200 and do not contribute a guaranteed copy. Nudge the number up
-						to the next multiple of 200 and it brightens.
+						<strong>Bright green</strong> means the number is at a pity threshold (a multiple
+						of 200). <strong>Faded green</strong> means it is not at the pity threshold.
 					</>,
 					<>
-						<strong>Red</strong> means the calculator does not expect you to have the
-						resources for that many pulls. The number is kept exactly as you typed it, it
-						just will not be funded. Red wins when both apply, because not being able to
-						afford something is the more useful thing to know. A banner that has already
-						ended can afford nothing, so anything left on it reads as red too.
+						<strong>Red</strong> means the calculator estimates that you will not have enough
+						resources for your plan. The calculator tends to underestimate, so if you are
+						only a few pulls off, you will likely earn enough for your plan. The longer the
+						time period, the more true that is.
 					</>,
 				],
 			},
 		],
 	},
 	{
+		// Verbatim from the FAQ doc — see COPY OWNERSHIP above.
 		id: "the-numbers",
 		title: "The numbers",
 		items: [
@@ -148,31 +143,29 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "Where do the carat numbers come from?",
 				answer: [
 					<>
-						From the income sources you set, from game events, and from an estimate for
-						miscellaneous earnings. Each is added on the day the game actually pays it out
-						rather than smeared evenly across the month: daily login pays every day, Team
-						Trials pays weekly on Mondays, club rank pays monthly on the 1st, Champions
-						Meeting pays when its finals resolve (a day before the event's listed end), and
-						League of Heroes pays on its end date.
+						From the income sources you set, game events, and an estimation for
+						miscellaneous earnings. Daily login pays every day, Team Trials pays weekly on
+						Mondays, club rank pays monthly on the 1st, Champions Meeting pays when finals
+						open, and League of Heroes pays on the event's end date.
 					</>,
 					<>
-						Game events cover every known event, login bonus and mission, with their carat,
-						ticket and shard rewards. Tickets and shards are awarded on the first day of the
-						banner. Carats are either awarded on the first day or spread throughout the
-						banner — most are spread, tapering day by day to model how far through an event
-						a typical player has got.
+						Game events include every known event, login bonus, and mission with their
+						carat, ticket, and shard rewards. Tickets and shards are always awarded on the
+						first day of the banner. Carats are either rewarded on the first day or
+						throughout the banner. Most carats are awarded throughout, and the amount given
+						is reduced each day to estimate progress through an event.
 					</>,
 					<>
-						Misc Earnings adds a flat 90 carats a day, starting 30 days from today. It
-						stands in for the carats that cannot be listed as fixed data: gifts from
-						Cygames, Team Trials rank-ups and win rewards, career race rewards, uma stories,
-						main missions and archive level-ups. It is what keeps a long projection from
-						drifting steadily low.
+						Miscellaneous Earnings gives 90 carats per day starting 30 days from now. It
+						attempts to accurately capture carat earnings that could not be included in
+						fixed data, such as gifts from Cygames, Team Trials rank-ups and win rewards,
+						carats from career races, uma stories, main missions, and archive level-ups.
+						This tool keeps the calculator accurate over long periods of time.
 					</>,
 					<>
 						A few sources are toggles because they depend on what you buy or how you play:
-						the Daily Carat Pack, the Training Pass, Misc Earnings and Monthly Shop Tickets.
-						Turn on the ones that apply to you and leave the rest off.
+						the Daily Carat Pack, the Training Pass, Misc Earnings, and Monthly Shop
+						Tickets. Turn on the ones that apply to you and leave the rest off.
 					</>,
 				],
 			},
@@ -181,21 +174,18 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "Why does this not match what I have in the game?",
 				answer: [
 					<>
-						It is a projection, not a promise. The usual reasons it drifts: your starting
-						balance is whatever you typed, and nothing is read from the game, so if that is
-						stale everything downstream is off by the same amount. Misc Earnings is a flat
-						average rather than your real gifts and career clears, so out-earning or
-						under-earning it pulls the forecast off over time. Rank income assumes you hold
-						your current rank rather than getting promoted or slipping.
+						The usual reasons it drifts: Your starting balance is whatever you typed, so if
+						that is outdated, estimates will be inaccurate. Misc Earnings is a flat average
+						rather than your real gifts and career clears. If you outearn or are outearned
+						by the estimate, predictions will drift over time. Event income models typical
+						play, so clearing an event on day one puts you ahead of the projection, while
+						leaving it until the last weekend puts you behind.
 					</>,
 					<>
-						Event income models typical play, so clearing an event on day one puts you ahead
-						of the projection and leaving it to the last weekend puts you behind. Dates for
-						unannounced banners are predictions based on the Japanese server's schedule, and
-						anything predicted can move. Those predictions are deliberately kept slightly
-						fast, which makes the forecast lean low on purpose: finding you have more carats
-						than expected is a better outcome than being caught short by a banner that
-						arrived earlier than we said it would.
+						Dates for unannounced banners are predictions based on the Japanese server's
+						schedule, and anything predicted can move. The calculator's date estimates are
+						kept fast to cause a slight underestimation and prevent drops from banners
+						releasing earlier than expected.
 					</>,
 				],
 			},
@@ -213,12 +203,8 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 						It runs on the same income ledger as the banner rows below it, so the headline
 						figure and the per-banner forecasts cannot disagree. Carats are reported as a
 						single number here rather than split into free and paid, because that split only
-						matters where the two balances buy pulls at different prices.
-					</>,
-					<>
-						One deliberate exception: one-off campaign purchases are left out of it. They
-						are not recurring income, so folding them into a monthly average would report
-						earnings nobody actually earns every month.
+						matters where the two balances buy pulls at different prices. One deliberate
+						exception: planner purchases are left out.
 					</>,
 				],
 			},
@@ -227,21 +213,19 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "How do step-up banners work?",
 				answer: [
 					<>
-						Step-up banners are paid-carat-only. You select 10 characters or support cards
-						to populate the ★3/SSR rate-up pool, then climb a ladder of five steps costing
-						500, 700, 1,000, 1,300 and 1,500 — 5,000 paid carats for 50 pulls, against
-						7,500 at the normal rate.
+						Step-up banners are paid-only banners. You select 10 characters or support cards
+						to populate the ★3/SSR drop pool. There are 5 steps with a total cost of 5,000
+						paid carats. Each step is a 10-pull with certain guaranteed rewards.
 					</>,
 					<>
-						Steps 1 and 2 are ordinary 10-pulls. Steps 3 and 4 each guarantee a random
-						★3/SSR from your selection, and on step 5 you choose which ★3/SSR to guarantee.
-						Across 50 pulls the odds of spooking an extra card from your selection are good.
+						Steps 1 and 2 are standard 10-pulls. Steps 3 and 4 have a guaranteed ★3/SSR card
+						from your selection. On Step 5, you choose which ★3/SSR card to guarantee. With
+						50 total pulls, the odds of spooking an extra ★3/SSR from your selection are
+						high.
 					</>,
 					<>
-						The row asks for <strong>steps</strong>, not pulls — one step is ten pulls, so
-						reading the box as a pull count understates a plan tenfold. A step-up never
-						spends free carats, tickets, free pulls or the daily discount, and the number of
-						steps you can enter is capped at what the Japanese server actually offered.
+						The inputs for step-up banners are capped by the number offered on the Japanese
+						server.
 					</>,
 				],
 			},
@@ -250,27 +234,19 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "Why can I not select certain characters or support cards?",
 				answer: [
 					<>
-						Selector tickets and step-up banners both have a cutoff date: they can only take
-						a card that was released on or before it. The calculator works that out from
-						each card's earliest Japanese release date and compares it to the cutoff, so a
-						card newer than the cutoff is not selectable, and a card with no known release
-						date is not assumed to qualify.
+						Selector tickets have a cutoff date: you can only pick a card that was released
+						on or before that date. The calculator works that out from each card's Japanese
+						release date and compares it to the cutoff date, so a card released after the
+						cutoff is not selectable.
 					</>,
 					<>
-						Separately, some characters are <strong>semi-limited</strong>: they can only be
-						obtained through the gacha, either on their own release banner or as a spook off
-						another one. They cannot be taken with a selector ticket or picked on a step-up
-						banner, whatever the cutoff date allows.
+						Separately, some characters are considered <strong>semi-limited</strong>; this
+						means they can only be obtained through gacha, either on their release banner or
+						through spooks. You cannot select them on step-up banners or selector tickets.
 					</>,
 					<>
-						The restricted list currently covers Jungle Pocket, Gentildona, Orfevre, Still in
-						Love, Oguri Cap (Anime Collab), Stay Gold, Almond Eye and Epiphaneia.
-					</>,
-					<>
-						A selector ticket only has to reach <em>one</em> featured card on a banner to be
-						usable there, not all of them. Note also that selector tickets are not gacha
-						tickets: a selector takes a card outright rather than buying a pull, so it never
-						counts toward your pull budget.
+						The restricted list currently includes Jungle Pocket, Gentildona, Orfevre, Still
+						in Love, Oguri Cap (Anime Collab), Stay Gold, Almond Eye, and Epiphaneia.
 					</>,
 				],
 			},
@@ -281,15 +257,15 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 					<>
 						As far as the timeline goes. Banners that have been officially announced carry
 						their real dates; further out, dates are predicted from the Japanese server's
-						schedule, which historically runs ahead of global. Predicted entries are marked
-						as such. They are good enough to plan against, but treat them as likely rather
-						than fixed.
+						schedule. Predicted entries are marked as such. They are good enough to plan
+						against, but treat them as likely rather than fixed.
 					</>,
 				],
 			},
 		],
 	},
 	{
+		// Not covered by the FAQ doc — maintained in this file.
 		id: "account-and-privacy",
 		title: "Your account and privacy",
 		items: [
@@ -344,6 +320,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 		],
 	},
 	{
+		// Not covered by the FAQ doc — maintained in this file.
 		id: "about-the-site",
 		title: "About the site",
 		items: [
@@ -352,12 +329,17 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 				question: "How do I report a bug or suggest a feature?",
 				answer: [
 					<>
-						Email{" "}
-						<a href="mailto:Henryhandsomederby@gmail.com" className={link}>
-							Henryhandsomederby@gmail.com
-						</a>
-						. Bug reports are much easier to act on with the specifics: which banner or
-						screen, what you expected, and what you saw instead.
+						Use the{" "}
+						<Link to="/feedback" className={link}>
+							Feedback
+						</Link>{" "}
+						form. No account is needed, and you can tag it as a bug, a feature idea or a
+						data correction. Bug reports are much easier to act on with the specifics:
+						which banner or screen, what you expected, and what you saw instead.
+					</>,
+					<>
+						The form asks for nothing but the message itself — no name, no email address —
+						so it is one-way and you will not get a reply to it.
 					</>,
 				],
 			},
