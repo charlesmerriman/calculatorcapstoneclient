@@ -79,8 +79,10 @@ describe('SupportersSection', () => {
     })))
     render(<SupportersSection />)
 
-    expect((await screen.findByText('Top')).closest('li')).toHaveClass('font-semibold', 'text-brand')
-    expect(screen.getByText('Second').closest('li')).toHaveClass('font-medium', 'text-gray-100')
+    // Every chip is font-bold from CHIP_BASE regardless of tier, so weight is
+    // asserted as a constant here and COLOUR is what carries the emphasis.
+    expect((await screen.findByText('Top')).closest('li')).toHaveClass('font-bold', 'text-brand')
+    expect(screen.getByText('Second').closest('li')).toHaveClass('font-bold', 'text-gray-100')
   })
 
   it('falls back to the base style for a supporter with no tier, and gives them no heading', async () => {
