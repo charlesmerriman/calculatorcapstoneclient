@@ -24,13 +24,20 @@ const PATREON_URL = "https://www.patreon.com/cw/UmaCaratCalculator"
  * not fine on 13px of name.
  */
 const TIER_STYLES = [
-	"border-brand/55 bg-brand/10 font-semibold text-brand",
-	"border-brand/25 bg-gray-700 font-medium text-gray-100",
+	"border-brand/55 bg-brand/10 text-brand",
+	"border-brand/25 bg-gray-700 text-gray-100",
 ]
 const BASE_TIER_STYLE = "border-gray-600 bg-gray-700 text-gray-200"
 
-/** Shape shared by every chip; only the colours above vary by tier. */
-const CHIP_BASE = "inline-block rounded-full border px-2.5 py-1 text-sm leading-tight"
+/**
+ * Shape shared by every chip; only the colours above vary by tier. The weight
+ * lives here rather than in TIER_STYLES so every name is bold regardless of
+ * tier — two Tailwind font-weight classes on one element resolve by stylesheet
+ * order, not by their order in the class string, so a per-tier weight here
+ * would override this one unpredictably.
+ */
+const CHIP_BASE =
+	"inline-block rounded-full border px-2.5 py-1 text-sm leading-tight font-bold"
 
 /**
  * One rendered block: a tier's label and the supporters on it.
