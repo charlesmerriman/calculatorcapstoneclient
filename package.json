@@ -13,8 +13,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "coverage": "vitest run --coverage",
-    "hash-passcode": "node scripts/hash-passcode.mjs"
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fontsource-variable/outfit": "^5.3.0",

@@ -430,8 +430,7 @@ and `layout` props on banner list items animate reordering.
 
 The site's brand mark is **text, not an image**. `components/Wordmark.tsx` renders
 "Uma Carat Calculator" everywhere the old logo PNG appeared — navbar, sign-in card, OAuth
-callback card, closed-beta passcode card. Change the brand text or its styling there and
-all four update together.
+callback card. Change the brand text or its styling there and all three update together.
 
 It is set in **Outfit**, installed as `@fontsource-variable/outfit` and imported in
 `main.tsx` so the woff2 is **bundled** rather than fetched from Google's CDN. That means
