@@ -5,7 +5,6 @@ import { Toaster } from "sonner"
 import { ApplicationViews } from "./views/ApplicationViews.js"
 import { Login } from "./components/auth/Login.js"
 import { OAuthCallback } from "./components/auth/OAuthCallback.js"
-import { BetaGate } from "./components/auth/BetaGate.js"
 import { CalculatorProvider } from "./services/CalculatorProvider.js"
 import { ErrorBoundary } from "./components/ErrorBoundary.js"
 import { ApiSourceBadge } from "./components/ApiSourceBadge.js"
@@ -25,9 +24,9 @@ const ThemedToaster = () => {
 
 function App() {
 	// Traffic beacon. Deliberately here rather than inside a route element: this
-	// is the only place that sees EVERY visitor, since BetaGate and
-	// CalculatorProvider below only wrap /app. Counting further in would miss
-	// everyone who lands on the home page, the FAQ or the changelog and leaves.
+	// is the only place that sees EVERY visitor, since CalculatorProvider
+	// below only wraps /app. Counting further in would miss everyone who lands
+	// on the home page, the FAQ or the changelog and leaves.
 	//
 	// Empty deps = once per mount, and recordVisit() is itself idempotent per
 	// session, so StrictMode's double-invoke in development counts once.
@@ -54,23 +53,15 @@ function App() {
 					<Route path="/faq" element={<Faq />} />
 					<Route path="/feedback" element={<Feedback />} />
 					{/* Public since guest mode: the calculator works without an
-					    account; logging in is only needed to save a plan.
-
-					    BetaGate is the closed-beta passcode wall, and it sits
-					    OUTSIDE CalculatorProvider so no API fetch fires before
-					    the passcode is accepted. It renders its children
-					    untouched once VITE_BETA_PASSCODE_HASH is unset, so
-					    retiring the beta means deleting that variable — and
-					    deleting this wrapper plus its import when you want the
-					    code gone too. */}
+					    account; logging in is only needed to save a plan. The
+					    closed-beta passcode wall that used to wrap this route
+					    was removed at open-beta launch. */}
 					<Route
 						path="/app/*"
 						element={
-							<BetaGate>
-								<CalculatorProvider>
-									<ApplicationViews />
-								</CalculatorProvider>
-							</BetaGate>
+							<CalculatorProvider>
+								<ApplicationViews />
+							</CalculatorProvider>
 						}
 					/>
 					{/* Redirect any unmatched path to the home page */}

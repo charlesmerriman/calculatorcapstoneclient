@@ -5,8 +5,8 @@ import { Link } from "react-router-dom"
  * The site's brand mark, as text rather than an image.
  *
  * Defined once and shared by every place the old logo PNG appeared (navbar,
- * sign-in card, OAuth callback card, closed-beta passcode card) so the brand
- * text, colour split and typeface only ever have to change in one file.
+ * sign-in card, OAuth callback card) so the brand text, colour split and
+ * typeface only ever have to change in one file.
  *
  * Two variants, because the slots are shaped very differently:
  *  - "nav"  — sits in a 56px-tall bar next to other controls, so it stacks onto
@@ -20,7 +20,7 @@ import { Link } from "react-router-dom"
  *             row between 768px and ~900px — the centre links collide and the
  *             auth button wraps to three lines. Stacked it is ~85px, narrower
  *             than the image it replaced, so it fits everywhere the logo did.
- *  - "card" — the tall centred header strip on the auth/beta cards. Always a
+ *  - "card" — the tall centred header strip on the auth cards. Always a
  *             stacked lockup, with "CALCULATOR" letter-spaced underneath.
  *
  * `font-display` resolves to the --font-display theme token (Outfit Variable,
