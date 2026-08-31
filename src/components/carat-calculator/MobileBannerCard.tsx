@@ -46,8 +46,16 @@ interface MobileBannerCardProps {
 	summary: ReactNode
 	pullsInput: ReactNode
 	reservedInput: ReactNode
-	/** Optional block under `summary`. Owns its own padding, as `summary` does. */
-	chanceDisplay: ReactNode
+	/**
+	 * Optional block under `summary`. Owns its own padding, as `summary` does.
+	 *
+	 * A **staged** row passes none: the odds strip is the widest, most expensive
+	 * band on a phone, and a row that isn't on the sheet yet has nothing to spend
+	 * it on — the numbers it would show are answering a question the user hasn't
+	 * finished asking. The desktop table keeps its MLB column on staged rows,
+	 * where the width is already paid for.
+	 */
+	chanceDisplay?: ReactNode
 	onRemove: () => void
 	removeLabel: string
 	removeIcon?: "delete" | "discard"
