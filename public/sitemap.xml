@@ -13,42 +13,42 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 	<!-- The calculator's landing page. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/</loc>
+		<loc>https://umacaratcalculator.com/</loc>
 		<priority>1.0</priority>
 	</url>
 	<!-- The planner itself. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/app</loc>
+		<loc>https://umacaratcalculator.com/app</loc>
 		<priority>0.9</priority>
 	</url>
 	<!-- Banner and event timeline; by far the most content. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/app/timeline</loc>
+		<loc>https://umacaratcalculator.com/app/timeline</loc>
 		<priority>0.9</priority>
 	</url>
 	<!-- Selector ticket planner. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/app/selectors</loc>
+		<loc>https://umacaratcalculator.com/app/selectors</loc>
 		<priority>0.8</priority>
 	</url>
 	<!-- 16 questions across 4 groups. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/faq</loc>
+		<loc>https://umacaratcalculator.com/faq</loc>
 		<priority>0.7</priority>
 	</url>
 	<!-- Updated whenever content lands. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/changelog</loc>
+		<loc>https://umacaratcalculator.com/changelog</loc>
 		<priority>0.5</priority>
 	</url>
 	<!-- A form, so thin by nature but worth discovering. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/feedback</loc>
+		<loc>https://umacaratcalculator.com/feedback</loc>
 		<priority>0.4</priority>
 	</url>
 	<!-- Required, rarely a search target. -->
 	<url>
-		<loc>https://umamusme-calculator-7zdcg.ondigitalocean.app/privacy-policy</loc>
+		<loc>https://umacaratcalculator.com/privacy-policy</loc>
 		<priority>0.3</priority>
 	</url>
 </urlset>

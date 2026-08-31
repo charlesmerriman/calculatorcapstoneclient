@@ -209,6 +209,13 @@ that wants to read as another band; `StagedBannerRow` fills them with a confirm 
 that wants a gutter and adds its own `p-3`. A shared `p-3` in the card charged 24px of
 height to every row to satisfy only one of them.
 
+**A staged card is three bands, not four**: `chanceDisplay` is optional and
+`StagedBannerRow` passes none, so the phone loses the odds strip on a row that isn't on
+the sheet yet. The desktop table keeps its MLB column on staged rows — the width there is
+already paid for by the grid. Because the confirm button is then the card's last band, it
+carries a full `p-3` rather than the `p-3 pb-0` it used while the odds strip supplied the
+bottom gutter.
+
 Four rules keep the phone card short, and each replaced something that measurably didn't
 fit at 390px:
 
@@ -232,9 +239,10 @@ fit at 390px:
   pulls field, the remaining three fit a single row instead of two. Their labels wrap
   rather than truncate — a ~320px card gives each box about 93px, which is exactly what
   "Free/Tickets/Paid" wants — so never put `truncate` on a stat label or value.
-- **The odds strip is six across at every width.** Wrapping to 3x2 below `sm:` doubled its
-  height for cells needing ~30px each; a 320px card still gives every one ~53px, which is
-  more than the desktop table's own 14rem track manages.
+- **The odds strip is six across at every width** — on a sheet row, which is the only kind
+  of card that shows it. Wrapping to 3x2 below `sm:` doubled its height for cells needing
+  ~30px each; a 320px card still gives every one ~53px, which is more than the desktop
+  table's own 14rem track manages.
 
 Together those took a phone row from ~370px to ~225px — roughly four rows per screen
 instead of two. The `sm:` layout (a card between 640px and the table switch) keeps its

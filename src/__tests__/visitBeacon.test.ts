@@ -91,7 +91,7 @@ describe('recordVisit', () => {
   it('sends nothing when a dev server points at a remote API', async () => {
     // This is `npm run dev:live`. Writing here would corrupt production.
     vi.stubEnv('DEV', true)
-    apiSource.API_URL = 'https://umamusme-calculator-7zdcg.ondigitalocean.app/api'
+    apiSource.API_URL = 'https://umacaratcalculator.com/api'
     apiSource.isRemoteBackend = true
 
     const recordVisit = await loadBeacon()
