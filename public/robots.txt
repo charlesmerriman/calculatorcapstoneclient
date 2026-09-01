@@ -12,5 +12,6 @@ Disallow: /login
 Disallow: /auth/callback
 
 # NOTE: absolute URL required by the sitemap spec, so this line does not survive
-# a domain move. Update it together with public/sitemap.xml.
+# a domain move. Update it together with public/sitemap.xml and the og:url /
+# og:image / twitter:image tags in index.html.
 Sitemap: https://umacaratcalculator.com/sitemap.xml

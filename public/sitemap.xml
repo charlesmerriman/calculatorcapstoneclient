@@ -8,7 +8,8 @@
   robots.txt and carry no content.
 
   The absolute URLs below do NOT survive a domain move. Update them together
-  with the Sitemap line in robots.txt.
+  with the Sitemap line in robots.txt and the og:url / og:image / twitter:image
+  tags in index.html - three files, one domain, no generator tying them.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 	<!-- The calculator's landing page. -->

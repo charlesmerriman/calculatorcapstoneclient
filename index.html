@@ -26,18 +26,36 @@
       text below. useDocumentMeta handles tabs and search engines; this handles
       the preview card. Per-route previews would need prerendering.
 
-      TODO: og:image. Wants a 1200x630 PNG, and there isn't one yet — the
-      favicon set is square-only, so none of it crops to a landscape card.
-      Without it the card renders as title and description with no thumbnail,
-      which is still far better than the nothing that was here before.
+      og:image is the umagon face on an opaque dark ground, NOT one of the
+      favicon PNGs directly. Those are 45% transparent, and unfurlers flatten
+      alpha themselves — X onto black, which swallows the face's black
+      outlines. Compositing it here makes the card identical everywhere
+      instead of depending on each service's choice.
+
+      It is square (512x512) and paired with twitter:card=summary, which is
+      the small square-thumbnail card. A big landscape card would mean
+      summary_large_image AND a 2:1 image — a layout to design, not a crop of
+      this one.
+
+      NOTE: absolute URL required — unfurlers do not resolve relative paths.
+      This does not survive a domain move; update it together with
+      public/sitemap.xml and public/robots.txt.
     -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Uma Musume Carat Calculator" />
     <meta property="og:title" content="Uma Musume Carat Calculator" />
     <meta property="og:description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
+    <meta property="og:url" content="https://umacaratcalculator.com/" />
+    <meta property="og:image" content="https://umacaratcalculator.com/social-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="The Uma Musume Carat Calculator umagon mascot." />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Uma Musume Carat Calculator" />
     <meta name="twitter:description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
+    <meta name="twitter:image" content="https://umacaratcalculator.com/social-card.png" />
+    <meta name="twitter:image:alt" content="The Uma Musume Carat Calculator umagon mascot." />
   </head>
   <body class="bg-neutral-200">
     <div id="root"></div>
