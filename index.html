@@ -2,7 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!--
+      Umagon face icon set. favicon.ico carries 16/24/32/48/64 for browsers that
+      still request /favicon.ico by default; the PNG links cover everything
+      modern, and the 192/512 pair is what Android reaches for when a page is
+      added to a home screen. All are transparent, so they sit correctly on
+      light and dark tab bars alike.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Uma Musume Carat Calculator</title>
     <meta name="description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
@@ -14,10 +26,10 @@
       text below. useDocumentMeta handles tabs and search engines; this handles
       the preview card. Per-route previews would need prerendering.
 
-      TODO: og:image. Wants a 1200x630 PNG, and there isn't one yet — the same
-      branding gap as the stock Vite favicon. Without it the card renders as
-      title and description with no thumbnail, which is still far better than
-      the nothing that was here before.
+      TODO: og:image. Wants a 1200x630 PNG, and there isn't one yet — the
+      favicon set is square-only, so none of it crops to a landscape card.
+      Without it the card renders as title and description with no thumbnail,
+      which is still far better than the nothing that was here before.
     -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Uma Musume Carat Calculator" />
