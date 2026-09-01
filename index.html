@@ -56,6 +56,31 @@
     <meta name="twitter:description" content="Plan your Uma Musume gacha pulls and predict carat and ticket availability based on your rank income and upcoming events." />
     <meta name="twitter:image" content="https://umacaratcalculator.com/social-card.png" />
     <meta name="twitter:image:alt" content="The Uma Musume Carat Calculator umagon mascot." />
+
+    <!--
+      Google AdSense. This tag is BOTH the site-ownership verification Google
+      asks for during the application and the runtime that serves ads once the
+      account is approved - there is no separate verification tag to remove
+      later, so it stays exactly as-is.
+
+      The ca-pub- publisher ID is public by design: it is visible in this HTML
+      on every page, and it is the same ID declared in public/ads.txt. It is an
+      account identifier, not a credential, so it belongs in the repo.
+
+      Placed last in <head> and loaded async so it never blocks the app bundle.
+      Until the account is approved this fetches the script and serves nothing.
+
+      NOTE: whether ads actually appear - and WHERE - is controlled entirely in
+      the AdSense dashboard (Auto ads formats, ad load, page exclusions), not
+      here. Side rails in particular can squeeze the planner below
+      --container-banner-table's minimum width, where the banner table stops
+      rendering as a spreadsheet; keep that format off.
+    -->
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9720922917211031"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body class="bg-neutral-200">
     <div id="root"></div>
