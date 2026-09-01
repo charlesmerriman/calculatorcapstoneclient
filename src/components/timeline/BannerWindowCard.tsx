@@ -689,7 +689,7 @@ export function BannerWindowCard({
 			)}
 			<div
 				className={`card-panel w-full overflow-hidden p-2 sm:p-3 ${
-					attachedEvent ? "rounded-b-xl rounded-t-none" : "rounded-xl"
+					attachedEvent ? "card-panel-joined-top" : ""
 				} ${isFocused ? TIMELINE_FOCUS_HIGHLIGHT : ""}`}
 			>
 				<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

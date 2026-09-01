@@ -1,6 +1,6 @@
 import "./App.css"
 import { useEffect } from "react"
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 import { ApplicationViews } from "./views/ApplicationViews.js"
 import { Login } from "./components/auth/Login.js"
@@ -15,6 +15,7 @@ import { PrivacyPolicy } from "./components/legal/PrivacyPolicy.js"
 import { Changelog } from "./components/info/Changelog.js"
 import { Faq } from "./components/info/Faq.js"
 import { Feedback } from "./components/info/Feedback.js"
+import { NotFound } from "./components/NotFound.js"
 import { recordVisit } from "./services/visitBeacon.js"
 
 const ThemedToaster = () => {
@@ -64,8 +65,10 @@ function App() {
 							</CalculatorProvider>
 						}
 					/>
-					{/* Redirect any unmatched path to the home page */}
-					<Route path="*" element={<Navigate to="/" replace />} />
+					{/* A real 404 rather than a redirect home — see NotFound for why the
+					    old redirect was a soft 404. Only reached for paths OUTSIDE /app:
+					    /app/* matches above and ApplicationViews carries its own. */}
+					<Route path="*" element={<NotFound />} />
 				</Routes>
 			</ErrorBoundary>
 		</ThemeProvider>
