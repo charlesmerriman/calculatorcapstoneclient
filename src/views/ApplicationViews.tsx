@@ -4,6 +4,7 @@ import { CaratCalculator } from "../components/carat-calculator/CaratCalculator"
 import { Timeline } from "../components/timeline/Timeline"
 import { Selectors } from "../components/selectors/Selectors"
 import { Footer } from "../components/footer/Footer.tsx"
+import { NotFound } from "../components/NotFound"
 
 export const ApplicationViews = () => {
 	return (
@@ -62,6 +63,14 @@ export const ApplicationViews = () => {
 				<Route path="timeline" element={<Timeline />}/>
 				<Route path="selectors" element={<Selectors />}/>
 			</Route>
+			{/* Unmatched path under /app. A SIBLING of the layout route, not a child:
+			    NotFound brings its own Navbar and Footer, so nesting it would render a
+			    second set of both inside the app shell.
+
+			    Without this, /app/anything-else matched nothing here and rendered a
+			    BLANK page — App.tsx's catch-all never sees these paths, because
+			    /app/* already matched there and handed off to this Routes. */}
+			<Route path="*" element={<NotFound />} />
 		</Routes>
 	)
 }
