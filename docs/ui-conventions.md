@@ -859,10 +859,17 @@ Pass `null` as the title only for the homepage, which should read as the site na
 rather than "Home | …". The third argument, `noindex`, is for pages that are
 plumbing rather than content — `/login` and `/auth/callback` — and those two paths
 are also `Disallow`ed in `public/robots.txt`; change one and change the other.
+`NotFound` passes it too, and there it is load-bearing rather than tidiness: a
+static bundle answers every unmatched path with `index.html` and a **200**, so
+`noindex` is the only way the page can tell a crawler what its status code cannot.
 
-The canonical URL comes from `window.location.origin` at runtime rather than a
-build-time constant, so it follows the site across localhost, the DigitalOcean
-hostname and the custom domain without config.
+The canonical URL is built from `SITE_ORIGIN`, a **constant** in the hook, not from
+`window.location.origin`. App Platform keeps serving the same bundle on its generated
+`*.ondigitalocean.app` hostname and that cannot be switched off, so a runtime origin
+made every page served there declare *itself* canonical — two complete, equally
+authoritative copies of the site competing. The constant points the DigitalOcean host
+at the real domain, which is what consolidates them. It is therefore a **third**
+absolute URL that does not survive a domain move; see the note below.
 
 **The hook cannot fix link previews.** Discord, Slack, Reddit and Twitter fetch the
 raw HTML and never run JavaScript, so they only ever see the static `og:` tags in
@@ -871,5 +878,6 @@ prerendering. `index.html` still has no `og:image` — it wants a 1200x630 PNG,
 the same branding gap as the stock Vite favicon.
 
 `public/robots.txt` and `public/sitemap.xml` are real static files that Vite copies
-to `dist/`, where they match before the DigitalOcean catch-all. Both carry absolute
-URLs that **do not survive a domain move** — update them together.
+to `dist/`, where they match before the DigitalOcean catch-all. They carry absolute
+URLs that **do not survive a domain move** — update them together with `SITE_ORIGIN`
+in `useDocumentMeta` and the `og:`/`twitter:` URLs in `index.html`.
