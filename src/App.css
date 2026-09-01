@@ -63,6 +63,19 @@
 	@apply bg-gray-800 rounded-xl border border-gray-600 shadow-md;
 }
 
+/* A card welded to a strip sitting flush above it (AnniversaryEventStrip): the
+   top corners square off so the two read as one box instead of two with a seam.
+
+   This has to live HERE rather than as a `rounded-t-none` utility at the call
+   site. App.css is UNLAYERED, while Tailwind's utilities land in
+   `@layer utilities`, and unlayered CSS beats every layer regardless of
+   specificity — so .card-panel's own `rounded-xl` silently wins over any
+   rounding utility a caller adds. Same-file, same-layer, declared after it, so
+   this one wins on source order. */
+.card-panel-joined-top {
+	@apply rounded-t-none;
+}
+
 /* Inner section with light gray background */
 .card-section {
 	@apply border-0 rounded-2xl bg-gray-700 p-3 text-gray-100;
