@@ -12,7 +12,9 @@ import { ThemeProvider } from "./services/ThemeProvider.js"
 import { useTheme } from "./services/ThemeContext.js"
 import { HomePage } from "./components/home/HomePage.js"
 import { PrivacyPolicy } from "./components/legal/PrivacyPolicy.js"
+import { Terms } from "./components/legal/Terms.js"
 import { Changelog } from "./components/info/Changelog.js"
+import { About } from "./components/info/About.js"
 import { Faq } from "./components/info/Faq.js"
 import { Feedback } from "./components/info/Feedback.js"
 import { NotFound } from "./components/NotFound.js"
@@ -50,6 +52,8 @@ function App() {
 					    registered in each provider's console, exactly. */}
 					<Route path="/auth/callback" element={<OAuthCallback />} />
 					<Route path="/privacy-policy" element={<PrivacyPolicy />} />
+					<Route path="/terms" element={<Terms />} />
+					<Route path="/about" element={<About />} />
 					<Route path="/changelog" element={<Changelog />} />
 					<Route path="/faq" element={<Faq />} />
 					<Route path="/feedback" element={<Feedback />} />
