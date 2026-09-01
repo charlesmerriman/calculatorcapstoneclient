@@ -47,9 +47,18 @@
 		<loc>https://umacaratcalculator.com/feedback</loc>
 		<priority>0.4</priority>
 	</url>
+	<!-- What the site is and who runs it. -->
+	<url>
+		<loc>https://umacaratcalculator.com/about</loc>
+		<priority>0.4</priority>
+	</url>
 	<!-- Required, rarely a search target. -->
 	<url>
 		<loc>https://umacaratcalculator.com/privacy-policy</loc>
+		<priority>0.3</priority>
+	</url>
+	<url>
+		<loc>https://umacaratcalculator.com/terms</loc>
 		<priority>0.3</priority>
 	</url>
 </urlset>

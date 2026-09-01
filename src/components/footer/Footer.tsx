@@ -26,8 +26,16 @@ export const Footer = () => {
 			<div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
 				<span>© {year} Uma Musume Carat Calculator</span>
 				<span aria-hidden="true">·</span>
+				<Link to="/about" className="text-gray-400 transition hover:text-brand">
+					About
+				</Link>
+				<span aria-hidden="true">·</span>
 				<Link to="/privacy-policy" className="text-gray-400 transition hover:text-brand">
 					Privacy Policy
+				</Link>
+				<span aria-hidden="true">·</span>
+				<Link to="/terms" className="text-gray-400 transition hover:text-brand">
+					Terms
 				</Link>
 				<span aria-hidden="true">·</span>
 				{/* Plain anchor, not <Link>: react-router does not scroll to a hash on
