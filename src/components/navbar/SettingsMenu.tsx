@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react"
 import { Settings } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
 import { ToggleSwitch } from "../ToggleSwitch"
-import type { UserStats } from "../../types"
+import { DEFAULT_CONSTANTS } from "../../constants/gameConstants"
+import type { CalculationConstants, UserStats } from "../../types"
 
 /** The boolean-valued keys of UserStats — the only fields these toggles set. */
 type BooleanStatKey = {
@@ -13,11 +14,16 @@ type BooleanStatKey = {
  * Each toggle maps to a boolean field on UserStats and controls a slice of the
  * resource projection (see useBannerResources). Kept as data so the panel is a
  * simple map over this list.
+ *
+ * A description may be a function of the admin-editable CalculationConstants
+ * rather than a fixed string: any blurb quoting a number the content editor can
+ * change has to read it from the API, or it silently goes stale the first time
+ * that constant moves (Misc Earnings did exactly that, 1,800 -> 2,700/month).
  */
 const SETTINGS: {
 	key: BooleanStatKey
 	label: string
-	description: string
+	description: string | ((constants: CalculationConstants) => string)
 }[] = [
 	{
 		key: "monthly_shop_tickets",
@@ -27,7 +33,11 @@ const SETTINGS: {
 	{
 		key: "misc_earnings",
 		label: "Misc Earnings",
-		description: "Roughly 60 carats a day from gifts, team trials, and careers, starting 30 days out.",
+		// floor(monthly / 30) is how cumulativeMiscEarningsCarats derives the
+		// daily drip — same expression here so the blurb can't quote a rate the
+		// projection doesn't actually pay.
+		description: (k) =>
+			`Roughly ${Math.floor(k.misc_earnings_monthly / 30)} carats a day from gifts, team trials, and careers, starting ${k.misc_earnings_delay_days} days out.`,
 	},
 	{
 		key: "discounted_paid_pulls",
@@ -62,6 +72,10 @@ export const SettingsMenu = () => {
 	// so this renders for them too — their toggles just stay in memory.
 	const userStatsData = calculatorData?.userStatsData
 	const setUserStatsData = calculatorData?.setUserStatsData
+	// Always populated on the context (seeded with DEFAULT_CONSTANTS before the
+	// fetch lands); the fallback is only here because the context itself is
+	// optional in this component.
+	const constants = calculatorData?.calculationConstants ?? DEFAULT_CONSTANTS
 	if (!userStatsData || !setUserStatsData) return null
 
 	return (
@@ -98,7 +112,9 @@ export const SettingsMenu = () => {
 							>
 								<div className="min-w-0">
 									<div className="text-sm text-gray-100">{label}</div>
-									<div className="text-xs leading-tight text-gray-400">{description}</div>
+									<div className="text-xs leading-tight text-gray-400">
+										{typeof description === "function" ? description(constants) : description}
+									</div>
 								</div>
 								<div className="shrink-0 pt-0.5">
 									<ToggleSwitch

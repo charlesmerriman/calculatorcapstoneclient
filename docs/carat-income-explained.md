@@ -334,8 +334,9 @@ The calculator is a projection, not a promise. The main sources of difference:
 
 - **Your starting balance is whatever you typed.** Nothing is read from the game — if
   it's stale, everything downstream is off by the same amount.
-- **Misc Earnings is a flat approximation.** 60 a day is a reasonable average, not your
-  actual gifts and career clears.
+- **Misc Earnings is a flat approximation.** The per-day figure (90 a day at the time of
+  writing, and admin-editable) is a reasonable average, not your actual gifts and career
+  clears.
 - **Rank income assumes you hold your rank.** Get promoted, or slip, and reality
   diverges from the plan.
 - **Future dates for unannounced banners are predictions**, based on the Japanese
