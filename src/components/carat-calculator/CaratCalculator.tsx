@@ -40,20 +40,20 @@ const ADD_BANNER_BUTTONS: {
 	{
 		type: "Uma",
 		short: "Uma",
-		full: "Add Uma Banner",
+		full: "New Uma Banner",
 		className: "bg-brand text-black hover:bg-brand/90",
 	},
 	{
 		type: "Support",
 		short: "Support",
-		full: "Add Support Banner",
+		full: "New Support Banner",
 		className: "border border-brand bg-transparent text-brand hover:bg-brand/10",
 	},
 	{
 		type: "StepUp",
 		// "Step Up", unhyphenated, matching the type tile on the row this creates.
 		short: "Step Up",
-		full: "Add Step-Up Banner",
+		full: "New Step-Up Banner",
 		className:
 			"border border-purple-400 bg-transparent text-purple-300 hover:bg-purple-400/10",
 	},
@@ -145,7 +145,7 @@ export const CaratCalculator: React.FC = () => {
 		const banner = stagedBanners.find((b) => b.tempId === tempId)
 		if (!banner) return
 		if (plannedBannerTarget(banner).type === "Empty") {
-			toast.error("Please select a banner before adding it to the sheet.")
+			toast.error("Please select a banner before adding it.")
 			return
 		}
 		// Compare by type+id, never by bare id — uma and support banners have
@@ -156,7 +156,7 @@ export const CaratCalculator: React.FC = () => {
 		const stagedKey = plannedBannerKey(banner)
 		const isDuplicate = stagedKey !== null && userPlannedBannerData.some((b) => plannedBannerKey(b) === stagedKey)
 		if (isDuplicate) {
-			toast.error("This banner is already on your sheet.")
+			toast.error("This banner is already in your calculator.")
 			return
 		}
 
@@ -174,9 +174,25 @@ export const CaratCalculator: React.FC = () => {
 		setStagedBanners((prev) => prev.filter((b) => b.tempId !== tempId))
 	}
 
-	// Only show section labels when both the staging area and the sheet are visible,
-	// so the user understands which section is which.
-	const showSectionLabels = stagedBanners.length > 0 && userPlannedBannerData.length > 0
+	// The two section headings are gated SEPARATELY, and deliberately.
+	//
+	// They used to share one flag requiring BOTH sections to be populated, which
+	// hid the "Staging" heading from the only people who needed it: a first-time
+	// user has an empty calculator, so staging their first banner rendered an
+	// unlabelled table that looked exactly like the sheet it isn't. The heading
+	// only appeared once they had already worked it out.
+	//
+	// Staging is labelled whenever it exists. The calculator heading still needs
+	// staging on screen to be worth drawing — with nothing staged there is only
+	// one section, and naming it is noise.
+	const showStagingLabel = stagedBanners.length > 0
+	const showCalculatorLabel = stagedBanners.length > 0
+
+	// The calculator section renders while EMPTY if something is staged, so the
+	// staged row has a visible destination to contrast against — see the
+	// empty-state placeholder below. With nothing staged and nothing planned
+	// there is no section at all.
+	const showCalculatorSection = userPlannedBannerData.length > 0 || stagedBanners.length > 0
 
 	// Icon-only header, shared by the staging and sheet header rows below so the
 	// two can't drift. Same icons the mobile card labels its Reserved cell with.
@@ -232,7 +248,7 @@ export const CaratCalculator: React.FC = () => {
 											{/* Short visible label on a phone, full one from `sm:` — but
 											    the full text is in the DOM at both widths, so the
 											    button's ACCESSIBLE NAME never changes with the viewport.
-											    A screen reader always hears "Add Uma Banner", never a
+											    A screen reader always hears "New Uma Banner", never a
 											    bare "Uma", and selectors that query by name keep working
 											    on a phone. */}
 											<span className="sm:hidden" aria-hidden="true">
@@ -255,10 +271,20 @@ export const CaratCalculator: React.FC = () => {
 										transition={{ duration: 0.18 }}
 										className="mx-3 sm:mx-4"
 									>
-										{showSectionLabels && (
-											<div className="flex items-center gap-2 pb-2 px-1">
-												<span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Staging</span>
-												<div className="flex-1 h-px bg-amber-400/20" />
+										{showStagingLabel && (
+											<div className="pb-2 px-1">
+												<div className="flex items-center gap-2">
+													<span className="text-xs font-semibold text-staging uppercase tracking-wider">Staging</span>
+													<div className="flex-1 h-px bg-staging/25" />
+												</div>
+												{/* The sentence that actually corrects the misreading. The
+												    heading names the section; this says what being in it
+												    COSTS you, which is the part people get wrong. Kept to one
+												    line — it sits above every staged row, not just the first. */}
+												<p className="mt-1 text-[11px] leading-snug text-staging/85">
+													Not counted in your carats until you add it. Staged rows are
+													temporary and are lost if you reload.
+												</p>
 											</div>
 										)}
 										{/* @container: the card/table switch inside is keyed to THIS box's
@@ -266,7 +292,10 @@ export const CaratCalculator: React.FC = () => {
 								    width that fits it and never has to scroll sideways. See
 								    --container-banner-table in index.css. */}
 										<div className="@container">
-											<div className="banner-grid hidden w-full items-center text-xs text-gray-400 font-medium bg-gray-800 border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
+											{/* Eight cells, not the sheet's nine: .banner-grid--staged drops the
+											    MLB column and widens the select with it. Keep this row and
+											    StagedBannerRow on the same modifier or they drift apart. */}
+											<div className="banner-grid banner-grid--staged staged-surface-header hidden w-full items-center text-xs text-gray-400 font-medium border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
 												<div className="text-center">Type</div>
 												<div className="text-center">Images</div>
 												<div className="text-center">Banner</div>
@@ -274,7 +303,6 @@ export const CaratCalculator: React.FC = () => {
 												<div className="text-center">Confirm</div>
 												<div className="text-center"># Pulls</div>
 												{reservedHeaderCell}
-												<div className="text-center">% Chance to MLB (5x Copies)</div>
 												<div className="text-center"></div>
 											</div>
 											{/* Same spacing/divider rules as the sheet below: several staged
@@ -299,7 +327,6 @@ export const CaratCalculator: React.FC = () => {
 																umaBannerData={umaBannerData}
 																supportBannerData={supportBannerData}
 																stepUpBannerData={stepUpBannerData}
-																constants={calculationConstants}
 																userPlannedBannerData={userPlannedBannerData}
 																stagedBanners={stagedBanners}
 															/>
@@ -312,12 +339,12 @@ export const CaratCalculator: React.FC = () => {
 								)}
 							</AnimatePresence>
 
-							{/* Confirmed banner sheet */}
-							{userPlannedBannerData.length > 0 && (
+							{/* The calculator proper — the rows that actually count. */}
+							{showCalculatorSection && (
 								<div className="mx-3 sm:mx-4">
-									{showSectionLabels && (
+									{showCalculatorLabel && (
 										<div className="flex items-center gap-2 pt-3 pb-2 px-1">
-											<span className="text-xs font-semibold text-brand uppercase tracking-wider">Sheet</span>
+											<span className="text-xs font-semibold text-brand uppercase tracking-wider">Calculator</span>
 											<div className="flex-1 h-px bg-brand/20" />
 										</div>
 									)}
@@ -334,6 +361,21 @@ export const CaratCalculator: React.FC = () => {
 											<div className="text-center">% Chance to MLB (5x Copies)</div>
 											<div className="text-center"></div>
 										</div>
+										{/* Empty state, shown only while something is staged (the section
+										    doesn't render at all otherwise). It exists to give the staged
+										    row above a visible DESTINATION: "this is staging, not the
+										    calculator" is unlearnable when the calculator isn't on screen
+										    to be compared against. It names the button that bridges them. */}
+										{userPlannedBannerData.length === 0 && (
+											<div className="rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-6 text-center @banner-table:rounded-t-none @banner-table:border-t-0">
+												<p className="text-sm text-gray-400">Nothing in your calculator yet.</p>
+												<p className="mt-1 text-xs text-gray-500">
+													Pick a banner above, then press{" "}
+													<span className="font-semibold text-green-400">Add to calculator</span>{" "}
+													to start counting it.
+												</p>
+											</div>
+										)}
 										<div className="space-y-3 @banner-table:space-y-0 @banner-table:divide-y @banner-table:divide-gray-700">
 											<AnimatePresence initial={false}>
 												{plannerRows.map((plannerRow) => {

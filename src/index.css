@@ -150,6 +150,27 @@
 	   into the card's existing brand-colored labels on every one of them. */
 	--color-category-revival: #f3a9c6;
 	--color-category-revival-border: #d9739c;
+
+	/* ── Staging accent ────────────────────────────────────────────────────
+	   The amber that marks the staging area as provisional — its heading, its
+	   hint line, and the tint on .staged-surface / .staged-surface-header in
+	   App.css.
+
+	   A token rather than `amber-400` for the same reason the pull-* colors are
+	   one: the theme blocks below override only --color-brand and the gray ramp,
+	   so a stock class keeps one fixed tint on all seven themes. On the light
+	   theme amber-400 measures ~1.7:1 on the raised-card fill, which is exactly
+	   the surface this is painted on.
+
+	   Amber and not the brand gold: "provisional, not counted yet" has to read as
+	   DIFFERENT from the calculator section's brand-gold heading sitting a few
+	   pixels below it. On the gold and gilded themes a brand-derived accent would
+	   make the two sections identical, which is the confusion this whole
+	   treatment exists to remove.
+
+	   Used at alpha throughout (text-staging/80, border-staging/40, and the
+	   color-mix fills) — one token covers every weight it needs. */
+	--color-staging: #fbbf24;
 }
 
 /* ===== THEME OVERRIDES =====
@@ -295,6 +316,14 @@
 	--color-pull-neutral-border: #5f7a6a;
 	--color-pull-over: #991b1b;
 	--color-pull-over-border: #b91c1c;
+
+	/* Staging accent, deepened for light surfaces on the same reasoning as the
+	   pull colors: the dark default is a bright mid-amber meant for a near-black
+	   card and drops to ~1.7:1 on this theme's #fffaf7 raised surface. This hits
+	   7.4:1 on the page canvas and stays unmistakably amber rather than sliding
+	   into brown. Any future LIGHT theme needs its own copy; a future dark theme
+	   inherits the @theme default. */
+	--color-staging: #92400e;
 
 	/* Category accent, deepened for light surfaces on the same reasoning as the
 	   pull colors above: the dark default is a pale rose meant for a near-black

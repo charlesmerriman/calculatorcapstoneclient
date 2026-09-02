@@ -8,7 +8,6 @@ import { Link } from "react-router-dom"
 import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
-import { MLBChanceDisplay } from "./MLBChanceDisplay"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { NumberField } from "../NumberField"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
@@ -31,8 +30,7 @@ import type {
 	BannerRowType,
 	PlannableBanner,
 } from "../../utils/bannerHelpers"
-import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
-import type { CalculationConstants } from "../../types/constants"
+import { STEPS_PER_ROUND } from "../../utils/stepUpLadder"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
@@ -45,8 +43,6 @@ interface StagedBannerRowProps {
 	umaBannerData: BannerUma[]
 	supportBannerData: BannerSupport[]
 	stepUpBannerData: BannerStepUp[]
-	/** Live calculation constants, for a staged step-up's odds. */
-	constants: CalculationConstants
 	userPlannedBannerData: UserPlannedBanner[]
 	/** Every staged row, this one included — it filters itself out by tempId. */
 	stagedBanners: UserPlannedBanner[]
@@ -66,7 +62,6 @@ export const StagedBannerRow = ({
 	umaBannerData,
 	supportBannerData,
 	stepUpBannerData,
-	constants,
 	userPlannedBannerData,
 	stagedBanners
 }: StagedBannerRowProps) => {
@@ -121,7 +116,7 @@ export const StagedBannerRow = ({
 		if (conflict) {
 			toast.error(
 				conflict === "sheet"
-					? "This banner is already on your sheet."
+					? "This banner is already in your calculator."
 					: "This banner is already staged in another row."
 			)
 			return
@@ -207,21 +202,6 @@ export const StagedBannerRow = ({
 			</>
 		)
 
-	// A staged row has no projection yet, so there is no chargeableSteps to read.
-	// The existence clamp still applies — applyStepUpStrategy will apply the same
-	// one once the row is on the sheet, and showing odds for a sixth banner that
-	// does not exist would be worse than showing none.
-	const stepUpOdds =
-		target.type === "StepUp"
-			? stepUpCopyDistribution(
-					Math.min(
-						stagedBanner.number_of_pulls,
-						target.banner.banner_count * STEPS_PER_ROUND
-					),
-					constants
-			  )
-			: undefined
-
 	const bannerTimeline = plannedBannerTimeline(stagedBanner)
 
 	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
@@ -251,7 +231,7 @@ export const StagedBannerRow = ({
 						{option.label}
 						{conflict && (
 							<span className="ml-1 text-xs">
-								{conflict === "sheet" ? "(on sheet)" : "(staged)"}
+								{conflict === "sheet" ? "(in calculator)" : "(staged)"}
 							</span>
 						)}
 					</span>
@@ -302,7 +282,7 @@ export const StagedBannerRow = ({
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
 				<polyline points="20 6 9 17 4 12" />
 			</svg>
-			Add to sheet
+			Add to calculator
 		</button>
 		</div>
 	)
@@ -325,7 +305,7 @@ export const StagedBannerRow = ({
 		<NumberField
 			value={stagedBanner.reserved_copies}
 			className={`pull-input pull-input--neutral ${widthClass}`}
-			title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is on the sheet."
+			title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is added to the calculator."
 			ariaLabel="Copies obtained without pulling"
 			disabled={!hasBanner}
 			onChange={handleReservedChange}
@@ -347,11 +327,14 @@ export const StagedBannerRow = ({
 			onRemove={onDiscard}
 			removeLabel="Discard staged banner"
 			removeIcon="discard"
+			staged
 		/>
 
-		{/* Column widths come from .banner-grid (App.css), shared with the header
-		    row and BannerRow — never re-declare a width on a cell here. */}
-		<div className="banner-grid hidden w-full items-stretch bg-gray-800 h-16 @banner-table:grid">
+		{/* Column widths come from .banner-grid + .banner-grid--staged (App.css),
+		    shared with the staging header row — never re-declare a width on a cell
+		    here. The staged variant drops the MLB column and gives its width to the
+		    select, so this row has EIGHT cells where BannerRow has nine. */}
+		<div className="banner-grid banner-grid--staged staged-surface hidden w-full items-stretch h-16 @banner-table:grid">
 			{/* === Type badge === */}
 			<BannerTypeBadge type={bannerType} />
 
@@ -388,7 +371,7 @@ export const StagedBannerRow = ({
 				)}
 			</div>
 
-			{/* === Add to sheet button (replaces Derived Stats) === */}
+			{/* === Add to calculator button (replaces Derived Stats) === */}
 			<div className="flex min-w-0 items-center justify-center px-3 py-2">
 				<button
 					onClick={onConfirm}
@@ -398,7 +381,7 @@ export const StagedBannerRow = ({
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
 						<polyline points="20 6 9 17 4 12" />
 					</svg>
-					Add to sheet
+					Add to calculator
 				</button>
 			</div>
 
@@ -421,19 +404,6 @@ export const StagedBannerRow = ({
 			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{renderReservedInput("w-14")}
-			</div>
-
-			{/* === MLB chance grid === */}
-			<div className="flex items-center justify-center py-2 px-2 min-w-0">
-				{hasBanner ? (
-					<MLBChanceDisplay
-						pulls={stagedBanner.number_of_pulls}
-						plannedBanner={stagedBanner}
-						distribution={stepUpOdds}
-					/>
-				) : (
-					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>
-				)}
 			</div>
 
 			{/* === Discard button === */}

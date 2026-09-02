@@ -160,7 +160,7 @@ describe('BannerRow — same-date uma/support duplicate check', () => {
     renderEmptyRow('Support')
 
     const option = screen.getAllByTestId('option-Support Banner')[0]
-    expect(option).not.toHaveTextContent('(on sheet)')
+    expect(option).not.toHaveTextContent('(in calculator)')
   })
 
   it('lets the same-date support banner be selected after the uma banner', () => {
@@ -185,7 +185,7 @@ describe('BannerRow — same-date uma/support duplicate check', () => {
 
     fireEvent.click(screen.getAllByTestId('option-Uma Banner')[0])
 
-    expect(toast.error).toHaveBeenCalledWith('This banner is already on your sheet.')
+    expect(toast.error).toHaveBeenCalledWith('This banner is already in your calculator.')
     expect(setUserPlannedBannerData).not.toHaveBeenCalled()
   })
 
@@ -193,6 +193,6 @@ describe('BannerRow — same-date uma/support duplicate check', () => {
     renderEmptyRow('Uma')
 
     const option = screen.getAllByTestId('option-Uma Banner')[0]
-    expect(option).toHaveTextContent('(on sheet)')
+    expect(option).toHaveTextContent('(in calculator)')
   })
 })

@@ -145,6 +145,81 @@
 	min-width: var(--container-banner-table);
 }
 
+/* Staging variant — same nine-cell row minus the MLB column, whose width goes to
+   the banner select.
+
+   A staged row exists to answer one question ("which banner?"), and its odds are
+   speculative until it's on the sheet, so the widest column was spent on the
+   least useful thing. Handing that space to the select does double duty: the
+   control the row is actually for becomes the biggest thing in it, and the
+   staging block stops looking like a second copy of the sheet — which is what
+   people were misreading it as.
+
+   min-width is INHERITED from .banner-grid deliberately. The staged table stays
+   exactly as wide as the sheet below it, so the two line up on both edges and the
+   `@banner-table:` switch point still governs both. Only the internal split moves:
+   the select becomes 1fr and absorbs the freed 14rem floor (≈24.5rem at the
+   narrowest table width) plus any slack on a wider canvas.
+
+   Used by StagedBannerRow AND the staging header in CaratCalculator — both, or
+   the header drifts out of alignment with the rows it labels. */
+.banner-grid--staged {
+	grid-template-columns:
+		70px      /* type badge                          */
+		8rem      /* images                              */
+		1fr       /* banner select — takes the MLB space */
+		6.75rem   /* start / end date                    */
+		20.5rem   /* confirm button                      */
+		5rem      /* # pulls                             */
+		5rem      /* reserved copies                     */
+		2.5rem;   /* discard                             */
+}
+
+/* Amber wash marking a row as staged rather than counted.
+
+   The staging block and the calculator block were built from the same
+   materials — same gray-800 header, same gray-800 rows, same gray-700 rules —
+   so the only thing distinguishing them was a 12px heading that (until the
+   label gating was split) usually wasn't even drawn. This is the part that
+   reads before anyone parses text.
+
+   color-mix against the LIVE gray ramp, not a baked-in hex: both operands are
+   theme variables, so the tint re-derives itself on all seven themes instead of
+   painting one fixed amber over a surface that may be near-white. `in oklab`
+   keeps the mix perceptually even rather than letting it swing dark through
+   sRGB. Deliberately weak — 7% is a tint you notice beside the untinted
+   calculator rows below and stop noticing while filling the row in.
+
+   NOT applied to the staging `@container` element or any ancestor as padding or
+   a border: that element's width is what the `@banner-table:` container query
+   measures, so anything with horizontal cost would move the card/table switch
+   point (see --container-banner-table in index.css). A background costs zero
+   width, which is why the accent is a fill rather than the obvious outline.
+
+   var() rather than @apply — @apply in this file cannot resolve custom @theme
+   tokens from index.css. */
+.staged-surface,
+.staged-surface-header {
+	/* Untinted fallback. The @supports guard below is written out BY HAND rather
+	   than left to the build: Lightning CSS synthesises its own fallback for a
+	   color-mix from the mix's FIRST color, which here paints the row solid
+	   full-strength amber on any engine without color-mix (pre-2023) — and it
+	   appends that after any fallback declared here, so declaring one is not
+	   enough to win. An explicit @supports leaves it nothing to synthesise, and
+	   the degraded appearance is exactly today's: no tint, nothing broken. */
+	background-color: var(--color-gray-800);
+}
+
+@supports (background-color: color-mix(in oklab, red, red)) {
+	.staged-surface {
+		background-color: color-mix(in oklab, var(--color-staging) 7%, var(--color-gray-800));
+	}
+
+	.staged-surface-header {
+		background-color: color-mix(in oklab, var(--color-staging) 13%, var(--color-gray-800));
+	}
+}
+
 /* Sized by .banner-grid's first track, not by itself — this is a table cell. */
 .banner-type-tab {
 	@apply flex flex-col items-center justify-center gap-1

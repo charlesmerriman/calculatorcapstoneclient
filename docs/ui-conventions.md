@@ -210,11 +210,24 @@ that wants a gutter and adds its own `p-3`. A shared `p-3` in the card charged 2
 height to every row to satisfy only one of them.
 
 **A staged card is three bands, not four**: `chanceDisplay` is optional and
-`StagedBannerRow` passes none, so the phone loses the odds strip on a row that isn't on
-the sheet yet. The desktop table keeps its MLB column on staged rows — the width there is
-already paid for by the grid. Because the confirm button is then the card's last band, it
-carries a full `p-3` rather than the `p-3 pb-0` it used while the odds strip supplied the
-bottom gutter.
+`StagedBannerRow` passes none, so the phone loses the odds strip on a row that isn't in
+the calculator yet. Because the confirm button is then the card's last band, it carries a
+full `p-3` rather than the `p-3 pb-0` it used while the odds strip supplied the bottom
+gutter.
+
+**The desktop table drops its MLB column on staged rows too**, for the same reason and via
+`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine, with the
+freed `minmax(14rem, 1fr)` handed to the banner select, which becomes the flexible track.
+`min-width` is inherited unchanged, so the staged table stays exactly as wide as the
+calculator table below it and the `@banner-table:` switch point still governs both. The
+staging header row in `CaratCalculator` carries the same modifier — both, or the header
+drifts out of alignment with the rows it labels.
+
+The staged surfaces are tinted with `.staged-surface` / `.staged-surface-header`, a
+`color-mix` of `--color-staging` into the live gray ramp. The tint is a **background**
+rather than the more obvious border or inset: the staging `@container` element's width is
+what the container query measures, so anything with horizontal cost would move the
+card/table switch point.
 
 Four rules keep the phone card short, and each replaced something that measurably didn't
 fit at 390px:
@@ -345,10 +358,43 @@ announced, so without the span the column has no accessible name at all.
 Both come from `components/carat-calculator/ReservedColumnIcons.tsx`, which returns a
 fragment so each call site owns its wrapper, and exports `RESERVED_COLUMN_TITLE` so the
 tooltip wording stays one string. **A column label appears in three places** — the staging
-header, the sheet header (both in `CaratCalculator`) and the mobile card's cell label in
-`MobileBannerCard`. Changing only the headers leaves the phone showing the old text. Sizes
+header, the calculator header (both in `CaratCalculator`) and the mobile card's cell label
+in `MobileBannerCard`. Changing only the headers leaves the phone showing the old text. Sizes
 differ deliberately: `w-5` in the headers against `text-xs`, `w-4` on the card where the
 neighbouring "Pulls" label is 10px caps.
+
+### Staging is a scratch space, and has to look like one
+
+The planner has two stacked sections: **Staging** (rows being filled in) and **Calculator**
+(rows that actually count). Users repeatedly read the first as the second, planned a banner,
+and never pressed the button that counted it. Five things carry the distinction, and they
+are load-bearing together rather than individually:
+
+- **Vocabulary.** The confirm button says **"Add to calculator"**, the section it lands in
+  is labelled **CALCULATOR**, and the top buttons say **"New … Banner"**, not "Add". The
+  old pairing — "Add Uma Banner" followed by a second "Add to sheet" — made the first click
+  read as a completed action. "Sheet" is avoided in UI copy entirely now, because it also
+  means the source Google Sheet everywhere else in this codebase; in *code comments* it
+  still means the spreadsheet, and should.
+- **Both headings are gated separately** (`showStagingLabel` / `showCalculatorLabel`). They
+  used to share one flag requiring both sections to be populated, which hid the STAGING
+  heading from the only people who needed it — a first-time user has an empty calculator,
+  so their first staged banner rendered an unlabelled table. Never re-merge these.
+- **The calculator section renders while empty** whenever something is staged, showing a
+  placeholder that names the button. "This is staging, not the calculator" is unlearnable
+  when the calculator isn't on screen to be compared against. With nothing staged *and*
+  nothing planned, neither section draws.
+- **The amber wash** (`--color-staging`, `.staged-surface`) — the pre-attentive half. See
+  the banner-table section above for why it is a background and not a border.
+- **The hint line states the consequence**, not just the name: staged rows aren't counted,
+  and are lost on reload. That sentence is what actually corrects the misunderstanding;
+  everything else just gets it read.
+
+**Staged rows are deliberately not persisted** — no localStorage, no sessionStorage, never
+PATCHed. A guest's *confirmed* plan is in-memory only and a refresh discards it by design
+(see `state-and-guest-mode.md`), so persisting staging would make scratch rows outlive the
+real plan. The impermanence is stated in the UI instead. `CalculatorProvider` carries this
+reasoning at the `stagedBanners` declaration.
 
 ### Section bands: scenarios and anniversaries between planner rows
 
@@ -393,8 +439,8 @@ scenarios and anniversaries occurring between the first and last planned banner.
   otherwise empty, so a text-width target in a full-width band is needlessly hard to hit —
   and the affordance is a hover underline plus a faint wash, with **no arrow glyph**: the
   one thing distinguishing a scenario line from an anniversary one is having no icon.
-- Bands are sheet-only; the staging area is a scratch space and gets none. A sheet of fewer
-  than two rows gets none either — there is no "between".
+- Bands are calculator-only; the staging area is a scratch space and gets none. A
+  calculator of fewer than two rows gets none either — there is no "between".
 - Colour is the `--color-brand` token (`text-brand` / `bg-brand/10`), never a literal gold,
   so it survives the light-theme flip. The two kinds differ by **weight, hue and the
   anniversary's sparkle** — a scenario line carries no icon at all — see the note above on

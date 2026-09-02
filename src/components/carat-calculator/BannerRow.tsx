@@ -259,7 +259,7 @@ export const BannerRow = ({
 	const handleBannerSelect = (option: SingleValue<BannerOption>): void => {
 		if (!option) return
 		if (alreadyPlannedBannerKeys.has(optionKey(option))) {
-			toast.error("This banner is already on your sheet.")
+			toast.error("This banner is already in your calculator.")
 			return
 		}
 		const updated = updateBannerInList((banner) => ({
@@ -457,7 +457,7 @@ export const BannerRow = ({
 				<span className={alreadyPlannedBannerKeys.has(optionKey(option)) ? "text-gray-500" : ""}>
 					{option.label}
 					{alreadyPlannedBannerKeys.has(optionKey(option)) && (
-						<span className="ml-1 text-xs">(on sheet)</span>
+						<span className="ml-1 text-xs">(in calculator)</span>
 					)}
 				</span>
 			)}

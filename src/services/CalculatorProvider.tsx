@@ -67,6 +67,18 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [supportBannerData, setSupportBannerData] = useState<BannerSupport[]>([])
 	const [stepUpBannerData, setStepUpBannerData] = useState<BannerStepUp[]>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
+	// Deliberately NOT persisted — not to localStorage, not to sessionStorage,
+	// and never PATCHed. Staging is scratch space, and a reload clearing it is
+	// correct rather than a bug to fix.
+	//
+	// The reason is that persisting it would make scratch rows outlive the real
+	// plan. A guest's CONFIRMED banners are in-memory only and a refresh discards
+	// them by design (frontend/docs/state-and-guest-mode.md), so a staged row
+	// surviving a reload that wiped the calculator underneath it would be
+	// incoherent — the provisional half of the screen would be the durable half.
+	//
+	// The impermanence is stated in the UI instead: see the hint under the
+	// "Staging" heading in CaratCalculator.
 	const [stagedBanners, setStagedBanners] = useState<UserPlannedBanner[]>([])
 	const [gameEventsData, setGameEventsData] = useState<GameEvent[]>([])
 	const [championsMeetingData, setChampionsMeetingData] = useState<ChampionsMeeting[]>([])

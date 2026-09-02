@@ -249,10 +249,10 @@ function getBannerCardStatus(
 }
 
 function getBannerStatusLabel(status: BannerCardStatus): string {
-	if (status === "planned") return "Already on sheet"
+	if (status === "planned") return "Already in calculator"
 	if (status === "staged") return "Already staged"
 	if (status === "expired") return "Banner ended"
-	return "Add to Planner"
+	return "Stage banner"
 }
 
 function getBannerStatusClasses(status: BannerCardStatus): string {

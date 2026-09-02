@@ -52,13 +52,25 @@ interface MobileBannerCardProps {
 	 * A **staged** row passes none: the odds strip is the widest, most expensive
 	 * band on a phone, and a row that isn't on the sheet yet has nothing to spend
 	 * it on — the numbers it would show are answering a question the user hasn't
-	 * finished asking. The desktop table keeps its MLB column on staged rows,
-	 * where the width is already paid for.
+	 * finished asking. The desktop table drops its MLB column on staged rows for
+	 * the same reason, and gives the width to the banner select instead
+	 * (.banner-grid--staged).
 	 */
 	chanceDisplay?: ReactNode
 	onRemove: () => void
 	removeLabel: string
 	removeIcon?: "delete" | "discard"
+	/**
+	 * Marks the card as a STAGED row rather than one that counts. Swaps the
+	 * card's neutral surface for the amber staging tint, matching
+	 * .staged-surface on the desktop table so the two form factors carry the
+	 * same signal.
+	 *
+	 * A boolean rather than the caller passing class names: the tint is one
+	 * decision applied to two elements (shell and body), and a caller supplying
+	 * only one of them would half-tint the card.
+	 */
+	staged?: boolean
 }
 
 /**
@@ -151,12 +163,17 @@ export const MobileBannerCard = ({
 	onRemove,
 	removeLabel,
 	removeIcon = "delete",
+	staged = false,
 }: MobileBannerCardProps) => {
 	const Icon = removeIcon === "delete" ? Trash2 : X
 	const style = TYPE_STYLES[bannerType]
 
 	return (
-		<div className="@banner-table:hidden overflow-hidden rounded-lg border border-gray-600 bg-gray-800 shadow-sm">
+		<div
+			className={`@banner-table:hidden overflow-hidden rounded-lg border shadow-sm ${
+				staged ? "staged-surface border-staging/45" : "border-gray-600 bg-gray-800"
+			}`}
+		>
 			<div className={`flex min-h-[64px] items-stretch ${style.tile}`}>
 				<div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 bg-black/15 px-1">
 					<span className="text-xs font-bold tracking-wide text-white">
@@ -190,7 +207,7 @@ export const MobileBannerCard = ({
 				</button>
 			</div>
 
-			<div className="bg-gray-900/35">
+			<div className={staged ? "bg-black/15" : "bg-gray-900/35"}>
 				{/* Tracks are narrow and there is no "Dates" caps label, both to buy
 				    width for the dates — the flexible track, and the one that used to
 				    lose: `Start:` and `End:` side by side want ~234px and a 390px
