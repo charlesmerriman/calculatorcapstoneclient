@@ -5,18 +5,23 @@ import { Gem } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useUncapCrystals } from "../../hooks/useUncapCrystals"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
-import { formatDate } from "../../utils/dateFormat"
 import { isBannerTimeline } from "../../types"
 
-interface DateOption {
+interface BannerOption {
+	/** The banner's id, not its end date — two banners can share an end date, and
+	 *  a duplicated value would make the second one select as the first. */
 	value: string
 	label: string
+	endDate: string
 }
 
 const iconCls = "w-4 h-4 shrink-0 text-brand"
 
 // Cell showing a value (or placeholder when no date selected) with optional colored background.
-const CrystalCell = ({ value, selected, green, className = "" }: { value: number; selected: boolean; green: boolean; className?: string }) => (
+// `unit` is the singular noun; it pluralises on anything but exactly 1, so the
+// cell reads "1 Crystal" / "0 Crystals" rather than relying on the column header
+// to say what the number counts.
+const CrystalCell = ({ value, selected, green, unit, className = "" }: { value: number; selected: boolean; green: boolean; unit: string; className?: string }) => (
 	<div
 		className={[
 			"flex items-center justify-center px-2 py-1.5 text-sm font-bold",
@@ -24,14 +29,17 @@ const CrystalCell = ({ value, selected, green, className = "" }: { value: number
 			className,
 		].join(" ")}
 	>
-		{selected ? value.toLocaleString() : "—"}
+		{selected ? `${value.toLocaleString()} ${unit}${value === 1 ? "" : "s"}` : "—"}
 	</div>
 )
 
 export const UncapCrystalsPanel = () => {
 	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, organizedTimelineData } =
 		useCalculatorData()
-	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null)
+	const [selectedOption, setSelectedOption] = useState<BannerOption | null>(null)
+	// The estimate is still purely a function of the end date; the option only
+	// exists so the control can be labelled with the banner's name.
+	const selectedEndDate = selectedOption?.endDate ?? null
 
 	// Race payouts come from incomeLedger, not championsMeetingData /
 	// leagueOfHeroesData: the ledger is where a race event's reward instant is
@@ -51,15 +59,14 @@ export const UncapCrystalsPanel = () => {
 	// Filter organizedTimelineData to BannerTimelineForViewing entries only.
 	// This used to test for "banner_umas" structurally; it narrows on the
 	// backend's event_type tag now (see isBannerTimeline in types/calculator).
-	const bannerOptions: DateOption[] = organizedTimelineData
+	const bannerOptions: BannerOption[] = organizedTimelineData
 		.filter(isBannerTimeline)
 		.filter((t) => new Date(t.end_date) >= now)
 		.map((t) => ({
-			value: t.end_date,
-			label: formatDate(t.end_date),
+			value: String(t.id),
+			label: t.name,
+			endDate: t.end_date,
 		}))
-
-	const selectedOption = bannerOptions.find((o) => o.value === selectedEndDate) ?? null
 
 	return (
 		// Capped and centred while the income panel is compact, matching the
@@ -70,28 +77,29 @@ export const UncapCrystalsPanel = () => {
 				Uncap Crystals
 			</h3>
 
-			<Select<DateOption>
+			<Select<BannerOption>
 				styles={compactSelectStyles}
 				menuPortalTarget={document.body}
 				menuPosition="fixed"
-				placeholder="Select Banner Date for Estimate"
+				placeholder="Select Banner for Estimate"
 				options={bannerOptions}
 				value={selectedOption}
-				onChange={(opt: SingleValue<DateOption>) => setSelectedEndDate(opt ? opt.value : null)}
+				onChange={(opt: SingleValue<BannerOption>) => setSelectedOption(opt ?? null)}
 			/>
 
 			<div className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border border-gray-700">
 				{/* Column headers */}
-				<div className="border-b border-r border-gray-700 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">SSR Crystals/Shards</div>
-				<div className="border-b border-gray-700 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">SR Crystals/Shards</div>
+				<div className="border-b border-r border-gray-700 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">SSR</div>
+				<div className="border-b border-gray-700 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">SR</div>
 
 				{/* Crystal rows (green) */}
-				<CrystalCell value={crystals.ssrCrystals} selected={!!selectedEndDate} green className="border-r border-b border-gray-700" />
-				<CrystalCell value={crystals.srCrystals} selected={!!selectedEndDate} green className="border-b border-gray-700" />
+				<CrystalCell value={crystals.ssrCrystals} selected={!!selectedEndDate} green unit="Crystal" className="border-r border-b border-gray-700" />
+				<CrystalCell value={crystals.srCrystals} selected={!!selectedEndDate} green unit="Crystal" className="border-b border-gray-700" />
 
-				{/* Shard rows (neutral) — color differentiation makes the row label redundant */}
-				<CrystalCell value={crystals.ssrShards} selected={!!selectedEndDate} green={false} className="border-r border-gray-700" />
-				<CrystalCell value={crystals.srShards} selected={!!selectedEndDate} green={false} />
+				{/* Shard rows (neutral) — each cell names its own unit now, so the
+				    header only has to carry the rarity */}
+				<CrystalCell value={crystals.ssrShards} selected={!!selectedEndDate} green={false} unit="Shard" className="border-r border-gray-700" />
+				<CrystalCell value={crystals.srShards} selected={!!selectedEndDate} green={false} unit="Shard" />
 			</div>
 		</div>
 	)
