@@ -274,8 +274,36 @@ export const Timeline = () => {
 	const [viewMode, setViewMode] = useState<TimelineViewMode>(readStoredViewMode)
 	const [visibleCount, setVisibleCount] = useState(INFINITE_CHUNK_SIZE)
 	const sentinelRef = useRef<HTMLDivElement | null>(null)
-	// One ref for whichever card is the focus target — see TimelineFocusProps.
+	// One ref for whichever card the list is anchored on — see TimelineFocusProps.
 	const focusCardRef = useRef<HTMLDivElement | null>(null)
+	// The card list and the controls band, both measured when the reader clears
+	// the search box: the first to find which row they are looking at, the second
+	// because it is sticky and covers the top of the scrollport, so "the topmost
+	// row" means the topmost row BELOW it. See measureAnchorRow.
+	const listRef = useRef<HTMLDivElement | null>(null)
+	const controlsRef = useRef<HTMLDivElement | null>(null)
+
+	/**
+	 * The row the list is held on after the search box is cleared.
+	 *
+	 * Clearing a search does not widen the list, it REPLACES it — eight rows
+	 * become two hundred and fifty — so there is no scroll offset worth
+	 * preserving: pixel 4200 of the filtered list and pixel 4200 of the full one
+	 * are unrelated places. The thing that survives the change is a row identity,
+	 * and everything else is derived from where that row lands in the new list.
+	 *
+	 * Held as a `timelineRowKey` rather than a `TimelineFocus` for two reasons.
+	 * A key exists for all three row kinds, where a focus cannot name a race event
+	 * at all (see rowMatchesFocus) — and a search matches race events, so one is
+	 * routinely on screen when the box is cleared. And it stays out of the URL,
+	 * which keeps the deep-link contract in utils/timelineFocus.ts to the one job
+	 * it was written for.
+	 */
+	const [anchorRowKey, setAnchorRowKey] = useState<string | null>(null)
+	// Where on screen that row sat at the moment of clearing, so it can be put
+	// back there rather than jumped to the top. A ref, not state: it is read once
+	// during the scroll and must never itself cause a render.
+	const anchorOffsetRef = useRef<number | null>(null)
 
 	// Back to top. Measured off an anchor node rather than window.scrollY,
 	// which is always 0 on the desktop shell — see hooks/useBackToTop.
@@ -481,13 +509,36 @@ export const Timeline = () => {
 		return MARKER_ORDER.filter((kind) => present.has(kind))
 	}, [scenarioData, anniversaryEventData])
 
-	// Where the focus target ended up once filtering, grouping and marker merging
-	// are all done — -1 while the data is still loading, and for a target this
-	// timeline genuinely doesn't hold.
-	const focusRowIndex = useMemo(
-		() => (focus ? timelineRows.findIndex((row) => rowMatchesFocus(row, focus)) : -1),
-		[focus, timelineRows]
-	)
+	/**
+	 * Where the row the list is anchored on ended up, once filtering, grouping and
+	 * marker merging are all done — -1 when there is nothing to anchor to.
+	 *
+	 * TWO SOURCES, ONE INDEX. A deep link from the calculator names a target in
+	 * the URL; clearing the search box names one in `anchorRowKey`. Everything
+	 * downstream — the reveal window, the page, the tailroom, the scroll — only
+	 * ever wanted "which row", so they are resolved to a single index here rather
+	 * than each learning about both. The URL wins where both exist, though in
+	 * practice they cannot: typing in the search box drops the deep link (see
+	 * clearFocus), so by the time a search is cleared there is no focus left.
+	 *
+	 * -1 also covers an anchor the new list doesn't hold — narrow the category
+	 * filter after clearing and the row is simply gone. That degrades to the
+	 * ordinary reset rather than needing a case of its own.
+	 */
+	const anchorRowIndex = useMemo(() => {
+		if (focus) return timelineRows.findIndex((row) => rowMatchesFocus(row, focus))
+		if (anchorRowKey !== null) {
+			return timelineRows.findIndex((row) => timelineRowKey(row) === anchorRowKey)
+		}
+		return -1
+	}, [focus, anchorRowKey, timelineRows])
+
+	// Resolved back to a key so the render can ask "is this the anchor row?"
+	// without comparing positions. visibleRows is a SLICE in paged mode, so its
+	// indices don't line up with timelineRows' and an index comparison there would
+	// hand the ref to the wrong card.
+	const anchoredRowKey =
+		anchorRowIndex >= 0 ? timelineRowKey(timelineRows[anchorRowIndex]) : null
 
 	const totalPages = Math.max(1, Math.ceil(timelineRows.length / PAGE_SIZE))
 
@@ -504,6 +555,12 @@ export const Timeline = () => {
 	 * through the reader's own filtering.
 	 */
 	const clearFocus = useCallback((): void => {
+		// The local anchor goes with it, and goes FIRST — before the early return,
+		// which only knows about the URL. An anchor left standing would override the
+		// page below exactly the way a stale focus parameter would, so "Next" would
+		// appear to do nothing.
+		setAnchorRowKey(null)
+		anchorOffsetRef.current = null
 		if (!searchParams.has(TIMELINE_FOCUS_PARAM)) return
 		const next = new URLSearchParams(searchParams)
 		next.delete(TIMELINE_FOCUS_PARAM)
@@ -527,9 +584,9 @@ export const Timeline = () => {
 	// A resolved focus target takes the page over until the reader moves — every
 	// control that moves or narrows the list clears the parameter first (see
 	// clearFocus), so this can't strand them on one page.
-	const focusPage =
-		focusRowIndex >= 0 ? Math.floor(focusRowIndex / PAGE_SIZE) + 1 : null
-	const effectivePage = Math.min(focusPage ?? currentPage, totalPages)
+	const anchorPage =
+		anchorRowIndex >= 0 ? Math.floor(anchorRowIndex / PAGE_SIZE) + 1 : null
+	const effectivePage = Math.min(anchorPage ?? currentPage, totalPages)
 
 	/**
 	 * How much of the infinite list is on screen: the revealed prefix, widened to
@@ -544,10 +601,10 @@ export const Timeline = () => {
 	 * without it.
 	 */
 	const revealCount =
-		focusRowIndex >= 0
+		anchorRowIndex >= 0
 			? Math.max(
 					visibleCount,
-					Math.ceil((focusRowIndex + 1) / INFINITE_CHUNK_SIZE) * INFINITE_CHUNK_SIZE +
+					Math.ceil((anchorRowIndex + 1) / INFINITE_CHUNK_SIZE) * INFINITE_CHUNK_SIZE +
 						FOCUS_TRAILING_ROWS
 				)
 			: visibleCount
@@ -560,9 +617,9 @@ export const Timeline = () => {
 	 * only at the genuine end of the timeline — the one case revealing more
 	 * cannot fix.
 	 */
-	const focusNeedsTailroom =
-		focusRowIndex >= 0 &&
-		timelineRows.length - (focusRowIndex + 1) < FOCUS_TRAILING_ROWS
+	const anchorNeedsTailroom =
+		anchorRowIndex >= 0 &&
+		timelineRows.length - (anchorRowIndex + 1) < FOCUS_TRAILING_ROWS
 
 	// Paged mode windows by page; infinite mode reveals a prefix that only grows.
 	// Without an IntersectionObserver there is nothing to drive the growth, so
@@ -593,6 +650,96 @@ export const Timeline = () => {
 	const resetListWindow = (): void => {
 		goToPage(1)
 		setVisibleCount(INFINITE_CHUNK_SIZE)
+	}
+
+	/**
+	 * Which row the reader is currently looking at, and where on screen it sits.
+	 *
+	 * Read straight off the DOM, and only at the moment the search box is cleared
+	 * — the alternative, an IntersectionObserver tracking the topmost row
+	 * continuously, would run on every scroll frame of a page that can hold 250
+	 * image-heavy cards to produce a value wanted once per visit, if ever.
+	 *
+	 * The list container's leading children ARE the rendered cards, one per
+	 * `visibleRows` entry and in the same order — the sentinel, the end-of-list
+	 * line and the tailroom all come after them, and the "No events found." line
+	 * only renders when there are no rows at all (so `limit` is 0 and the loop
+	 * never runs). That correspondence is what lets this find a row without
+	 * threading a data attribute through all three card components.
+	 *
+	 * "Topmost" is measured against the BOTTOM OF THE CONTROLS BAND, not the top of
+	 * the viewport. That band is sticky at the app-shell breakpoint, so the first
+	 * few hundred pixels of the scrollport are covered by it and a row measured as
+	 * being at the top may be one the reader cannot see at all.
+	 *
+	 * A row is "the one being read" if any part of it is still below that line —
+	 * hence `bottom`, not `top`. Someone halfway down a tall banner card is
+	 * reading that card, not the one after it, and the offset returned is
+	 * negative in that case so it can be put back exactly as scrolled rather than
+	 * pulled down into view.
+	 */
+	const measureAnchorRow = (): { key: string; offset: number } | null => {
+		const list = listRef.current
+		if (!list) return null
+
+		const floor = controlsRef.current?.getBoundingClientRect().bottom ?? 0
+		const limit = Math.min(list.children.length, visibleRows.length)
+
+		for (let index = 0; index < limit; index += 1) {
+			const rect = list.children[index].getBoundingClientRect()
+			// jsdom reports every rect as zero, so nothing here ever matches under
+			// test and the anchor stays null — which is the pre-existing behaviour.
+			if (rect.bottom > floor) {
+				return { key: timelineRowKey(visibleRows[index]), offset: rect.top }
+			}
+		}
+		return null
+	}
+
+	/**
+	 * Restart the list window, optionally holding the reader's place.
+	 *
+	 * Order matters here and is not incidental. `resetListWindow` clears the
+	 * anchor along with the deep link (via clearFocus), so the captured row is
+	 * re-applied AFTER it — set first, it would be thrown away by the very reset
+	 * it exists to survive.
+	 */
+	const rebuildList = (anchor: { key: string; offset: number } | null): void => {
+		resetListWindow()
+		if (anchor) {
+			setAnchorRowKey(anchor.key)
+			anchorOffsetRef.current = anchor.offset
+		}
+	}
+
+	/**
+	 * NARROWING RESTARTS THE LIST; WIDENING KEEPS YOUR PLACE.
+	 *
+	 * The two controls below share one rule. Cutting the list down is a fresh
+	 * question and belongs at the top of the answer — page 7 of a now-two-page
+	 * result renders empty, which is what resetListWindow has always been for.
+	 * Going back to the whole list is the opposite: the reader has found what they
+	 * were looking for and now wants to see what surrounds it, so the row they are
+	 * on is captured first and the full list is rebuilt around it.
+	 *
+	 * Each control has its own un-narrowed value — an empty query, and "all" —
+	 * and the capture happens on the transition INTO it, never on a move between
+	 * two narrow values. Those degrade on their own: a rerun banner is not in the
+	 * revivals list, so the anchor simply doesn't resolve and the reset stands.
+	 *
+	 * Both measure before any state is set, while the DOM still holds the list the
+	 * reader is actually looking at.
+	 */
+	const handleSearchChange = (value: string): void => {
+		const anchor = searchQuery !== "" && value === "" ? measureAnchorRow() : null
+		setSearchQuery(value)
+		rebuildList(anchor)
+	}
+
+	const handleFilterChange = (value: EventFilter): void => {
+		const anchor = eventFilter !== "all" && value === "all" ? measureAnchorRow() : null
+		setEventFilter(value)
+		rebuildList(anchor)
 	}
 
 	const changeViewMode = (mode: TimelineViewMode): void => {
@@ -642,7 +789,14 @@ export const Timeline = () => {
 	// Composite key: `focusParam` alone would not re-run when the row index
 	// moves from -1 to a real position as the data arrives, and that is the
 	// commit which first puts the card in the DOM.
-	useFocusScroll(focusCardRef, focusRowIndex >= 0 ? `${focusParam}#${focusRowIndex}` : null)
+	// The key names the SOURCE as well as the position — `focusParam` alone would
+	// be null for a search-clear anchor, so two consecutive clears landing on
+	// different rows at the same index would not re-run.
+	useFocusScroll(
+		focusCardRef,
+		anchorRowIndex >= 0 ? `${focusParam ?? anchorRowKey}#${anchorRowIndex}` : null,
+		anchorOffsetRef
+	)
 
 	return (
 		<div className="w-full bg-gray-900 pb-6">
@@ -661,7 +815,10 @@ export const Timeline = () => {
 			    through it once cards start passing underneath. The two colors are
 			    within a few percent of each other on every theme, so nothing visibly
 			    changes at rest. z-30 sits above the cards, below FloatingBackToTop. */}
-			<div className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)] app-shell:sticky app-shell:top-0 app-shell:z-30 app-shell:bg-gray-950">
+			<div
+				ref={controlsRef}
+				className="border-y border-gray-700/60 bg-gray-950/40 shadow-[0_8px_24px_rgba(0,0,0,0.22)] app-shell:sticky app-shell:top-0 app-shell:z-30 app-shell:bg-gray-950"
+			>
 				<div className="mx-auto grid w-full max-w-[96rem] grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
 					<div className="flex w-full flex-col gap-2 justify-self-start sm:flex-row sm:flex-wrap md:w-auto">
 						{/* Desktop only — on a phone this band scrolls away, so the floating
@@ -736,10 +893,7 @@ export const Timeline = () => {
 									id="timeline-event-filter"
 									className={`${categorySelectClass} w-full sm:w-auto`}
 									value={eventFilter}
-									onChange={(e) => {
-										setEventFilter(e.target.value as EventFilter)
-										resetListWindow()
-									}}
+									onChange={(e) => handleFilterChange(e.target.value as EventFilter)}
 								>
 									<option value="all">All events</option>
 									{/* Grouped, because the two lists answer different
@@ -774,36 +928,55 @@ export const Timeline = () => {
 								className={searchInputClass}
 								placeholder="Search characters or events..."
 								value={searchQuery}
-								onChange={(e) => { setSearchQuery(e.target.value); resetListWindow() }}
+								onChange={(e) => handleSearchChange(e.target.value)}
 							/>
 						</div>
 					</div>
 				</div>
 			</div>
 
-			<div className="page-container flex flex-col items-center">
+			<div ref={listRef} className="page-container flex flex-col items-center">
 				{timelineRows.length === 0 && (
 					<div className="text-gray-500 mt-8">No events found.</div>
 				)}
 				{visibleRows.map((row) => {
-					// Spread rather than passed as two props so the un-focused case —
-					// every card but at most one — stays literally empty, and the ref
-					// can only ever be claimed by the card the link named.
-					const focusProps: TimelineFocusProps =
-						focus && rowMatchesFocus(row, focus)
-							? { focusRef: focusCardRef, isFocused: true }
-							: {}
+					const rowKey = timelineRowKey(row)
+
+					// THE REF AND THE RING ARE NO LONGER THE SAME QUESTION.
+					//
+					// The ref goes to whichever row the list is anchored on, from either
+					// source. The ring means "this is the card you clicked through for"
+					// and so stays on the deep link alone: a reader who cleared the search
+					// box arrived nowhere, and lighting up a card they never chose would
+					// be the only thing that visibly happened — the row itself is being
+					// held exactly where it already was.
+					//
+					// Still spread rather than passed as props, so every card but at most
+					// one stays literally empty and neither can be claimed twice.
+					const focusProps: TimelineFocusProps = {
+						...(rowKey === anchoredRowKey ? { focusRef: focusCardRef } : {}),
+						...(focus && rowMatchesFocus(row, focus) ? { isFocused: true } : {}),
+					}
 
 					// Champions Meetings and League of Heroes events share one card — they
 					// carry the same data and are meant to look the same. Everything else
 					// is a banner window, which may hold more than one concurrent banner.
+					//
+					// A race takes the ref but never the ring — it can be the anchor (a
+					// search matches race events) but never a deep link target, which is
+					// why RaceEventCard accepts only the one prop.
 					return row.kind === "race" ? (
-						<RaceEventCard key={timelineRowKey(row)} event={row.event} today={today} />
+						<RaceEventCard
+							key={rowKey}
+							event={row.event}
+							today={today}
+							focusRef={focusProps.focusRef}
+						/>
 					) : row.kind === "marker" ? (
-						<EventMarkerCard key={timelineRowKey(row)} marker={row.marker} {...focusProps} />
+						<EventMarkerCard key={rowKey} marker={row.marker} {...focusProps} />
 					) : (
 						<BannerWindowCard
-							key={timelineRowKey(row)}
+							key={rowKey}
 							group={row.group}
 							today={today}
 							plannedBannerKeys={plannedBannerKeys}
@@ -839,7 +1012,7 @@ export const Timeline = () => {
 				{/* Room to scroll a target that the list runs out beneath. Last, so
 				    the reader sees the end-of-list line before the empty space, and
 				    aria-hidden because there is nothing here to read. */}
-				{focusNeedsTailroom && (
+				{anchorNeedsTailroom && (
 					<div aria-hidden="true" className={FOCUS_TAILROOM} />
 				)}
 			</div>

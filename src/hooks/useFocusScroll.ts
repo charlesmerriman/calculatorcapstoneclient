@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useLayoutEffect } from "react"
 import type { RefObject } from "react"
 
 /**
@@ -45,6 +45,28 @@ export const FOCUS_SCROLL_MARGIN = "scroll-mt-6"
 export const FOCUS_TAILROOM = "h-[100dvh] w-full shrink-0"
 
 /**
+ * Landing an element back at the exact screen position it already occupied,
+ * without knowing which element is the scroller.
+ *
+ * The window is NOT the scroller at the `app-shell` breakpoint (see
+ * hooks/useBackToTop.ts), so `scrollBy` to nudge a landing by N pixels is a
+ * silent no-op on desktop. `scroll-margin-top` has no such problem: it shifts
+ * where `scrollIntoView` parks the element, and the browser resolves it against
+ * whatever scroller is actually live.
+ *
+ * The margin needed is not the offset itself — the scrollport does not start at
+ * viewport y=0 (a navbar sits above it, and a sticky control band below that).
+ * So the alignment CALIBRATES: park the node flush, measure where flush landed,
+ * and the difference between that and the wanted offset is the margin. One extra
+ * layout read, and nothing has to know the page's chrome heights.
+ *
+ * Negative margins are allowed through deliberately. A reader halfway down a
+ * tall card has a negative offset — the card starts above the fold — and
+ * clamping to zero would jump that card down to meet them, which is the movement
+ * this exists to avoid.
+ */
+
+/**
  * How stubbornly the scroll holds its target while the page settles.
  *
  * Two stable frames rather than one: a single still frame is also what you get
@@ -57,6 +79,28 @@ export const FOCUS_TAILROOM = "h-[100dvh] w-full shrink-0"
 const SETTLE_STABLE_FRAMES = 2
 const SETTLE_TIMEOUT_MS = 1200
 const SETTLE_TOLERANCE_PX = 1
+
+/**
+ * Set the margin that will hold `node` at `offsetPx` down the scrollport.
+ *
+ * Call ONCE, on an already-flush-aligned node, and let subsequent alignments
+ * inherit it. Re-calibrating on a node that already carries a margin measures
+ * the margin's own effect and cancels it out — the correction would oscillate
+ * between the wanted offset and flush rather than converging.
+ *
+ * Module-level, taking the node as a parameter, rather than inline in the hook:
+ * a DOM write reached through a hook argument is what `react-hooks/immutability`
+ * refuses, and this is the honest shape of it anyway — a small imperative
+ * operation on an element, named.
+ */
+function calibrateScrollOffset(node: HTMLElement, offsetPx: number): void {
+	node.style.scrollMarginTop = `${offsetPx - node.getBoundingClientRect().top}px`
+}
+
+/** Undo it. See the cleanup in useFocusScroll for why this is not optional. */
+function clearScrollOffset(node: HTMLElement): void {
+	node.style.scrollMarginTop = ""
+}
 
 /**
  * Scroll `target` to the top of its scroller, then keep correcting until the
@@ -79,15 +123,28 @@ const SETTLE_TOLERANCE_PX = 1
  * no guard — jsdom reports every rect as zero, which reads as "already stable"
  * and ends it two frames in.
  *
+ * Runs as a LAYOUT effect, not a passive one. Both callers reach this from a
+ * state change that rebuilt the list under the reader, so a passive effect can
+ * leave a frame of the un-scrolled list on screen before correcting. That was
+ * tolerable while the only caller was a deep link arriving on a fresh route; it
+ * is not once the hook is also asked to hold a card still (see `offset`), where
+ * a one-frame flick to the top of the list is the entire bug.
+ *
  * @param target The node to bring into view.
  * @param key    Re-runs whenever this changes. Null disables the hook, which is
  *               how a caller says "no deep link" or "target not resolved yet".
+ * @param offset Optional. Where on screen to park the node, in pixels from the
+ *               top of the scrollport, INSTEAD of flush at the top. A ref rather
+ *               than a value so it stays out of the dependency list — it is read
+ *               at alignment time and must never be a reason to re-scroll on its
+ *               own. Null or absent means the ordinary top-aligned landing.
  */
 export function useFocusScroll(
 	target: RefObject<HTMLElement | null>,
-	key: string | number | null
+	key: string | number | null,
+	offset?: RefObject<number | null>
 ): void {
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (key === null) return
 		const node = target.current
 		if (typeof node?.scrollIntoView !== "function") return
@@ -103,7 +160,21 @@ export function useFocusScroll(
 		// has already happened by the time render() returns.
 		align()
 
-		if (typeof requestAnimationFrame !== "function") return
+		// Then, if the caller wants the node held somewhere other than flush at the
+		// top, calibrate off where flush actually landed and re-align. Both reads
+		// and both aligns happen inside this one synchronous block, so the reader
+		// never sees the intermediate position. See the OFFSET note above.
+		const wantedTop = offset?.current ?? null
+		if (wantedTop !== null) {
+			calibrateScrollOffset(node, wantedTop)
+			align()
+		}
+
+		if (typeof requestAnimationFrame !== "function") {
+			// No settle loop to clean up after, but the inline margin must still go:
+			// it would otherwise outlive this landing and displace the next one.
+			return () => clearScrollOffset(node)
+		}
 
 		// Any deliberate move by the reader ends the correction immediately.
 		// Re-aligning under someone who has started scrolling themselves would
@@ -144,6 +215,9 @@ export function useFocusScroll(
 		return () => {
 			cancelAnimationFrame(frame)
 			for (const type of interruptions) window.removeEventListener(type, abandon)
+			// Drop the calibrated margin. Leaving it would silently offset the NEXT
+			// landing on this node by a distance measured for a different scroll.
+			clearScrollOffset(node)
 		}
-	}, [target, key])
+	}, [target, key, offset])
 }

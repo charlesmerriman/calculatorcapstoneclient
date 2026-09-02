@@ -511,6 +511,127 @@ describe('Timeline paged position', () => {
   })
 })
 
+/**
+ * Narrowing the list restarts it; widening it holds the reader's place.
+ *
+ * The search box and the category filter share one rule — see
+ * `handleSearchChange` / `handleFilterChange` in Timeline.tsx. These assert the
+ * widening half, which is the new behaviour; the narrowing half is covered by
+ * 'restarts the reveal window when the search filter changes' above.
+ */
+describe('Timeline keeps its place when a filter is lifted', () => {
+  /**
+   * Fake a scroll position, because jsdom lays nothing out and reports every
+   * rect as zero — which is why the measurement is inert under test by default
+   * and none of the pre-existing cases changed behaviour.
+   *
+   * Cards before `index` are pushed above the fold with a negative `bottom`, so
+   * the measurement skips them; `index` itself is put `offsetPx` down the
+   * screen. The controls band keeps jsdom's all-zero rect, and that is the
+   * floor the measurement compares against, so any positive `bottom` counts as
+   * visible.
+   */
+  function scrollListTo(index: number, offsetPx = 120): void {
+    const list = document.querySelector('.page-container')
+    expect(list, 'no list container to measure').not.toBeNull()
+    const cards = Array.from(list!.children).slice(0, cardCount())
+    expect(cards.length, 'fewer cards rendered than the scroll target').toBeGreaterThan(index)
+
+    cards.forEach((card, i) => {
+      const top = i < index ? -600 : offsetPx + (i - index) * 700
+      vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({
+        top,
+        bottom: top + 600,
+      } as DOMRect)
+    })
+  }
+
+  function search(): HTMLElement {
+    return screen.getByPlaceholderText('Search characters or events...')
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // 'Window 1' matches Windows 10-19 — rows 9 to 18 of the full list — so the
+  // third result is row 12, comfortably past the ten-row chunk a plain reset
+  // would leave on screen. That is what makes the assertion below decisive
+  // rather than a coincidence of the fixture's length.
+  it('reveals past the row you were on when the search is cleared', () => {
+    renderTimeline()
+    fireEvent.change(search(), { target: { value: 'Window 1' } })
+    expect(cardCount()).toBe(10)
+
+    scrollListTo(3) // Window 13, row 12 of the unfiltered list
+    fireEvent.change(search(), { target: { value: '' } })
+
+    // A reset to the first chunk could not show row 12 at all.
+    expect(screen.getByText(/2099\/1\/13 through/)).toBeInTheDocument()
+    expect(cardCount()).toBe(TOTAL_EVENTS)
+  })
+
+  it('does not draw the arrival ring on a row the reader never clicked', () => {
+    renderTimeline()
+    fireEvent.change(search(), { target: { value: 'Window 1' } })
+    scrollListTo(3)
+    fireEvent.change(search(), { target: { value: '' } })
+
+    // The ring means "this is the card you followed a link to". Clearing a
+    // search is not an arrival, and the row is being held exactly where it
+    // already was — a ring would be the only thing that visibly happened.
+    expect(
+      document.querySelectorAll(`.${TIMELINE_FOCUS_HIGHLIGHT.split(' ').join('.')}`)
+    ).toHaveLength(0)
+  })
+
+  it('lands on the page holding that row, not page 1', () => {
+    renderTimeline()
+    fireEvent.click(screen.getByRole('button', { name: /use pages/i }))
+    fireEvent.change(search(), { target: { value: 'Window 1' } })
+
+    scrollListTo(3) // row 12 -> page 2
+    fireEvent.change(search(), { target: { value: '' } })
+
+    expect(screen.getAllByText(/Page/)[0]).toHaveTextContent('Page 2 of 3')
+    expect(screen.getByText(/2099\/1\/13 through/)).toBeInTheDocument()
+  })
+
+  it('holds the row when a category filter is lifted back to all events', () => {
+    // Every fifth window a rerun, so the filter is offered at all and the
+    // matches are scattered through the full list rather than bunched at one
+    // end: Windows 05, 10, 15, 20 and 25, at rows 4, 9, 14, 19 and 24.
+    events = BASE_EVENTS.map((event, i) =>
+      i % 5 === 4 ? { ...event, banner_category: 'rerun' as BannerCategory } : event
+    )
+    renderTimeline()
+
+    const filter = screen.getByLabelText('Filter events')
+    fireEvent.change(filter, { target: { value: 'rerun' } })
+    expect(cardCount()).toBe(5)
+
+    scrollListTo(3) // Window 20, row 19 of the unfiltered list
+    fireEvent.change(filter, { target: { value: 'all' } })
+
+    expect(screen.getByText(/2099\/1\/20 through/)).toBeInTheDocument()
+    expect(cardCount()).toBe(TOTAL_EVENTS)
+  })
+
+  it('still restarts the list when a filter is tightened rather than lifted', () => {
+    renderTimeline()
+    fireEvent.change(search(), { target: { value: 'Window 1' } })
+    scrollListTo(3)
+
+    // Narrowing from one query to a stricter one. The reader is asking a new
+    // question, so their old place is not worth keeping — and the measurement
+    // must not run just because the DOM would answer it.
+    fireEvent.change(search(), { target: { value: 'Window 13' } })
+
+    expect(cardCount()).toBe(1)
+    expect(screen.getByText(/2099\/1\/13 through/)).toBeInTheDocument()
+  })
+})
+
 describe('Timeline date formatting', () => {
   it('renders banner windows as YYYY/M/D', () => {
     renderTimeline()

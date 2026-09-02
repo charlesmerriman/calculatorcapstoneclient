@@ -689,6 +689,13 @@ card per campaign with no filtering.
 - **Both windows reset through `resetListWindow()` in the filter handlers, not from an
   effect.** Resetting in an effect commits the stale window and re-renders over it — a
   visible flash, and what `react-hooks/set-state-in-effect` flags.
+- **Narrowing restarts the list; widening holds the reader's place.** Cutting the list
+  down is a new question and belongs at the top of the answer. Going back to the whole
+  list is the opposite — the reader found what they wanted and now wants its context — so
+  `handleSearchChange` / `handleFilterChange` capture the row on screen first and rebuild
+  around it. Each control has one un-narrowed value (an empty query, `"all"`) and the
+  capture happens only on the transition *into* it; a move between two narrow values
+  degrades on its own, because the row simply won't resolve in the new list.
 - **Cards key off `timelineRowKey(row)`** — `cm-` / `loh-` + id for race events, `win-` +
   the shared start date for a banner window. Ids are unique only *within* a model, and
   positional keys make React reuse a card's DOM — including decoded images — for a
@@ -734,7 +741,10 @@ rows' card art both link through it; the Timeline resolves the target.
   (`revealCount`). Writing state once the data arrives commits the un-focused list first
   and re-renders over it, which is the same flash `resetListWindow()` exists to avoid.
   Only the `scrollIntoView` is an effect, because it is a genuine DOM side effect —
-  and it is guarded, since jsdom implements no `scrollIntoView` at all.
+  and it is guarded, since jsdom implements no `scrollIntoView` at all. It is a **layout**
+  effect: a passive one can leave a frame of the un-scrolled list on screen first, which
+  is tolerable for a deep link arriving on a fresh route and is the entire bug when the
+  hook is asked to hold a card still (below).
 - **The focus scroll is INSTANT, and then re-corrects until the page stops moving.**
   Not a downgrade from the smooth scroll it replaced: `scrollIntoView` fixes its
   destination when called, so anything growing above the target mid-animation leaves it
@@ -753,7 +763,9 @@ rows' card art both link through it; the Timeline resolves the target.
 - **Any control that moves or narrows the list clears the parameter** (`clearFocus`, called
   from `goToPage`). The focus target overrides the current page, so holding on to it would
   make "Next" look broken; dropping it also retires the arrival ring
-  (`TIMELINE_FOCUS_HIGHLIGHT`) at the moment the reader moves on.
+  (`TIMELINE_FOCUS_HIGHLIGHT`) at the moment the reader moves on. It drops the local
+  anchor (below) as well, and does so *before* its own early return — that return only
+  knows about the URL, and an anchor left standing overrides the page identically.
 - **A target needs ROWS BELOW IT to be scrollable to the top.** `scrollIntoView` cannot
   scroll past the bottom of a scroller, so a card with nothing under it stays wherever the
   last scroll position leaves it whatever `block` says. `revealCount` therefore adds
@@ -774,12 +786,52 @@ rows' card art both link through it; the Timeline resolves the target.
   whichever node carries `focusRef`, which is *not* always the node wearing
   `TIMELINE_FOCUS_HIGHLIGHT`: a banner window rings its panel but scrolls its wrapper, so
   that the campaign strip above the panel comes into view too.
-- **One ref for the focused card**, handed to whichever card matches via `TimelineFocusProps`
-  — so there is no per-row ref bookkeeping and two cards cannot claim the highlight at once.
-  On `BannerWindowCard` the ref goes on the outer wrapper (so scrolling accounts for the
-  campaign strip) and the ring on the panel (whose rounding it has to follow).
+- **One ref for the ANCHORED card**, handed to whichever card matches via
+  `TimelineFocusProps` — so there is no per-row ref bookkeeping and two cards cannot claim
+  it at once. On `BannerWindowCard` the ref goes on the outer wrapper (so scrolling
+  accounts for the campaign strip) and the ring on the panel (whose rounding it has to
+  follow).
+- **The ref and the ring are no longer the same question.** The ref follows whichever row
+  the list is anchored on, from either source; `isFocused` follows the deep link alone.
+  `RaceEventCard` therefore takes `focusRef` and *no* `isFocused` — a race can be the
+  anchor (a search matches race events by name and track) but can never be a link target,
+  and `rowMatchesFocus` excludes the kind outright.
 
-Covered by `src/__tests__/timelineFocus.test.ts` and the "Timeline deep links" suite.
+### The anchor: two sources, one row index
+
+`anchorRowIndex` is the single answer to "which row is the list built around", resolved
+from a deep link's `focus` **or** from `anchorRowKey`, the local state set when a filter is
+lifted (see "Narrowing restarts the list" above). Everything downstream — `revealCount`,
+`anchorPage`, `anchorNeedsTailroom`, the scroll — only ever wanted *which row*, so they
+read one index rather than each learning about both sources. The URL wins where both
+exist, though in practice they cannot: typing in the search box drops the deep link.
+
+- **The anchor is a `timelineRowKey`, not a `TimelineFocus`.** A key exists for all three
+  row kinds where a focus cannot name a race event at all, and a search matches race
+  events — so one is routinely on screen when the box is cleared. It also stays out of the
+  URL, leaving `utils/timelineFocus.ts` to the one job it was written for.
+- **The row is found by measuring, once, at the moment of the lift** — `measureAnchorRow`
+  reads the list container's leading children, which are the rendered cards one-for-one.
+  A standing `IntersectionObserver` would run every scroll frame of a page holding 250
+  image-heavy cards to produce a value wanted once a visit, if ever.
+- **"Topmost" means topmost below the CONTROLS BAND**, which is sticky at the app-shell
+  breakpoint and covers the top of the scrollport. A row is the one being read if any part
+  of it is still below that line — hence `bottom`, not `top`: someone halfway down a tall
+  banner card is reading that card, not the one after it.
+- **The row is put back where it was, not at the top.** `useFocusScroll`'s optional
+  `offset` ref carries the row's pre-lift screen position. It cannot be applied with
+  `scrollBy` — the window is not the scroller at app-shell (see `useBackToTop`) — so it
+  goes on as `scroll-margin-top`, which the browser resolves against whatever scroller is
+  live. The margin is **calibrated, not the offset itself**: park flush, measure where
+  flush landed, and the difference is the margin. Calibrate **once** — re-calibrating a
+  node that already carries a margin measures the margin's own effect and oscillates.
+  The cleanup clears it, or it silently displaces the next landing on that node.
+- **Under jsdom every rect is zero, so the measurement returns null and the ordinary reset
+  stands.** That is why no pre-existing test changed behaviour, and why the new ones stub
+  `getBoundingClientRect` per card to fake a scroll position.
+
+Covered by `src/__tests__/timelineFocus.test.ts`, the "Timeline deep links" suite and
+"Timeline keeps its place when a filter is lifted".
 
 ### Marker cards: scenario launches and campaign openings
 
