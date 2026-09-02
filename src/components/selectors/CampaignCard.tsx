@@ -123,18 +123,24 @@ export const CampaignCard = ({
 				{packs.length === 0 && <p className="text-sm text-gray-500">No discounted packs.</p>}
 				</div>
 
-				<div className="min-w-0 px-4 py-3">
+				{/* Own @container: how many selector columns fit is a question about
+				    THIS column's width, not the viewport's — it is one cell of a
+				    3-column band whose share of the page shifts with the others. */}
+				<div className="@container min-w-0 px-4 py-3">
 				{selectors.length > 0 && (
 					<div className="min-w-0">
 						<h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-brand">
 							<Ticket className="h-4 w-4 shrink-0" />
 							Selectors
 						</h4>
-						<ul className="divide-y divide-gray-700/80">
+						{/* Breakpoints follow the cell's needs, not a round number: a
+						    128px thumbnail plus a button wide enough for names like
+						    "Agnes Tachyon (Summer)" wants ~350px of cell. */}
+						<ul className="grid gap-2 @2xl:grid-cols-2 @6xl:grid-cols-3">
 							{selectors.map((line) => (
 								<li
 									key={line.product.id}
-									className="py-2"
+									className="min-w-0 rounded-md border border-gray-700/70 bg-gray-900/20 p-2"
 								>
 									<div className="flex items-center gap-2">
 										<input
@@ -162,7 +168,6 @@ export const CampaignCard = ({
 												disabled={locked}
 												onChange={(target) => onTargetChange(line, target)}
 											/>
-											{line.product.jp_cutoff_date && <p className="mt-1 text-[0.7rem] text-gray-500">JP cutoff: {formatDate(line.product.jp_cutoff_date)}</p>}
 										</div>
 									)}
 								</li>

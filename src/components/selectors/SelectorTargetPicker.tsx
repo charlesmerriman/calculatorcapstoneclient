@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { Search, X } from "lucide-react"
+import { ImagePlus, Search, X } from "lucide-react"
 import { useEligibleCardCatalogue } from "../../hooks/useEligibleCardCatalogue"
+import { formatDate } from "../../utils/dateFormat"
 import type { EligibleCard } from "../../hooks/useEligibleCardCatalogue"
 import type {
 	AnniversaryEventProduct,
@@ -74,15 +75,26 @@ export const SelectorTargetPicker = ({
 	const clear = () =>
 		onChange({ uma: null, support: null })
 
+	const canPick = !disabled && options.length > 0
+
+	// Grid tile size inside the modal.
 	const cardSizeClass = isUma ? "h-28 w-28" : "h-28 w-[5.25rem]"
+	// The chosen card is the point of the row, so it gets the space: a fixed
+	// HEIGHT (both pools are portrait-or-square, so height is the aspect-safe
+	// dimension) with the frame hugging it, and the button stack taking
+	// whatever is left. Sizing by height also keeps every thumbnail in the grid
+	// on one line. What must NOT come back is the old 128px frame in its own
+	// grid column, which set the row's height and left the button's column
+	// empty for most of it.
+	const thumbClass = isUma ? "h-32 w-32" : "h-32 w-24"
 
 	return (
-		<div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,30rem)_minmax(10rem,1fr)]">
-			<div className="min-w-0">
+		<div className="flex min-w-0 items-start gap-3">
+			<div className="min-w-0 flex-1">
 				<div className="flex min-w-0 gap-1">
 					<button
 						type="button"
-						disabled={disabled || options.length === 0}
+						disabled={!canPick}
 						aria-haspopup="dialog"
 						aria-expanded={isOpen}
 						className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-3 py-1.5 text-left text-xs text-gray-100 transition hover:border-gray-500 disabled:cursor-not-allowed disabled:text-gray-500"
@@ -109,20 +121,45 @@ export const SelectorTargetPicker = ({
 						</button>
 					)}
 				</div>
+				{/* The cutoff belongs to the picker rather than the caller: it is
+				    what decides which cards the catalogue above offers. */}
+				{product.jp_cutoff_date && (
+					<p className="mt-1 text-[0.7rem] text-gray-500">
+						JP cutoff: {formatDate(product.jp_cutoff_date)}
+					</p>
+				)}
 			</div>
-			<div className="flex min-h-32 items-center justify-center rounded-md border border-gray-700 bg-gray-900/35">
-				{selected && (
+			{/* Kept mounted while empty so choosing a card doesn't reflow the row
+			    (and, in a grid of these, every sibling cell with it). At this size
+			    an inert empty box would just be the dead space again, so the frame
+			    opens the picker too — dashed while it is still a placeholder.
+			    Mouse-only sugar: aria-hidden + tabIndex -1 keep it out of the
+			    a11y tree, where the labelled button beside it already does this. */}
+			<button
+				type="button"
+				aria-hidden="true"
+				tabIndex={-1}
+				disabled={!canPick}
+				className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border bg-gray-900/35 transition ${thumbClass} ${
+					selected ? "border-gray-700" : "border-dashed border-gray-600 text-gray-600"
+				} ${canPick ? "hover:border-gray-500" : "cursor-not-allowed"}`}
+				onClick={() => {
+					setSearch("")
+					setIsOpen(true)
+				}}
+			>
+				{selected ? (
 					<img
 						src={selected.image}
 						alt={selected.label}
 						loading="lazy"
 						decoding="async"
-						className={`rounded-md border border-gray-600 bg-gray-700 object-contain shadow-sm ${
-							isUma ? "h-32 w-32" : "h-32 w-24"
-						}`}
+						className={`object-contain ${thumbClass}`}
 					/>
+				) : (
+					<ImagePlus className="h-6 w-6" />
 				)}
-			</div>
+			</button>
 
 			{isOpen && createPortal(
 				<div
