@@ -110,9 +110,9 @@ carried on the `BannerRowType` tag, never inferred from which FK is set (see
 | Mobile tile colour + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
 | Which catalogue the row's select offers | `bannersForRowType` in `bannerHelpers` |
 
-These are stock palette classes (`bg-blue-900` / `bg-green-900` / `bg-purple-900`), not
-`@theme` tokens — the token rule applies to theme-sensitive **status** colours, which
-these are not.
+The normal palette uses stock classes (`bg-blue-900` / `bg-green-900` / `bg-purple-900`).
+Colorblind mode overrides the named badge/tile hooks with dark blue and red; keep those
+hooks on both desktop and mobile treatments.
 
 Adding a fourth kind means touching each row of that table once. It used to mean finding
 six hand-copied ternaries, any of which failed silently by rendering another kind's
@@ -186,7 +186,8 @@ Two things fix it together, and neither works alone:
 
 - **The control is a field.** Translucent black fill, a white-alpha border, and a real
   focus state. Alphas rather than theme tokens because this control has three different
-  backgrounds to read against — the row's type colour, blue / green / purple from
+  backgrounds to read against — the row's type colour, blue / green / purple (or blue /
+  red in colorblind mode) from
   `TYPE_STYLES` — and no single token suits all three. The old style also set
   `boxShadow: "none"` unconditionally, which took the keyboard focus ring with it.
 - **The placeholder is an action.** `Target Support Banner` is a noun phrase and reads as a

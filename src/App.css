@@ -9,6 +9,17 @@
 		shadow-sm text-base font-medium text-center;
 }
 
+/* Colorblind mode remaps the green success treatment to the same blue used by
+   the pull-status fields. Unlike a hue-only override, it also updates borders
+   and fills so the state changes are immediately visible. */
+[data-colorblind-mode="true"] .input-currency {
+	border-color: var(--color-pull-ok-border);
+}
+
+[data-colorblind-mode="true"] .input-currency:focus {
+	border-color: var(--color-pull-ok);
+}
+
 /* ===== FORM LABELS ===== */
 
 /* Right-aligned label used in the IncomeForm grid */
@@ -238,12 +249,61 @@
 	@apply bg-purple-900;
 }
 
+/* Colorblind mode removes the green calculator cues: Uma remains dark blue,
+   while Support, Step Up and the staging action use red. These selectors
+   override the stock utility fills only in that mode. */
+[data-colorblind-mode="true"] .banner-type-tab--uma,
+[data-colorblind-mode="true"] .banner-type-tile--uma {
+	background-color: #1d4ed8;
+}
+
+[data-colorblind-mode="true"] .banner-type-tab--support,
+[data-colorblind-mode="true"] .banner-type-tile--support,
+[data-colorblind-mode="true"] .add-to-calculator-button {
+	background-color: #991b1b;
+}
+
+[data-colorblind-mode="true"] .banner-type-tab--step-up,
+[data-colorblind-mode="true"] .banner-type-tile--step-up {
+	background-color: #991b1b;
+}
+
+[data-colorblind-mode="true"] .add-to-calculator-button:hover {
+	background-color: #7f1d1d;
+}
+
+[data-colorblind-mode="true"] .add-to-calculator-label {
+	color: #fca5a5;
+}
+
+[data-colorblind-mode="true"] .step-up-pool-chip {
+	color: #fca5a5;
+}
+
+.crystal-cell--available {
+	@apply bg-green-900/60 text-green-300;
+}
+
+[data-colorblind-mode="true"] .crystal-cell--available {
+	color: var(--color-pull-ok);
+	background-color: color-mix(in srgb, var(--color-pull-ok-border) 22%, var(--color-gray-700));
+}
+
 /* The step-up action is semantically distinct from the ordinary banner actions.
    Its colour comes from theme tokens so the light theme does not inherit the
    dark theme's pale purple on a warm, bright surface. */
 .step-up-add-button {
 	border-color: var(--color-step-up-border);
 	color: var(--color-step-up);
+}
+
+[data-colorblind-mode="true"] .step-up-add-button {
+	border-color: #f87171;
+	color: #fca5a5;
+}
+
+[data-colorblind-mode="true"] .step-up-add-button:hover {
+	background-color: rgb(153 27 27 / 18%);
 }
 
 @supports (background-color: color-mix(in srgb, red, transparent)) {
@@ -418,6 +478,16 @@
 		bg-gray-800 border-l border-gray-700 text-red-400
 		hover:bg-gray-700 hover:text-red-400 transition
 		cursor-pointer select-none;
+}
+
+/* A reserved-copy shortfall is the only compact status label outside a
+   .pull-input. Keep it on the orange error palette with colorblind mode on. */
+.status-over-text {
+	@apply text-red-400;
+}
+
+[data-colorblind-mode="true"] .status-over-text {
+	color: var(--color-pull-over);
 }
 
 /* ===== MLB CHANCE GRID ===== */

@@ -132,6 +132,7 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 	 *
 	 * The fill and border are white/black alphas rather than theme tokens on
 	 * purpose. This control sits on the row's TYPE colour — blue, green or purple
+	 * (blue, lighter blue or red with colorblind mode on)
 	 * (`TYPE_STYLES` in MobileBannerCard) — so it has three different backgrounds
 	 * to read against and no single token can suit all three. Alphas darken and
 	 * outline whatever is behind them.

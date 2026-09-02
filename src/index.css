@@ -340,6 +340,27 @@
 	--color-category-revival-border: #c04a78;
 }
 
+/* Blue/orange is distinguishable for the common red-green colour vision
+   deficiencies. The mode only remaps status colours; labels, borders and
+   tooltips continue to communicate the state independently of hue. */
+[data-colorblind-mode="true"] {
+	--color-pull-ok: #60a5fa;
+	--color-pull-ok-border: #3b82f6;
+	--color-pull-neutral: #94a3b8;
+	--color-pull-neutral-border: #64748b;
+	--color-pull-over: #fb923c;
+	--color-pull-over-border: #f97316;
+}
+
+[data-theme="light"][data-colorblind-mode="true"] {
+	--color-pull-ok: #1d4ed8;
+	--color-pull-ok-border: #2563eb;
+	--color-pull-neutral: #526273;
+	--color-pull-neutral-border: #64748b;
+	--color-pull-over: #9a3412;
+	--color-pull-over-border: #c2410c;
+}
+
 /* Light-theme polish lives here rather than in each component so every existing
    card, form, timeline entry, and auth view gains the same sense of hierarchy.
    The two low-opacity glows keep large empty areas intentional without competing

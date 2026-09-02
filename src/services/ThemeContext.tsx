@@ -12,6 +12,8 @@ export interface ThemeContextType {
 	activeTheme: string
 	themes: ThemeConfig[]
 	setTheme: (id: string) => void
+	colorblindMode: boolean
+	setColorblindMode: (enabled: boolean) => void
 }
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined)

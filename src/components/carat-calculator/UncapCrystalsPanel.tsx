@@ -25,7 +25,7 @@ const CrystalCell = ({ value, selected, green, unit, className = "" }: { value: 
 	<div
 		className={[
 			"flex items-center justify-center px-2 py-1.5 text-sm font-bold",
-			green ? "bg-green-900/60 text-green-300" : "bg-gray-700 text-gray-300",
+			green ? "crystal-cell--available" : "bg-gray-700 text-gray-300",
 			className,
 		].join(" ")}
 	>

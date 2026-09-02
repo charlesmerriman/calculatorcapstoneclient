@@ -4,6 +4,7 @@ import { ThemeContext } from "./ThemeContext"
 import type { ThemeConfig } from "./ThemeContext"
 
 const STORAGE_KEY = "uma-planner-theme"
+const COLORBLIND_MODE_STORAGE_KEY = "uma-planner-colorblind-mode"
 const DEFAULT_THEME = "gold"
 
 // To add a new theme: add one entry here AND add a [data-theme="x"] block in index.css
@@ -25,10 +26,21 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 		document.documentElement.setAttribute("data-theme", id)
 		return id
 	})
+	const [colorblindMode, setColorblindModeState] = useState<boolean>(() => {
+		const enabled = localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY) === "true"
+		// Keep the status palette in place before the app first paints, just like
+		// the selected theme above.
+		document.documentElement.setAttribute("data-colorblind-mode", String(enabled))
+		return enabled
+	})
 
 	useEffect(() => {
 		document.documentElement.setAttribute("data-theme", activeTheme)
 	}, [activeTheme])
+
+	useEffect(() => {
+		document.documentElement.setAttribute("data-colorblind-mode", String(colorblindMode))
+	}, [colorblindMode])
 
 	const setTheme = (id: string) => {
 		if (!THEMES.some((t) => t.id === id)) return
@@ -36,8 +48,19 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 		setActiveTheme(id)
 	}
 
+	const setColorblindMode = (enabled: boolean) => {
+		localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, String(enabled))
+		setColorblindModeState(enabled)
+	}
+
 	return (
-		<ThemeContext.Provider value={{ activeTheme, themes: THEMES, setTheme }}>
+		<ThemeContext.Provider value={{
+			activeTheme,
+			themes: THEMES,
+			setTheme,
+			colorblindMode,
+			setColorblindMode
+		}}>
 			{children}
 		</ThemeContext.Provider>
 	)

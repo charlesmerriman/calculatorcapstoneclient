@@ -402,7 +402,7 @@ export const BannerRow = ({
 					title={stepUpCutoffHint}
 					className="flex flex-col items-center justify-center leading-none"
 				>
-					<span className="text-sm font-bold text-purple-300">{stepUpChip}</span>
+					<span className="step-up-pool-chip text-sm font-bold text-purple-300">{stepUpChip}</span>
 					{stepUpCutoff && (
 						<span className="mt-0.5 text-[9px] text-gray-400">
 							≤ {formatDate(stepUpCutoff)}
@@ -703,7 +703,7 @@ export const BannerRow = ({
 				<span
 					title={reservedHint}
 					className={`text-[10px] leading-tight ${
-						reservedStatus === "over" ? "text-red-400" : "text-gray-400"
+						reservedStatus === "over" ? "status-over-text" : "text-gray-400"
 					}`}
 				>
 					{reservedStatus === "over"

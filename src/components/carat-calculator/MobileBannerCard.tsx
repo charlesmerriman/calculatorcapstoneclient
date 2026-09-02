@@ -87,12 +87,12 @@ const TYPE_STYLES: Record<
 	BannerRowType,
 	{ label: string; tile: string; thumbTileRadius: string }
 > = {
-	Uma: { label: "UMA", tile: "bg-blue-900", thumbTileRadius: "rounded-md" },
-	Support: { label: "SUPPORT", tile: "bg-green-900", thumbTileRadius: "rounded-none" },
+	Uma: { label: "UMA", tile: "banner-type-tile--uma bg-blue-900", thumbTileRadius: "rounded-md" },
+	Support: { label: "SUPPORT", tile: "banner-type-tile--support bg-green-900", thumbTileRadius: "rounded-none" },
 	// Provisional: a step-up carries no featured cards, so the thumb radius is
 	// moot until its own artwork lands. Final treatment comes with the step-up
 	// UI phase — see step-up-banners-plan.md.
-	StepUp: { label: "STEP UP", tile: "bg-purple-900", thumbTileRadius: "rounded-md" },
+	StepUp: { label: "STEP UP", tile: "banner-type-tile--step-up bg-purple-900", thumbTileRadius: "rounded-md" },
 }
 
 /**

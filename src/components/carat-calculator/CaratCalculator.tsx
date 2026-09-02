@@ -370,7 +370,7 @@ export const CaratCalculator: React.FC = () => {
 												<p className="text-sm text-gray-400">Nothing in your calculator yet.</p>
 												<p className="mt-1 text-xs text-gray-500">
 													Pick a banner above, then press{" "}
-													<span className="font-semibold text-green-400">Add to calculator</span>{" "}
+													<span className="add-to-calculator-label font-semibold text-green-400">Add to calculator</span>{" "}
 													to start counting it.
 												</p>
 											</div>
