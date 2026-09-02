@@ -169,7 +169,9 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 		...provided,
 		maxWidth: "100%",
 		margin: 0,
-		color: "var(--color-gray-100)",
+		// This control sits on a dark translucent fill over the banner-type
+		// header, including in the light theme where gray-100 is plum ink.
+		color: "#fff",
 		fontSize: "clamp(0.875rem, 2vw, 1rem)",
 		fontWeight: 500,
 		textAlign: "left",
@@ -180,7 +182,7 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 	placeholder: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		margin: 0,
-		color: "var(--color-gray-200)",
+		color: "rgba(255,255,255,0.82)",
 		fontSize: "clamp(0.875rem, 2vw, 1rem)",
 		textAlign: "left",
 		whiteSpace: "nowrap",
