@@ -97,8 +97,23 @@ export const About: React.FC = () => {
 						<a href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener noreferrer" className={link}>
 							Henry Handsome Derby
 						</a>{" "}
-						YouTube channel and the spreadsheet above. There is no company behind it and
-						no team — corrections and bug reports genuinely do get read and acted on.
+						YouTube channel and the spreadsheet above. There is no company behind it —
+						just a couple of players:
+					</p>
+					<ul className={list}>
+						<li>
+							<strong>Daboochy</strong> — built the site and keeps it running: the
+							calculator itself, the projection engine behind it, and the banner and
+							event data it runs on.
+						</li>
+						<li>
+							<strong>Daptrius</strong> — the person behind the resource spreadsheet this
+							site grew out of, and the source of much of the maths and data its numbers
+							rest on.
+						</li>
+					</ul>
+					<p className={paragraph}>
+						Corrections and bug reports genuinely do get read and acted on.
 					</p>
 
 					<h2 className={heading}>What it costs, and what it asks of you</h2>
