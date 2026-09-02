@@ -238,6 +238,20 @@
 	@apply bg-purple-900;
 }
 
+/* The step-up action is semantically distinct from the ordinary banner actions.
+   Its colour comes from theme tokens so the light theme does not inherit the
+   dark theme's pale purple on a warm, bright surface. */
+.step-up-add-button {
+	border-color: var(--color-step-up-border);
+	color: var(--color-step-up);
+}
+
+@supports (background-color: color-mix(in srgb, red, transparent)) {
+	.step-up-add-button:hover {
+		background-color: color-mix(in srgb, var(--color-step-up) 10%, transparent);
+	}
+}
+
 /* Stat label/value pair in the banner header */
 .banner-stat-label {
 	@apply text-[10px] text-gray-500 leading-tight;

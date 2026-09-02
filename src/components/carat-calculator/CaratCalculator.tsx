@@ -54,8 +54,7 @@ const ADD_BANNER_BUTTONS: {
 		// "Step Up", unhyphenated, matching the type tile on the row this creates.
 		short: "Step Up",
 		full: "New Step-Up Banner",
-		className:
-			"border border-purple-400 bg-transparent text-purple-300 hover:bg-purple-400/10",
+		className: "step-up-add-button border bg-transparent",
 	},
 ]
 

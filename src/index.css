@@ -171,6 +171,11 @@
 	   Used at alpha throughout (text-staging/80, border-staging/40, and the
 	   color-mix fills) — one token covers every weight it needs. */
 	--color-staging: #fbbf24;
+
+	/* Step-up banners are a distinct paid-only plan type. This keeps their
+	   violet action separate from the normal brand buttons across themes. */
+	--color-step-up: #c4b5fd;
+	--color-step-up-border: #c084fc;
 }
 
 /* ===== THEME OVERRIDES =====
@@ -324,6 +329,8 @@
 	   into brown. Any future LIGHT theme needs its own copy; a future dark theme
 	   inherits the @theme default. */
 	--color-staging: #92400e;
+	--color-step-up: #713a85;
+	--color-step-up-border: #8b4aa0;
 
 	/* Category accent, deepened for light surfaces on the same reasoning as the
 	   pull colors above: the dark default is a pale rose meant for a near-black
