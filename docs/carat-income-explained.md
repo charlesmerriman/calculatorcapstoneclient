@@ -159,6 +159,10 @@ Tickets work differently from carats here: everyone gets 2 uma + 2 support ticke
 the 24th, and the paid pass adds 2 more of each on top. So a free-tier account gets its
 carats on the 1st but its tickets on the 24th.
 
+The paid pass also pays **1 SSR uncap shard a month**. The free tier gets none, so this
+is the one reward on the pass with no free-tier version at all. It feeds the Uncap
+Crystals panel like every other shard — 20 of them make a crystal.
+
 ### Monthly Shop Tickets — *your toggle, on by default*
 
 **4 uma + 4 support tickets on the 2nd of each month.** These cost no carats, because

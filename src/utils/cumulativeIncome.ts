@@ -252,6 +252,8 @@ export interface TrainingPassIncome {
 	paidCarats: number
 	umaTickets: number
 	supportTickets: number
+	/** SSR uncap shards. Paid tier only — see the note on the carats/tickets split. */
+	ssrShards: number
 }
 
 /**
@@ -272,6 +274,12 @@ export interface TrainingPassIncome {
  * Carats are either/or (the paid reward replaces the free tier's) while tickets
  * are base + bonus (the paid pass stacks). The paid tier's total is split across
  * both balances because part of it is purchased currency.
+ *
+ * SSR shards are a third shape again: paid tier ONLY, with no free-tier amount
+ * to stack on. They ride the same month count as everything else here, so the
+ * pass never pays a shard on a different clock from its carats. The sheet does
+ * not model pass shards at all, so that one has no cell reference above and a
+ * parity audit will show it as ours alone rather than as a discrepancy.
  */
 export function cumulativeTrainingPassIncome(
 	today: Date,
@@ -279,7 +287,13 @@ export function cumulativeTrainingPassIncome(
 	hasPaidPass: boolean,
 	k: CalculationConstants
 ): TrainingPassIncome {
-	const empty = { freeCarats: 0, paidCarats: 0, umaTickets: 0, supportTickets: 0 }
+	const empty = {
+		freeCarats: 0,
+		paidCarats: 0,
+		umaTickets: 0,
+		supportTickets: 0,
+		ssrShards: 0,
+	}
 	const launch = trainingPassLaunch(k)
 	if (end <= launch) return empty
 
@@ -302,5 +316,6 @@ export function cumulativeTrainingPassIncome(
 			months *
 			(k.training_pass_free_support_tickets +
 				(hasPaidPass ? k.training_pass_paid_bonus_support_tickets : 0)),
+		ssrShards: hasPaidPass ? months * k.training_pass_paid_ssr_shards : 0,
 	}
 }

@@ -113,7 +113,7 @@ Each is a closed form from `today` to the banner's end date `E`.
 | Daily quests + weekly login | `CEILING(days × (base + weekly/7), 10)` — a **blended** rate | `AN42` |
 | Team Trials | Complete weeks since the Monday of the current week | `AO42` |
 | Club Rank | Complete months since the 1st of the current month | `AP42` |
-| Training Pass | Complete months since launch; carats either/or, tickets base + bonus | `AQ42`/`BA42`/`BH42` |
+| Training Pass | Complete months since launch; carats either/or, tickets base + bonus, SSR shard paid-tier only | `AQ42`/`BA42`/`BH42` (the shard is ours — the sheet has no cell for it) |
 | Daily Carat Pack | Daily drip (free) + a lump per cycle (paid) | `AR42`/`AZ42` |
 | Champions Meeting / LoH | Count of ledger rows × the user's rank payout | `AS42`/`AT42` |
 | 50-day login + Valentine's + White Day | Completed cycles, plus each gift the window reaches | `AU42` |

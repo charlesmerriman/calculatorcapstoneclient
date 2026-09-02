@@ -153,7 +153,8 @@ export function useAverageMonthlyIncome({
 		const ssrShards =
 			events.ssrShards +
 			cmCount * (cmRank?.ssr_shard_amount ?? 0) +
-			lohCount * (lohRank?.ssr_shard_amount ?? 0)
+			lohCount * (lohRank?.ssr_shard_amount ?? 0) +
+			pass.ssrShards
 		const srShards =
 			events.srShards +
 			cmCount * (cmRank?.sr_shard_amount ?? 0) +
