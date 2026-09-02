@@ -21,6 +21,7 @@ import {
   MONTHLY_BASE_REWARD,
   TRAINING_PASS_MONTHLY_FREE_CARATS,
   TRAINING_PASS_MONTHLY_PAID_CARATS,
+  TRAINING_PASS_PAID_SSR_SHARDS,
   DEFAULT_CONSTANTS as K,
 } from '../constants/gameConstants'
 import { addUtcDays } from '../utils/utcDates'
@@ -151,6 +152,7 @@ describe('cumulativeTrainingPassIncome', () => {
       paidCarats: 0,
       umaTickets: 0,
       supportTickets: 0,
+      ssrShards: 0,
     })
   })
 
@@ -174,5 +176,22 @@ describe('cumulativeTrainingPassIncome', () => {
     const paid = cumulativeTrainingPassIncome(TODAY, end, true, K)
     expect(paid.umaTickets).toBeGreaterThan(free.umaTickets)
     expect(free.umaTickets).toBeGreaterThan(0)
+  })
+
+  it('gives the SSR shard to the paid tier only', () => {
+    const end = utc('2027-09-15T00:00:00Z') // one complete month past launch
+    expect(cumulativeTrainingPassIncome(TODAY, end, true, K).ssrShards).toBe(
+      TRAINING_PASS_PAID_SSR_SHARDS
+    )
+    // Unlike the tickets, there is no free-tier shard to fall back to.
+    expect(cumulativeTrainingPassIncome(TODAY, end, false, K).ssrShards).toBe(0)
+  })
+
+  it('counts the shard on the same monthly clock as the carats', () => {
+    // Three complete months past the 2027-08-15 launch.
+    const end = utc('2027-11-15T00:00:00Z')
+    const paid = cumulativeTrainingPassIncome(TODAY, end, true, K)
+    expect(paid.ssrShards).toBe(3 * TRAINING_PASS_PAID_SSR_SHARDS)
+    expect(paid.paidCarats).toBe(3 * TRAINING_PASS_MONTHLY_PAID_CARATS)
   })
 })

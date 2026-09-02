@@ -270,7 +270,8 @@ export function useBannerResources({
 			const ssrShards =
 				events.ssrShards +
 				cmCount * (championsMeetingRank?.ssr_shard_amount ?? 0) +
-				lohCount * (leagueOfHeroesRank?.ssr_shard_amount ?? 0)
+				lohCount * (leagueOfHeroesRank?.ssr_shard_amount ?? 0) +
+				pass.ssrShards
 
 			return {
 				freeCarats,

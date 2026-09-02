@@ -291,6 +291,32 @@ describe('ledger rewards', () => {
   })
 })
 
+describe('training pass shards', () => {
+  // The pass does not launch until 2027, so every test here backdates the
+  // constant rather than faking the clock. 35 days out is one complete month
+  // whatever month it starts in.
+  const launched = {
+    constants: { ...DEFAULT_CONSTANTS, training_pass_start_date: '2020-01-01' },
+  }
+  const perMonth = DEFAULT_CONSTANTS.training_pass_paid_ssr_shards
+
+  it('credits the paid pass its monthly SSR shard', () => {
+    const off = render([umaBanner(1, 1, 35)], { training_pass: false }, launched)
+    const on = render([umaBanner(1, 1, 35)], { training_pass: true }, launched)
+    expect(off[0].ssrShards).toBe(0)
+    expect(on[0].ssrShards).toBe(perMonth)
+  })
+
+  it('rolls its shards into a crystal at the banner, not at the end of the plan', () => {
+    // A crystal earned here is spendable on THIS banner's reserved copies, so
+    // the shard has to reach the same rollover the event shards do.
+    const stats = { training_pass: true, ssr_shards: 20 - perMonth }
+    const [row] = render([umaBanner(1, 1, 35)], stats, launched)
+    expect(row.ssrCrystals).toBe(1)
+    expect(row.ssrShards).toBe(0)
+  })
+})
+
 describe('result shape', () => {
   it('aligns results positionally with the input list, not the spend order', () => {
     // Banner 2 opens first, so it resolves first — but its result must still

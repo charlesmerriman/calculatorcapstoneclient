@@ -34,7 +34,7 @@ const CrystalCell = ({ value, selected, green, unit, className = "" }: { value: 
 )
 
 export const UncapCrystalsPanel = () => {
-	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, organizedTimelineData } =
+	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, organizedTimelineData, calculationConstants } =
 		useCalculatorData()
 	const [selectedOption, setSelectedOption] = useState<BannerOption | null>(null)
 	// The estimate is still purely a function of the end date; the option only
@@ -52,6 +52,7 @@ export const UncapCrystalsPanel = () => {
 		championsMeetingRankData,
 		leagueOfHeroesRankData,
 		selectedEndDate,
+		calculationConstants,
 	)
 
 	const now = new Date()

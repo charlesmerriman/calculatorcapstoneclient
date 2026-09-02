@@ -124,6 +124,17 @@ describe('useAverageMonthlyIncome', () => {
     expect(beyond.carats).toBe(baseline.carats)
   })
 
+  it('credits the paid training pass one SSR shard a month', () => {
+    // The pass does not launch until 2027; backdating the constant is how the
+    // window reaches it without faking the clock. Five complete months in a
+    // five-month window averages to exactly one a month.
+    const launched = { ...DEFAULT_CONSTANTS, training_pass_start_date: '2020-01-01' }
+    const off = render({ training_pass: false }, { constants: launched })
+    const on = render({ training_pass: true }, { constants: launched })
+    expect(off.ssrShards).toBe(0)
+    expect(on.ssrShards).toBe(DEFAULT_CONSTANTS.training_pass_paid_ssr_shards)
+  })
+
   it('scales race events by the user\'s rank, including shards', () => {
     const baseline = render()
     const ranked = render({}, {

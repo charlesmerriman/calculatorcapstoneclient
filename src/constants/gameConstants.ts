@@ -261,6 +261,17 @@ export const TRAINING_PASS_PAID_BONUS_UMA_TICKETS = 2
 export const TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS = 2
 
 /**
+ * SSR uncap shards from an ACTIVE paid Training Pass, on the same monthly clock
+ * as its carats and tickets.
+ *
+ * Deliberately NOT a free/bonus pair like the tickets above: the free tier
+ * earns no shards at all, so there is nothing to add this to. If that ever
+ * changes it wants a `TRAINING_PASS_FREE_SSR_SHARDS` beside it rather than a
+ * conditional here.
+ */
+export const TRAINING_PASS_PAID_SSR_SHARDS = 1
+
+/**
  * ── Defaults for the admin-editable constants ────────────────────────────────
  *
  * `/calculator-data` serves the live values from the `CalculationConstants`
@@ -296,6 +307,7 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 	training_pass_free_support_tickets: TRAINING_PASS_FREE_SUPPORT_TICKETS,
 	training_pass_paid_bonus_uma_tickets: TRAINING_PASS_PAID_BONUS_UMA_TICKETS,
 	training_pass_paid_bonus_support_tickets: TRAINING_PASS_PAID_BONUS_SUPPORT_TICKETS,
+	training_pass_paid_ssr_shards: TRAINING_PASS_PAID_SSR_SHARDS,
 
 	// The sheet models this as a MONTHLY figure and drips it as monthly/30;
 	// MISC_EARNINGS_PER_DAY is the legacy engine's per-day equivalent.

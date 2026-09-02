@@ -33,6 +33,8 @@ export interface CalculationConstants {
 	training_pass_free_support_tickets: number
 	training_pass_paid_bonus_uma_tickets: number
 	training_pass_paid_bonus_support_tickets: number
+	/** SSR uncap shards per month from an ACTIVE paid pass. The free tier gets none. */
+	training_pass_paid_ssr_shards: number
 
 	// Login campaigns & annual gifts
 	misc_earnings_monthly: number
