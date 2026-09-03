@@ -388,6 +388,22 @@ Three things about it are load-bearing:
   decided; `NumberField`'s `mediumStep` / `largeStep` are its keyboard mirror, advertised
   in the pad's footer.
 
+**It needs no phone-specific wiring, but it does need two phone-specific
+allowances.** The card and the desktop cell render the *same* `pullsInput` node, so the
+pad, its chips and its per-kind quantities come to both for free — but:
+
+- **`place()` re-runs on `visualViewport` `resize` and `scroll`, not just `window`'s.**
+  Focus is what opens the pad, and on a phone that same focus raises the OS keypad — which
+  animates in *after* the first placement, and which iOS does not report through
+  `window.resize`. Without those listeners the pad is placed against the full-height
+  viewport, decides it fits below, and is then covered by the keypad.
+- **Chips are `h-9`, not the `h-7` a pointer would need.** That is the size this app
+  already gives its icon buttons (the card's delete, the navbar's gear), so the pad matches
+  rather than inventing a target size.
+
+There is no hover affordance to lose on touch, because there is no hover affordance at
+all — tapping the field focuses it, and focus is the trigger.
+
 Only the `Max` preset reads the affordable ceiling. **The deltas step straight past it** —
 over-planning is surfaced as a red field, never rewritten, which is the same contract
 `handlePullCountChange` keeps. `StagedBannerRow` has no pad: it has no projection yet, so

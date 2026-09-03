@@ -112,6 +112,18 @@ export const CountStepper = ({
 		window.addEventListener("scroll", reposition, true)
 		window.addEventListener("resize", reposition)
 
+		// THE PHONE CASE, and the reason place() reads visualViewport at all.
+		// Focusing the field is what opens this pad, and on a phone that same
+		// focus raises the OS keypad — but the keypad animates in AFTER we have
+		// already placed, and iOS does not fire `window.resize` for it. Without
+		// these two the pad is placed against the full-height viewport, decides
+		// it fits below, and is then covered by the keypad as it slides up.
+		// `scroll` as well as `resize`: raising the keypad also scrolls the
+		// visual viewport to keep the focused field visible.
+		const viewport = window.visualViewport
+		viewport?.addEventListener("resize", reposition)
+		viewport?.addEventListener("scroll", reposition)
+
 		const handlePointerDown = (event: PointerEvent): void => {
 			const target = event.target as Node
 			if (anchorRef.current?.contains(target)) return
@@ -127,6 +139,8 @@ export const CountStepper = ({
 		return () => {
 			window.removeEventListener("scroll", reposition, true)
 			window.removeEventListener("resize", reposition)
+			viewport?.removeEventListener("resize", reposition)
+			viewport?.removeEventListener("scroll", reposition)
 			document.removeEventListener("pointerdown", handlePointerDown)
 			document.removeEventListener("keydown", handleKeyDown)
 		}
@@ -150,7 +164,7 @@ export const CountStepper = ({
 	}
 
 	const chipClass =
-		"flex h-7 min-w-0 flex-1 items-center justify-center rounded border border-gray-600 bg-gray-700 px-1 text-xs font-medium text-gray-100 transition hover:border-gray-500 hover:bg-gray-600 disabled:cursor-default disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-600"
+		"flex h-9 min-w-0 flex-1 items-center justify-center rounded border border-gray-600 bg-gray-700 px-1 text-xs font-medium text-gray-100 transition hover:border-gray-500 hover:bg-gray-600 disabled:cursor-default disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-600"
 
 	const renderChip = (chip: CountChip) => {
 		// One rule for both rows: a button that cannot change the value is spent.
