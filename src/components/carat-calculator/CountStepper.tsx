@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown } from "lucide-react"
 import type { CountChip, CountChipSet } from "../../utils/countChips"
 
 /** Panel width, in px. Fixed so the horizontal placement can be computed before
@@ -33,11 +32,15 @@ interface CountStepperProps {
  * plus a rect measured from the anchor sidesteps both, at the cost of having to
  * re-place on scroll.
  *
- * WHY IT OPENS ON FOCUS: the pad is meant to save a click, not add one. Focusing
- * the field is something you were already doing to type in it, so that is the
- * trigger; the chevron below exists for touch, and for discovery. Chips suppress
- * their own mousedown so focus never leaves the input, which is what lets you
- * click four of them in a row and keep arrow-keying afterwards.
+ * WHY FOCUS IS THE ONLY TRIGGER: the pad is meant to save a click, not add one,
+ * and focusing the field is something you were already doing to type in it — on
+ * touch as much as with a mouse. It carried a chevron button underneath at
+ * first, which bought discoverability at the price of pushing the input out of
+ * line with the row's other bordered boxes on EVERY row, permanently, to
+ * advertise something learned once. The field keeps its place instead.
+ *
+ * Chips suppress mousedown so focus never leaves the input, which is what lets
+ * you click four of them in a row and keep arrow-keying afterwards.
  */
 export const CountStepper = ({
 	value,
@@ -46,7 +49,6 @@ export const CountStepper = ({
 	label,
 	children,
 }: CountStepperProps) => {
-	const panelId = useId()
 	const [open, setOpen] = useState(false)
 	const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
 	const anchorRef = useRef<HTMLDivElement>(null)
@@ -170,46 +172,21 @@ export const CountStepper = ({
 	}
 
 	return (
+		// `flex` and nothing else: this box wraps the field alone, so it measures
+		// exactly the field and adds no height. It exists to give place() an
+		// anchor rect and to catch focus/blur bubbling out of the input.
 		<div
 			ref={anchorRef}
-			className="flex flex-col items-center gap-0.5"
+			className="flex"
 			onFocus={() => setOpen(true)}
 			onBlur={handleBlur}
 		>
 			{children}
 
-			{/* The affordance. Without it the pad is undiscoverable for anyone who
-			    doesn't happen to click into the field, and unreachable on touch,
-			    where there is no hover to reveal anything. Sized to fit the
-			    vertical slack the reserved-copies column already proved is there
-			    (h-9 input + gap + a short strip inside an h-16 row at py-1). */}
-			<button
-				type="button"
-				aria-expanded={open}
-				aria-controls={open ? panelId : undefined}
-				aria-label={`Adjust ${label.toLowerCase()} in bulk`}
-				title={`Adjust ${label.toLowerCase()} in bulk`}
-				className={`flex h-3.5 w-full items-center justify-center rounded-sm transition ${
-					open ? "text-brand" : "text-gray-500 hover:text-gray-300"
-				}`}
-				onMouseDown={(event) => {
-					// A second press on an open pad closes it. Without this the
-					// pointerdown-outside handler never sees the click (it is
-					// inside the anchor) and focus re-opens it immediately.
-					if (open) {
-						event.preventDefault()
-						close()
-					}
-				}}
-			>
-				<ChevronDown className="h-3.5 w-3.5" />
-			</button>
-
 			{open &&
 				createPortal(
 					<div
 						ref={panelRef}
-						id={panelId}
 						role="group"
 						aria-label={`Adjust ${label.toLowerCase()}`}
 						style={{

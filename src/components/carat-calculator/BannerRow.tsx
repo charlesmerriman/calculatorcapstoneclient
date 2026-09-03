@@ -825,22 +825,20 @@ export const BannerRow = ({
 			</div>
 
 			{/* === # Pulls section === */}
-			{/* py-1, for the same reason the reserved cell next door uses it: the
-			    h-9 input plus the stepper's chevron strip need 52px, and py-2
-			    leaves only 48px inside this h-16 row. */}
-			<div className="flex items-center justify-center py-1 px-1 relative">
+			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{pullsInput}
 			</div>
 
 			{/* === Reserved copies === */}
-			{/* py-1, not the py-2 its neighbours use. The input (h-9) plus the
-			    funding hint below it need 50.5px, and py-2 leaves only 48px
-			    inside this h-16 row — the hint would clip. Widening the track
-			    instead is not an option; see the ceiling on
-			    --container-banner-table in frontend/docs/ui-conventions.md. */}
-			<div className="flex items-center justify-center py-1 px-1 relative">
+			{/* py-0.5, not the py-2 its neighbours use. The input (h-11) plus the
+			    2px gap and the 12.5px funding hint below it need 58.5px, and py-2
+			    leaves only 48px inside this h-16 row — the hint would clip. py-0.5
+			    gives 60px. Widening the TRACK instead is not an option; see the
+			    ceiling on --container-banner-table in
+			    frontend/docs/ui-conventions.md. */}
+			<div className="flex items-center justify-center py-0.5 px-1 relative">
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{renderReservedInput("w-14")}
 			</div>

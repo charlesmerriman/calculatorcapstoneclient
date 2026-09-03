@@ -341,18 +341,18 @@ compact gutter for `Start: 2026/12/31`.
 ~305px, so 14rem is already a deliberate squeeze, and it is also the only track that
 absorbs surplus width above the switch point.
 
-A track can also run out of room **vertically**. Two of `BannerRow`'s cells drop the row's
-`py-2` for `py-1`, and both are paying for something rendered *below* an `h-9` field —
-the only thing in this row that doesn't fit at `py-2`, which leaves 48px inside the `h-16`
-row against `py-1`'s 56px:
+A track can also run out of room **vertically**. `BannerRow`'s Reserved cell is the one
+exception to the row's `py-2`: its `h-11` input, a 2px gap and the 12.5px funding hint need
+58.5px and `py-2` leaves only 48px inside the `h-16` row, so it uses `py-0.5` for 60px.
+Don't normalise it back to match its neighbours — the hint clips. `StagedBannerRow`'s copy
+renders no hint and correctly keeps `py-2`.
 
-| Cell | What sits under the input | Needs |
-|---|---|---|
-| Reserved | the 10px funding hint | 50.5px |
-| `# Pulls` | `CountStepper`'s 14px chevron strip | 52px |
-
-Don't normalise either back to match its neighbours — the hint clips, and the chevron goes
-under the row rule. `StagedBannerRow`'s copies render neither and correctly keep `py-2`.
+**The four bordered boxes across a planner row are the same height, and that is
+deliberate.** `.pull-input` is `h-11` because 44px is what the derived-stats box measures
+(12px of `py-1.5`, a 12.5px label, a 17.5px value, 2px of border), and the MLB strip is
+within a pixel of it at 45px. It is the row's one horizontal rhythm, and it is easy to
+break by eye: the field was `h-9` for a long time and read as sitting in a dip between its
+neighbours. Re-measure the stats box before you move it.
 
 ### The bulk-adjust pad (`CountStepper`)
 
@@ -370,10 +370,16 @@ Three things about it are load-bearing:
   its rows are `motion.div`s carrying `layout` transforms, against which a `position:
   fixed` fallback would resolve instead of the viewport. The cost of the portal is having
   to re-place on `scroll` (capture phase) and `resize`.
-- **Chips suppress their own `mousedown`,** so focus never leaves the input. That is what
-  lets you click four in a row, and what keeps the arrow keys live afterwards. The pad
-  opens on the field's *focus* — it exists to save a click, not add one — and closes on
-  focus-out, Escape, or an outside pointerdown.
+- **Focus is the only trigger, and the pad adds no chrome to the row.** It opens when the
+  field takes focus — which is what you were doing anyway to type in it, on touch as much
+  as with a mouse — and closes on focus-out, Escape, or an outside pointerdown. It carried
+  a chevron button under the field at first; that bought discoverability at the price of
+  pushing the input out of line with the row's other bordered boxes on **every** row,
+  permanently, to advertise something learned once. Don't reintroduce one.
+- **Chips suppress `mousedown` at the panel, not per chip,** so focus never leaves the
+  input. That is what lets you click four in a row and keep the arrow keys live
+  afterwards — and the panel-level handler is what stops a press on the pad's own dead
+  space blurring the field and closing it mid-use.
 - **The quantities are per row kind, and they are not powers of ten.** The unit of account
   on a pull row is a pity copy, so the coarse delta is `PULLS_PER_PITY_COPY` and one preset
   lands on the next threshold — the same number that turns the field green. A step-up row
