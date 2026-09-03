@@ -3,9 +3,19 @@ import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
 import type { CountChip, CountChipSet } from "../../utils/countChips"
 
-/** Panel width, in px. Fixed so the horizontal placement can be computed before
- *  the panel is measured — only its HEIGHT needs a real measurement. */
-const PANEL_WIDTH = 236
+/**
+ * Panel width, in px. Fixed so the horizontal placement can be computed before
+ * the panel is measured — only its HEIGHT needs a real measurement.
+ *
+ * Sized by the WIDEST preset row, which is a step-up's: three chips sharing
+ * `width - 16px padding - 8px of gaps` in equal thirds, against a "Next round"
+ * that wants ~78px with its own padding. At 236 that label truncated to
+ * "Next rou…". 264 gives each chip 80px, with room left for a four-digit
+ * "Max 1200" on a large plan. Widening costs the layout nothing — the pad is
+ * portal'd, so it is not competing with the banner table's width budget — but
+ * keep it under ~300 so it clears a 320px viewport with the EDGE gutters.
+ */
+const PANEL_WIDTH = 264
 /** Gap between the field and the panel, and the panel and the viewport edge. */
 const GAP = 6
 const EDGE = 8
