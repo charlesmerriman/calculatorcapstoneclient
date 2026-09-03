@@ -90,7 +90,9 @@ export const HomePage = () => {
 	}, [])
 
 	return (
-		<div className="flex min-h-dvh flex-col bg-gray-900">
+		<div className="home-canvas-shell flex min-h-dvh flex-col bg-gray-900">
+			{/* .home-canvas-shell above lines this navbar's wordmark up with the "P"
+			    of the hero heading below it — see App.css. */}
 			<Navbar />
 			{/* Normal block flow rather than the previous `flex items-center`, which
 			    vertically centred a single screenful. That centring is what forced the

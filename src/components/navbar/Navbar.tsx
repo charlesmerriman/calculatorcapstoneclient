@@ -183,9 +183,19 @@ export const Navbar = () => {
 			    Switches on desktop-nav rather than md: this layout is already over-full
 			    below ~900px (the "Sign in to save" button wraps to 2-3 lines), which
 			    is precisely the landscape-phone / portrait-tablet band. */}
-			<nav className="hidden h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-600 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 px-5 shadow-sm desktop-nav:grid">
-				{/* Left: Branding */}
-				<div className="flex items-center">
+			{/* @container + no horizontal padding on the <nav>: the brand inset is a
+			    cqw calc measured against THIS element's content box (see
+			    .app-canvas-shell in App.css), and padding here would come out of that
+			    measurement. The right-hand cell carries the gutter that used to be
+			    px-5 instead. */}
+			<nav className="@container hidden h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-600 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-sm desktop-nav:grid">
+				{/* Left: Branding. Its indent is the page's to set (.nav-brand-inset):
+				    inside the app shell it follows the calculator canvas, so the
+				    wordmark's "U" lines up with the "I" of INCOME & RESOURCES below it,
+				    and elsewhere it is the plain edge gutter. Either way the padding
+				    grows at half the rate of the 1fr track it sits in, so the centre
+				    links stay centred. */}
+				<div className="nav-brand-inset flex items-center">
 					{logo}
 				</div>
 
@@ -206,7 +216,7 @@ export const Navbar = () => {
 				</div>
 
 				{/* Right: Save indicator + Theme Picker + Logout/Login */}
-				<div className="flex items-center justify-end gap-3">
+				<div className="flex items-center justify-end gap-3 pr-5">
 					{calculatorData ? (
 						isLoggedIn ? (
 							<>

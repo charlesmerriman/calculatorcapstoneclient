@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react"
 import { Outlet, Route, Routes } from "react-router-dom"
 import { Navbar } from "../components/navbar/Navbar.tsx"
 import { CaratCalculator } from "../components/carat-calculator/CaratCalculator"
@@ -7,12 +8,45 @@ import { Footer } from "../components/footer/Footer.tsx"
 import { NotFound } from "../components/NotFound"
 
 export const ApplicationViews = () => {
+	const shellRef = useRef<HTMLDivElement | null>(null)
+	const scrollerRef = useRef<HTMLDivElement | null>(null)
+
+	// The navbar is a SIBLING of the scroller, so it spans the full viewport
+	// while every page inside it is laid out in a box one scrollbar narrower.
+	// Half that scrollbar is the difference between the wordmark sitting above
+	// the "I" of INCOME & RESOURCES and sitting just off it (.app-canvas-shell in
+	// App.css), and no CSS length can see a sibling's scrollbar — so measure it
+	// and publish it on the shell, the one element that contains both.
+	//
+	// A layout effect rather than a passive one: it feeds a padding, and a passive
+	// effect paints the wordmark in the wrong place for a frame first.
+	useLayoutEffect(() => {
+		const shell = shellRef.current
+		const scroller = scrollerRef.current
+		if (!shell || !scroller) return
+
+		const sync = (): void => {
+			shell.style.setProperty("--shell-scrollbar", `${scroller.offsetWidth - scroller.clientWidth}px`)
+		}
+
+		sync()
+		// Observed rather than listened for on `resize`: the gutter also appears and
+		// disappears when the CONTENT grows past the shell or shrinks back inside it
+		// — adding a banner row, collapsing the income panel — and the window never
+		// moves for either. jsdom implements neither the observer nor layout, so
+		// under test this stays at the 0px the first sync writes.
+		if (typeof ResizeObserver !== "function") return
+		const observer = new ResizeObserver(sync)
+		observer.observe(scroller)
+		return () => observer.disconnect()
+	}, [])
+
 	return (
 		<Routes>
 			<Route
 				path="/"
 				element={
-					<div className="flex min-h-dvh flex-col bg-gray-900 app-shell:h-dvh app-shell:overflow-hidden">
+					<div ref={shellRef} className="app-canvas-shell flex min-h-dvh flex-col bg-gray-900 app-shell:h-dvh app-shell:overflow-hidden">
 						<Navbar />
 						{/* The footer sits INSIDE the scroll region, not as a sibling of it: on
 						    desktop this shell is a fixed-height, no-scroll frame (app-shell:h-dvh
@@ -46,7 +80,7 @@ export const ApplicationViews = () => {
 						    Making this element the containing block fixes the whole class of
 						    bug rather than that one span. It creates no stacking context
 						    (no z-index) and does not affect `fixed` descendants. */}
-						<div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+						<div ref={scrollerRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
 							{/* Plain block wrapper (not <Outlet /> directly) so the calculator and
 							    timeline keep a normal block formatting context and don't become
 							    flex items themselves. flex-1 grows it into the slack; min-height:auto
