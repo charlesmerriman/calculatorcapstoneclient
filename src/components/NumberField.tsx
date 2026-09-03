@@ -41,6 +41,17 @@ type NumberFieldProps = {
 	ariaLabel?: string
 	ariaInvalid?: boolean
 	disabled?: boolean
+	/**
+	 * Step for Shift+Arrow. Defaults to 10, which is what every field here used
+	 * before the planner's pull field needed its own ruler.
+	 */
+	mediumStep?: number
+	/**
+	 * Step for Ctrl/Cmd+Arrow. Omitted on most fields — there is no third
+	 * meaningful quantity for a reserved-copies or a resource box, and binding a
+	 * modifier to "same as Shift" teaches a shortcut that does nothing.
+	 */
+	largeStep?: number
 }
 
 /**
@@ -77,6 +88,8 @@ const sanitise = (raw: string): string => {
 export const NumberField = ({
 	value,
 	onChange,
+	mediumStep = 10,
+	largeStep,
 	className,
 	title,
 	ariaLabel,
@@ -117,11 +130,23 @@ export const NumberField = ({
 	}
 
 	// What `type="number"` used to give free, and what keeps role="spinbutton"
-	// accurate. Shift for a coarser step follows the browsers' own convention.
+	// accurate. Shift for a coarser step follows the browsers' own convention;
+	// Ctrl/Cmd for a coarser one still is this app's own addition, and exists so
+	// the planner's bulk-adjust pad (CountStepper) has a keyboard equivalent
+	// rather than being the only way to move a count in bulk. The pad's footer
+	// is where these are advertised.
 	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
 		if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return
 		event.preventDefault()
-		const step = (event.shiftKey ? 10 : 1) * (event.key === "ArrowUp" ? 1 : -1)
+		// Largest modifier wins, so Ctrl+Shift is the large step rather than
+		// something between the two.
+		const magnitude =
+			largeStep !== undefined && (event.ctrlKey || event.metaKey)
+				? largeStep
+				: event.shiftKey
+				? mediumStep
+				: 1
+		const step = magnitude * (event.key === "ArrowUp" ? 1 : -1)
 		const current = draft === "" ? 0 : Number(draft)
 		commit(String(Math.max(0, current + step)))
 	}

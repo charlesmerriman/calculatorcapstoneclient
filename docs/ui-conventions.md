@@ -342,10 +342,72 @@ compact gutter for `Start: 2026/12/31`.
 absorbs surplus width above the switch point.
 
 A track can also run out of room **vertically**. `BannerRow`'s Reserved cell is the one
-exception to the row's `py-2`: its `h-9` input plus the 10px funding hint need 50.5px and
-`py-2` leaves only 48px inside the `h-16` row, so it uses `py-1` for 56px. Don't normalise
-it back to match its neighbours — the hint clips. `StagedBannerRow`'s copy renders no hint
-and correctly keeps `py-2`.
+exception to the row's `py-2`: its `h-11` input, a 2px gap and the 12.5px funding hint need
+58.5px and `py-2` leaves only 48px inside the `h-16` row, so it uses `py-0.5` for 60px.
+Don't normalise it back to match its neighbours — the hint clips. `StagedBannerRow`'s copy
+renders no hint and correctly keeps `py-2`.
+
+**The four bordered boxes across a planner row are the same height, and that is
+deliberate.** `.pull-input` is `h-11` because 44px is what the derived-stats box measures
+(12px of `py-1.5`, a 12.5px label, a 17.5px value, 2px of border), and the MLB strip is
+within a pixel of it at 45px. It is the row's one horizontal rhythm, and it is easy to
+break by eye: the field was `h-9` for a long time and read as sitting in a dip between its
+neighbours. Re-measure the stats box before you move it.
+
+### The bulk-adjust pad (`CountStepper`)
+
+The `# Pulls` field opens a pad of bulk-adjust buttons — the planner's answer to "set this
+to 600 without pressing ↑ sixty times". It is deliberately **not** a set of `+100/-100`
+buttons in the column: that column is `5rem`, the table's width is capped
+(`--container-banner-table`, above), and four buttons plus a field want ~11.5rem. A pad
+that opens costs the grid nothing.
+
+Three things about it are load-bearing:
+
+- **It portals to `<body>` and positions itself from the anchor's rect.** The in-flow
+  `relative`/`absolute` idiom `SettingsMenu` uses cannot work here: the sheet sits inside
+  an `overflow-hidden` panel (`CaratCalculator`), which clips the pad on the last row, and
+  its rows are `motion.div`s carrying `layout` transforms, against which a `position:
+  fixed` fallback would resolve instead of the viewport. The cost of the portal is having
+  to re-place on `scroll` (capture phase) and `resize`.
+- **Focus is the only trigger, and the pad adds no chrome to the row.** It opens when the
+  field takes focus — which is what you were doing anyway to type in it, on touch as much
+  as with a mouse — and closes on focus-out, Escape, or an outside pointerdown. It carried
+  a chevron button under the field at first; that bought discoverability at the price of
+  pushing the input out of line with the row's other bordered boxes on **every** row,
+  permanently, to advertise something learned once. Don't reintroduce one.
+- **Chips suppress `mousedown` at the panel, not per chip,** so focus never leaves the
+  input. That is what lets you click four in a row and keep the arrow keys live
+  afterwards — and the panel-level handler is what stops a press on the pad's own dead
+  space blurring the field and closing it mid-use.
+- **The quantities are per row kind, and they are not powers of ten.** The unit of account
+  on a pull row is a pity copy, so the coarse delta is `PULLS_PER_PITY_COPY` and one preset
+  lands on the next threshold — the same number that turns the field green. A step-up row
+  counts *steps*, clamped to `banner_count * 5`, so its ruler is ±1 / ±5 and it gets no
+  Ctrl shortcut at all. `buildCountChips` in `utils/countChips.ts` is the one place this is
+  decided; `NumberField`'s `mediumStep` / `largeStep` are its keyboard mirror, advertised
+  in the pad's footer.
+
+**It needs no phone-specific wiring, but it does need two phone-specific
+allowances.** The card and the desktop cell render the *same* `pullsInput` node, so the
+pad, its chips and its per-kind quantities come to both for free — but:
+
+- **`place()` re-runs on `visualViewport` `resize` and `scroll`, not just `window`'s.**
+  Focus is what opens the pad, and on a phone that same focus raises the OS keypad — which
+  animates in *after* the first placement, and which iOS does not report through
+  `window.resize`. Without those listeners the pad is placed against the full-height
+  viewport, decides it fits below, and is then covered by the keypad.
+- **Chips are `h-9`, not the `h-7` a pointer would need.** That is the size this app
+  already gives its icon buttons (the card's delete, the navbar's gear), so the pad matches
+  rather than inventing a target size.
+
+There is no hover affordance to lose on touch, because there is no hover affordance at
+all — tapping the field focuses it, and focus is the trigger.
+
+Only the `Max` preset reads the affordable ceiling. **The deltas step straight past it** —
+over-planning is surfaced as a red field, never rewritten, which is the same contract
+`handlePullCountChange` keeps. `StagedBannerRow` has no pad: it has no projection yet, so
+it has no ceiling to name, and it drops the odds strip for the same reason.
 
 **Column labels may be icons instead of text.** Reserved is the first one: it shows the
 selector ticket (`/item_icon_00131.png`) and the SSR crystal (`/item_icon_00144.png`), the

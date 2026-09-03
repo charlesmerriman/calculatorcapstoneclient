@@ -178,9 +178,11 @@
    the 80px instead. Do not lengthen that hint without re-reading that ceiling.
 
    That column also pays for the hint VERTICALLY, and its cell in BannerRow is
-   the one exception to the row's py-2: the h-9 input, a 2px gap and the 10px
-   hint need 50.5px, and py-2 leaves only 48px inside the h-16 row. It uses py-1
-   for 56px. Normalising it back to py-2 to match its neighbours clips the hint.
+   the one exception to the row's py-2: the h-11 input, a 2px gap and the 12.5px
+   hint need 58.5px, and py-2 leaves only 48px inside the h-16 row. It uses
+   py-0.5 for 60px. Normalising it back to py-2 to match its neighbours clips the
+   hint. The # pulls cell needs no such exception — its bulk-adjust pad opens
+   over the page rather than under the field, so nothing is rendered below it.
    StagedBannerRow's copy renders no hint, so that one correctly keeps py-2.
 
    The derived-stats strip's worst case needs 334px with px-1.5 stat padding.
@@ -392,8 +394,16 @@
    getPullCountStatus in utils/bannerHelpers.ts. Shared by BannerRow and
    StagedBannerRow across both breakpoints, so the states are defined once.
    Width stays on the element (mobile and desktop differ). */
+/* h-11 (44px) is not a round number picked for looks — it is the height of the
+   derived-stats box beside it (12px of py-1.5, a 12.5px label, a 17.5px value
+   and 2px of border), and within a pixel of the MLB strip's 45px. The four
+   bordered boxes across a planner row line up because of it, so moving this
+   without re-measuring those two breaks the row's one horizontal rhythm.
+
+   It is also load-bearing VERTICALLY: see BannerRow's reserved cell, which pays
+   for this height plus a funding hint out of an h-16 row. */
 .pull-input {
-	@apply h-9 rounded border px-2 text-center text-sm
+	@apply h-11 rounded border px-2 text-center text-sm
 		transition-colors focus:outline-none;
 }
 
