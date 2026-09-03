@@ -5,11 +5,12 @@ import { Gem } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useUncapCrystals } from "../../hooks/useUncapCrystals"
 import { compactSelectStyles } from "../../utils/reactSelectStyles"
-import { isBannerTimeline } from "../../types"
+import { isSelectableBanner } from "../../utils/bannerHelpers"
 
 interface BannerOption {
-	/** The banner's id, not its end date — two banners can share an end date, and
-	 *  a duplicated value would make the second one select as the first. */
+	/** The support banner's id, not its end date — two banners can share an end
+	 *  date, and a duplicated value would make the second one select as the
+	 *  first. */
 	value: string
 	label: string
 	endDate: string
@@ -34,7 +35,7 @@ const CrystalCell = ({ value, selected, green, unit, className = "" }: { value: 
 )
 
 export const UncapCrystalsPanel = () => {
-	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, organizedTimelineData, calculationConstants } =
+	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, supportBannerData, calculationConstants } =
 		useCalculatorData()
 	const [selectedOption, setSelectedOption] = useState<BannerOption | null>(null)
 	// The estimate is still purely a function of the end date; the option only
@@ -57,16 +58,20 @@ export const UncapCrystalsPanel = () => {
 
 	const now = new Date()
 
-	// Filter organizedTimelineData to BannerTimelineForViewing entries only.
-	// This used to test for "banner_umas" structurally; it narrows on the
-	// backend's event_type tag now (see isBannerTimeline in types/calculator).
-	const bannerOptions: BannerOption[] = organizedTimelineData
-		.filter(isBannerTimeline)
-		.filter((t) => new Date(t.end_date) >= now)
-		.map((t) => ({
-			value: String(t.id),
-			label: t.name,
-			endDate: t.end_date,
+	// Uncap crystals are a SUPPORT-CARD currency (SSR/SR are support rarities),
+	// so the list is the support banner catalogue rather than the whole
+	// timeline — a timeline window is named for the uma banner running in it,
+	// which made half the options meaningless here.
+	//
+	// supportBannerData arrives already sorted by effective date, and
+	// isSelectableBanner is the same still-open rule the planner's dropdowns
+	// use, so the two lists can't disagree about what's still pullable.
+	const bannerOptions: BannerOption[] = supportBannerData
+		.filter((b) => isSelectableBanner(b, now))
+		.map((b) => ({
+			value: String(b.id),
+			label: b.name,
+			endDate: b.banner_timeline.end_date,
 		}))
 
 	return (
