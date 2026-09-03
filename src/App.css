@@ -177,10 +177,15 @@
    every user; the hint is abbreviated ("2s 1c", full text in its title) to fit
    the 80px instead. Do not lengthen that hint without re-reading that ceiling.
 
-   That column also pays for the hint VERTICALLY, and its cell in BannerRow is
-   the one exception to the row's py-2: the h-9 input, a 2px gap and the 10px
-   hint need 50.5px, and py-2 leaves only 48px inside the h-16 row. It uses py-1
-   for 56px. Normalising it back to py-2 to match its neighbours clips the hint.
+   That column also pays for the hint VERTICALLY. Its cell in BannerRow uses
+   py-1 rather than the row's py-2: the h-9 input, a 2px gap and the 10px hint
+   need 50.5px, and py-2 leaves only 48px inside the h-16 row. py-1 gives 56px.
+   Normalising it back to py-2 to match its neighbours clips the hint.
+
+   The # pulls cell now does the same, for the same 8px, to fit CountStepper's
+   chevron strip under its input (36 + 2 + 14 = 52px). Two cells at py-1 and the
+   rest at py-2 is deliberate — both are paying for something rendered BELOW an
+   h-9 field, which is the only thing in this row that doesn't fit at py-2.
    StagedBannerRow's copy renders no hint, so that one correctly keeps py-2.
 
    The derived-stats strip's worst case needs 334px with px-1.5 stat padding.

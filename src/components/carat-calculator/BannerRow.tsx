@@ -53,6 +53,8 @@ import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
+import { CountStepper } from "./CountStepper"
+import { buildCountChips } from "../../utils/countChips"
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -668,15 +670,45 @@ export const BannerRow = ({
 			? "Copies taken with an uma selector instead of pulling"
 			: "Copies taken with a support selector or SSR crystal instead of pulling"
 
+	// The affordable ceiling in whichever unit this row counts in. Only the pad's
+	// "Max" chip reads it — the deltas step straight past it, because planning
+	// past your budget is shown as a red field rather than prevented (the same
+	// rule handlePullCountChange above is written to preserve).
+	const countUpperBound = isStepUp ? stepUpperBound : pullUpperBound
+
+	const countChips = buildCountChips({
+		isStepUp,
+		upperBound: countUpperBound,
+		pullsPerPity: PULLS_PER_PITY_COPY,
+		stepsPerRound: STEPS_PER_ROUND,
+	})
+
+	// ONE node, rendered by both the phone card and the desktop cell below. They
+	// used to hold separate copies of the same NumberField with the same five
+	// state-carrying attributes — precisely the drift renderReservedInput's
+	// factory exists to prevent. Both want `w-14`, so a shared node does here
+	// what that factory does there, and the stepper is wired up once.
 	const pullsInput = (
-		<NumberField
+		<CountStepper
 			value={plannedCount}
-			className={`pull-input pull-input--${countStatus} w-14`}
-			title={countStatusHint}
-			ariaLabel={countLabel}
-			ariaInvalid={countStatus === "over"}
 			onChange={handlePullCountChange}
-		/>
+			chips={countChips}
+			label={isStepUp ? "Steps" : "Pulls"}
+		>
+			<NumberField
+				value={plannedCount}
+				className={`pull-input pull-input--${countStatus} w-14`}
+				title={countStatusHint}
+				ariaLabel={countLabel}
+				ariaInvalid={countStatus === "over"}
+				// The keyboard mirror of the pad's delta row. A step-up gets no
+				// large step: its ladder tops out around 25, so there is no third
+				// quantity for Ctrl to mean.
+				mediumStep={isStepUp ? STEPS_PER_ROUND : 10}
+				largeStep={isStepUp ? undefined : PULLS_PER_PITY_COPY}
+				onChange={handlePullCountChange}
+			/>
+		</CountStepper>
 	)
 	// Parameterised by width rather than written out twice: the mobile card and
 	// the desktop cell differ only in how wide they are, and the five attributes
@@ -793,17 +825,13 @@ export const BannerRow = ({
 			</div>
 
 			{/* === # Pulls section === */}
-			<div className="flex items-center justify-center py-2 px-1 relative">
+			{/* py-1, for the same reason the reserved cell next door uses it: the
+			    h-9 input plus the stepper's chevron strip need 52px, and py-2
+			    leaves only 48px inside this h-16 row. */}
+			<div className="flex items-center justify-center py-1 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
-				<NumberField
-					value={plannedCount}
-					className={`pull-input pull-input--${countStatus} w-14`}
-					title={countStatusHint}
-					ariaLabel={countLabel}
-					ariaInvalid={countStatus === "over"}
-					onChange={handlePullCountChange}
-				/>
+				{pullsInput}
 			</div>
 
 			{/* === Reserved copies === */}

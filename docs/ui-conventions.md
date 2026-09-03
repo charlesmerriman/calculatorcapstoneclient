@@ -341,11 +341,51 @@ compact gutter for `Start: 2026/12/31`.
 ~305px, so 14rem is already a deliberate squeeze, and it is also the only track that
 absorbs surplus width above the switch point.
 
-A track can also run out of room **vertically**. `BannerRow`'s Reserved cell is the one
-exception to the row's `py-2`: its `h-9` input plus the 10px funding hint need 50.5px and
-`py-2` leaves only 48px inside the `h-16` row, so it uses `py-1` for 56px. Don't normalise
-it back to match its neighbours — the hint clips. `StagedBannerRow`'s copy renders no hint
-and correctly keeps `py-2`.
+A track can also run out of room **vertically**. Two of `BannerRow`'s cells drop the row's
+`py-2` for `py-1`, and both are paying for something rendered *below* an `h-9` field —
+the only thing in this row that doesn't fit at `py-2`, which leaves 48px inside the `h-16`
+row against `py-1`'s 56px:
+
+| Cell | What sits under the input | Needs |
+|---|---|---|
+| Reserved | the 10px funding hint | 50.5px |
+| `# Pulls` | `CountStepper`'s 14px chevron strip | 52px |
+
+Don't normalise either back to match its neighbours — the hint clips, and the chevron goes
+under the row rule. `StagedBannerRow`'s copies render neither and correctly keep `py-2`.
+
+### The bulk-adjust pad (`CountStepper`)
+
+The `# Pulls` field opens a pad of bulk-adjust buttons — the planner's answer to "set this
+to 600 without pressing ↑ sixty times". It is deliberately **not** a set of `+100/-100`
+buttons in the column: that column is `5rem`, the table's width is capped
+(`--container-banner-table`, above), and four buttons plus a field want ~11.5rem. A pad
+that opens costs the grid nothing.
+
+Three things about it are load-bearing:
+
+- **It portals to `<body>` and positions itself from the anchor's rect.** The in-flow
+  `relative`/`absolute` idiom `SettingsMenu` uses cannot work here: the sheet sits inside
+  an `overflow-hidden` panel (`CaratCalculator`), which clips the pad on the last row, and
+  its rows are `motion.div`s carrying `layout` transforms, against which a `position:
+  fixed` fallback would resolve instead of the viewport. The cost of the portal is having
+  to re-place on `scroll` (capture phase) and `resize`.
+- **Chips suppress their own `mousedown`,** so focus never leaves the input. That is what
+  lets you click four in a row, and what keeps the arrow keys live afterwards. The pad
+  opens on the field's *focus* — it exists to save a click, not add one — and closes on
+  focus-out, Escape, or an outside pointerdown.
+- **The quantities are per row kind, and they are not powers of ten.** The unit of account
+  on a pull row is a pity copy, so the coarse delta is `PULLS_PER_PITY_COPY` and one preset
+  lands on the next threshold — the same number that turns the field green. A step-up row
+  counts *steps*, clamped to `banner_count * 5`, so its ruler is ±1 / ±5 and it gets no
+  Ctrl shortcut at all. `buildCountChips` in `utils/countChips.ts` is the one place this is
+  decided; `NumberField`'s `mediumStep` / `largeStep` are its keyboard mirror, advertised
+  in the pad's footer.
+
+Only the `Max` preset reads the affordable ceiling. **The deltas step straight past it** —
+over-planning is surfaced as a red field, never rewritten, which is the same contract
+`handlePullCountChange` keeps. `StagedBannerRow` has no pad: it has no projection yet, so
+it has no ceiling to name, and it drops the odds strip for the same reason.
 
 **Column labels may be icons instead of text.** Reserved is the first one: it shows the
 selector ticket (`/item_icon_00131.png`) and the SSR crystal (`/item_icon_00144.png`), the
