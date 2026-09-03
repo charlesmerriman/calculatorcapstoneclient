@@ -226,17 +226,32 @@
    narrowest table width) plus any slack on a wider canvas.
 
    Used by StagedBannerRow AND the staging header in CaratCalculator — both, or
-   the header drifts out of alignment with the rows it labels. */
+   the header drifts out of alignment with the rows it labels.
+
+   The select track is `minmax(0, 1fr)`, and the 0 is LOAD-BEARING — a bare `1fr`
+   is `minmax(auto, 1fr)`, whose auto floor makes the track grow to the cell's
+   min-content. react-select's selected label is `white-space: nowrap`, so that
+   min-content is the WHOLE banner name: the 242-character Golden Week revival
+   ("Oguri Cap + (Christmas) + …") pushed this track to 1616px, ran the row 2450px
+   wide inside a 1470px container, and clipped the pulls field, the reserved
+   field, Add to calculator and the discard button off the right edge — while the
+   header row above stayed put and stopped lining up with the row it labels.
+   A 0 floor drops the track (and, per CSS Grid §6.6, the item's own automatic
+   minimum) back to the leftover space, and the label ellipsises inside it.
+
+   The sheet's .banner-grid never had this bug because its select track is a fixed
+   10.5rem: a definite max clamps the same content-based minimum away. Only a
+   flexible track is exposed to it, so any future `1fr` here wants the same 0. */
 .banner-grid--staged {
 	grid-template-columns:
-		70px      /* type badge                          */
-		8rem      /* images                              */
-		1fr       /* banner select — takes the MLB space */
-		6.75rem   /* start / end date                    */
-		20.5rem   /* confirm button                      */
-		5rem      /* # pulls                             */
-		5rem      /* reserved copies                     */
-		2.5rem;   /* discard                             */
+		70px             /* type badge                          */
+		8rem             /* images                              */
+		minmax(0, 1fr)   /* banner select — takes the MLB space */
+		6.75rem          /* start / end date                    */
+		20.5rem          /* confirm button                      */
+		5rem             /* # pulls                             */
+		5rem             /* reserved copies                     */
+		2.5rem;          /* discard                             */
 }
 
 /* Amber wash marking a row as staged rather than counted.

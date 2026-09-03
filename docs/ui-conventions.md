@@ -224,6 +224,14 @@ calculator table below it and the `@banner-table:` switch point still governs bo
 staging header row in `CaratCalculator` carries the same modifier — both, or the header
 drifts out of alignment with the rows it labels.
 
+That flexible track must be spelled `minmax(0, 1fr)`, never a bare `1fr`. A bare `1fr` is
+`minmax(auto, 1fr)`, and the auto floor grows the track to the cell's min-content — which,
+for react-select's `nowrap` label, is the whole banner name. The 242-character Golden Week
+revival ran the staged row 2450px wide inside a 1470px container and clipped the pulls
+field, the reserved field, the confirm button and the discard button off the right edge.
+The calculator table never had this bug because its select track is a fixed `10.5rem`; a
+definite max clamps the same minimum away. Only a flexible track is exposed to it.
+
 The staged surfaces are tinted with `.staged-surface` / `.staged-surface-header`, a
 `color-mix` of `--color-staging` into the live gray ramp. The tint is a **background**
 rather than the more obvious border or inset: the staging `@container` element's width is
