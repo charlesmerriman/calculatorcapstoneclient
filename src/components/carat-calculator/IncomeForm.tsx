@@ -387,7 +387,7 @@ export const IncomeForm = () => {
 											<div className="ml-auto w-20 @income-wide:ml-0 @income-wide:w-20 @income-wide:col-span-1 @income-wide:justify-self-end">
 												{teamTrialsRank && (
 													<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-														{`+${teamTrialsRank.income_amount.toLocaleString()}/mo`}
+														{`+${teamTrialsRank.income_amount.toLocaleString()}/week`}
 													</div>
 												)}
 											</div>
