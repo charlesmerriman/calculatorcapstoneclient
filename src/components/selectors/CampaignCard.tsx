@@ -61,13 +61,30 @@ export const CampaignCard = ({
 	const selectors = lines.filter(
 		(line) => line.product.product_type !== "carat_pack"
 	)
+	// Quantity is 0/1 for a selector — max_quantity is 1 on every one of them —
+	// so "claimed" is just a non-zero row, and the tile strip renders exactly
+	// these in exactly this order.
+	const claimedSelectors = selectors.filter((line) => line.quantity > 0)
 
 	return (
 		<section
 			ref={focusRef}
 			className={`overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-sm ${FOCUS_SCROLL_MARGIN} ${locked ? "opacity-60" : ""}`}
 		>
-			<div className="grid lg:grid-cols-[11.5rem_minmax(17rem,0.85fr)_minmax(22rem,1.35fr)]">
+			{/* WHY 49rem IS A CONSTANT AND NOT `max-content`
+			    Every card is its own grid, so an intrinsic track sizes each one to its
+			    OWN contents — and campaigns differ (five tickets, one, none at all).
+			    The columns then landed in a different place on every card and the
+			    stack lost its rhythm. 49rem is the widest a selector strip ever gets:
+			    1rem+1rem of cell padding, the 10rem ticket column, the 1rem gap, and
+			    the fullest set any campaign sells — 2 uma tiles at 8rem + 3 support at
+			    6rem + 4 gaps of 0.5rem. Sized to the maximum rather than to each card,
+			    so a full campaign's tiles end flush with the card border and every
+			    other card keeps that same geometry. Change a tile width and this
+			    number moves with it. The 20rem floor keeps it safe below ~760px of
+			    card: the track stops shrinking and the tiles wrap rather than
+			    overflowing the clip. */}
+			<div className="grid lg:grid-cols-[minmax(11.5rem,0.6fr)_minmax(16rem,1fr)_minmax(20rem,49rem)]">
 				<header className="flex min-w-0 flex-col justify-center border-b border-gray-700 bg-gray-900/35 px-4 py-4 lg:border-b-0 lg:border-r">
 					<div className="flex flex-wrap items-center gap-2">
 						<h3 className="text-base font-semibold text-gray-100">{event.name}</h3>
@@ -123,56 +140,74 @@ export const CampaignCard = ({
 				{packs.length === 0 && <p className="text-sm text-gray-500">No discounted packs.</p>}
 				</div>
 
-				{/* Own @container: how many selector columns fit is a question about
-				    THIS column's width, not the viewport's — it is one cell of a
-				    3-column band whose share of the page shifts with the others. */}
-				<div className="@container min-w-0 px-4 py-3">
+				{/* Not an @container: the track above is a constant, so there is
+				    nothing left for a container query to answer that `lg:` does not —
+				    and side by side is exactly the state where the card itself is in
+				    three columns. */}
+				<div className="min-w-0 px-4 py-3">
 				{selectors.length > 0 && (
 					<div className="min-w-0">
 						<h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-brand">
 							<Ticket className="h-4 w-4 shrink-0" />
 							Selectors
 						</h4>
-						{/* Breakpoints follow the cell's needs, not a round number: a
-						    128px thumbnail plus a button wide enough for names like
-						    "Agnes Tachyon (Summer)" wants ~350px of cell. */}
-						<ul className="grid gap-2 @2xl:grid-cols-2 @6xl:grid-cols-3">
-							{selectors.map((line) => (
-								<li
-									key={line.product.id}
-									className="min-w-0 rounded-md border border-gray-700/70 bg-gray-900/20 p-2"
-								>
-									<div className="flex items-center gap-2">
-										<input
-											type="checkbox"
-											checked={line.quantity > 0}
-											disabled={locked}
-											aria-label={`Claim ${line.product.name}`}
-											className="h-4 w-4 shrink-0 accent-[var(--color-brand)]"
-											onChange={(e) =>
-												onQuantityChange(line, e.target.checked ? 1 : 0)
-											}
-										/>
-										<span className="min-w-0 flex-1 truncate text-sm text-gray-200">
-											{line.product.name}
-										</span>
-									</div>
-									{line.quantity > 0 && (
-										<div className="mt-2">
-											<SelectorTargetPicker
-												product={line.product}
-												umaBannerData={umaBannerData}
-												supportBannerData={supportBannerData}
-												targetUma={line.purchase?.target_uma ?? null}
-												targetSupport={line.purchase?.target_support ?? null}
+						{/* The sheet's shape: the tickets are ONE narrow column, and
+						    everything to the right of it is the cards they take. Stacked
+						    below lg, where the card is one column and the tiles would
+						    rather have the full width than share it with the list. */}
+						<div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:gap-4">
+							<ul className="min-w-0 shrink-0 lg:w-40">
+								{selectors.map((line) => (
+									<li key={line.product.id} className="min-w-0">
+										{/* The whole row toggles, not just the box — a 16px
+										    checkbox is a poor target on a phone, and the
+										    label beside it is dead space otherwise. */}
+										<label
+											className={`flex items-center gap-2 py-1.5 ${
+												locked ? "cursor-not-allowed" : "cursor-pointer"
+											}`}
+										>
+											<input
+												type="checkbox"
+												checked={line.quantity > 0}
 												disabled={locked}
-												onChange={(target) => onTargetChange(line, target)}
+												aria-label={`Claim ${line.product.name}`}
+												className="h-4 w-4 shrink-0 accent-[var(--color-brand)]"
+												onChange={(e) =>
+													onQuantityChange(line, e.target.checked ? 1 : 0)
+												}
 											/>
-										</div>
-									)}
-								</li>
-							))}
-						</ul>
+											<span className="min-w-0 flex-1 truncate text-sm text-gray-200">
+												{line.product.name}
+											</span>
+										</label>
+									</li>
+								))}
+							</ul>
+
+							{/* One tile per CLAIMED ticket, in the column's own order, so
+							    a tile and its checkbox always line up left to right. */}
+							<div className="flex min-w-0 flex-1 flex-wrap content-start items-start gap-2">
+								{claimedSelectors.length === 0 ? (
+									<p className="text-xs text-gray-500">
+										Tick a selector to choose the card it takes.
+									</p>
+								) : (
+									claimedSelectors.map((line) => (
+										<SelectorTargetPicker
+											key={line.product.id}
+											product={line.product}
+											umaBannerData={umaBannerData}
+											supportBannerData={supportBannerData}
+											targetUma={line.purchase?.target_uma ?? null}
+											targetSupport={line.purchase?.target_support ?? null}
+											disabled={locked}
+											onChange={(target) => onTargetChange(line, target)}
+										/>
+									))
+								)}
+							</div>
+						</div>
 					</div>
 				)}
 				{selectors.length === 0 && <p className="text-sm text-gray-500">No selector tickets.</p>}
