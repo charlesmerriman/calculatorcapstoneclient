@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { CalendarDays, Calculator as CalculatorIcon, LogIn, LogOut, Save, Sparkles, UserRound } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
+import { prefetchCalculatorData } from "../../services/calculatorFetchCalls"
 import { userLogout } from "../../services/userServices"
 import {
 	toBannerPayload,
@@ -17,6 +18,17 @@ export const Navbar = () => {
 	const location = useLocation()
 	// null when rendered outside CalculatorProvider (e.g. on the home page)
 	const calculatorData = useCalculatorDataSafe()
+
+	// Warm /calculator-data when the pointer (or keyboard focus) lands on a link
+	// into /app, so the payload is on its way before the click.
+	//
+	// Only OUTSIDE the provider. Inside /app the data is already loaded and in
+	// context, and prefetchCalculatorData() would have nothing usable to reuse —
+	// so hovering "Timeline" while sitting on the calculator would fire a
+	// pointless second megabyte.
+	const prefetchOnIntent = calculatorData
+		? {}
+		: { onMouseEnter: prefetchCalculatorData, onFocus: prefetchCalculatorData }
 
 	const isLoggedIn = !!localStorage.getItem("authToken")
 
@@ -63,6 +75,8 @@ export const Navbar = () => {
 	const isSelectors = location.pathname === "/app/selectors"
 
 	const timerIsGoing = calculatorData?.timerIsGoing ?? false
+	// True only inside /app, while the initial fetch is still out.
+	const planIsLoading = calculatorData?.isLoading ?? false
 
 	const mobileNavClass = (active: boolean) =>
 		`flex min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition ${
@@ -82,12 +96,19 @@ export const Navbar = () => {
 
 	// Guest affordance shown in app mode instead of the save icon + Logout.
 	// Passive by design — it never interrupts planning.
+	//
+	// Disabled until the plan has loaded. The navbar now paints before the
+	// initial fetch lands, and during that window every collection is still
+	// empty — so stashing would write an empty plan. stashGuestPlan treats
+	// "nothing to stash" as CLEAR, which would silently discard a stash the
+	// guest had already put aside before navigating back here.
 	const signInToSaveButton = (
 		<button
 			onClick={handleSignInToSave}
+			disabled={planIsLoading}
 			aria-label="Sign in to save"
 			title="Sign in to save your plan to an account"
-			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition"
+			className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-600 rounded text-sm text-gray-300 hover:border-gray-400 hover:bg-gray-700 hover:text-gray-100 transition disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-600 disabled:hover:bg-transparent disabled:hover:text-gray-300"
 		>
 			<LogIn className="w-4 h-4" />
 			Sign in to save
@@ -164,15 +185,15 @@ export const Navbar = () => {
 				</div>
 
 				<div className="grid grid-cols-3 gap-1 border-t border-gray-700/80 bg-gray-900/30 px-2 py-2">
-					<Link to="/app" className={mobileNavClass(isCalculator)}>
+					<Link to="/app" className={mobileNavClass(isCalculator)} {...prefetchOnIntent}>
 						<CalculatorIcon className="h-4 w-4 shrink-0" />
 						<span className="truncate">Calculator</span>
 					</Link>
-					<Link to="/app/timeline" className={mobileNavClass(isTimeline)}>
+					<Link to="/app/timeline" className={mobileNavClass(isTimeline)} {...prefetchOnIntent}>
 						<CalendarDays className="h-4 w-4 shrink-0" />
 						<span className="truncate">Timeline</span>
 					</Link>
-					<Link to="/app/selectors" className={mobileNavClass(isSelectors)}>
+					<Link to="/app/selectors" className={mobileNavClass(isSelectors)} {...prefetchOnIntent}>
 						<Sparkles className="h-4 w-4 shrink-0" />
 						<span className="truncate">Selectors</span>
 					</Link>
@@ -201,15 +222,15 @@ export const Navbar = () => {
 
 				{/* Center: Nav links */}
 				<div className="flex items-center justify-center rounded-xl border border-gray-600/80 bg-gray-900/50 p-1 shadow-inner">
-					<Link to="/app" className={desktopNavClass(isCalculator)}>
+					<Link to="/app" className={desktopNavClass(isCalculator)} {...prefetchOnIntent}>
 						<CalculatorIcon className="w-4 h-4" />
 						Calculator
 					</Link>
-					<Link to="/app/timeline" className={desktopNavClass(isTimeline)}>
+					<Link to="/app/timeline" className={desktopNavClass(isTimeline)} {...prefetchOnIntent}>
 						<CalendarDays className="w-4 h-4" />
 						Timeline
 					</Link>
-					<Link to="/app/selectors" className={desktopNavClass(isSelectors)}>
+					<Link to="/app/selectors" className={desktopNavClass(isSelectors)} {...prefetchOnIntent}>
 						<Sparkles className="h-4 w-4" />
 						Selectors
 					</Link>

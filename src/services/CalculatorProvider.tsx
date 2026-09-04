@@ -366,6 +366,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		incomeLedger,
 		calculationConstants,
 		timerIsGoing,
+		isLoading,
+		fetchError,
 		organizedTimelineData,
 		saveNow,
 		setUserPlannedBannerData,
@@ -375,29 +377,17 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		setUserStatsData
 	}
 
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-screen">
-				<div className="h-10 w-10 border-4 border-gray-600 border-t-brand rounded-full animate-spin" />
-			</div>
-		)
-	}
-
-	if (fetchError) {
-		return (
-			<div className="flex flex-col items-center justify-center min-h-screen gap-4 text-gray-100">
-				<h1 className="text-2xl font-bold">Failed to load data</h1>
-				<p className="text-white/60">The server may be down. Please try again.</p>
-				<button
-					className="px-4 py-2 rounded bg-brand text-black font-semibold hover:opacity-80 transition-opacity"
-					onClick={() => window.location.reload()}
-				>
-					Reload page
-				</button>
-			</div>
-		)
-	}
-
+	// Children render straight away, loading or not.
+	//
+	// This used to return a bare spinner on an empty page until the fetch
+	// landed, which threw away the navbar and footer as well — the whole of
+	// /app was blank for as long as the request took. The wait itself is
+	// unchanged, but ApplicationViews now paints the shell immediately and
+	// gates only the page area, which is where the data is actually needed.
+	//
+	// The routed pages stay behind that gate: CaratCalculator, Timeline and
+	// Selectors are all written assuming their collections are populated, and
+	// letting them mount early would mean auditing all three for empty data.
 	return (
 		<CalculatorContext.Provider value={value}>
 			{children}

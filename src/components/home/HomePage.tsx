@@ -17,6 +17,7 @@ import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
 import { SupportersSection } from "./SupportersSection"
 import { changelogFetch } from "../../services/changelogFetchCalls"
+import { prefetchCalculatorData } from "../../services/calculatorFetchCalls"
 import { formatRelativeDate } from "../../utils/relativeDate"
 import { HOMEPAGE_FAQ_IDS, faqItemsByIds } from "../../constants/faqContent"
 import type { ChangelogEntry } from "../../types"
@@ -89,6 +90,34 @@ export const HomePage = () => {
 		return () => controller.abort()
 	}, [])
 
+	// Warm /calculator-data while the visitor is still reading this page.
+	//
+	// Nothing under /app renders until that request lands, so it is the entire
+	// cost of clicking "Open the calculator" — and the home page needs none of
+	// it. Starting it here usually means the response has already arrived by the
+	// time they click.
+	//
+	// On idle rather than immediately: this is a ~1MB response and the home
+	// page's own content comes first. requestIdleCallback runs it in a gap
+	// instead of competing for bandwidth with the hero image and the changelog
+	// fetch above. Safari only shipped requestIdleCallback recently, hence the
+	// timeout fallback.
+	//
+	// Deliberately NOT cancelled on unmount: the whole point is that the request
+	// outlives this page and is waiting when the provider mounts.
+	useEffect(() => {
+		const schedule =
+			window.requestIdleCallback ??
+			((cb: () => void) => window.setTimeout(cb, 200))
+		const handle = schedule(() => prefetchCalculatorData())
+		return () => {
+			// Only cancels the SCHEDULING — if the callback already ran, the
+			// request is in flight and we want it to stay that way.
+			if (window.cancelIdleCallback) window.cancelIdleCallback(handle as number)
+			else window.clearTimeout(handle as number)
+		}
+	}, [])
+
 	return (
 		<div className="home-canvas-shell flex min-h-dvh flex-col bg-gray-900">
 			{/* .home-canvas-shell above lines this navbar's wordmark up with the "P"
@@ -109,7 +138,7 @@ export const HomePage = () => {
 								<p className="mt-1 text-sm text-gray-400 sm:text-base">A simple planner for your Uma Musume banners, income, and pull goals.</p>
 							</div>
 							<div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
-								<Link to="/app" className="rounded-lg bg-brand px-4 py-2 text-center text-sm font-bold text-black transition hover:brightness-110">Open the calculator</Link>
+								<Link to="/app" className="rounded-lg bg-brand px-4 py-2 text-center text-sm font-bold text-black transition hover:brightness-110" onMouseEnter={prefetchCalculatorData} onFocus={prefetchCalculatorData}>Open the calculator</Link>
 								<Link to="/login" className="rounded-lg border border-gray-600 px-4 py-2 text-center text-sm font-semibold text-gray-200 transition hover:border-gray-400 hover:bg-gray-700">Sign in to save a plan</Link>
 							</div>
 						</div>
