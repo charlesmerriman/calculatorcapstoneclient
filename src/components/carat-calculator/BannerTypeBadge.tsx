@@ -21,24 +21,23 @@ export const BannerTypeIcon = ({
 	className?: string
 }) => {
 	if (type === "Uma") {
-		// A horseshoe.
+		// A horseshoe — a heel at each top corner, both curving down to meet at the
+		// toe. Two mirrored paths rather than one, so they meet flush at (12,21):
+		// both arrive horizontally, which puts their butt caps on the same vertical.
 		return (
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className}>
-				<path d="M5 3v9a7 7 0 0 0 14 0V3" />
-				<line x1="5" y1="3" x2="5" y2="6" />
-				<line x1="19" y1="3" x2="19" y2="6" />
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="butt" strokeLinejoin="miter" className={className}>
+				<path d="M 3 3 L 7 4 C 6 9 0 21 12 21" />
+				<path d="M 21 3 L 17 4 C 18 9 24 21 12 21" />
 			</svg>
 		)
 	}
 
 	if (type === "Support") {
-		// Two figures — a support pair.
+		// A support card, with a second card tucked behind it.
 		return (
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-				<circle cx="9" cy="7" r="3" />
-				<circle cx="15" cy="7" r="3" />
-				<path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
-				<path d="M12 21v-1a6 6 0 0 1 9-5.4" />
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="butt" strokeLinejoin="round" className={className}>
+				<path d="M6 2H3a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h3" />
+				<rect x="8" y="1" width="15" height="22" rx="2" />
 			</svg>
 		)
 	}
