@@ -68,11 +68,53 @@ describe('buildCountChips — pull rows', () => {
 		}
 	})
 
-	it('spends Clear at zero and Max at the ceiling', () => {
-		// The pad disables a chip whose next() is a no-op; these are the two that
-		// are meant to reach that state.
-		expect(chip(pullChips(340), 'Clear').next(0)).toBe(0)
+	it('spends Max at the ceiling and a negative delta at zero', () => {
+		// The pad disables a chip whose next() is a no-op; these are the ones
+		// meant to reach that state.
 		expect(chip(pullChips(340), 'Max 340').next(340)).toBe(340)
+		expect(chip(pullChips(340), '−200').next(0)).toBe(0)
+	})
+
+	it('is six chips, in one row, with no Clear', () => {
+		// The pad renders deltas and presets on a SINGLE line now, and its width
+		// is the sum of these labels — so the contents are a layout constraint,
+		// not just a feature list. Clear was cut to buy the row: the field is a
+		// text input you can select and retype, and '−200' already floors at 0.
+		const set = pullChips()
+		expect([...set.deltas, ...set.presets].map((c) => c.label)).toEqual([
+			'−200',
+			'−10',
+			'+10',
+			'+200',
+			'Max 340',
+			'Next pity',
+		])
+	})
+})
+
+describe('buildCountChips — rows with no projected ceiling', () => {
+	// A STAGED row isn't on the sheet, so useBannerResources has projected no
+	// affordability bound for it. It passes Infinity — the same opt-out it gives
+	// getPullCountStatus to suppress the "over" state.
+	it('drops Max rather than offering "Max Infinity"', () => {
+		const set = pullChips(Infinity)
+		expect([...set.deltas, ...set.presets].map((c) => c.label)).toEqual([
+			'−200',
+			'−10',
+			'+10',
+			'+200',
+			'Next pity',
+		])
+	})
+
+	it('drops Max on a step-up row too', () => {
+		expect(stepChips(Infinity).presets.map((c) => c.label)).toEqual(['Next round'])
+	})
+
+	it('keeps the ruler and Next pity working without a ceiling', () => {
+		// The chips that don't read upperBound must be untouched by its absence.
+		expect(chip(pullChips(Infinity), '+200').next(300)).toBe(500)
+		expect(chip(pullChips(Infinity), 'Next pity').next(150)).toBe(200)
 	})
 })
 

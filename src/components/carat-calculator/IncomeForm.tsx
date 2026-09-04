@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import Select from "react-select"
 import type { SingleValue, CSSObjectWithLabel, StylesConfig } from "react-select"
-import { Trophy, Gift, Diamond, TrendingUp, Sword, Users, Crown, Flame, Carrot, Dumbbell, Ticket, Star, Sparkles, ChevronDown } from "lucide-react"
+import { Trophy, Gift, Diamond, TrendingUp, Sword, Crown, Carrot, Dumbbell, Ticket, Star, Sparkles, ChevronDown } from "lucide-react"
 import { useCalculatorData } from "../../services/CalculatorContext"
 import { useAverageMonthlyIncome } from "../../hooks/useAverageMonthlyIncome"
 import { UncapCrystalsPanel } from "./UncapCrystalsPanel"
@@ -159,6 +159,56 @@ const PassToggle = ({
 )
 
 const iconCls = "w-4 h-4 shrink-0 text-brand"
+
+/**
+ * The Club Rank glyph — a jersey-and-shoulders figure over a crowd line, drawn
+ * inline rather than pulled from lucide because no stock icon reads as a club.
+ *
+ * Kept local: it is one field's decoration, not a shared token. Sizing and
+ * colour come from `className` (iconCls at the call site) so it scales with the
+ * lucide icons beside it instead of carrying its own w-/h-.
+ */
+const ClubRankIcon = ({ className }: { className?: string }) => (
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="butt"
+		strokeLinejoin="miter"
+		className={className}
+		aria-hidden="true"
+	>
+		<ellipse cx="12" cy="13.5" rx="8" ry="8" />
+		<path style={{ strokeWidth: 3 }} d="M 3 21 L 8 21 C 8 21 12 18.8 16 21 L 21 21" />
+		<path d="M 5 20 C 5 20 12 16 19 20" />
+		<path d="M 8 19 L 8 13 C 8 13 8 9 12 9 C 12 9 16 9 16 13 L 16 19" />
+		<ellipse cx="12" cy="2.5" rx="0.25" ry="0.25" />
+		<ellipse cx="8" cy="3" rx="0.25" ry="0.25" />
+		<ellipse cx="16" cy="3" rx="0.25" ry="0.25" />
+		<path d="M 8.2 4.5 C 8.4 4.44 10.3 5.5 12.1 3.8" />
+		<path d="M 15.8 4.5 C 15.6 4.44 13.7 5.5 11.9 3.8" />
+	</svg>
+)
+
+/**
+ * The Champion's Meeting glyph — a crescent. Local for the same reason as
+ * [ClubRankIcon]: one field's decoration, sized and coloured by `className`.
+ */
+const ChampionsMeetingIcon = ({ className }: { className?: string }) => (
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		className={className}
+		aria-hidden="true"
+	>
+		<path d="M2.0343,14.3455c1.5881,2.1525,4.1422,3.5487,7.0224,3.5487c4.8166,0,8.7212,-3.9046,8.7212,-8.7212 c0,-2.9731,-1.4877,-5.5987,-3.7593,-7.173c4.5484,0.9902,7.9472,5.0383,7.9472,9.8834c0,5.5872,-4.5293,10.1166,-10.1166,10.1166 C7.1091,22,3.1319,18.7457,2.0343,14.3455z" />
+	</svg>
+)
 
 // ── IncomeForm ────────────────────────────────────────────────────────
 
@@ -337,14 +387,14 @@ export const IncomeForm = () => {
 											<div className="ml-auto w-20 @income-wide:ml-0 @income-wide:w-20 @income-wide:col-span-1 @income-wide:justify-self-end">
 												{teamTrialsRank && (
 													<div className="w-full h-8 flex items-center justify-center text-xs font-semibold text-brand bg-gray-700 border border-brand rounded">
-														{`+${teamTrialsRank.income_amount.toLocaleString()}/mo`}
+														{`+${teamTrialsRank.income_amount.toLocaleString()}/week`}
 													</div>
 												)}
 											</div>
 										</div>
 
 										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 @income-wide:contents">
-											<Users className={iconCls} />
+											<ClubRankIcon className={iconCls} />
 											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight @income-wide:pr-2 @income-wide:text-sm @income-wide:text-right @income-wide:whitespace-nowrap">Club Rank:</span>
 											<Select
 												className="order-last w-full min-w-0 @income-wide:order-none @income-wide:col-span-1 @income-wide:w-auto"
@@ -383,7 +433,7 @@ export const IncomeForm = () => {
 										</div>
 
 										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 @income-wide:contents">
-											<Crown className={iconCls} />
+											<ChampionsMeetingIcon className={iconCls} />
 											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight @income-wide:pr-2 @income-wide:text-sm @income-wide:text-right @income-wide:whitespace-nowrap">Champion's Meeting:</span>
 											<Select
 												className="order-last w-full min-w-0 @income-wide:order-none @income-wide:col-span-1 @income-wide:w-auto"
@@ -422,7 +472,7 @@ export const IncomeForm = () => {
 										</div>
 
 										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 @income-wide:contents">
-											<Flame className={iconCls} />
+											<Crown className={iconCls} />
 											<span className="min-w-0 text-xs text-gray-400 text-left leading-tight @income-wide:pr-2 @income-wide:text-sm @income-wide:text-right @income-wide:whitespace-nowrap">League of Heroes:</span>
 											<Select
 												className="order-last w-full min-w-0 @income-wide:order-none @income-wide:col-span-1 @income-wide:w-auto"
