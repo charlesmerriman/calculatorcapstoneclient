@@ -990,14 +990,18 @@ USD budgeting, and the two toggles that govern whether any of it reaches the pro
 
 - **`Selectors.tsx`** — page root. Zero props, reads `useCalculatorData()`, owns the
   purchase upsert handlers. Follows `UncapCrystalsPanel`'s conventions.
-- **`CampaignCard.tsx`** — one campaign: packs with quantity steppers, selectors with a
-  target picker, and the per-campaign / cumulative footer.
+- **`CampaignCard.tsx`** — one campaign: packs with quantity steppers, the selector
+  ticket column with its strip of card tiles, and the per-campaign / cumulative footer.
 - **`SelectorTargetPicker.tsx`** — the single-card picker for a selector ticket,
-  filtered by that ticket's JP cutoff.
+  filtered by that ticket's JP cutoff. **The tile is the whole control**; see below.
 - **`StepUpSelectionStrip.tsx`** — the band below a campaign card's three columns, one
   disclosure row per step-up the campaign sells. It filters `stepUpBannerData` on
   `anniversary_event` and renders nothing when a campaign sells none, so almost every
-  card is untouched by it. Each row's thumbnail resolves
+  card is untouched by it. **Two step-ups share a row** (`md:grid-cols-2`) — an
+  anniversary sells at most a ★3 one and an SSR one, and the band already spans the
+  whole card. The columns are conditional on there being two: a half-anniversary sells
+  one, and a lone row across half the band is the dead space this page keeps shedding.
+  Each row's thumbnail resolves
   **guaranteed pick → `BannerStepUp.image` → `★3`/`SSR` chip** — the same order the
   planner row uses, so a step-up looks the same in both places.
 - **`StepUpSelectionPicker.tsx`** — the ten-slot dialog, laid out like the source
@@ -1014,6 +1018,41 @@ so it never passes as a choice the user made. It is virtual until they edit some
 Because that leaves all ten slots full from the outset, a candidate tile that cannot be
 picked carries a `title` saying why; "full" is now the state a first-time user meets.
 → `frontend/docs/resource-projection-logic.md` ("The default selection")
+
+### The selector block is the source sheet's shape
+
+One narrow column of tickets, and everything to the right of it is the cards they take —
+mirroring the sheet's own block, which the users of this page already read. Ticking a
+ticket is what makes its tile appear; the tiles render in the column's order, so a tile
+and its checkbox always line up left to right.
+
+- **The tile *is* the control — there is no name dropdown beside it.** A button repeating
+  the chosen card's name cost a row of width per ticket to say what the art already says,
+  and on a phone that row was most of the screen. The price chip says which ticket the
+  tile belongs to, the caption says which card, the pencil says it can be changed.
+- **The affordance is drawn, never hovered**: a dashed frame with a plus while empty, a
+  persistent pencil badge once filled. A hover-only cue leaves a touch user unable to tell
+  a picture from a button — and this page is used on a phone.
+- **Tiles are a fixed size and `shrink-0`** (`w-32` uma / `w-24` support, on an `h-32`
+  frame). Five claimed tickets in one strip must look exactly like one, so a strip too
+  narrow for them **wraps** — it never squeezes the art. Sizing them to fit was the
+  vertical-space problem this layout replaced.
+- **The strip's grid track is the constant `minmax(20rem, 49rem)`, sized to the widest
+  strip any campaign can have** — the 10rem ticket column, the cell's padding and gap,
+  and the fullest ticket set sold (2 uma at `w-32` + 3 support at `w-24`). It is a
+  constant and not `max-content` on purpose: a campaign never fills a 96rem card, so
+  ~200px of slack has to land somewhere, and both of the obvious answers are worse.
+  As an `fr` share it collected between the last tile and the card's border and read as
+  a torn edge; as an intrinsic track it sized **each card to its own contents**, and
+  since campaigns sell anywhere from five tickets to none, the column boundaries then
+  fell in a different place on every card and the stack lost its rhythm. Pinned to the
+  maximum, a full campaign's tiles end flush and every other card keeps that geometry.
+  **Change a tile width and 49rem moves with it.** Nothing here is an `@container`
+  either — with a constant track there is no question left that `lg:` doesn't answer,
+  and `lg` is the same breakpoint that puts the card in three columns.
+- **The ticket's JP cutoff is not printed on the tile.** It governs which cards the dialog
+  offers, which is where it is legible (`N eligible cards`); beside a card already chosen
+  it was a date with nothing to act on.
 
 **Both pickers share `useEligibleCardCatalogue`** (`hooks/`), which owns the catalogue
 rules: candidates come from the calculator's past and upcoming gacha-banner catalogue

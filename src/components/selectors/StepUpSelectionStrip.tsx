@@ -167,7 +167,18 @@ export const StepUpSelectionStrip = ({
 				<Star className="h-4 w-4 shrink-0" />
 				★3/SSR Select Step-Up Banners
 			</h4>
-			<ul className="divide-y divide-gray-700/80">
+			{/* Two step-ups share a row: an anniversary sells at most a ★3 one and an
+			    SSR one, and stacking two ~60px rows under a heading that spans the
+			    whole card wasted width the card already has. The columns are
+			    conditional — a half-anniversary sells one, and a lone row stretched
+			    across half the card with the other half empty is the dead space this
+			    page has been shedding. The rule between them only means anything
+			    while they are stacked, so it retires at the same breakpoint. */}
+			<ul
+				className={`grid gap-x-8 divide-y divide-gray-700/80 ${
+					stepUps.length > 1 ? "md:grid-cols-2 md:divide-y-0" : ""
+				}`}
+			>
 				{stepUps.map((stepUp) => (
 					<li key={stepUp.id}>
 						<StepUpRow
