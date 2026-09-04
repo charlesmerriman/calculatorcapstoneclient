@@ -194,6 +194,9 @@ export function userCalculatorDataPatch(
  *   3. Speed up type checking (the compiler doesn't have to trace through the body)
  */
 export function initialCalculatorDataFetch(signal?: AbortSignal): Promise<Response> {
+	const early = takePrefetchedCalculatorData()
+	if (early) return early
+
 	return fetch(`${API_URL}/calculator-data`, {
 		method: "GET",
 		headers: {
@@ -202,4 +205,102 @@ export function initialCalculatorDataFetch(signal?: AbortSignal): Promise<Respon
 		},
 		signal
 	})
+}
+
+/* ---------------------------------------------------------------------------
+ * Prefetching /calculator-data
+ *
+ * Nothing under /app renders until this request lands, so the wait is the whole
+ * cost of moving from the home page into the calculator. The home page itself
+ * needs none of it — so it starts the request while the user is still reading,
+ * and by the time they click through, the response is usually already here.
+ *
+ * The result is kept as the in-flight PROMISE rather than parsed data, so a
+ * consumer arriving mid-flight waits on the same request instead of starting a
+ * second one.
+ * ------------------------------------------------------------------------- */
+
+interface PrefetchRecord {
+	promise: Promise<Response>
+	/** The auth token as it stood when the request went out. */
+	token: string | null
+	startedAt: number
+}
+
+let prefetched: PrefetchRecord | null = null
+
+/**
+ * How long a prefetched payload may be handed out. Someone who leaves the home
+ * page open and comes back an hour later should get fresh data, not whatever
+ * the catalogue looked like when the tab was opened.
+ */
+const PREFETCH_MAX_AGE_MS = 5 * 60 * 1000
+
+function prefetchIsUsable(record: PrefetchRecord): boolean {
+	// The token check is the important one, and it is about correctness rather
+	// than freshness. The usual path into the app is: browse as a guest (we
+	// prefetch, and the server answers "no saved plan"), sign in, land on /app.
+	// Serving that guest response afterwards would show a signed-in user an
+	// EMPTY PLAN — their saved banners apparently gone. A token that has
+	// changed in either direction (signed in, signed out, or swapped accounts)
+	// invalidates the prefetch.
+	if (record.token !== localStorage.getItem("authToken")) return false
+	return Date.now() - record.startedAt < PREFETCH_MAX_AGE_MS
+}
+
+/**
+ * Start fetching /calculator-data ahead of the calculator being opened.
+ *
+ * Safe to call repeatedly — a usable request already in flight is left alone
+ * rather than duplicated, so wiring it to a hover handler costs nothing.
+ */
+export function prefetchCalculatorData(): void {
+	if (prefetched && prefetchIsUsable(prefetched)) return
+
+	const promise = fetch(`${API_URL}/calculator-data`, {
+		method: "GET",
+		headers: {
+			"Content-Type": "application/json",
+			...authHeaders()
+		}
+	})
+
+	// Attaching a handler here marks the rejection as handled, so a prefetch
+	// that fails with nobody yet waiting on it doesn't surface as an unhandled
+	// promise rejection in the console. It does NOT swallow the error for real
+	// consumers: `promise` itself still rejects, and initialCalculatorDataFetch's
+	// caller has its own catch. A failed prefetch is also dropped, so the
+	// provider falls through to a normal fetch rather than inheriting the
+	// failure.
+	promise.catch(() => {
+		prefetched = null
+	})
+
+	prefetched = {
+		promise,
+		token: localStorage.getItem("authToken"),
+		startedAt: Date.now()
+	}
+}
+
+/**
+ * The prefetched response, or null if there isn't a usable one.
+ *
+ * Hands out a CLONE and never the original. A Response body can only be read
+ * once, and this may legitimately be consumed more than once — React's
+ * StrictMode double-invokes the provider's mount effect in development, and the
+ * stale-token path re-fetches after a 401. Cloning keeps the stored response
+ * unread so every consumer gets a readable body of its own.
+ */
+function takePrefetchedCalculatorData(): Promise<Response> | null {
+	if (!prefetched || !prefetchIsUsable(prefetched)) {
+		prefetched = null
+		return null
+	}
+	return prefetched.promise.then((response) => response.clone())
+}
+
+/** Test seam: forget any in-flight or completed prefetch. */
+export function resetCalculatorDataPrefetch(): void {
+	prefetched = null
 }

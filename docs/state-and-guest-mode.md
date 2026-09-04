@@ -17,6 +17,36 @@ The backend's `GET /calculator-data` returns one aggregated payload — all refe
 the user's stats, planned banners, events, and banner timelines — specifically so the
 frontend does not have to make N+1 fetches.
 
+### Loading is the consumer's business, not the provider's
+
+The provider **always renders its children**, and publishes `isLoading` / `fetchError` on the
+context instead of gating the tree itself. It used to return a bare spinner until the fetch
+landed, which blanked the navbar and footer along with everything else.
+
+`views/ApplicationViews.tsx` owns the gate now: it paints the app shell immediately and shows
+the spinner in the page area alone. The routed pages (`CaratCalculator`, `Timeline`,
+`Selectors`) stay behind it — they all assume their collections are populated, and nothing has
+changed about that guarantee.
+
+**Anything that renders OUTSIDE the gate must tolerate empty collections**, because while
+`isLoading` is true every array on the context is still at its initial `[]` and
+`userStatsData` is `null`. `Navbar` is the one such component today: its "Sign in to save"
+button is disabled while loading, since stashing an empty plan would clear a guest's
+already-stashed one.
+
+### The payload is prefetched
+
+`prefetchCalculatorData()` (`services/calculatorFetchCalls.ts`) starts the request before the
+calculator is opened — on the home page during an idle callback, and on hover/focus of any
+link into `/app` from outside the provider. `initialCalculatorDataFetch()` then reuses that
+in-flight request rather than starting a second one.
+
+Two guards on the reuse, both load-bearing: the prefetch is discarded if **the auth token has
+changed** since it went out (otherwise a guest response — an empty plan — could be served to
+someone who signed in meanwhile), and if it is **older than five minutes**. Consumers always
+get a `clone()`, because a `Response` body reads only once and the provider legitimately
+consumes it twice (StrictMode in dev, and the stale-token retry after a 401).
+
 ---
 
 ## Auto-save

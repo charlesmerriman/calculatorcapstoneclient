@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react"
 import { Outlet, Route, Routes } from "react-router-dom"
+import { useCalculatorData } from "../services/CalculatorContext"
 import { Navbar } from "../components/navbar/Navbar.tsx"
 import { CaratCalculator } from "../components/carat-calculator/CaratCalculator"
 import { Timeline } from "../components/timeline/Timeline"
@@ -7,9 +8,35 @@ import { Selectors } from "../components/selectors/Selectors"
 import { Footer } from "../components/footer/Footer.tsx"
 import { NotFound } from "../components/NotFound"
 
+/* The page area while the initial fetch is still out. Sized to roughly fill the
+   space the calculator will occupy, so the footer doesn't ride up under the
+   navbar and then jump down when the data lands. */
+const PageLoading = () => (
+	<div className="flex min-h-[60vh] items-center justify-center">
+		<div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-600 border-t-brand" />
+	</div>
+)
+
+const PageError = () => (
+	<div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-gray-100">
+		<h1 className="text-2xl font-bold">Failed to load data</h1>
+		<p className="text-white/60">The server may be down. Please try again.</p>
+		<button
+			className="rounded bg-brand px-4 py-2 font-semibold text-black transition-opacity hover:opacity-80"
+			onClick={() => window.location.reload()}
+		>
+			Reload page
+		</button>
+	</div>
+)
+
 export const ApplicationViews = () => {
 	const shellRef = useRef<HTMLDivElement | null>(null)
 	const scrollerRef = useRef<HTMLDivElement | null>(null)
+	// Gates the page area only. The navbar and footer around it render
+	// immediately, so /app is visibly the app while the payload is still in
+	// flight rather than a spinner on a blank background.
+	const { isLoading, fetchError } = useCalculatorData()
 
 	// The navbar is a SIBLING of the scroller, so it spans the full viewport
 	// while every page inside it is laid out in a box one scrollbar narrower.
@@ -85,8 +112,16 @@ export const ApplicationViews = () => {
 							    timeline keep a normal block formatting context and don't become
 							    flex items themselves. flex-1 grows it into the slack; min-height:auto
 							    stops it shrinking below its content, so tall content still scrolls. */}
+							{/* The routed pages mount only once the data is here — they
+							    all assume their collections are populated. */}
 							<div className="flex-1">
-								<Outlet />
+								{isLoading ? (
+									<PageLoading />
+								) : fetchError ? (
+									<PageError />
+								) : (
+									<Outlet />
+								)}
 							</div>
 							<Footer />
 						</div>

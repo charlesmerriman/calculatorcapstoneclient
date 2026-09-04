@@ -135,6 +135,14 @@ export interface CalculatorContextType {
 	incomeLedger: IncomeLedgerRow[]
 	calculationConstants: CalculationConstants
 	timerIsGoing: boolean
+	// The initial /calculator-data fetch. Exposed rather than gated inside the
+	// provider so the app shell (navbar, footer) can paint immediately and only
+	// the page area waits — see views/ApplicationViews.tsx. While isLoading is
+	// true every collection below is still at its empty initial value, so a
+	// consumer that renders during loading must tolerate that; the routed pages
+	// stay behind the gate precisely so they never have to.
+	isLoading: boolean
+	fetchError: boolean
 	organizedTimelineData: OrganizedTimelineData
 	saveNow: () => Promise<void>
 	setUserPlannedBannerData: Dispatch<SetStateAction<UserPlannedBanner[]>>
