@@ -12,9 +12,10 @@ export interface CountChip {
 }
 
 /**
- * The pad's contents, split by row. Two rows rather than one flat list: the
- * deltas are a symmetric four-across ruler and the presets are three wider
- * buttons, and interleaving them made both harder to aim at.
+ * The pad's contents, split by GROUP rather than by row — they render as one
+ * row with a divider between them. The deltas are a symmetric ruler and the
+ * presets are jump-to-a-value buttons; keeping them apart in the data is what
+ * lets the pad draw that divider without hard-coding an index.
  */
 export interface CountChipSet {
 	deltas: CountChip[]
@@ -39,6 +40,10 @@ export interface CountChipSet {
  *   `maxPossibleSteps` on a step-up. Only the "Max" preset reads it; the deltas
  *   deliberately step straight past it, because over-planning is surfaced as a
  *   red field rather than prevented (same rule as handlePullCountChange).
+ *   Pass Infinity when there is no ceiling to know — a STAGED row is not on the
+ *   sheet, so useBannerResources has projected nothing for it — and the Max chip
+ *   is dropped rather than invented. That is the same opt-out the staged row
+ *   already hands getPullCountStatus to suppress the "over" state.
  */
 export function buildCountChips({
 	isStepUp,
@@ -65,19 +70,23 @@ export function buildCountChips({
 	const toNextMultiple = (interval: number): CountChip["next"] => (current) =>
 		Math.ceil((current + 1) / interval) * interval
 
-	const clear: CountChip = {
-		label: "Clear",
-		title: "Set back to zero",
-		next: () => 0,
-	}
-
-	const max: CountChip = {
-		label: `Max ${upperBound}`,
-		title: isStepUp
-			? "Every step this banner's carats can pay for"
-			: "Every pull this banner's carats, tickets and free pulls can pay for",
-		next: () => upperBound,
-	}
+	/**
+	 * Spread into the presets, so an unknown ceiling drops the chip instead of
+	 * rendering one. Neither degenerate alternative is acceptable: "Max Infinity"
+	 * is not a button, and a Max that quietly meant 0 would wipe a field the user
+	 * had just filled in.
+	 */
+	const maxGroup: CountChip[] = Number.isFinite(upperBound)
+		? [
+				{
+					label: `Max ${upperBound}`,
+					title: isStepUp
+						? "Every step this banner's carats can pay for"
+						: "Every pull this banner's carats, tickets and free pulls can pay for",
+					next: () => upperBound,
+				},
+		  ]
+		: []
 
 	if (isStepUp) {
 		return {
@@ -88,13 +97,12 @@ export function buildCountChips({
 				{ label: `+${stepsPerRound}`, title: `One round more (${stepsPerRound} steps)`, next: by(stepsPerRound) },
 			],
 			presets: [
-				max,
+				...maxGroup,
 				{
 					label: "Next round",
 					title: `Round up to a complete ladder (a multiple of ${stepsPerRound} steps)`,
 					next: toNextMultiple(stepsPerRound),
 				},
-				clear,
 			],
 			hint: `↑↓ ±1 · Shift ±${stepsPerRound}`,
 		}
@@ -108,13 +116,12 @@ export function buildCountChips({
 			{ label: `+${pullsPerPity}`, title: `One pity copy more (${pullsPerPity} pulls)`, next: by(pullsPerPity) },
 		],
 		presets: [
-			max,
+			...maxGroup,
 			{
 				label: "Next pity",
 				title: `Round up to the next pity threshold (a multiple of ${pullsPerPity} pulls)`,
 				next: toNextMultiple(pullsPerPity),
 			},
-			clear,
 		],
 		hint: `↑↓ ±1 · Shift ±10 · Ctrl ±${pullsPerPity}`,
 	}

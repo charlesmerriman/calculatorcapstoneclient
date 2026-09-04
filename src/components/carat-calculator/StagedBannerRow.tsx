@@ -10,6 +10,8 @@ import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { NumberField } from "../NumberField"
+import { CountStepper } from "./CountStepper"
+import { buildCountChips } from "../../utils/countChips"
 import { compactSelectStyles, mobileBannerSelectStyles } from "../../utils/reactSelectStyles"
 import { formatDate } from "../../utils/dateFormat"
 import { timelineFocusHref } from "../../utils/timelineFocus"
@@ -287,14 +289,38 @@ export const StagedBannerRow = ({
 		</div>
 	)
 
+	// ONE node, rendered by both the phone card and the desktop cell below —
+	// same rule as BannerRow's pullsInput. This row used to declare the field
+	// twice, which is how it came to be missing the pad and the keyboard steps
+	// in both copies at once.
+	//
+	// Infinity, not a number: a staged banner has no projection, so there is no
+	// affordable ceiling for a "Max" chip to jump to. buildCountChips drops the
+	// chip; the ruler and "Next pity" are the same as on the sheet.
 	const pullsInput = (
-		<NumberField
+		<CountStepper
 			value={stagedBanner.number_of_pulls}
-			className={`pull-input pull-input--${countStatus} w-14`}
-			title={countStatusHint}
-			ariaLabel={countLabel}
 			onChange={handlePullCountChange}
-		/>
+			chips={buildCountChips({
+				isStepUp,
+				upperBound: Infinity,
+				pullsPerPity: PULLS_PER_PITY_COPY,
+				stepsPerRound: STEPS_PER_ROUND,
+			})}
+			label={isStepUp ? "Steps" : "Pulls"}
+		>
+			<NumberField
+				value={stagedBanner.number_of_pulls}
+				className={`pull-input pull-input--${countStatus} w-14`}
+				title={countStatusHint}
+				ariaLabel={countLabel}
+				// The keyboard mirror of the pad's delta row, matching BannerRow
+				// so a value typed while staged behaves as it will on the sheet.
+				mediumStep={isStepUp ? STEPS_PER_ROUND : 10}
+				largeStep={isStepUp ? undefined : PULLS_PER_PITY_COPY}
+				onChange={handlePullCountChange}
+			/>
+		</CountStepper>
 	)
 	// Always neutral, never ok/over. A staged banner isn't on the sheet, so
 	// useBannerResources hasn't projected which of these copies a selector or a
@@ -389,13 +415,7 @@ export const StagedBannerRow = ({
 			<div className="flex items-center justify-center py-2 px-1 relative">
 				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
-				<NumberField
-					value={stagedBanner.number_of_pulls}
-					className={`pull-input pull-input--${countStatus} w-14`}
-					title={countStatusHint}
-					ariaLabel={countLabel}
-					onChange={handlePullCountChange}
-				/>
+				{pullsInput}
 			</div>
 
 			{/* === Reserved copies === */}

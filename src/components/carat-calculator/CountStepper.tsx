@@ -4,18 +4,22 @@ import { createPortal } from "react-dom"
 import type { CountChip, CountChipSet } from "../../utils/countChips"
 
 /**
- * Panel width, in px. Fixed so the horizontal placement can be computed before
- * the panel is measured — only its HEIGHT needs a real measurement.
+ * The pad is sized by its CONTENT, not to a fixed width — `width: max-content`
+ * capped at the viewport. One row of six chips is between ~290px (a step-up's
+ * "−5 −1 +1 +5 | Max 20 | Next round") and ~320px ("Max 1200" on a large plan),
+ * and a fixed width that fits the widest of those would leave the narrowest
+ * padded out with dead space, while the old fixed 264 truncated "Next pity" the
+ * moment both groups shared a row.
  *
- * Sized by the WIDEST preset row, which is a step-up's: three chips sharing
- * `width - 16px padding - 8px of gaps` in equal thirds, against a "Next round"
- * that wants ~78px with its own padding. At 236 that label truncated to
- * "Next rou…". 264 gives each chip 80px, with room left for a four-digit
- * "Max 1200" on a large plan. Widening costs the layout nothing — the pad is
- * portal'd, so it is not competing with the banner table's width budget — but
- * keep it under ~300 so it clears a 320px viewport with the EDGE gutters.
+ * The cap is what keeps it honest on a phone: below ~330px of viewport the row
+ * wraps to two rather than running off the edge, which is why the chip row is
+ * `flex-wrap`. Costs nothing on the layout either way — the pad is portal'd, so
+ * it never competes with the banner table's width budget.
+ *
+ * Placement therefore measures WIDTH as well as height. This is only used if
+ * that measurement is somehow unavailable.
  */
-const PANEL_WIDTH = 264
+const PANEL_FALLBACK_WIDTH = 300
 /** Gap between the field and the panel, and the panel and the viewport edge. */
 const GAP = 6
 const EDGE = 8
@@ -24,7 +28,8 @@ interface CountStepperProps {
 	value: number
 	onChange: (next: number) => void
 	chips: CountChipSet
-	/** "Pulls" / "Steps" — the pad's heading, and the trigger's aria-label. */
+	/** "Pulls" / "Steps" — names the pad to a screen reader. No longer rendered:
+	 * the pad sits against the field it adjusts, which is already labelled. */
 	label: string
 	/** The NumberField this pad drives. Rendered above the trigger. */
 	children: ReactNode
@@ -76,6 +81,9 @@ export const CountStepper = ({
 		// keyboard.
 		const viewportHeight = window.visualViewport?.height ?? window.innerHeight
 		const panelHeight = panelRef.current?.offsetHeight ?? 0
+		// Measured, not assumed: the pad is as wide as its chips, and "Max 1200"
+		// makes a wider row than "Max 20".
+		const panelWidth = panelRef.current?.offsetWidth ?? PANEL_FALLBACK_WIDTH
 
 		// Centred on the field, then pulled inside both edges. The outer max()
 		// is not redundant with the inner one: on a viewport narrower than the
@@ -83,8 +91,8 @@ export const CountStepper = ({
 		const left = Math.max(
 			EDGE,
 			Math.min(
-				Math.max(rect.left + rect.width / 2 - PANEL_WIDTH / 2, EDGE),
-				window.innerWidth - PANEL_WIDTH - EDGE
+				Math.max(rect.left + rect.width / 2 - panelWidth / 2, EDGE),
+				window.innerWidth - panelWidth - EDGE
 			)
 		)
 		// Below by preference, flipped above when the room isn't there. Flipping
@@ -174,7 +182,7 @@ export const CountStepper = ({
 	}
 
 	const chipClass =
-		"flex h-9 min-w-0 flex-1 items-center justify-center rounded border border-gray-600 bg-gray-700 px-1 text-xs font-medium text-gray-100 transition hover:border-gray-500 hover:bg-gray-600 disabled:cursor-default disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-600"
+		"flex h-7 shrink-0 items-center justify-center whitespace-nowrap rounded border border-gray-600 bg-gray-700 px-2 text-xs font-medium text-gray-100 transition hover:border-gray-500 hover:bg-gray-600 disabled:cursor-default disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-600"
 
 	const renderChip = (chip: CountChip) => {
 		// One rule for both rows: a button that cannot change the value is spent.
@@ -190,7 +198,7 @@ export const CountStepper = ({
 				className={chipClass}
 				onClick={() => apply(chip)}
 			>
-				<span className="truncate">{chip.label}</span>
+				{chip.label}
 			</button>
 		)
 	}
@@ -216,34 +224,40 @@ export const CountStepper = ({
 						style={{
 							left: position?.left ?? 0,
 							top: position?.top ?? 0,
-							width: PANEL_WIDTH,
+							width: "max-content",
+							maxWidth: `calc(100vw - ${EDGE * 2}px)`,
 							// Invisible rather than unmounted until placed: the
 							// placement needs the panel's real height, so it has to
 							// be in the DOM to be measured.
 							visibility: position ? "visible" : "hidden",
 						}}
-						className="fixed z-50 rounded-lg border border-gray-600 bg-gray-800 p-2 shadow-lg"
+						// The keyboard equivalents are the cheapest version of this
+						// feature and the least discoverable. They used to be a footer
+						// line inside the pad; naming them in the title keeps them
+						// learnable without spending ~18px of height on something read
+						// once. Chips carry their own titles, so this shows on the
+						// pad's dead space only.
+						title={chips.hint}
+						className="fixed z-50 rounded-lg border border-gray-600 bg-gray-800 p-1 shadow-lg"
 						// Focus never leaves the field, so the pad stays open for the
 						// next click and the arrow keys keep working. On the whole
 						// panel rather than each chip: a press on the pad's own dead
 						// space blurs the field too, and closed it mid-use.
 						onMouseDown={(event) => event.preventDefault()}
 					>
-						<div className="mb-1.5 flex items-baseline justify-between px-0.5">
-							<span className="text-[10px] font-semibold uppercase tracking-wider text-brand">
-								{label}
-							</span>
-							<span className="text-xs font-medium text-gray-300">{value}</span>
-						</div>
-
-						<div className="flex gap-1">{chips.deltas.map(renderChip)}</div>
-						<div className="mt-1 flex gap-1">{chips.presets.map(renderChip)}</div>
-
-						{/* The keyboard equivalents are the cheapest version of this
-						    feature and the least discoverable; naming them here is
-						    what makes them learnable. */}
-						<div className="mt-1.5 px-0.5 text-center text-[10px] leading-tight text-gray-500">
-							{chips.hint}
+						{/* ONE row, and chips and nothing else. This pad opens over the
+						    sheet, so every pixel of it is hiding a number the user is
+						    adjusting it to watch — two chip rows plus a "PULLS 200"
+						    header (which restated the field it is anchored beside) plus
+						    a keyboard-hint footer covered the whole next banner row.
+						    The divider is what keeps the ruler readable as a ruler now
+						    that the presets share its line. */}
+						<div className="flex flex-wrap items-center gap-1">
+							{chips.deltas.map(renderChip)}
+							{chips.deltas.length > 0 && chips.presets.length > 0 && (
+								<div aria-hidden="true" className="mx-0.5 h-4 w-px shrink-0 bg-gray-600" />
+							)}
+							{chips.presets.map(renderChip)}
 						</div>
 					</div>,
 					document.body
