@@ -38,7 +38,7 @@ import { NAV_POPOVER } from "../navbar/navStyles"
  * JS knows which, which is why every opener below records for itself what the
  * popover should show (`Face`) and what it is anchored to.
  *
- * SIGNED-IN ONLY. A guest has one unnamed plan in memory (`activePlanId` is
+ * SIGNED-IN ONLY. A guest has one unnamed plan on their device (`activePlanId` is
  * null), so this renders nothing, bar included. The same null covers an API
  * from before plans existed.
  *

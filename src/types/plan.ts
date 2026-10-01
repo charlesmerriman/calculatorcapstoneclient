@@ -17,7 +17,7 @@
  * Full reasoning, including why this makes a plan safe to copy between
  * accounts later: backend/docs/data-model.md ("`Plan`").
  *
- * A guest has one unnamed plan in memory, so for a guest `plans` is `[]` and
+ * A guest has one unnamed plan on their device, so for a guest `plans` is `[]` and
  * `activePlanId` is `null`. That pair is how the UI knows to hide the switcher.
  */
 import type { UserPlannedPurchase } from "./anniversary"
