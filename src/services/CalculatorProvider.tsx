@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import { useMatch, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { CalculatorContext } from "./CalculatorContext"
 import { clearAuthToken, getAuthToken } from "./authToken"
@@ -45,16 +46,26 @@ import {
 	planCreate,
 	planDelete,
 	planFetch,
+	publicPlanFetch,
 	planSetSeparateIncome,
 	planRename
 } from "./planFetchCalls"
 import { useAutoSave } from "../hooks/useAutoSave"
+import { APP_STATIC_ROUTE_PATHS } from "../constants/appRoutes"
 
 interface CalculatorProviderProps {
 	children: React.ReactNode
 }
 
 export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
+	const publicPlanMatch = useMatch("/app/:public_id")
+	const navigate = useNavigate()
+	const routePublicId = publicPlanMatch?.params.public_id
+	const [requestedPublicId] = useState(
+		() => routePublicId && !Object.values(APP_STATIC_ROUTE_PATHS).includes(routePublicId as "timeline" | "selectors")
+			? routePublicId
+			: undefined
+	)
 	/**
 	 * TYPESCRIPT CONCEPT: useState Generic Parameter
 	 *
@@ -85,6 +96,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	// plan's rows.
 	const [plans, setPlans] = useState<Plan[]>([])
 	const [activePlanId, setActivePlanId] = useState<number | null>(null)
+	const [isSharedMode, setIsSharedMode] = useState(false)
+	const isReadOnly = isSharedMode
 	const [isPlanBusy, setIsPlanBusy] = useState(false)
 	// Deliberately NOT persisted — not to localStorage, not to sessionStorage,
 	// and never PATCHed. Staging is scratch space, and a reload clearing it is
@@ -137,9 +150,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const lastSaveOkRef = useRef(true)
 
 	const performSave = useCallback(async (): Promise<void> => {
-		// Guests never PATCH — their plan is in-memory only. The auto-save
-		// timer is already gated, but saveNow could still land here.
-		if (!getAuthToken()) return
+		// Guests and shared plans are both in-memory only. saveNow could still
+		// land here even though the auto-save timer is gated for both.
+		if (!getAuthToken() || isSharedMode) return
 		try {
 			const response = await userCalculatorDataPatch(
 					// The plan these rows were loaded from. It comes from the same
@@ -161,7 +174,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			lastSaveOkRef.current = false
 			toast.error("Save failed. Check your connection.")
 		}
-	}, [activePlanId, userStatsData, prepareBannerData, preparePurchaseData,
+	}, [activePlanId, isSharedMode, userStatsData, prepareBannerData, preparePurchaseData,
 		prepareStepUpSelectionData])
 
 	const { timerIsGoing, startTimer, saveNow, cancelTimer } = useAutoSave({
@@ -176,7 +189,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	useEffect(() => {
 		const controller = new AbortController()
 
-		const applyData = (data: CalculatorData): void => {
+		const applyData = (data: CalculatorData, sharedMode = false): void => {
 				/**
 				 * TYPESCRIPT CONCEPT: Extending Objects with Extra Fields
 				 *
@@ -238,7 +251,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				// which is the right way to degrade. Saves then omit plan_id and
 				// the server falls back to the account's only plan.
 				setPlans(data.user_plans ?? [])
-				setActivePlanId(data.active_plan_id ?? null)
+				setActivePlanId(sharedMode ? null : data.active_plan_id ?? null)
+				setIsSharedMode(sharedMode)
 				// Defaulted, unlike the keys above, because these two arrived later
 				// than the rest of the payload. A backend running a build from
 				// before the selector planner omits them entirely, and an
@@ -288,6 +302,52 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				throw new Error(`calculator-data fetch failed: ${response.status}`)
 			}
 			let data = (await response.json()) as CalculatorData
+			let sharedMode = false
+
+			if (requestedPublicId) {
+				const ownedPlan = getAuthToken()
+					? data.user_plans?.find((plan) => plan.public_id === requestedPublicId)
+					: undefined
+
+				if (ownedPlan) {
+					if (ownedPlan.id !== data.active_plan_id) {
+						const [activated, fetched] = await Promise.all([
+							planActivate(ownedPlan.id),
+							planFetch(ownedPlan.id)
+						])
+						if (!activated.ok || !fetched.ok) {
+							throw new Error("could not load owned shared plan")
+						}
+						const planData = (await fetched.json()) as PlanWithRows
+						data = {
+							...data,
+							active_plan_id: ownedPlan.id,
+							user_plans: data.user_plans?.map((plan) => ({
+								...plan,
+								is_active: plan.id === ownedPlan.id
+							})),
+							user_stats_data: planData.user_stats_data ?? data.user_stats_data,
+							user_planned_banner_data: planData.user_planned_banner_data,
+							user_planned_purchase_data:
+								planData.user_planned_purchase_data ?? data.user_planned_purchase_data
+						}
+					}
+				} else {
+					const publicResponse = await publicPlanFetch(requestedPublicId)
+					if (!publicResponse.ok) {
+						throw new Error(`shared plan fetch failed: ${publicResponse.status}`)
+					}
+					const publicPlan = (await publicResponse.json()) as PlanWithRows
+					data = {
+						...data,
+						user_stats_data: publicPlan.user_stats_data ?? DEFAULT_GUEST_STATS,
+						user_planned_banner_data: publicPlan.user_planned_banner_data,
+						user_planned_purchase_data: [],
+						active_plan_id: null
+					}
+					sharedMode = true
+				}
+			}
 
 			// Guest-plan migration: a stash in sessionStorage + a token means
 			// the user just logged in after building a plan as a guest.
@@ -356,7 +416,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				}
 			}
 
-			applyData(data)
+			applyData(data, sharedMode)
 		}
 
 		load().catch((error: unknown) => {
@@ -368,7 +428,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		})
 
 		return () => controller.abort()
-	}, [])
+	}, [requestedPublicId])
 
 	// prevStatsRef tracks what userStatsData was on the last effect run.
 	// When it's null, this is either the initial mount or the initial data load — both should
@@ -388,12 +448,12 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		}
 		// Guests have nothing to save to the server. Never arming the timer
 		// also suppresses the pending-save icon and the beforeunload warning.
-		if (!getAuthToken()) return
+		if (!getAuthToken() || isSharedMode) return
 		startTimer()
 		// activePlanId is here so this effect is GUARANTEED to run after
 		// applyPlan and clear suppressAutoSaveRef. Every applyPlan changes the id;
 		// without it, a flag left set would swallow the user's next real edit.
-	}, [startTimer, userStatsData, userPlannedBannerData, userPlannedPurchaseData,
+	}, [startTimer, isSharedMode, userStatsData, userPlannedBannerData, userPlannedPurchaseData,
 		userStepUpSelectionData, activePlanId])
 
 	// ── Plans ────────────────────────────────────────────────────────────────
@@ -425,6 +485,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		purchases?: UserPlannedPurchase[]
 	): void => {
 		suppressAutoSaveRef.current = true
+		setIsSharedMode(false)
 		setActivePlanId(planId)
 		setUserPlannedBannerData(rows)
 		if (stats) setUserStatsData(stats)
@@ -458,8 +519,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const switchPlan = useCallback(
 		(planId: number): Promise<boolean> =>
 			runPlanAction(async () => {
-				if (planId === activePlanId) return true
-				if (!(await flushPendingSave())) {
+				if (planId === activePlanId && !isSharedMode) return true
+				if (!isSharedMode && !(await flushPendingSave())) {
 					toast.error("Your changes didn't save, so we stayed on this plan.")
 					return false
 				}
@@ -482,8 +543,31 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				)
 				return true
 			}),
-		[runPlanAction, activePlanId, flushPendingSave, applyPlan]
+		[runPlanAction, activePlanId, isSharedMode, flushPendingSave, applyPlan]
 	)
+
+	const exitSharedPlan = useCallback(async (): Promise<void> => {
+		if (!isSharedMode) return
+		if (getAuthToken()) {
+			const firstPlan = plans[0]
+			if (!firstPlan) {
+				toast.error("Couldn't find a saved plan to return to.")
+				return
+			}
+			if (await switchPlan(firstPlan.id)) navigate("/app", { replace: true })
+			return
+		}
+
+		setIsSharedMode(false)
+		setPlans([])
+		setActivePlanId(null)
+		setUserStatsData(DEFAULT_GUEST_STATS)
+		setUserPlannedBannerData([])
+		setStagedBanners([])
+		setUserPlannedPurchaseData([])
+		setUserStepUpSelectionData([])
+		navigate("/app", { replace: true })
+	}, [isSharedMode, plans, switchPlan, navigate])
 
 	const createPlan = useCallback(
 		(name: string, copyFromId?: number): Promise<boolean> =>
@@ -663,6 +747,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		organizedTimelineData,
 		plans,
 		activePlanId,
+		isReadOnly,
 		isPlanBusy,
 		switchPlan,
 		createPlan,
@@ -688,8 +773,22 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	// The routed pages stay behind that gate: CaratCalculator, Timeline and
 	// Selectors are all written assuming their collections are populated, and
 	// letting them mount early would mean auditing all three for empty data.
+	const BUTTON_PRIMARY =
+		"rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-brand/85 disabled:cursor-not-allowed disabled:opacity-50"
+
 	return (
 		<CalculatorContext.Provider value={value}>
+			{isReadOnly && (
+				<div
+					role="status"
+					className="border-b border-amber-400/20 bg-amber-400/10 px-4 py-2 text-center text-sm text-amber-200"
+				>
+					<button className={BUTTON_PRIMARY} type="button" onClick={() => void exitSharedPlan()} disabled={isPlanBusy}>
+						Exit Shared Plan
+					</button>
+					Viewing a shared plan in read-only mode.
+				</div>
+			)}
 			{children}
 		</CalculatorContext.Provider>
 	)

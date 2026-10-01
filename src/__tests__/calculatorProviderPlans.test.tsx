@@ -17,7 +17,8 @@
  */
 
 import { useEffect } from 'react'
-import { act, render, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CalculatorProvider } from '../services/CalculatorProvider'
 import { useCalculatorData } from '../services/CalculatorContext'
@@ -30,9 +31,10 @@ import {
 	planCreate,
 	planDelete,
 	planFetch,
+	publicPlanFetch,
 	planSetSeparateIncome,
 } from '../services/planFetchCalls'
-import { setAuthToken } from '../services/authToken'
+import { clearAuthToken, setAuthToken } from '../services/authToken'
 import type {
 	BannerUma,
 	CalculatorContextType,
@@ -55,6 +57,7 @@ vi.mock('../services/planFetchCalls', () => ({
 	planCreate: vi.fn(),
 	planDelete: vi.fn(),
 	planFetch: vi.fn(),
+	publicPlanFetch: vi.fn(),
 	planRename: vi.fn(),
 	planSetSeparateIncome: vi.fn(),
 }))
@@ -66,6 +69,7 @@ const mockedActivate = vi.mocked(planActivate)
 const mockedCreate = vi.mocked(planCreate)
 const mockedDelete = vi.mocked(planDelete)
 const mockedPlanFetch = vi.mocked(planFetch)
+const mockedPublicPlanFetch = vi.mocked(publicPlanFetch)
 const mockedSetSeparateIncome = vi.mocked(planSetSeparateIncome)
 
 const json = (body: unknown, status = 200): Response =>
@@ -136,11 +140,13 @@ const ctx = (): CalculatorContextType => {
 	return latest.current
 }
 
-const renderLoaded = async (): Promise<void> => {
+const renderLoaded = async (path = '/app'): Promise<void> => {
 	render(
-		<CalculatorProvider>
-			<Probe />
-		</CalculatorProvider>
+		<MemoryRouter initialEntries={[path]}>
+			<CalculatorProvider>
+				<Probe />
+			</CalculatorProvider>
+		</MemoryRouter>
 	)
 	await waitFor(() => expect(latest.current?.isLoading).toBe(false))
 }
@@ -172,9 +178,71 @@ beforeEach(() => {
 			user_planned_purchase_data: PURCHASES_B,
 		})
 	)
+	mockedPublicPlanFetch.mockResolvedValue(
+		json({
+			plan: { id: 99, public_id: 'shared-id', name: 'Shared', is_active: false, updated_at: '' },
+			user_stats_data: STATS_B,
+			user_planned_banner_data: ROWS_B
+		})
+	)
 })
 
 describe('CalculatorProvider plans', () => {
+	it('loads an external public plan read-only and never saves its edits', async () => {
+		await renderLoaded('/app/shared-id')
+
+		expect(mockedPublicPlanFetch).toHaveBeenCalledWith('shared-id')
+		expect(ctx().isReadOnly).toBe(true)
+		expect(ctx().activePlanId).toBeNull()
+		expect(ctx().userStatsData).toEqual(STATS_B)
+		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
+
+		await act(async () => {
+			ctx().setUserPlannedBannerData(ROWS_A)
+			await ctx().saveNow()
+		})
+		expect(mockedPatch).not.toHaveBeenCalled()
+	})
+
+	it('exits a shared plan into the first account plan from the exit control', async () => {
+		await renderLoaded('/app/shared-id')
+
+		await act(async () => {
+			screen.getByRole('button', { name: 'Exit Share Plan' }).click()
+			await waitFor(() => expect(ctx().activePlanId).toBe(PLAN_A.id))
+		})
+
+		expect(mockedActivate).toHaveBeenCalledWith(PLAN_A.id)
+		expect(ctx().isReadOnly).toBe(false)
+	})
+
+	it('opens an owned public id as a normal editable plan', async () => {
+		const ownedData = calculatorData()
+		ownedData.user_plans = [{ ...PLAN_A, public_id: 'shared-id' }, PLAN_B]
+		mockedInitialFetch.mockResolvedValue(json(ownedData))
+
+		await renderLoaded('/app/shared-id')
+
+		expect(mockedPublicPlanFetch).not.toHaveBeenCalled()
+		expect(ctx().isReadOnly).toBe(false)
+		expect(ctx().activePlanId).toBe(PLAN_A.id)
+	})
+
+	it('clears a guest shared plan when exiting', async () => {
+		clearAuthToken()
+		await renderLoaded('/app/shared-id')
+		expect(ctx().isReadOnly).toBe(true)
+		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
+
+		await act(async () => {
+			screen.getByRole('button', { name: 'Exit Share Plan' }).click()
+		})
+
+		expect(ctx().isReadOnly).toBe(false)
+		expect(ctx().userPlannedBannerData).toEqual([])
+		expect(ctx().activePlanId).toBeNull()
+	})
+
 	it('loads the plan list and which plan the rows belong to', async () => {
 		await renderLoaded()
 		expect(ctx().plans.map((plan) => plan.name)).toEqual(['Main plan', 'What if'])
