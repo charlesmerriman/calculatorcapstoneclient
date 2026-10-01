@@ -18,13 +18,21 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import { formatDate } from "../../utils/dateFormat"
 import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
 import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
-import { CATEGORY_LABELS, TIMELINE_FOCUS_HIGHLIGHT, getCountdownLabel } from "./timelineShared"
+import {
+	CATEGORY_LABELS,
+	TIMELINE_FOCUS_HIGHLIGHT,
+	buildWindowSections,
+	getCountdownLabel,
+} from "./timelineShared"
 import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
-import type { BannerWindowGroup, TimelineFocusProps } from "./timelineShared"
+import type {
+	BannerWindowGroup,
+	BannerWindowSection,
+	TimelineFocusProps,
+} from "./timelineShared"
 import type {
 	BannerCategory,
 	BannerSupport,
-	BannerTimelineForViewing,
 	BannerUma,
 	UserPlannedBanner,
 } from "../../types"
@@ -653,10 +661,11 @@ function FeaturePanel({
 }
 
 type BannerSectionProps = {
-	banner: BannerTimelineForViewing
+	section: BannerWindowSection
 	/** True when this card carries more than one banner. */
 	isGrouped: boolean
 	/** The card header's window, so a section can flag its own if it differs. */
+	groupStartDate: string
 	groupEndDate: string
 	today: Date
 	plannedBannerKeys: Set<BannerKey>
@@ -665,19 +674,24 @@ type BannerSectionProps = {
 }
 
 function BannerSection({
-	banner,
+	section,
 	isGrouped,
+	groupStartDate,
 	groupEndDate,
 	today,
 	plannedBannerKeys,
 	stagedBanners,
 	onAddBanner,
 }: BannerSectionProps) {
-	const umaBanner = banner.banner_umas[0]
-	const supportBanner = banner.banner_supports[0]
+	// Each panel reads from its OWN row. They are the same row on every section
+	// but a fused one — the two halves of a staggered release, see
+	// buildWindowSections — where the dates below genuinely differ per panel.
+	const { primary: banner, umaWindow, supportWindow } = section
+	const umaBanner = umaWindow.banner_umas[0]
+	const supportBanner = supportWindow.banner_supports[0]
 
-	const umaExpired = !umaBanner || new Date(banner.end_date) <= today
-	const supportExpired = !supportBanner || new Date(banner.end_date) <= today
+	const umaExpired = !umaBanner || new Date(umaWindow.end_date) <= today
+	const supportExpired = !supportBanner || new Date(supportWindow.end_date) <= today
 	const umaPlanned = umaBanner ? plannedBannerKeys.has(bannerKey("Uma", umaBanner.id)) : false
 	const supportPlanned = supportBanner
 		? plannedBannerKeys.has(bannerKey("Support", supportBanner.id))
@@ -693,7 +707,17 @@ function BannerSection({
 	// from the header's — otherwise it would just repeat the header. Real case:
 	// the 2025 Golden Week revival runs nine days longer than the standard
 	// banner sharing its start.
-	const hasOwnWindow = isGrouped && banner.end_date !== groupEndDate
+	//
+	// A staggered group adds the other way to differ: a banner that opens later
+	// than the card does. Then the line gives the whole range, because "ends"
+	// alone would still imply it is open from the header's first day.
+	const opensLater = isGrouped && banner.start_date !== groupStartDate
+	// A staggered section stays quiet here: one line could only describe one of
+	// its two halves, so the card header carries both (see staggerNotes).
+	const hasOwnWindow =
+		isGrouped &&
+		!section.isStaggered &&
+		(opensLater || banner.end_date !== groupEndDate)
 	const chrome = CATEGORY_CHROME[banner.banner_category]
 	const ChipIcon = chrome?.icon
 
@@ -794,7 +818,9 @@ function BannerSection({
 			)}
 			{hasOwnWindow && (
 				<span className="text-sm font-medium text-gray-400">
-					This banner ends {formatDate(banner.end_date)}
+					{opensLater
+						? `This banner runs ${formatDate(banner.start_date)} through ${formatDate(banner.end_date)}`
+						: `This banner ends ${formatDate(banner.end_date)}`}
 				</span>
 			)}
 		</div>
@@ -808,7 +834,7 @@ function BannerSection({
 	// only ever filler: it would be 1030px of empty box beside a single uma tile,
 	// with the real content already on the band below. So past that point the
 	// cell needs actual art to earn its place.
-	const showArt = !hasBand || !!banner.image
+	const showArt = !hasBand || !!section.image
 
 	// `columnPanelCount === 2` implies nothing banded (a banded panel is by
 	// definition not in a column), so the three-column template is only ever
@@ -828,9 +854,9 @@ function BannerSection({
 				(showArt ? (
 					<div className={`grid gap-4 xl:items-stretch ${artRowColumns}`}>
 						<div className="min-w-0">
-							{banner.image ? (
+							{section.image ? (
 								<img
-									src={banner.image}
+									src={section.image}
 									alt={banner.name}
 									loading="lazy"
 									decoding="async"
@@ -871,9 +897,9 @@ function BannerSection({
 			    the bands instead, centered because there is no column edge left to
 			    align to. Reached by any row whose only banner is banded — a
 			    support-only race-prep batch with art is the live case. */}
-			{columnPanelCount === 0 && banner.image && (
+			{columnPanelCount === 0 && section.image && (
 				<img
-					src={banner.image}
+					src={section.image}
 					alt={banner.name}
 					loading="lazy"
 					decoding="async"
@@ -915,6 +941,44 @@ export function BannerWindowCard({
 	// without BannerWindowGroup having to hoist a second field.
 	const stepUps = group.banners.flatMap((banner) => banner.banner_step_ups ?? [])
 	const isGrouped = group.banners.length > 1
+	// Usually one section per banner. The two halves of a staggered release
+	// fuse into one — see buildWindowSections.
+	const sections = buildWindowSections(group.banners)
+
+	// How each side of a staggered release differs from the window in the
+	// header, e.g. "Support banner opens 2026/10/27". A side that matches the
+	// header says nothing.
+	//
+	// These live in the HEADER, and nowhere inside a section, on purpose. A line
+	// inside a feature panel makes the panel taller, the art row stretches to
+	// match, and the banner art grows with it. The header is outside that row, so
+	// nothing here can change the size of the art or the panels.
+	//
+	// Drawn as a QUIET alert pill beside the countdown: an amber outline and an
+	// amber icon around ordinary text. Enough to say "the header's range is not
+	// the whole truth for this side" without outshouting the countdown. A filled
+	// amber pill with a warning triangle was tried and was too loud. The icon is
+	// the panel's own, so the pill points at the side it is about. The amber is
+	// the staging token, already tuned per theme (see --color-staging in
+	// index.css), so it never blends into a gold brand.
+	const staggerNotes = sections.flatMap((section) => {
+		if (!section.isStaggered) return []
+		const sides = [
+			{ label: "Umamusume banner", icon: Sparkles, row: section.umaWindow },
+			{ label: "Support banner", icon: Ticket, row: section.supportWindow },
+		]
+		return sides.flatMap(({ label, icon, row }) => {
+			const opensLater = row.start_date !== group.start_date
+			const endsEarlier = row.end_date !== group.end_date
+			const text =
+				opensLater && endsEarlier
+					? `${label} runs ${formatDate(row.start_date)} through ${formatDate(row.end_date)}`
+					: opensLater ? `${label} opens ${formatDate(row.start_date)}`
+						: endsEarlier ? `${label} ends ${formatDate(row.end_date)}`
+							: null
+			return text ? [{ text, icon }] : []
+		})
+	})
 
 	return (
 		// The ref goes on the outer wrapper so scrolling accounts for the campaign
@@ -943,9 +1007,21 @@ export function BannerWindowCard({
 							</div>
 						</div>
 					</div>
-					<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-semibold text-gray-100">
-						<span>{countdownLabel}</span>
-						<Clock3 className="h-4 w-4 text-brand" />
+					<div className="flex flex-wrap items-center gap-2">
+						{staggerNotes.map(({ text, icon: NoteIcon }) => (
+							<div
+								key={text}
+								role="note"
+								className="flex w-fit items-center gap-2 rounded-full border border-staging/40 px-3 py-1 text-sm font-medium text-gray-200"
+							>
+								<NoteIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-staging" />
+								<span>{text}</span>
+							</div>
+						))}
+						<div className="flex w-fit items-center gap-2 rounded-full border border-gray-600 bg-gray-700 px-3 py-1 text-sm font-semibold text-gray-100">
+							<span>{countdownLabel}</span>
+							<Clock3 className="h-4 w-4 text-brand" />
+						</div>
 					</div>
 				</div>
 
@@ -953,14 +1029,15 @@ export function BannerWindowCard({
 				    banners in one window are peers, and boxing each would add a
 				    frame inside a frame. */}
 				<div className="flex flex-col gap-4">
-					{group.banners.map((banner, index) => (
+					{sections.map((section, index) => (
 						<div
-							key={banner.id}
+							key={section.primary.id}
 							className={index > 0 ? "border-t border-gray-700/70 pt-4" : undefined}
 						>
 							<BannerSection
-								banner={banner}
+								section={section}
 								isGrouped={isGrouped}
+								groupStartDate={group.start_date}
 								groupEndDate={group.end_date}
 								today={today}
 								plannedBannerKeys={plannedBannerKeys}

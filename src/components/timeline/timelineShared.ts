@@ -112,9 +112,17 @@ export const MARKER_ORDER: TimelineMarker["kind"][] = ["scenario", "anniversary"
  * A group of one is the overwhelmingly common case and renders exactly as a
  * lone banner always did — the grouped path is the only path, so there is no
  * second layout to keep in sync.
+ *
+ * "The same moment" has two readings, and a group accepts either — see
+ * groupTimelineEvents: the same global start, or the same JP start. The second
+ * is the STAGGERED release: one JP window whose uma and support banners global
+ * opened on different days, entered as two rows that share their JP dates.
  */
 export interface BannerWindowGroup {
-	/** The shared opening instant, and the group's identity. */
+	/**
+	 * The EARLIEST opening instant across the group, and the group's identity.
+	 * Every constituent shares it unless the release was staggered.
+	 */
 	start_date: string
 	/** The LATEST end across the group, so the header states the union window. */
 	end_date: string
@@ -189,9 +197,10 @@ export interface TimelineMarker {
  *
  * Ids are unique only within a model, so a bare id would let Champions Meeting
  * 4 and a banner window share a key. Banner windows key on their start date
- * rather than an id: grouping is by that date, so it is unique across the
- * list by construction, and it stays stable if the API reorders the banners
- * within a group. Markers carry their own already-prefixed key.
+ * rather than an id: every start instant belongs to exactly one group (see
+ * groupTimelineEvents), so it is unique across the list by construction, and
+ * it stays stable if the API reorders the banners within a group. Markers
+ * carry their own already-prefixed key.
  */
 export function timelineRowKey(row: TimelineRow): string {
 	if (row.kind === "race") {
@@ -278,16 +287,36 @@ export const TIMELINE_FOCUS_HIGHLIGHT =
  * UTC instant are the same window for every reader, whereas a same-UTC-day test
  * could merge two banners that a reader west of GMT sees on different dates.
  *
+ * A SHARED JP START GROUPS TOO, whatever the global starts are. JP runs a
+ * release as one window; global has (2026-10, Hokko Tarumae) opened the uma
+ * banner days before the support banner of that same window. The data stores
+ * that as two BannerTimeline rows with identical JP dates and their own global
+ * dates — correct, since each half's income is a function of its own end date —
+ * and the shared `jp_start_date` is what says they are one release. No flag to
+ * tick in the admin: copying the JP dates onto the second row is the whole
+ * workflow. An unconfirmed pair predicts to the same instant from the same JP
+ * date, so the JP rule only ever adds a group for rows global has confirmed
+ * apart.
+ *
+ * The two rules are a UNION, not a replacement: the launch window holds rows
+ * with one global start and two different JP starts, and must stay one card.
+ * The global start is looked up first and a key is never re-pointed, so every
+ * start instant belongs to exactly one group — which is what keeps
+ * timelineRowKey unique.
+ *
  * Order is preserved — a group sits where its first constituent sat, so the
- * caller's sort still holds.
+ * caller's sort still holds. The input is ascending by start, so that first
+ * constituent is also the group's earliest.
  *
  * Pure, and called on an already-filtered list: grouping must run AFTER the
  * past/future split, or a group could straddle the boundary and drag an ended
- * banner into the current view.
+ * banner into the current view. A staggered pair whose halves END on different
+ * days therefore splits across that boundary once the first half is over.
  */
 export function groupTimelineEvents(events: TimelineEvent[]): TimelineRow[] {
 	const rows: TimelineRow[] = []
-	const groupsByStart = new Map<string, BannerWindowGroup>()
+	// Prefixed, so a JP instant can never be mistaken for a global one.
+	const groupsByKey = new Map<string, BannerWindowGroup>()
 
 	for (const event of events) {
 		if (isRaceEvent(event)) {
@@ -295,13 +324,22 @@ export function groupTimelineEvents(events: TimelineEvent[]): TimelineRow[] {
 			continue
 		}
 
-		const existing = groupsByStart.get(event.start_date)
+		const startKey = `start:${event.start_date}`
+		const jpKey = event.jp_start_date ? `jp:${event.jp_start_date}` : null
+		const existing =
+			groupsByKey.get(startKey) ?? (jpKey ? groupsByKey.get(jpKey) : undefined)
 		if (existing) {
 			existing.banners.push(event)
+			// This banner's own keys now lead here as well (never overwriting one
+			// that already leads somewhere), so a later row matching it on either
+			// date joins the same card.
+			if (!groupsByKey.has(startKey)) groupsByKey.set(startKey, existing)
+			if (jpKey && !groupsByKey.has(jpKey)) groupsByKey.set(jpKey, existing)
 			// Widen the header's window to cover every constituent, and keep the
 			// predicted badge if any one of them is still an estimate. ISO-8601
 			// strings compare correctly with `>`, which is why the dates never
 			// need parsing here.
+			if (event.start_date < existing.start_date) existing.start_date = event.start_date
 			if (event.end_date > existing.end_date) existing.end_date = event.end_date
 			existing.is_predicted ||= event.is_predicted
 			existing.anniversary_event ??= event.anniversary_event
@@ -317,11 +355,96 @@ export function groupTimelineEvents(events: TimelineEvent[]): TimelineRow[] {
 			banners: [event],
 			anniversary_event: event.anniversary_event,
 		}
-		groupsByStart.set(event.start_date, group)
+		groupsByKey.set(startKey, group)
+		if (jpKey && !groupsByKey.has(jpKey)) groupsByKey.set(jpKey, group)
 		rows.push({ kind: "banner_window", group })
 	}
 
 	return rows
+}
+
+/**
+ * One section of a banner window card: usually one BannerTimeline, or the two
+ * halves of a staggered release drawn as one.
+ *
+ * `umaWindow` and `supportWindow` are the rows each PANEL reads its banner and
+ * its dates from. On an ordinary section both are the same row as `primary`;
+ * on a fused one they differ, and each panel's stage button, expiry and date
+ * line follow its own row.
+ */
+export interface BannerWindowSection {
+	/** Supplies the name, the category chrome and (first choice) the art. */
+	primary: BannerTimelineForViewing
+	umaWindow: BannerTimelineForViewing
+	supportWindow: BannerTimelineForViewing
+	/** `primary`'s art, else the other half's. */
+	image: string | null
+	/** True when two rows were fused into this section. */
+	isFused: boolean
+	/**
+	 * True when the two panels run on different days. The card header then
+	 * says how each side differs from the window it states.
+	 */
+	isStaggered: boolean
+}
+
+/**
+ * A group's banners as the sections its card draws, fusing a staggered pair.
+ *
+ * Two rows fuse when they are COMPLEMENTARY: one carries an uma banner and no
+ * support banner, the other a support banner and no uma banner, in the same
+ * category. Drawn separately each would be a full section with an empty panel,
+ * and the pair reads as two half-finished banners; fused they are the ordinary
+ * art | umas | supports row, which is what the release is.
+ *
+ * Anything else stacks as before. A revival beside a standard banner is two uma
+ * banners (two pools), not two halves of one, and a category mismatch would put
+ * one half under the other's chip.
+ *
+ * The fused section sits where its uma half sat; the support half is consumed.
+ */
+export function buildWindowSections(
+	banners: BannerTimelineForViewing[]
+): BannerWindowSection[] {
+	const isUmaOnly = (banner: BannerTimelineForViewing): boolean =>
+		banner.banner_umas.length > 0 && banner.banner_supports.length === 0
+	const isSupportOnly = (banner: BannerTimelineForViewing): boolean =>
+		banner.banner_supports.length > 0 && banner.banner_umas.length === 0
+
+	// Decide the pairs first, so a support half listed BEFORE its uma half is
+	// still consumed rather than drawn and then drawn again.
+	const supportHalfFor = new Map<number, BannerTimelineForViewing>()
+	const consumed = new Set<number>()
+	for (const banner of banners) {
+		if (!isUmaOnly(banner)) continue
+		const partner = banners.find(
+			(other) =>
+				isSupportOnly(other) &&
+				!consumed.has(other.id) &&
+				other.banner_category === banner.banner_category
+		)
+		if (!partner) continue
+		supportHalfFor.set(banner.id, partner)
+		consumed.add(partner.id)
+	}
+
+	const sections: BannerWindowSection[] = []
+	for (const banner of banners) {
+		if (consumed.has(banner.id)) continue
+		const supportHalf = supportHalfFor.get(banner.id)
+		sections.push({
+			isStaggered:
+				supportHalf !== undefined &&
+				(supportHalf.start_date !== banner.start_date ||
+					supportHalf.end_date !== banner.end_date),
+			primary: banner,
+			umaWindow: banner,
+			supportWindow: supportHalf ?? banner,
+			image: banner.image ?? supportHalf?.image ?? null,
+			isFused: supportHalf !== undefined,
+		})
+	}
+	return sections
 }
 
 /**

@@ -726,6 +726,18 @@ own "Add to Planner". A section whose own end date differs from the header's say
   their end dates can differ — and income is a pure function of a banner's end date.
 - A group of one is the common case and is the *same* code path, so there is no second
   layout to keep in sync.
+- **A shared `jp_start_date` groups too: the staggered release.** JP runs a release as one
+  window; global can open its uma and support banners on different days (first seen
+  2026-10, Hokko Tarumae). That is entered as **two `BannerTimeline` rows with the same JP
+  dates and their own global dates**, and the shared JP start is what puts them on one
+  card. There is no flag to set. The rule is a union with the start rule, never a
+  replacement: the launch window has one global start and two JP starts.
+- **Complementary halves fuse into one section** (`buildWindowSections`): an uma-only row
+  and a support-only row of the same category draw as the ordinary art | umas | supports
+  row, each panel reading its banner, expiry and dates from its own row. When the halves'
+  dates differ, the **card header** says how each side differs from the window it states
+  ("Support banner opens 2026/10/27"). Never inside a panel: a line there makes the panel
+  taller and the art row grows with it. Anything else stacks as separate sections.
 
 ### Count drives the layout, category drives the accents
 
