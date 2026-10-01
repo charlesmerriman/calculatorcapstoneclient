@@ -77,28 +77,23 @@ export const Navbar = () => {
 	// with it. The plan is on the device already now (guestPlanStore), and the
 	// provider finds it there when the person comes back signed in.
 	//
-	// "On this device" is the whole claim, on purpose: browser storage can be
-	// cleared from under us, so the copy never says just "saved". The status
-	// line only fits beside the button on a wide bar; the tooltip carries it
-	// everywhere else.
+	// "In this browser" is the whole claim, on purpose: browser storage can be
+	// cleared from under us, so the copy never says just "saved". It lives in
+	// the tooltip alone. A status line beside the button was tried and sat
+	// awkwardly in the bar; a failed write already announces itself with a toast.
 	const signInToSyncButton = (
-		<>
-			<span className="hidden text-xs text-gray-400 xl:inline">
-				{guestPlanStored ? "Saved on this device" : "Not saved"}
-			</span>
-			<Link
-				to="/login"
-				title={
-					guestPlanStored
-						? "Your plan is saved in this browser. Sign in to keep it safe and use it on your other devices."
-						: "This browser isn't saving your plan. Sign in to keep it."
-				}
-				className={NAV_BUTTON}
-			>
-				<LogIn className="w-4 h-4" />
-				Sign in to sync
-			</Link>
-		</>
+		<Link
+			to="/login"
+			title={
+				guestPlanStored
+					? "Your plan is saved in this browser. Sign in to keep it safe and use it on your other devices."
+					: "This browser isn't saving your plan. Sign in to keep it."
+			}
+			className={NAV_BUTTON}
+		>
+			<LogIn className="w-4 h-4" />
+			Sign in to sync
+		</Link>
 	)
 
 	// Auth slot shown on the right side when outside the app (home mode): the

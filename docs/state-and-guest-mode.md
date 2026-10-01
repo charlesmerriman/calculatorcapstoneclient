@@ -200,7 +200,7 @@ stepUpSelections }`. Four rules, each with a failure behind it.
   the plan was saved gets its default instead of arriving `undefined`.
 - **Every storage call is wrapped, and a failed write is reported.** `writeGuestPlan`
   returns whether it landed. On the first failure the guest gets one toast, the context's
-  `isGuestPlanStored` goes false and the navbar says "Not saved". The calculator carries
+  `isGuestPlanStored` goes false and the navbar button's tooltip says so. The calculator carries
   on in memory.
 - **Written on every change, with no timer.** A write this size is synchronous and takes
   well under a millisecond, so a closed tab never loses work. An empty plan removes the
