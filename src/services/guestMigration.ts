@@ -37,6 +37,10 @@ export const DEFAULT_GUEST_STATS: UserStats = {
 	misc_earnings: true,
 	// All four projection toggles ship on, matching the backend model defaults.
 	monthly_shop_tickets: true,
+	// null = the default purchase, the same as the backend's NULL default.
+	shop_uma_tickets_bought: null,
+	shop_support_tickets_bought: null,
+	spend_tickets_on_banners: true,
 	discounted_paid_pulls: true,
 	full_price_paid_pulls: true,
 	// Off so planned purchases stay budgeting-only until explicitly opted into,

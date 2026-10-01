@@ -26,6 +26,16 @@ export interface UserStats {
 	training_pass: boolean
 	misc_earnings: boolean
 	monthly_shop_tickets: boolean
+	/**
+	 * How many of each the player buys from the shop each month. null (or
+	 * absent, from an API older than the field) means the default purchase.
+	 * Read them through shopTicketsPerMonth (utils/cumulativeIncome), which
+	 * resolves the default and clamps to the shop's cap, never directly.
+	 */
+	shop_uma_tickets_bought?: number | null
+	shop_support_tickets_bought?: number | null
+	/** Off = tickets are kept as a reserve and never pay for a planned pull. */
+	spend_tickets_on_banners: boolean
 	discounted_paid_pulls: boolean
 	full_price_paid_pulls: boolean
 	/** Off by default — planned purchases are budgeting-only until switched on. */

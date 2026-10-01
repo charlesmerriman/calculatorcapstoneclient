@@ -188,6 +188,34 @@ describe('applyPullStrategy — spend', () => {
     expect(r.paidCarats).toBe(0)
   })
 
+  it('keeps tickets and pays in carats when ticket spending is off', () => {
+    // The worked example from the feature request: 40 tickets, 6,000 carats,
+    // 50 pulls. Tickets stay at 40 and the whole plan is charged to carats.
+    const r = strat({
+      plannedPulls: 50,
+      umaTickets: 40,
+      freeCarats: 6_000,
+      spendTickets: false,
+    })
+    expect(r.umaTickets).toBe(40)
+    expect(r.freeCarats).toBe(6_000 - 50 * 150) // -1,500: the row goes red
+    // Held-back tickets are not pulls this banner can count on.
+    expect(r.maxPossiblePulls).toBe(40) // 6,000 / 150, tickets excluded
+    expect(r.maxPullBreakdown.tickets).toBe(0)
+  })
+
+  it('still takes free pulls first when ticket spending is off', () => {
+    const r = strat({
+      plannedPulls: 10,
+      freePulls: 10,
+      umaTickets: 5,
+      freeCarats: 1_000,
+      spendTickets: false,
+    })
+    expect(r.umaTickets).toBe(5)
+    expect(r.freeCarats).toBe(1_000)
+  })
+
   it('uses support tickets (not uma) for a support banner', () => {
     const r = strat({ isUmaBanner: false, plannedPulls: 3, supportTickets: 1, freeCarats: 1_000 })
     expect(r.supportTickets).toBe(0)

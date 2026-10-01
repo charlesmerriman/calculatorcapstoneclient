@@ -126,7 +126,10 @@ export function useAverageMonthlyIncome({
 			today, end, userStatsData.training_pass, constants
 		)
 		const shop = userStatsData.monthly_shop_tickets
-			? cumulativeMonthlyShopTickets(today, end, constants)
+			? cumulativeMonthlyShopTickets(today, end, constants, {
+					uma: userStatsData.shop_uma_tickets_bought,
+					support: userStatsData.shop_support_tickets_bought,
+			  })
 			: { umaTickets: 0, supportTickets: 0 }
 
 		// One combined carat figure here, unlike the per-banner projection: the
