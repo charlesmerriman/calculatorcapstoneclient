@@ -61,7 +61,10 @@ import { RecommendedMark } from "./RecommendedMark"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
 import { CountStepper } from "./CountStepper"
-import { buildCountChips } from "../../utils/countChips"
+import { buildCopyChips, buildCountChips, coarsePullDelta } from "../../utils/countChips"
+
+// Static, so built once rather than per render.
+const copyChips = buildCopyChips()
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -734,15 +737,15 @@ export const BannerRow = ({
 			? "Copies taken with an uma selector instead of pulling"
 			: "Copies taken with a support selector or SSR crystal instead of pulling"
 
-	// The affordable ceiling in whichever unit this row counts in. Only the pad's
-	// "Max" chip reads it — the deltas step straight past it, because planning
-	// past your budget is shown as a red field rather than prevented (the same
-	// rule handlePullCountChange above is written to preserve).
-	const countUpperBound = isStepUp ? stepUpperBound : pullUpperBound
+	// The pad's "Limit" chip jumps to what the step-up SELLS (max_steps), not to
+	// what the carats can pay for: going past the budget is shown as a red field
+	// rather than prevented (the same rule handlePullCountChange above is written
+	// to preserve). Infinity until a banner is picked, which drops the chip.
+	const stepLimit = target.type === "StepUp" ? target.banner.max_steps : Infinity
 
 	const countChips = buildCountChips({
-		isStepUp,
-		upperBound: countUpperBound,
+		rowType: bannerType,
+		stepLimit,
 		pullsPerPity: PULLS_PER_PITY_COPY,
 		stepsPerRound: STEPS_PER_ROUND,
 	})
@@ -769,7 +772,7 @@ export const BannerRow = ({
 				// large step: its ladder tops out around 25, so there is no third
 				// quantity for Ctrl to mean.
 				mediumStep={isStepUp ? STEPS_PER_ROUND : 10}
-				largeStep={isStepUp ? undefined : PULLS_PER_PITY_COPY}
+				largeStep={coarsePullDelta(bannerType, PULLS_PER_PITY_COPY)}
 				onChange={handlePullCountChange}
 			/>
 		</CountStepper>
@@ -781,15 +784,24 @@ export const BannerRow = ({
 	// factory shape as renderBannerSelect above.
 	const renderReservedInput = (widthClass: string) => (
 		<div className={`flex ${widthClass} flex-col items-center gap-0.5`}>
-			<NumberField
+			{/* A disabled field cannot take focus, so the pad never opens on a
+			    row that has no copies to reserve. */}
+			<CountStepper
 				value={plannedBanner.reserved_copies}
-				className={`pull-input pull-input--${reservedStatus} ${widthClass}`}
-				title={reservedHint}
-				ariaLabel="Copies obtained without pulling"
-				ariaInvalid={reservedStatus === "over"}
-				disabled={!hasBanner}
 				onChange={handleReservedChange}
-			/>
+				chips={copyChips}
+				label="Copies"
+			>
+				<NumberField
+					value={plannedBanner.reserved_copies}
+					className={`pull-input pull-input--${reservedStatus} ${widthClass}`}
+					title={reservedHint}
+					ariaLabel="Copies obtained without pulling"
+					ariaInvalid={reservedStatus === "over"}
+					disabled={!hasBanner}
+					onChange={handleReservedChange}
+				/>
+			</CountStepper>
 			{plannedBanner.reserved_copies > 0 && (
 				// Abbreviated to fit the 5rem track. Widening it would push
 				// --container-banner-table past the ceiling documented in

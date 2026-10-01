@@ -1,21 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { buildCountChips } from '../utils/countChips'
+import { buildCopyChips, buildCountChips, buildQuantityChips, coarsePullDelta } from '../utils/countChips'
 import type { CountChipSet } from '../utils/countChips'
 import { PULLS_PER_PITY_COPY } from '../utils/probabilityCalculations'
 import { STEPS_PER_ROUND } from '../utils/stepUpLadder'
 
-const pullChips = (upperBound = 340): CountChipSet =>
+const umaChips = (): CountChipSet =>
 	buildCountChips({
-		isStepUp: false,
-		upperBound,
+		rowType: 'Uma',
+		stepLimit: Infinity,
 		pullsPerPity: PULLS_PER_PITY_COPY,
 		stepsPerRound: STEPS_PER_ROUND,
 	})
 
-const stepChips = (upperBound = 20): CountChipSet =>
+const supportChips = (): CountChipSet =>
 	buildCountChips({
-		isStepUp: true,
-		upperBound,
+		rowType: 'Support',
+		stepLimit: Infinity,
+		pullsPerPity: PULLS_PER_PITY_COPY,
+		stepsPerRound: STEPS_PER_ROUND,
+	})
+
+const stepChips = (stepLimit = 10): CountChipSet =>
+	buildCountChips({
+		rowType: 'StepUp',
+		stepLimit,
 		pullsPerPity: PULLS_PER_PITY_COPY,
 		stepsPerRound: STEPS_PER_ROUND,
 	})
@@ -27,101 +35,56 @@ const chip = (set: CountChipSet, label: string) => {
 	return found
 }
 
-describe('buildCountChips — pull rows', () => {
-	it('offers the pity interval as the coarse delta, not a round hundred', () => {
-		// The whole reason this isn't the +100/-100 the feature was modelled on:
-		// the unit of account here is a pity copy.
-		expect(pullChips().deltas.map((c) => c.label)).toEqual([
-			'−200',
-			'−10',
-			'+10',
-			'+200',
-		])
+const labels = (set: CountChipSet): string[] =>
+	[...set.deltas, ...set.presets].map((c) => c.label)
+
+describe('buildCountChips — uma rows', () => {
+	it('steps by half a pity, with no Max', () => {
+		// An uma needs one copy, so nobody plans past the first pity and a ±200
+		// would only duplicate "Next pity". Max was cut from pull rows entirely.
+		expect(labels(umaChips())).toEqual(['−100', '−10', '+10', '+100', 'Next pity'])
 	})
 
-	it('steps past the affordable ceiling rather than clamping to it', () => {
+	it('steps past any affordable ceiling rather than clamping', () => {
 		// Over-planning is surfaced as a red field, never rewritten — the same
 		// contract handlePullCountChange keeps.
-		expect(chip(pullChips(340), '+200').next(300)).toBe(500)
+		expect(chip(umaChips(), '+100').next(300)).toBe(400)
 	})
 
 	it('floors a negative delta at zero', () => {
-		expect(chip(pullChips(), '−200').next(10)).toBe(0)
-	})
-
-	it('sets Max to the affordable ceiling exactly', () => {
-		expect(chip(pullChips(340), 'Max 340').next(0)).toBe(340)
+		expect(chip(umaChips(), '−100').next(10)).toBe(0)
 	})
 
 	it('advances Next pity from a value already on a threshold', () => {
 		// The `+1` inside toNextMultiple. Landing on 200 again would disable the
 		// button (next === current) precisely when someone wants their second copy.
-		expect(chip(pullChips(), 'Next pity').next(200)).toBe(400)
-		expect(chip(pullChips(), 'Next pity').next(0)).toBe(200)
-		expect(chip(pullChips(), 'Next pity').next(150)).toBe(200)
+		expect(chip(umaChips(), 'Next pity').next(200)).toBe(400)
+		expect(chip(umaChips(), 'Next pity').next(0)).toBe(200)
+		expect(chip(umaChips(), 'Next pity').next(150)).toBe(200)
 	})
 
 	it('never leaves Next pity spent, at any value', () => {
-		const next = chip(pullChips(), 'Next pity').next
+		const next = chip(umaChips(), 'Next pity').next
 		for (const value of [0, 1, 199, 200, 201, 999]) {
 			expect(next(value)).toBeGreaterThan(value)
 		}
 	})
-
-	it('spends Max at the ceiling and a negative delta at zero', () => {
-		// The pad disables a chip whose next() is a no-op; these are the ones
-		// meant to reach that state.
-		expect(chip(pullChips(340), 'Max 340').next(340)).toBe(340)
-		expect(chip(pullChips(340), '−200').next(0)).toBe(0)
-	})
-
-	it('is six chips, in one row, with no Clear', () => {
-		// The pad renders deltas and presets on a SINGLE line now, and its width
-		// is the sum of these labels — so the contents are a layout constraint,
-		// not just a feature list. Clear was cut to buy the row: the field is a
-		// text input you can select and retype, and '−200' already floors at 0.
-		const set = pullChips()
-		expect([...set.deltas, ...set.presets].map((c) => c.label)).toEqual([
-			'−200',
-			'−10',
-			'+10',
-			'+200',
-			'Max 340',
-			'Next pity',
-		])
-	})
 })
 
-describe('buildCountChips — rows with no projected ceiling', () => {
-	// A STAGED row isn't on the sheet, so useBannerResources has projected no
-	// affordability bound for it. It passes Infinity — the same opt-out it gives
-	// getPullCountStatus to suppress the "over" state.
-	it('drops Max rather than offering "Max Infinity"', () => {
-		const set = pullChips(Infinity)
-		expect([...set.deltas, ...set.presets].map((c) => c.label)).toEqual([
-			'−200',
-			'−10',
-			'+10',
-			'+200',
-			'Next pity',
-		])
+describe('buildCountChips — support rows', () => {
+	it('steps by a whole pity, with no ±10 and no Max', () => {
+		expect(labels(supportChips())).toEqual(['−200', '+200', 'Next pity'])
 	})
 
-	it('drops Max on a step-up row too', () => {
-		expect(stepChips(Infinity).presets.map((c) => c.label)).toEqual(['Next round'])
-	})
-
-	it('keeps the ruler and Next pity working without a ceiling', () => {
-		// The chips that don't read upperBound must be untouched by its absence.
-		expect(chip(pullChips(Infinity), '+200').next(300)).toBe(500)
-		expect(chip(pullChips(Infinity), 'Next pity').next(150)).toBe(200)
+	it('moves a whole pity and floors at zero', () => {
+		expect(chip(supportChips(), '+200').next(300)).toBe(500)
+		expect(chip(supportChips(), '−200').next(10)).toBe(0)
 	})
 })
 
 describe('buildCountChips — step-up rows', () => {
-	it('counts in steps and rounds, never in pulls', () => {
-		// A step-up ladder tops out around 25 steps; a +200 here would be nonsense.
-		expect(stepChips().deltas.map((c) => c.label)).toEqual(['−5', '−1', '+1', '+5'])
+	it('counts in whole rounds, never single steps or pulls', () => {
+		expect(stepChips().deltas.map((c) => c.label)).toEqual(['−5', '+5'])
 	})
 
 	it('rounds up to a complete ladder', () => {
@@ -130,12 +93,51 @@ describe('buildCountChips — step-up rows', () => {
 		expect(chip(stepChips(), 'Next round').next(7)).toBe(10)
 	})
 
-	it('takes its Max from the step ceiling', () => {
-		expect(chip(stepChips(20), 'Max 20').next(3)).toBe(20)
+	it('jumps Limit to what the banner sells, whatever is affordable', () => {
+		// stepLimit is max_steps (banner_count * 5). The builder never sees the
+		// affordable ceiling, so two banners is "Limit 10" on any budget.
+		expect(chip(stepChips(10), 'Limit 10').next(3)).toBe(10)
+		// Spent at the limit: the pad disables a chip whose next() is a no-op.
+		expect(chip(stepChips(10), 'Limit 10').next(10)).toBe(10)
 	})
 
-	it('advertises no Ctrl shortcut, because NumberField is given no large step', () => {
+	it('drops Limit before a banner is picked rather than offering "Limit Infinity"', () => {
+		expect(stepChips(Infinity).presets.map((c) => c.label)).toEqual(['Next round'])
+	})
+})
+
+describe('the keyboard mirror', () => {
+	it('gives Ctrl the same coarse step the pad shows', () => {
+		expect(coarsePullDelta('Uma', PULLS_PER_PITY_COPY)).toBe(100)
+		expect(coarsePullDelta('Support', PULLS_PER_PITY_COPY)).toBe(200)
+		expect(umaChips().hint).toMatch(/Ctrl ±100/)
+		expect(supportChips().hint).toMatch(/Ctrl ±200/)
+	})
+
+	it('advertises no Ctrl shortcut on a step-up, because NumberField is given no large step', () => {
+		expect(coarsePullDelta('StepUp', PULLS_PER_PITY_COPY)).toBeUndefined()
 		expect(stepChips().hint).not.toMatch(/Ctrl/)
-		expect(pullChips().hint).toMatch(/Ctrl ±200/)
+	})
+})
+
+describe('buildCopyChips', () => {
+	it('is one copy either way and nothing else', () => {
+		const set = buildCopyChips()
+		expect(labels(set)).toEqual(['−1', '+1'])
+		expect(chip(set, '+1').next(0)).toBe(1)
+		expect(chip(set, '−1').next(0)).toBe(0)
+	})
+})
+
+describe('buildQuantityChips', () => {
+	it('is one pack either way plus the purchase limit', () => {
+		expect(labels(buildQuantityChips(4))).toEqual(['−1', '+1', 'Max 4'])
+		expect(chip(buildQuantityChips(4), 'Max 4').next(0)).toBe(4)
+	})
+
+	it('stops +1 at the limit, unlike a pull count', () => {
+		// max_quantity is a shop rule, not a budget: there is nothing past it.
+		expect(chip(buildQuantityChips(4), '+1').next(3)).toBe(4)
+		expect(chip(buildQuantityChips(4), '+1').next(4)).toBe(4)
 	})
 })

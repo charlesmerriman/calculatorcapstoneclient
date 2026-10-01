@@ -12,7 +12,7 @@ import { MobileBannerCard } from "./MobileBannerCard"
 import { RecommendedMark } from "./RecommendedMark"
 import { NumberField } from "../NumberField"
 import { CountStepper } from "./CountStepper"
-import { buildCountChips } from "../../utils/countChips"
+import { buildCopyChips, buildCountChips, coarsePullDelta } from "../../utils/countChips"
 import {
 	compactSelectStyles,
 	mobileBannerSelectStyles,
@@ -42,6 +42,9 @@ import { STEPS_PER_ROUND } from "../../utils/stepUpLadder"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
+
+// Static, so built once rather than per render.
+const copyChips = buildCopyChips()
 
 interface StagedBannerRowProps {
 	stagedBanner: UserPlannedBanner
@@ -313,16 +316,16 @@ export const StagedBannerRow = ({
 	// twice, which is how it came to be missing the pad and the keyboard steps
 	// in both copies at once.
 	//
-	// Infinity, not a number: a staged banner has no projection, so there is no
-	// affordable ceiling for a "Max" chip to jump to. buildCountChips drops the
-	// chip; the ruler and "Next pity" are the same as on the sheet.
+	// Same chips as on the sheet: none of them reads the projection a staged
+	// banner lacks. A step-up's "Limit" is what the banner sells, which is known
+	// as soon as one is picked (Infinity until then drops the chip).
 	const pullsInput = (
 		<CountStepper
 			value={stagedBanner.number_of_pulls}
 			onChange={handlePullCountChange}
 			chips={buildCountChips({
-				isStepUp,
-				upperBound: Infinity,
+				rowType: bannerType,
+				stepLimit: target.type === "StepUp" ? target.banner.max_steps : Infinity,
 				pullsPerPity: PULLS_PER_PITY_COPY,
 				stepsPerRound: STEPS_PER_ROUND,
 			})}
@@ -336,7 +339,7 @@ export const StagedBannerRow = ({
 				// The keyboard mirror of the pad's delta row, matching BannerRow
 				// so a value typed while staged behaves as it will on the sheet.
 				mediumStep={isStepUp ? STEPS_PER_ROUND : 10}
-				largeStep={isStepUp ? undefined : PULLS_PER_PITY_COPY}
+				largeStep={coarsePullDelta(bannerType, PULLS_PER_PITY_COPY)}
 				onChange={handlePullCountChange}
 			/>
 		</CountStepper>
@@ -347,14 +350,21 @@ export const StagedBannerRow = ({
 	// "over" above. Colouring it here would be inventing a funding split. The
 	// real one, and the "2s 1c" hint, appear once the banner is added.
 	const renderReservedInput = (widthClass: string) => (
-		<NumberField
+		<CountStepper
 			value={stagedBanner.reserved_copies}
-			className={`pull-input pull-input--neutral ${widthClass}`}
-			title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is added to the calculator."
-			ariaLabel="Copies obtained without pulling"
-			disabled={!hasBanner}
 			onChange={handleReservedChange}
-		/>
+			chips={copyChips}
+			label="Copies"
+		>
+			<NumberField
+				value={stagedBanner.reserved_copies}
+				className={`pull-input pull-input--neutral ${widthClass}`}
+				title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is added to the calculator."
+				ariaLabel="Copies obtained without pulling"
+				disabled={!hasBanner}
+				onChange={handleReservedChange}
+			/>
+		</CountStepper>
 	)
 
 	return (

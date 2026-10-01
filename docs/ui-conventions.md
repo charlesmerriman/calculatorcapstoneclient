@@ -381,7 +381,7 @@ neighbours. Re-measure the stats box before you move it.
 
 ### The bulk-adjust pad (`CountStepper`)
 
-The `# Pulls` field opens a pad of bulk-adjust buttons — the planner's answer to "set this
+The `# Pulls` field (and the copies field) opens a pad of bulk-adjust buttons — the planner's answer to "set this
 to 600 without pressing ↑ sixty times". It is deliberately **not** a set of `+100/-100`
 buttons in the column: that column is `5rem`, the table's width is capped
 (`--container-banner-table`, above), and four buttons plus a field want ~11.5rem. A pad
@@ -405,13 +405,22 @@ Three things about it are load-bearing:
   input. That is what lets you click four in a row and keep the arrow keys live
   afterwards — and the panel-level handler is what stops a press on the pad's own dead
   space blurring the field and closing it mid-use.
-- **The quantities are per row kind, and they are not powers of ten.** The unit of account
-  on a pull row is a pity copy, so the coarse delta is `PULLS_PER_PITY_COPY` and one preset
-  lands on the next threshold — the same number that turns the field green. A step-up row
-  counts *steps*, clamped to `banner_count * 5`, so its ruler is ±1 / ±5 and it gets no
-  Ctrl shortcut at all. `buildCountChips` in `utils/countChips.ts` is the one place this is
-  decided; `NumberField`'s `mediumStep` / `largeStep` are its keyboard mirror, advertised
-  in the pad's footer.
+- **The quantities are per row kind.** `buildCountChips` in `utils/countChips.ts` is the
+  one place this is decided:
+
+  | Row | Pad | Why |
+  |---|---|---|
+  | Uma | `−100 −10 +10 +100 \| Next pity` | one copy is the whole goal, so nobody plans past the first pity; half a pity is the useful coarse step |
+  | Support | `−200 +200 \| Next pity` | plans move in whole pities (`PULLS_PER_PITY_COPY`) |
+  | Step Up | `−5 +5 \| Limit N \| Next round` | counts *steps*, bought a round at a time |
+  | Copies field | `−1 +1` | the range is 0-5 (`buildCopyChips`) |
+
+  Pull rows have **no Max chip**: the Max Pulls tile beside the field already shows the
+  number. A step-up's **Limit** is what the banner *sells* (`max_steps`, i.e.
+  `banner_count * 5`), never what is affordable, and is named differently from the
+  affordable "Max Steps" tile on purpose. `NumberField`'s `mediumStep` / `largeStep` are
+  the keyboard mirror (`coarsePullDelta` feeds both), advertised in the pad's title; a
+  step-up gets no Ctrl shortcut at all.
 
 **It needs no phone-specific wiring, but it does need two phone-specific
 allowances.** The card and the desktop cell render the *same* `pullsInput` node, so the
