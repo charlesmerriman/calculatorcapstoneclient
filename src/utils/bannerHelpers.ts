@@ -162,7 +162,12 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	const freeOnlyPulls = Math.floor(input.freeCarats / PULL_COST_CARATS)
 	const maxPullBreakdown: MaxPullBreakdown = {
 		freePulls,
-		tickets: matchingTickets,
+		// Clamped for display only. The ticket balance goes negative when an
+		// earlier-STARTING banner that ends later spent tickets this banner's
+		// earlier end date hasn't earned yet (income is by end date, spend is by
+		// start order). `maxPossiblePulls` above keeps the raw value, so the debt
+		// still counts against the total; the row just shows 0 instead of "-5".
+		tickets: Math.max(0, matchingTickets),
 		paidPulls: discountMaxPulls + Math.max(0, fullPriceMaxPulls - freeOnlyPulls),
 		// Clamped because a carat deficit makes freeOnlyPulls negative; see the
 		// deficit note on MaxPullBreakdown.

@@ -163,6 +163,19 @@ describe('applyPullStrategy — maxPullBreakdown', () => {
     expect(maxPossiblePulls).toBe(0)
     expect(b).toEqual({ freePulls: 5, tickets: 3, paidPulls: 0, freeCaratPulls: 0 })
   })
+
+  it('shows a ticket debt as 0 tickets while the total still counts the debt', () => {
+    // An earlier-starting banner that ends later can spend tickets this banner
+    // hasn't earned by its own end date, handing it a negative balance. The row
+    // must not print "-5", but Max Pulls keeps the debt: 1,500 carats is 10
+    // pulls, minus the 5 owed.
+    const { maxPossiblePulls, maxPullBreakdown: b } = strat({
+      umaTickets: -5,
+      freeCarats: 1_500,
+    })
+    expect(b.tickets).toBe(0)
+    expect(maxPossiblePulls).toBe(5)
+  })
 })
 
 // ── Actual spend (leftover balances) ────────────────────────────────────────────
