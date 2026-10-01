@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Settings } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
+import { useAccount } from "../../services/AuthContext"
 import { ToggleSwitch } from "../ToggleSwitch"
 import { NumberField } from "../NumberField"
 import { shopTicketsPerMonth } from "../../utils/cumulativeIncome"
@@ -94,6 +95,10 @@ const SHOP_TICKET_FIELDS: {
 export const SettingsMenu = () => {
 	const calculatorData = useCalculatorDataSafe()
 	const [open, setOpen] = useState(false)
+	// Two presses to clear a guest's plan: the first swaps the button for a
+	// confirm. Reset whenever the panel closes, so reopening never lands on it.
+	const [confirmingClear, setConfirmingClear] = useState(false)
+	const { isLoggedIn } = useAccount()
 	const containerRef = useRef<HTMLDivElement>(null)
 
 	// Close the popover when clicking outside it (same idiom as ThemePicker).
@@ -102,6 +107,7 @@ export const SettingsMenu = () => {
 		const handlePointerDown = (e: PointerEvent) => {
 			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
 				setOpen(false)
+				setConfirmingClear(false)
 			}
 		}
 		document.addEventListener("pointerdown", handlePointerDown)
@@ -109,7 +115,8 @@ export const SettingsMenu = () => {
 	}, [open])
 
 	// Only meaningful once stats exist (app mode). Guests have seeded defaults,
-	// so this renders for them too — their toggles just stay in memory.
+	// so this renders for them too — their toggles are kept on the device with
+	// the rest of their plan.
 	const userStatsData = calculatorData?.userStatsData
 	const setUserStatsData = calculatorData?.setUserStatsData
 	// Always populated on the context (seeded with DEFAULT_CONSTANTS before the
@@ -121,7 +128,10 @@ export const SettingsMenu = () => {
 	return (
 		<div ref={containerRef} className="relative">
 			<button
-				onClick={() => setOpen((prev) => !prev)}
+				onClick={() => {
+					setOpen((prev) => !prev)
+					setConfirmingClear(false)
+				}}
 				aria-label="Projection settings"
 				title="Projection settings"
 				className={NAV_ICON_BUTTON}
@@ -210,6 +220,45 @@ export const SettingsMenu = () => {
 							</div>
 						))}
 					</div>
+					{/* Guests only. A reload used to be how a guest started over;
+					    their plan now survives one, so this is the way to empty
+					    it. A signed-in user deletes or creates plans instead. */}
+					{!isLoggedIn && (
+						<div className="mt-2 border-t border-gray-700 px-1 pt-3">
+							{confirmingClear ? (
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<span className="text-xs text-gray-300">
+										Remove every banner and reset your numbers?
+									</span>
+									<div className="flex gap-2">
+										<button
+											onClick={() => setConfirmingClear(false)}
+											className="rounded-md border border-gray-600 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-gray-700"
+										>
+											Cancel
+										</button>
+										<button
+											onClick={() => {
+												calculatorData?.resetGuestPlan()
+												setConfirmingClear(false)
+												setOpen(false)
+											}}
+											className="rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+										>
+											Clear plan
+										</button>
+									</div>
+								</div>
+							) : (
+								<button
+									onClick={() => setConfirmingClear(true)}
+									className="text-xs font-medium text-gray-400 underline-offset-2 transition hover:text-gray-100 hover:underline"
+								>
+									Clear plan and start over
+								</button>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 		</div>

@@ -42,7 +42,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: September 22, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: October 1, 2026</p>
 
 					<p className={paragraph}>
 						This policy explains what the Uma Musume Carat Calculator (&quot;the Site&quot;)
@@ -124,8 +124,10 @@ export const PrivacyPolicy: React.FC = () => {
 						income ranks, the banners you plan to pull on, and any notes you write on them.
 						Notes are shown only to you. This data is tied to your
 						anonymous account so your plan is available the next time you sign in. If you
-						use the Site as a guest, your plan stays in your browser and is discarded
-						when you leave.
+						use the Site as a guest, the same planning data is kept in your browser on
+						your own device and is never sent to us. It stays there until you clear it,
+						your browser removes it, or you sign in, at which point it is added to your
+						account.
 					</p>
 
 					<h2 className={heading}>Why We Use It, and the Legal Basis</h2>
@@ -246,9 +248,12 @@ export const PrivacyPolicy: React.FC = () => {
 					<h2 className={heading}>Cookies and Local Storage</h2>
 					<p className={paragraph}>
 						The Site&apos;s own code sets <strong>no cookies</strong>. It uses your
-						browser&apos;s local storage for two things: a sign-in token, so you stay
-						signed in, and your display preferences, such as the theme you picked. Both are
-						needed to run the Site as you asked for it, and neither is sent anywhere else.
+						browser&apos;s local storage for three things: a sign-in token, so you stay
+						signed in, your display preferences, such as the theme you picked, and your
+						plan while you use the Site as a guest. All three are needed to run the Site
+						as you asked for it, and none is sent anywhere else. You can remove a guest
+						plan with &quot;Clear plan and start over&quot; in the calculator&apos;s
+						settings, or by clearing the Site&apos;s data in your browser.
 					</p>
 					<p className={paragraph}>
 						One cookie is set on every visit without asking, because the Site cannot work

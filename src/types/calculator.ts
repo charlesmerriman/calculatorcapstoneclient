@@ -156,7 +156,7 @@ export interface CalculatorContextType {
 	organizedTimelineData: OrganizedTimelineData
 	/**
 	 * The account's plans, and which one `userPlannedBannerData` belongs to.
-	 * `[]` and `null` for a guest, who has one unnamed plan in memory.
+	 * `[]` and `null` for a guest, who has one unnamed plan on their device.
 	 */
 	plans: Plan[]
 	activePlanId: number | null
@@ -178,6 +178,13 @@ export interface CalculatorContextType {
 	 * reads and saves them there. Off: back to the account's stats.
 	 */
 	setSeparateIncome: (planId: number, on: boolean) => Promise<boolean>
+	/**
+	 * Guest only. False once a write to this device has failed (blocked or
+	 * full storage), so the navbar stops saying the plan is saved here.
+	 */
+	isGuestPlanStored: boolean
+	/** Guest only: empty the plan and reset the stats. A no-op when signed in. */
+	resetGuestPlan: () => void
 	saveNow: () => Promise<void>
 	setUserPlannedBannerData: Dispatch<SetStateAction<UserPlannedBanner[]>>
 	setStagedBanners: Dispatch<SetStateAction<UserPlannedBanner[]>>

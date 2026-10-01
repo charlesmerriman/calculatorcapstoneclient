@@ -1,14 +1,19 @@
 /**
- * Guest mode defaults and the login-migration handoff.
+ * Guest defaults, and the LAST RELEASE'S sign-in handoff.
  *
- * Guest plans are in-memory only, but CalculatorProvider (and all its state)
- * unmounts the moment a guest navigates to /login. So "Sign in to save"
- * snapshots the guest's plan into sessionStorage — a short-lived baton pass,
- * not persistence. When the provider next mounts WITH a token and finds the
- * stash, it PATCHes the plan to the account and clears it.
+ * A guest's plan is kept on the device now: see guestPlanStore.ts for the
+ * store and guestPlanImport.ts for what happens to it at sign-in. Three things
+ * here are still live: DEFAULT_GUEST_STATS, statsAreDirty and
+ * mergeStepUpSelections.
  *
- * sessionStorage (not localStorage) keeps the stash tab-scoped and
- * auto-cleared when the tab closes, matching the in-memory-only design.
+ * TRANSITIONAL, one release: the sessionStorage stash below. Until 2026-10 a
+ * guest's plan lived in memory only, and "Sign in to save" snapshotted it here
+ * to survive the trip to /login and back. Nothing writes a stash any more, but
+ * someone who pressed that button on the old bundle and returned from the
+ * provider's consent screen onto the new one has their plan here and nowhere
+ * else, so guestPlanImport still READS it. Once that release has shipped,
+ * delete stashGuestPlan, readGuestPlanStash and clearGuestPlanStash, and their
+ * tests.
  */
 
 import type { UserStats } from "../types"
