@@ -9,6 +9,7 @@ import html from "../../index.html?raw"
 import {
 	COLORBLIND_MODE_STORAGE_KEY,
 	DEFAULT_THEME,
+	getThemeMode,
 	THEMES,
 	THEME_STORAGE_KEY,
 } from "../services/themeStore"
@@ -31,5 +32,27 @@ describe("the inline theme script in index.html", () => {
 	it("reads the same storage keys the store writes", () => {
 		expect(script).toContain(`"${THEME_STORAGE_KEY}"`)
 		expect(script).toContain(`"${COLORBLIND_MODE_STORAGE_KEY}"`)
+	})
+
+	it.each(THEMES)("restores $id and its mode before first paint", (theme) => {
+		const attributes: Record<string, string> = {}
+		// Run the repo's inline script with only its two browser dependencies.
+		const runScript = new Function("localStorage", "document", script)
+		runScript(
+			{
+				getItem: (key: string) => key === THEME_STORAGE_KEY ? theme.id : "true",
+			},
+			{
+				documentElement: {
+					setAttribute: (name: string, value: string) => { attributes[name] = value },
+				},
+			},
+		)
+		expect(attributes).toEqual({
+			"data-theme": theme.id,
+			"data-theme-mode": theme.mode,
+			"data-colorblind-mode": "true",
+		})
+		expect(getThemeMode(theme.id)).toBe(theme.mode)
 	})
 })

@@ -42,6 +42,21 @@ color in `src/index.css`.
 `src/index.css`.** The light theme *inverts* the gray ramp, so existing utilities keep
 working unchanged. Read the comments there before adding a theme.
 
+The compact picker puts **Dark** and **Light** first as the primary choices, with
+small swatches for alternative **Dark themes** and **Light themes** underneath,
+grouped by the `mode` in `themeStore.ts`. Dark retains the saved `gold` id and
+remains the initial default. Light (`light`) restores the original warm palette;
+Blue (`light-blue`), Green, Red, Purple and Pearl remain alternatives, giving
+each mode six themes. Purple keeps its saved `light-lilac` id.
+
+`data-theme-mode="light"` supplies the shared light ramp, status colors, button
+labels and surface polish. Individual `data-theme` selectors override the palette,
+including the original Light theme's glows, shadows and black button labels.
+Pearl uses softer paper-white surfaces and charcoal actions. Toasts use the same
+mode metadata, and the pre-paint script in `index.html` sets both attributes.
+When adding a theme, update that script's ids and light-mode list together with
+the registry; `themeScript.test.ts` checks their agreement.
+
 ### Semantic status colors must be theme tokens, not palette classes
 
 Tailwind's stock `green-400` / `red-500` are **not** theme-aware and measure ~1.35:1
@@ -51,7 +66,7 @@ belongs in `@theme` as its own token.
 The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
 `App.css`) are the worked example to copy. `--color-category-revival[-border]`
 (`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
-pattern: dark values in `@theme`, deepened counterparts under `[data-theme="light"]`.
+pattern: dark values in `@theme`, deepened counterparts under `[data-theme-mode="light"]`.
 
 A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
 to read as "not the usual banner" against seven different brand hues, and would vanish into

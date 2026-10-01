@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { Palette } from "lucide-react"
 import { useTheme } from "../../services/ThemeContext"
 import { NAV_ICON_BUTTON, NAV_POPOVER } from "./navStyles"
@@ -9,27 +9,33 @@ export const ThemePicker = () => {
 	const { activeTheme, themes, setTheme, colorblindMode, setColorblindMode } = useTheme()
 	const [open, setOpen] = useState(false)
 	const containerRef = useRef<HTMLDivElement>(null)
+	const panelId = useId()
 	const primaryThemes = themes.filter((theme) => PRIMARY_THEME_IDS.has(theme.id))
 	const alternateThemes = themes.filter((theme) => !PRIMARY_THEME_IDS.has(theme.id))
 
 	const renderThemeButton = (theme: typeof themes[number]) => (
 		<button
 			key={theme.id}
+			type="button"
 			onClick={() => { setTheme(theme.id); setOpen(false) }}
 			aria-label={`Switch to ${theme.label} theme`}
 			aria-pressed={activeTheme === theme.id}
-			className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition ${
+			title={theme.label}
+			className={`flex items-center rounded-md transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+				PRIMARY_THEME_IDS.has(theme.id) ? "gap-2 px-2 py-1.5 text-xs" : "h-6 w-6 justify-center"
+			} ${
 				activeTheme === theme.id
-					? "bg-gray-700 text-gray-100"
+					? "bg-gray-700 text-gray-100 ring-1 ring-gray-400"
 					: "text-gray-300 hover:bg-gray-700 hover:text-gray-100"
 			}`}
 		>
 			{/* Static hex, not var(--color-brand) — all swatches visible at once */}
 			<span
-				className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"
+				aria-hidden="true"
+				className="h-3.5 w-3.5 shrink-0 rounded-full border border-gray-500"
 				style={{ backgroundColor: theme.swatch }}
 			/>
-			{theme.label}
+			{PRIMARY_THEME_IDS.has(theme.id) && theme.label}
 		</button>
 	)
 
@@ -41,15 +47,28 @@ export const ThemePicker = () => {
 				setOpen(false)
 			}
 		}
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				setOpen(false)
+				containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus()
+			}
+		}
 		document.addEventListener("pointerdown", handlePointerDown)
-		return () => document.removeEventListener("pointerdown", handlePointerDown)
+		document.addEventListener("keydown", handleKeyDown)
+		return () => {
+			document.removeEventListener("pointerdown", handlePointerDown)
+			document.removeEventListener("keydown", handleKeyDown)
+		}
 	}, [open])
 
 	return (
 		<div ref={containerRef} className="relative">
 			<button
+				type="button"
 				onClick={() => setOpen((prev) => !prev)}
 				aria-label="Change color theme"
+				aria-expanded={open}
+				aria-controls={open ? panelId : undefined}
 				title="Change color theme"
 				className={NAV_ICON_BUTTON}
 			>
@@ -57,30 +76,19 @@ export const ThemePicker = () => {
 			</button>
 
 			{open && (
-				<div className={`${NAV_POPOVER} absolute right-0 top-full z-50 mt-1.5 flex min-w-44 flex-col gap-1 p-2`}>
+				<div id={panelId} className={`${NAV_POPOVER} fixed left-1/2 top-16 z-50 flex max-h-[calc(100dvh-5rem)] w-72 max-w-[calc(100vw-1.5rem)] -translate-x-1/2 flex-col gap-1 overflow-y-auto p-2 desktop-nav:absolute desktop-nav:left-auto desktop-nav:top-full desktop-nav:right-0 desktop-nav:mt-1.5 desktop-nav:translate-x-0`}>
 					<p className="px-2 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Primary themes</p>
-					<div className="grid grid-cols-2 gap-1">
+					<div role="group" aria-label="Primary themes" className="grid grid-cols-2 gap-1">
 						{primaryThemes.map(renderThemeButton)}
 					</div>
-					<div className="mt-1 flex items-center justify-between border-t border-gray-700 px-2 pt-2">
-						<p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">More themes</p>
-						<div className="flex gap-1">
-							{alternateThemes.map((theme) => (
-								<button
-									key={theme.id}
-									onClick={() => { setTheme(theme.id); setOpen(false) }}
-									aria-label={`Switch to ${theme.label} theme`}
-									aria-pressed={activeTheme === theme.id}
-									title={theme.label}
-									className={`flex h-6 w-6 items-center justify-center rounded-md transition ${
-										activeTheme === theme.id ? "bg-gray-700 ring-1 ring-gray-400" : "hover:bg-gray-700"
-									}`}
-								>
-									<span className="h-3.5 w-3.5 rounded-full border border-white/20" style={{ backgroundColor: theme.swatch }} />
-								</button>
-							))}
+					{(["dark", "light"] as const).map((mode) => (
+						<div key={mode} role="group" aria-label={`${mode === "dark" ? "Dark" : "Light"} themes`} className="mt-1 flex items-center justify-between gap-2 border-t border-gray-700 px-2 pt-2">
+							<p className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-500">{mode === "dark" ? "Dark themes" : "Light themes"}</p>
+							<div className="flex flex-wrap justify-end gap-1">
+								{alternateThemes.filter((theme) => theme.mode === mode).map(renderThemeButton)}
+							</div>
 						</div>
-					</div>
+					))}
 					<div className="mt-1 border-t border-gray-700 pt-1">
 						<button
 							type="button"

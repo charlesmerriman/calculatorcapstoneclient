@@ -13,6 +13,7 @@ import { CookieConsentBanner } from "./components/consent/CookieConsentBanner.js
 import { ThemeProvider } from "./services/ThemeProvider.js"
 import { AuthProvider } from "./services/AuthProvider.js"
 import { useTheme } from "./services/ThemeContext.js"
+import { getThemeMode } from "./services/themeStore.js"
 import { HomePage } from "./components/home/HomePage.js"
 import { PrivacyPolicy } from "./components/legal/PrivacyPolicy.js"
 import { Terms } from "./components/legal/Terms.js"
@@ -27,7 +28,7 @@ import { useScrollReset } from "./hooks/useScrollReset.js"
 
 const ThemedToaster = () => {
 	const { activeTheme } = useTheme()
-	return <Toaster theme={activeTheme === "light" ? "light" : "dark"} position="bottom-right" richColors />
+	return <Toaster theme={getThemeMode(activeTheme)} position="bottom-right" richColors />
 }
 
 function App() {
