@@ -740,9 +740,9 @@ describe('Timeline concurrent banners', () => {
     expect(
       screen.getByText(`${fmt(umaHalf.start_date)} through ${fmt(umaHalf.end_date)}`),
     ).toBeInTheDocument()
-    const note = screen.getByText(`Support banner opens ${fmt(supportHalf.start_date)}`)
+    const note = screen.getByText(`Support banner starts ${fmt(supportHalf.start_date)}`)
     expect(note.closest('section')).toBeNull()
-    expect(screen.queryByText(/Umamusume banner opens/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Umamusume banner starts/)).not.toBeInTheDocument()
     expect(screen.queryByText(/This banner/)).not.toBeInTheDocument()
   })
 

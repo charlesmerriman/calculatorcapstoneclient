@@ -736,7 +736,7 @@ own "Add to Planner". A section whose own end date differs from the header's say
   and a support-only row of the same category draw as the ordinary art | umas | supports
   row, each panel reading its banner, expiry and dates from its own row. When the halves'
   dates differ, the **card header** says how each side differs from the window it states
-  ("Support banner opens 2026/10/27"). Never inside a panel: a line there makes the panel
+  ("Support banner starts 2026/10/27"). Never inside a panel: a line there makes the panel
   taller and the art row grows with it. Anything else stacks as separate sections.
 
 ### Count drives the layout, category drives the accents

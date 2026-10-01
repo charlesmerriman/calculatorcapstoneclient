@@ -946,7 +946,7 @@ export function BannerWindowCard({
 	const sections = buildWindowSections(group.banners)
 
 	// How each side of a staggered release differs from the window in the
-	// header, e.g. "Support banner opens 2026/10/27". A side that matches the
+	// header, e.g. "Support banner starts 2026/10/27". A side that matches the
 	// header says nothing.
 	//
 	// These live in the HEADER, and nowhere inside a section, on purpose. A line
@@ -973,7 +973,7 @@ export function BannerWindowCard({
 			const text =
 				opensLater && endsEarlier
 					? `${label} runs ${formatDate(row.start_date)} through ${formatDate(row.end_date)}`
-					: opensLater ? `${label} opens ${formatDate(row.start_date)}`
+					: opensLater ? `${label} starts ${formatDate(row.start_date)}`
 						: endsEarlier ? `${label} ends ${formatDate(row.end_date)}`
 							: null
 			return text ? [{ text, icon }] : []
