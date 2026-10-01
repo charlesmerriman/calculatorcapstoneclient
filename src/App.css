@@ -332,7 +332,7 @@
 
 /* The step-up action is semantically distinct from the ordinary banner actions.
    Its colour comes from theme tokens so the light theme does not inherit the
-   dark theme's pale purple on a warm, bright surface. */
+   dark theme's pale purple on a bright surface. */
 .step-up-add-button {
 	border-color: var(--color-step-up-border);
 	color: var(--color-step-up);
@@ -624,7 +624,7 @@
 	animation: ssr-twinkle 2.6s ease-in-out infinite;
 }
 
-[data-theme="light"] .ssr-panel {
+[data-theme-mode="light"] .ssr-panel {
 	--ssr-glint: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23c98a12' d='M12 0c.6 6.2 5.8 11.4 12 12-6.2.6-11.4 5.8-12 12-.6-6.2-5.8-11.4-12-12C6.2 11.4 11.4 6.2 12 0z'/%3E%3C/svg%3E");
 }
 

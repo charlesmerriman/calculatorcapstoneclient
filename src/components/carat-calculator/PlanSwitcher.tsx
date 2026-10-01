@@ -38,7 +38,7 @@ import { NAV_POPOVER } from "../navbar/navStyles"
  * JS knows which, which is why every opener below records for itself what the
  * popover should show (`Face`) and what it is anchored to.
  *
- * SIGNED-IN ONLY. A guest has one unnamed plan in memory (`activePlanId` is
+ * SIGNED-IN ONLY. A guest has one unnamed plan on their device (`activePlanId` is
  * null), so this renders nothing, bar included. The same null covers an API
  * from before plans existed.
  *
@@ -342,7 +342,7 @@ export const PlanSwitcher = () => {
 			<p className="px-2.5 pb-1 pt-2 text-xs leading-snug text-gray-400">
 				{atCap ? `${CAP_MESSAGE} ` : ""}
 				{hasOwnResources
-					? "This plan keeps its own carats, ranks and income settings. Purchases are shared by every plan."
+					? "This plan keeps its own carats, ranks, purchases and income settings."
 					: "Each plan has its own banners. Your carats, ranks and purchases are shared by all of them, unless a plan uses separate resources."}
 			</p>
 		</>

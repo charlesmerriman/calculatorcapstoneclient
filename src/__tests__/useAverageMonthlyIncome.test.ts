@@ -33,6 +33,7 @@ const zeroStats: UserStats = {
   training_pass: false,
   misc_earnings: false,
   monthly_shop_tickets: false,
+  spend_tickets_on_banners: true,
   discounted_paid_pulls: false,
   full_price_paid_pulls: true,
   club_rank: 1,

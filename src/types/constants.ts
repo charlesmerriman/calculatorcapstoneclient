@@ -50,6 +50,9 @@ export interface CalculationConstants {
 	white_day_day: number
 	monthly_shop_uma_tickets: number
 	monthly_shop_support_tickets: number
+	/** The most the shop sells a month; the two above are the DEFAULT purchase. */
+	monthly_shop_uma_tickets_max: number
+	monthly_shop_support_tickets_max: number
 	monthly_shop_restock_day: number
 
 	// Pull costs & uncap

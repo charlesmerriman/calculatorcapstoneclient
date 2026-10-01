@@ -171,7 +171,7 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 		maxWidth: "100%",
 		margin: 0,
 		// This control sits on a dark translucent fill over the banner-type
-		// header, including in the light theme where gray-100 is plum ink.
+		// header, including in light themes where gray-100 is dark ink.
 		color: "#fff",
 		fontSize: "clamp(0.875rem, 2vw, 1rem)",
 		fontWeight: 500,

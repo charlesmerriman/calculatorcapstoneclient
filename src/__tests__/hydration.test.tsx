@@ -81,8 +81,13 @@ describe("hydrating the prerendered markup", () => {
 		expect(errors).toEqual([])
 	})
 
-	it.each(["/", "/about", "/app"])("%s hydrates cleanly with a saved theme and a stored token", (route) => {
-		localStorage.setItem("uma-planner-theme", "light")
+	it.each([
+		{ route: "/", theme: "light" },
+		{ route: "/about", theme: "light" },
+		{ route: "/app", theme: "light" },
+		{ route: "/app", theme: "light-green" },
+	])("$route hydrates cleanly with saved $theme and a stored token", ({ route, theme }) => {
+		localStorage.setItem("uma-planner-theme", theme)
 		localStorage.setItem("uma-planner-colorblind-mode", "true")
 		localStorage.setItem("authToken", "a-real-token")
 
@@ -90,7 +95,8 @@ describe("hydrating the prerendered markup", () => {
 		expect(recoverable).not.toHaveBeenCalled()
 		expect(errors).toEqual([])
 		// The store-driven mount sync applied the saved values without a mismatch.
-		expect(document.documentElement.getAttribute("data-theme")).toBe("light")
+		expect(document.documentElement.getAttribute("data-theme")).toBe(theme)
+		expect(document.documentElement.getAttribute("data-theme-mode")).toBe("light")
 		expect(document.documentElement.getAttribute("data-colorblind-mode")).toBe("true")
 	})
 })

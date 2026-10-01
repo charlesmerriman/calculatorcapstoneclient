@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from "react"
 import { Settings } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
+import { useAccount } from "../../services/AuthContext"
 import { ToggleSwitch } from "../ToggleSwitch"
+import { NumberField } from "../NumberField"
+import { shopTicketsPerMonth } from "../../utils/cumulativeIncome"
 import { DEFAULT_CONSTANTS } from "../../constants/gameConstants"
 import { NAV_ICON_BUTTON, NAV_POPOVER } from "./navStyles"
 import type { CalculationConstants, UserStats } from "../../types"
 
 /** The boolean-valued keys of UserStats — the only fields these toggles set. */
+// `-?` strips the optional marker while mapping. Without it, UserStats'
+// optional fields (the shop ticket counts) leak `undefined` into this union
+// and it stops being usable as an index.
 type BooleanStatKey = {
-	[K in keyof UserStats]: UserStats[K] extends boolean ? K : never
+	[K in keyof UserStats]-?: UserStats[K] extends boolean ? K : never
 }[keyof UserStats]
 
 /**
@@ -29,7 +35,15 @@ const SETTINGS: {
 	{
 		key: "monthly_shop_tickets",
 		label: "Monthly Shop Tickets",
-		description: "Buy 4 uma and 4 support tickets each month.",
+		// Both numbers are admin-editable constants, so they are read here
+		// instead of being written into the sentence.
+		description: (k) =>
+			`Buy uma and support tickets from the shop each month, up to ${k.monthly_shop_uma_tickets_max} uma and ${k.monthly_shop_support_tickets_max} support.`,
+	},
+	{
+		key: "spend_tickets_on_banners",
+		label: "Spend Tickets on Banners",
+		description: "Use tickets on planned pulls. Turn off to keep them as spares.",
 	},
 	{
 		key: "misc_earnings",
@@ -52,9 +66,39 @@ const SETTINGS: {
 	},
 ]
 
+/**
+ * The two "how many do I buy" boxes under the Monthly Shop Tickets toggle.
+ * Each maps to a nullable count on UserStats, capped at what the shop sells.
+ */
+const SHOP_TICKET_FIELDS: {
+	key: "shop_uma_tickets_bought" | "shop_support_tickets_bought"
+	label: string
+	/** What a null count resolves to: the assumed purchase. */
+	defaultCount: (constants: CalculationConstants) => number
+	/** The most the shop sells in a month. */
+	max: (constants: CalculationConstants) => number
+}[] = [
+	{
+		key: "shop_uma_tickets_bought",
+		label: "Uma",
+		defaultCount: (k) => k.monthly_shop_uma_tickets,
+		max: (k) => k.monthly_shop_uma_tickets_max,
+	},
+	{
+		key: "shop_support_tickets_bought",
+		label: "Support",
+		defaultCount: (k) => k.monthly_shop_support_tickets,
+		max: (k) => k.monthly_shop_support_tickets_max,
+	},
+]
+
 export const SettingsMenu = () => {
 	const calculatorData = useCalculatorDataSafe()
 	const [open, setOpen] = useState(false)
+	// Two presses to clear a guest's plan: the first swaps the button for a
+	// confirm. Reset whenever the panel closes, so reopening never lands on it.
+	const [confirmingClear, setConfirmingClear] = useState(false)
+	const { isLoggedIn } = useAccount()
 	const containerRef = useRef<HTMLDivElement>(null)
 
 	// Close the popover when clicking outside it (same idiom as ThemePicker).
@@ -63,6 +107,7 @@ export const SettingsMenu = () => {
 		const handlePointerDown = (e: PointerEvent) => {
 			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
 				setOpen(false)
+				setConfirmingClear(false)
 			}
 		}
 		document.addEventListener("pointerdown", handlePointerDown)
@@ -70,7 +115,8 @@ export const SettingsMenu = () => {
 	}, [open])
 
 	// Only meaningful once stats exist (app mode). Guests have seeded defaults,
-	// so this renders for them too — their toggles just stay in memory.
+	// so this renders for them too — their toggles are kept on the device with
+	// the rest of their plan.
 	const userStatsData = calculatorData?.userStatsData
 	const setUserStatsData = calculatorData?.setUserStatsData
 	// Always populated on the context (seeded with DEFAULT_CONSTANTS before the
@@ -82,7 +128,10 @@ export const SettingsMenu = () => {
 	return (
 		<div ref={containerRef} className="relative">
 			<button
-				onClick={() => setOpen((prev) => !prev)}
+				onClick={() => {
+					setOpen((prev) => !prev)
+					setConfirmingClear(false)
+				}}
 				aria-label="Projection settings"
 				title="Projection settings"
 				className={NAV_ICON_BUTTON}
@@ -109,9 +158,9 @@ export const SettingsMenu = () => {
 						{SETTINGS.map(({ key, label, description }) => (
 							<div
 								key={key}
-								className="flex items-start justify-between gap-3 rounded-md px-1 py-2 hover:bg-gray-700/50"
+								className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-md px-1 py-2 hover:bg-gray-700/50"
 							>
-								<div className="min-w-0">
+								<div className="min-w-0 flex-1">
 									<div className="text-sm text-gray-100">{label}</div>
 									<div className="text-xs leading-tight text-gray-400">
 										{typeof description === "function" ? description(constants) : description}
@@ -119,16 +168,97 @@ export const SettingsMenu = () => {
 								</div>
 								<div className="shrink-0 pt-0.5">
 									<ToggleSwitch
-										checked={!!userStatsData[key]}
+										// Every setting in this panel is ON by default, so a
+										// field the API didn't send (one newer than the
+										// deployed backend) has to read as on. `!!` would
+										// show it off while the projection treats it as on.
+										checked={userStatsData[key] !== false}
 										onChange={(checked) =>
 											setUserStatsData({ ...userStatsData, [key]: checked })
 										}
 										ariaLabel={label}
 									/>
 								</div>
+								{/* Only while the toggle is on: with it off no shop tickets
+								    are credited at all, so a count would be a control that
+								    does nothing. basis-full drops the pair onto its own line
+								    under the label and switch. */}
+								{key === "monthly_shop_tickets" && userStatsData.monthly_shop_tickets && (
+									<div className="flex basis-full items-center gap-3 text-xs text-gray-300">
+										{SHOP_TICKET_FIELDS.map((field) => {
+											const defaultCount = field.defaultCount(constants)
+											const max = field.max(constants)
+											return (
+												<label key={field.key} className="flex items-center gap-1.5">
+													{field.label}
+													<NumberField
+														// Shown through the same resolver the projection
+														// reads with, so the box can never show a
+														// count the engine isn't using.
+														value={shopTicketsPerMonth(userStatsData[field.key], defaultCount, max)}
+														onChange={(next) => {
+															const capped = Math.min(next, max)
+															setUserStatsData({
+																...userStatsData,
+																// The default count is stored as null,
+																// "whatever the default is", so it keeps
+																// following the default if an editor
+																// changes it.
+																[field.key]: capped === defaultCount ? null : capped,
+															})
+														}}
+														mediumStep={1}
+														ariaLabel={`${field.label} tickets bought each month`}
+														className="w-10 rounded border border-gray-600 bg-gray-800 px-1 py-0.5 text-center text-sm text-gray-100"
+													/>
+													<span className="text-gray-400">of {max}</span>
+												</label>
+											)
+										})}
+									</div>
+								)}
 							</div>
 						))}
 					</div>
+					{/* Guests only. A reload used to be how a guest started over;
+					    their plan now survives one, so this is the way to empty
+					    it. A signed-in user deletes or creates plans instead. */}
+					{!isLoggedIn && (
+						<div className="mt-2 border-t border-gray-700 px-1 pt-3">
+							{confirmingClear ? (
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<span className="text-xs text-gray-300">
+										Remove every banner and reset your numbers?
+									</span>
+									<div className="flex gap-2">
+										<button
+											onClick={() => setConfirmingClear(false)}
+											className="rounded-md border border-gray-600 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-gray-700"
+										>
+											Cancel
+										</button>
+										<button
+											onClick={() => {
+												calculatorData?.resetGuestPlan()
+												setConfirmingClear(false)
+												setOpen(false)
+											}}
+											className="rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+										>
+											Clear plan
+										</button>
+									</div>
+								</div>
+							) : (
+								<button
+									onClick={() => setConfirmingClear(true)}
+									className="text-xs font-medium text-gray-400 underline-offset-2 transition hover:text-gray-100 hover:underline"
+								>
+									Clear plan and start over
+								</button>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 		</div>

@@ -10,7 +10,7 @@
  * the two popovers — exporting from it would make the import graph circular.
  */
 
-/** A text button or link in the bar: Login, Logout, Sign in to save. */
+/** A text button or link in the bar: Login, Logout, Sign in to sync. */
 export const NAV_BUTTON =
 	"flex h-9 items-center gap-1.5 rounded-lg border border-gray-600 px-3 text-sm font-medium text-gray-300 transition hover:border-gray-500 hover:bg-gray-700 hover:text-gray-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-600 disabled:hover:bg-transparent disabled:hover:text-gray-300"
 

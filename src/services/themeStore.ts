@@ -27,16 +27,25 @@ export const COLORBLIND_MODE_STORAGE_KEY = "uma-planner-colorblind-mode"
 export const DEFAULT_THEME = "gold"
 
 // To add a new theme: add one entry here, a [data-theme="x"] block in index.css,
-// AND the id to the inline script in index.html (a test fails until you do).
+// AND the id/mode to the inline script in index.html (a test fails until you do).
 export const THEMES: ThemeConfig[] = [
-	{ id: "gold",     label: "Default",  swatch: "#E6D28A" },
-	{ id: "gilded",   label: "Gilded",   swatch: "#f1cf75" },
-	{ id: "midnight", label: "Midnight", swatch: "#F6C84F" },
-	{ id: "race-day", label: "Pace",     swatch: "#7cc8ff" },
-	{ id: "violet",   label: "Violet",   swatch: "#C4B5FD" },
-	{ id: "teal",     label: "Teal",     swatch: "#5EEAD4" },
-	{ id: "light",    label: "Light",    swatch: "#fbf2ed" },
+	{ id: "gold",           label: "Dark",     mode: "dark",  swatch: "#E6D28A" },
+	{ id: "gilded",         label: "Gilded",   mode: "dark",  swatch: "#f1cf75" },
+	{ id: "midnight",       label: "Midnight", mode: "dark",  swatch: "#F6C84F" },
+	{ id: "race-day",       label: "Pace",     mode: "dark",  swatch: "#7cc8ff" },
+	{ id: "violet",         label: "Violet",   mode: "dark",  swatch: "#C4B5FD" },
+	{ id: "teal",           label: "Teal",     mode: "dark",  swatch: "#5EEAD4" },
+	{ id: "light",          label: "Light",    mode: "light", swatch: "#fbf2ed" },
+	{ id: "light-blue",     label: "Blue",     mode: "light", swatch: "#1d4ed8" },
+	{ id: "light-green",    label: "Green",    mode: "light", swatch: "#166534" },
+	{ id: "light-red",      label: "Red",      mode: "light", swatch: "#b91c1c" },
+	{ id: "light-lilac",    label: "Purple",   mode: "light", swatch: "#6d28d9" },
+	{ id: "light-pearl",    label: "Pearl",    mode: "light", swatch: "#e7e5e4" },
 ]
+
+export function getThemeMode(id: string): ThemeConfig["mode"] {
+	return THEMES.find((theme) => theme.id === id)?.mode ?? "dark"
+}
 
 export function isThemeId(id: string | null): id is string {
 	return id !== null && THEMES.some((theme) => theme.id === id)
@@ -85,9 +94,10 @@ export function getServerColorblindMode(): boolean {
 	return false
 }
 
-/** The two attributes index.css keys its palettes off. */
+/** The palette, shared light/dark treatment, and independent status-color mode. */
 export function applyThemeAttributes(theme: string, colorblindMode: boolean): void {
 	document.documentElement.setAttribute("data-theme", theme)
+	document.documentElement.setAttribute("data-theme-mode", getThemeMode(theme))
 	document.documentElement.setAttribute("data-colorblind-mode", String(colorblindMode))
 }
 

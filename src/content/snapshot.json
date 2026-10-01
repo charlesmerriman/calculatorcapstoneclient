@@ -29,7 +29,7 @@
 				{
 					"slug": "do-i-need-an-account",
 					"question": "Do I need an account?",
-					"answer": "The calculator is fully usable as a guest; an account only adds one thing: saving. As a guest, your plan lives in your browser for as long as the tab is open and is discarded when you leave or reload the page.\n\nIf you create an account the plan built with your guest account will not be lost. It will be transferred to your account.\n",
+					"answer": "No. The calculator works fully as a guest, and your plan is saved in your browser on the device you are using. It stays there until you clear it or your browser removes its stored data, which some browsers do after a week or so without a visit.\n\nAn account keeps your plan safe and lets you open it on any device. It also lets you keep several plans. If you sign in on a device that already has a guest plan, that plan is added to your account.",
 					"show_on_homepage": true
 				},
 				{

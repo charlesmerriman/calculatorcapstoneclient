@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { CalculatorContext } from "./CalculatorContext"
-import { clearAuthToken, getAuthToken } from "./authToken"
+import { clearAuthToken, getAuthToken, subscribeToAuthToken } from "./authToken"
 import type {
 	CalculatorData,
 	UserStats,
@@ -34,12 +34,15 @@ import {
 	toPurchasePayload,
 	toStepUpSelectionPayload
 } from "./calculatorFetchCalls"
+import { DEFAULT_GUEST_STATS } from "./guestMigration"
 import {
-	DEFAULT_GUEST_STATS,
-	readGuestPlanStash,
-	clearGuestPlanStash,
-	mergeStepUpSelections
-} from "./guestMigration"
+	guestPlanToState,
+	readGuestPlan,
+	subscribeToGuestPlan,
+	writeGuestPlan
+} from "./guestPlanStore"
+import { importGuestPlan } from "./guestPlanImport"
+import { reloadPage } from "./reloadPage"
 import {
 	planActivate,
 	planCreate,
@@ -79,7 +82,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [stepUpBannerData, setStepUpBannerData] = useState<BannerStepUp[]>([])
 	const [userPlannedBannerData, setUserPlannedBannerData] = useState<UserPlannedBanner[]>([])
 	// The account's plans, and which one userPlannedBannerData belongs to. A
-	// guest keeps [] and null: one unnamed plan in memory, no switcher.
+	// guest keeps [] and null: one unnamed plan on this device, no switcher.
 	// activePlanId and userPlannedBannerData are ALWAYS set in the same tick
 	// (applyPlan below), so a save can never pair one plan's id with another
 	// plan's rows.
@@ -90,11 +93,11 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	// and never PATCHed. Staging is scratch space, and a reload clearing it is
 	// correct rather than a bug to fix.
 	//
-	// The reason is that persisting it would make scratch rows outlive the real
-	// plan. A guest's CONFIRMED banners are in-memory only and a refresh discards
-	// them by design (frontend/docs/state-and-guest-mode.md), so a staged row
-	// surviving a reload that wiped the calculator underneath it would be
-	// incoherent — the provisional half of the screen would be the durable half.
+	// The reason is what staging is for: trying a row before it counts. A plan
+	// that came back from a reload with half-decided rows still queued beside
+	// it would blur the one line the staging area draws, between "in my plan"
+	// and "thinking about it". Confirmed rows persist (the account for a
+	// signed-in user, guestPlanStore for a guest); staged ones never do.
 	//
 	// The impermanence is stated in the UI instead: see the hint under the
 	// "Staging" heading in CaratCalculator.
@@ -112,6 +115,35 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		useState<CalculationConstants>(DEFAULT_CONSTANTS)
 	const [isLoading, setIsLoading] = useState(true)
 	const [fetchError, setFetchError] = useState(false)
+	// Whether the guest's last write to this device landed. True until one
+	// fails, so the navbar never claims "saved" in a browser that refused.
+	const [isGuestPlanStored, setIsGuestPlanStored] = useState(true)
+
+	// HOW THIS TAB LOADED, AND THEREFORE HOW IT SAVES. Decided once, when the
+	// payload arrives, and never re-asked. null until then.
+	//
+	// The save path used to ask "is there a token?" at the moment of each
+	// edit. The token is shared by every tab, so that question can change its
+	// answer underneath data that has not changed:
+	//
+	//   tab loaded as | then, in another tab | the next edit here would
+	//   --------------|----------------------|-------------------------------
+	//   guest         | they sign in         | PATCH the guest's rows with no
+	//                 |                      | plan id. The server reads that
+	//                 |                      | as the active plan and DELETES
+	//                 |                      | every account row not in it.
+	//   account       | they sign out        | write the account's rows into
+	//                 |                      | the guest store, left behind on
+	//                 |                      | what may be a shared computer.
+	//
+	// With the mode latched, neither can happen: a guest tab only ever writes
+	// the device store and an account tab only ever PATCHes. A tab whose mode
+	// no longer matches the token reloads (the effect below), which is the
+	// same answer ProfileMenu gives for a sign-out.
+	const loadedAsRef = useRef<"guest" | "account" | null>(null)
+	// The payload the page was built from. Kept so a guest plan changed in
+	// ANOTHER tab can be rebuilt against the same catalogue without a refetch.
+	const catalogueRef = useRef<CalculatorData | null>(null)
 
 	// The response→request shape conversion lives in toBannerPayload (a pure
 	// function) so the guest-migration flow can also run it on data that
@@ -137,9 +169,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const lastSaveOkRef = useRef(true)
 
 	const performSave = useCallback(async (): Promise<void> => {
-		// Guests never PATCH — their plan is in-memory only. The auto-save
-		// timer is already gated, but saveNow could still land here.
-		if (!getAuthToken()) return
+		// Guests never PATCH: their plan is kept on the device (guestPlanStore).
+		// The auto-save timer is already gated, but saveNow could still land
+		// here. Both halves matter. See loadedAsRef for the first.
+		if (loadedAsRef.current !== "account" || !getAuthToken()) return
 		try {
 			const response = await userCalculatorDataPatch(
 					// The plan these rows were loaded from. It comes from the same
@@ -169,7 +202,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		delayMs: 5000
 	})
 
-	// Guards the guest-plan migration against firing twice when React
+	// Guards the guest-plan import against firing twice when React
 	// StrictMode double-runs the mount effect in dev.
 	const didMigrateRef = useRef(false)
 
@@ -289,73 +322,32 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			}
 			let data = (await response.json()) as CalculatorData
 
-			// Guest-plan migration: a stash in sessionStorage + a token means
-			// the user just logged in after building a plan as a guest.
-			// This runs BEFORE any state is set, so the auto-save effect
-			// (which skips while prevStatsRef is null) can't race it.
-			const stash = readGuestPlanStash()
-			if (
-				stash &&
-				getAuthToken() &&
-				!didMigrateRef.current
-			) {
-				didMigrateRef.current = true
-				try {
-					// Conflict rule: keep the account's saved rows (sending them
-					// WITH ids preserves them — the PATCH deletes anything absent)
-					// and append the guest's rows (no ids → created). Stats are in
-					// the stash only if the guest actually edited them.
-					const patchResponse = await userCalculatorDataPatch(
-						// The guest's rows join the ACTIVE plan: the account rows being
-						// resent beside them are that plan's, so it is the only id this
-						// body can be reconciled against.
-						data.active_plan_id ?? null,
-						stash.stats,
-						[
-							...toBannerPayload(data.user_planned_banner_data),
-							...stash.banners
-						],
-						[
-							// Same defaulting as the setter below — this runs on the
-							// raw payload, before the state above is populated.
-							...toPurchasePayload(data.user_planned_purchase_data ?? []),
-							...(stash.purchases ?? [])
-						],
-						// The account's own rows must be resent, not just the guest's:
-						// the PATCH deletes anything absent from the body, so sending
-						// only the stash would wipe selections the account already had.
-						// mergeStepUpSelections resolves the overlap per step-up —
-						// concatenating would collide on the unique slot index and 400
-						// the entire migration.
-						mergeStepUpSelections(
-							toStepUpSelectionPayload(data.user_step_up_selection_data ?? []),
-							stash.stepUpSelections ?? []
-						)
-					)
-					if (patchResponse.ok) {
-						clearGuestPlanStash()
-						// Re-fetch so the migrated banners come back with real
-						// database ids in canonical order.
-						const refreshed = await initialCalculatorDataFetch(controller.signal)
-						if (refreshed.ok) {
-							data = (await refreshed.json()) as CalculatorData
-						}
-						toast.success("Your guest plan was saved to your account")
-					} else if (patchResponse.status < 500) {
-						// 4xx — retrying the same payload would fail forever.
-						clearGuestPlanStash()
-						toast.error("Couldn't import your guest plan. Loaded your saved data instead.")
-					} else {
-						// 5xx — keep the stash so the next page load retries.
-						toast.error("Couldn't import your guest plan right now. It will retry on your next visit.")
-					}
-				} catch (error: unknown) {
-					if (error instanceof Error && error.name === "AbortError") throw error
-					// Network failure — keep the stash for a retry on next load.
-					toast.error("Couldn't import your guest plan right now. It will retry on your next visit.")
+			// Latched here and never re-asked. See loadedAsRef.
+			const loadedAs = getAuthToken() ? "account" : "guest"
+			if (loadedAs === "account") {
+				// A plan built on this device while signed out moves into the
+				// account. Before any state is set, so the auto-save effect
+				// (which skips while prevStatsRef is null) can't race it.
+				if (!didMigrateRef.current) {
+					didMigrateRef.current = true
+					data = await importGuestPlan(data, controller.signal)
+				}
+			} else {
+				// The server sends a guest null stats and empty collections.
+				// The device's plan takes their place, rebuilt against the
+				// catalogue that just arrived (ids in storage, never objects).
+				const guestPlan = guestPlanToState(readGuestPlan(), data)
+				data = {
+					...data,
+					user_stats_data: guestPlan.stats,
+					user_planned_banner_data: guestPlan.banners,
+					user_planned_purchase_data: guestPlan.purchases,
+					user_step_up_selection_data: guestPlan.stepUpSelections
 				}
 			}
 
+			catalogueRef.current = data
+			loadedAsRef.current = loadedAs
 			applyData(data)
 		}
 
@@ -378,6 +370,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	// came FROM the server, so the change they cause below is not an edit and
 	// must not arm a save that would PATCH a plan straight back to itself.
 	const suppressAutoSaveRef = useRef(false)
+	const guestWriteOkRef = useRef(true)
 	useEffect(() => {
 		const wasEmpty = prevStatsRef.current === null
 		prevStatsRef.current = userStatsData
@@ -386,15 +379,92 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			suppressAutoSaveRef.current = false
 			return
 		}
-		// Guests have nothing to save to the server. Never arming the timer
-		// also suppresses the pending-save icon and the beforeunload warning.
-		if (!getAuthToken()) return
+		if (loadedAsRef.current === "guest") {
+			// A token here means they signed in from another tab and this one
+			// is about to reload. Writing now would put the plan back on the
+			// device AFTER the other tab imported it, and the next sign-in
+			// would import it a second time.
+			if (getAuthToken()) return
+			// Straight to the device, no timer. A write this size is
+			// synchronous and takes well under a millisecond, so there is no
+			// window in which a closed tab loses work, and nothing pending for
+			// a save icon or a beforeunload warning to report.
+			const stored = writeGuestPlan(
+				userStatsData,
+				toBannerPayload(userPlannedBannerData),
+				toPurchasePayload(userPlannedPurchaseData),
+				toStepUpSelectionPayload(userStepUpSelectionData)
+			)
+			// Said once, on the write that first fails: the calculator still
+			// works, it just will not be here after a reload.
+			if (!stored && guestWriteOkRef.current) {
+				toast.error("This browser isn't letting us save your plan. It will be gone when you close the page.")
+			}
+			guestWriteOkRef.current = stored
+			setIsGuestPlanStored(stored)
+			return
+		}
+		if (loadedAsRef.current !== "account" || !getAuthToken()) return
 		startTimer()
 		// activePlanId is here so this effect is GUARANTEED to run after
 		// applyPlan and clear suppressAutoSaveRef. Every applyPlan changes the id;
 		// without it, a flag left set would swallow the user's next real edit.
 	}, [startTimer, userStatsData, userPlannedBannerData, userPlannedPurchaseData,
 		userStepUpSelectionData, activePlanId])
+
+	// The token changed under this tab: a sign-in or sign-out here or in
+	// another tab. If the mode this tab loaded in no longer matches, what is
+	// on screen belongs to the other mode and must not be saved in this one.
+	// A reload is the honest fix. See loadedAsRef.
+	useEffect(
+		() =>
+			subscribeToAuthToken(() => {
+				const loadedAs = loadedAsRef.current
+				if (loadedAs === null) return
+				if ((loadedAs === "account") !== !!getAuthToken()) reloadPage()
+			}),
+		[]
+	)
+
+	// Another guest tab changed the plan on this device. Take its version, so
+	// this tab is never behind when the person comes back to it:
+	//
+	//   12:00  tab A adds ten rows            store: A's ten rows
+	//   12:05  tab B (open since yesterday)   without this, B's next edit
+	//          changes one stat               writes yesterday's plan over them
+	//
+	// The rows came from storage, not from the person, so they are flagged the
+	// way applyPlan flags rows from the server. Every setter gets a fresh
+	// object, which guarantees the auto-save effect runs and clears the flag.
+	useEffect(
+		() =>
+			subscribeToGuestPlan(() => {
+				const catalogue = catalogueRef.current
+				if (loadedAsRef.current !== "guest" || !catalogue || getAuthToken()) return
+				const guestPlan = guestPlanToState(readGuestPlan(), catalogue)
+				suppressAutoSaveRef.current = true
+				setUserStatsData(guestPlan.stats)
+				setUserPlannedBannerData(guestPlan.banners)
+				setUserPlannedPurchaseData(guestPlan.purchases)
+				setUserStepUpSelectionData(guestPlan.stepUpSelections)
+			}),
+		[]
+	)
+
+	/**
+	 * Guest only: empty the plan and put the stats back to their defaults.
+	 * Reloading used to be how a guest started over; now that a reload keeps
+	 * the plan, this is. The auto-save effect sees the empty plan and removes
+	 * it from the device, so there is no second code path that clears storage.
+	 */
+	const resetGuestPlan = useCallback((): void => {
+		if (loadedAsRef.current !== "guest") return
+		setUserStatsData({ ...DEFAULT_GUEST_STATS })
+		setUserPlannedBannerData([])
+		setUserPlannedPurchaseData([])
+		setUserStepUpSelectionData([])
+		setStagedBanners([])
+	}, [])
 
 	// ── Plans ────────────────────────────────────────────────────────────────
 	//
@@ -411,20 +481,24 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	}, [timerIsGoing, saveNow])
 
 	/**
-	 * Put another plan on screen: its id, its rows and its stats move together.
-	 * The stats are the plan's own block or the account's, whichever the
-	 * server sent; an API from before separate resources sends none, and then
-	 * what is on screen (the account's) is kept.
+	 * Put another plan on screen: its id, its rows, its stats and its purchases
+	 * move together. The stats and purchases are the plan's own block's or the
+	 * account's, whichever the server sent; an API from before separate
+	 * resources sends no stats, and one from before purchases followed the
+	 * profile sends no purchases. In either case what is on screen (the
+	 * account's) is kept.
 	 */
 	const applyPlan = useCallback((
 		planId: number,
 		rows: UserPlannedBanner[],
-		stats?: UserStats
+		stats?: UserStats,
+		purchases?: UserPlannedPurchase[]
 	): void => {
 		suppressAutoSaveRef.current = true
 		setActivePlanId(planId)
 		setUserPlannedBannerData(rows)
 		if (stats) setUserStatsData(stats)
+		if (purchases) setUserPlannedPurchaseData(purchases)
 		// Staged rows were being composed for the plan just left; carrying them
 		// across would let "Add" drop them into a different plan.
 		setStagedBanners([])
@@ -470,7 +544,12 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					return false
 				}
 				const data = (await fetched.json()) as PlanWithRows
-				applyPlan(planId, data.user_planned_banner_data, data.user_stats_data)
+				applyPlan(
+					planId,
+					data.user_planned_banner_data,
+					data.user_stats_data,
+					data.user_planned_purchase_data
+				)
 				return true
 			}),
 		[runPlanAction, activePlanId, flushPendingSave, applyPlan]
@@ -504,7 +583,12 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					toast.error("The plan was created, but we couldn't open it. Pick it from the list.")
 					return false
 				}
-				applyPlan(data.plan.id, data.user_planned_banner_data, data.user_stats_data)
+				applyPlan(
+					data.plan.id,
+					data.user_planned_banner_data,
+					data.user_stats_data,
+					data.user_planned_purchase_data
+				)
 				toast.success(copyFromId === undefined ? "Plan created" : "Plan copied")
 				return true
 			}),
@@ -565,7 +649,12 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 						return true
 					}
 					const data = (await fetched.json()) as PlanWithRows
-					applyPlan(landedOn, data.user_planned_banner_data, data.user_stats_data)
+					applyPlan(
+						landedOn,
+						data.user_planned_banner_data,
+						data.user_stats_data,
+						data.user_planned_purchase_data
+					)
 				}
 				toast.success("Plan deleted")
 				return true
@@ -591,9 +680,9 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				}
 				const updated = (await response.json()) as Plan
 				setPlans((prev) => prev.map((plan) => (plan.id === planId ? updated : plan)))
-				// The stats the plan now reads are not in that answer. Fetch them
-				// the way a switch does, so they land through the same code path
-				// (and are not mistaken for an edit).
+				// The stats and purchases the plan now reads are not in that
+				// answer. Fetch them the way a switch does, so they land through
+				// the same code path (and are not mistaken for an edit).
 				if (planId === activePlanId) {
 					const fetched = await planFetch(planId)
 					if (!fetched.ok) {
@@ -601,7 +690,12 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 						return false
 					}
 					const data = (await fetched.json()) as PlanWithRows
-					applyPlan(planId, data.user_planned_banner_data, data.user_stats_data)
+					applyPlan(
+						planId,
+						data.user_planned_banner_data,
+						data.user_stats_data,
+						data.user_planned_purchase_data
+					)
 				}
 				toast.success(
 					on
@@ -645,6 +739,8 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		renamePlan,
 		deletePlan,
 		setSeparateIncome,
+		isGuestPlanStored,
+		resetGuestPlan,
 		saveNow,
 		setUserPlannedBannerData,
 		setStagedBanners,

@@ -8,7 +8,7 @@
    unable to hold either desktop layout below.
 
    desktop-nav — the navbar's three-column desktop layout, which is already
-   over-full below ~900px (the "Sign in to save" button wraps to 2-3 lines).
+   over-full below ~900px (the "Sign in to sync" button wraps to 2-3 lines).
    That is exactly the landscape-phone band. SettingsMenu anchors its panel to a
    navbar button, so it must switch on this same variant and no other.
 
@@ -117,7 +117,7 @@
 	   theme swap in deep variants the same way it inverts the gray ramp.
 
 	   Values below are the dark-theme set (all four dark themes share them);
-	   see [data-theme="light"] for the light counterparts.
+	   see [data-theme-mode="light"] for the light counterparts.
 
 	   The three states are a deliberate progression rather than three unrelated
 	   hues: "neutral" is the SAME green as "ok", drained of most of its chroma
@@ -201,7 +201,7 @@
 	   the chip's ink is 7.7:1 on the darkest stop of its fill.
 
 	   -fill and -ink are theme-independent (a foil is a foil); the rest are
-	   redrawn under [data-theme="light"]. */
+	   redrawn under [data-theme-mode="light"]. */
 	--color-recommended: #f5c542;
 	--color-recommended-fill: #f5c542;
 	--color-recommended-ink: #2a1a00;
@@ -218,7 +218,8 @@
 
    To add a new theme:
    1. Add a [data-theme="x"] block here
-   2. Add one entry to the THEMES array in src/services/ThemeProvider.tsx
+   2. Add one entry with its mode to THEMES in src/services/themeStore.ts
+   3. Add the id (and light-mode membership) to the inline script in index.html
 */
 
 [data-theme="gold"] {
@@ -311,41 +312,40 @@
 	--color-gray-950: #031012;
 }
 
-/* Light theme. The app uses the gray ramp semantically: 900/800/700 are page,
+/* Shared light themes. The app uses the gray ramp semantically: 900/800/700 are page,
    card, and inset surfaces, while 100/300/400 are progressively quieter text.
-   Keep that relationship, but use a warm canvas, bright card, and plum-ink
-   system rather than a flat mechanical gray inversion.
-
-   Brand is deepened to burnished bronze so it remains legible on light surfaces
-   while retaining strong contrast for black labels on filled buttons. */
-[data-theme="light"] {
-	/* A warm, editorial light theme — intentionally not a mechanical inversion of
-	   the dark gray ramp. The old cool-grey scale made every panel blend into the
-	   page, leaving the interface visually flat and unexpectedly clinical. */
-	--color-brand: #9a5d12;
-	--color-gray-50:  #261a28; /* darkest — primary plum ink */
-	--color-gray-100: #352438; /* primary text */
-	--color-gray-200: #513e50;
-	--color-gray-300: #6d5969; /* secondary text */
-	--color-gray-400: #806f7c; /* muted text */
-	--color-gray-500: #a08c97; /* de-emphasized text / tracks */
-	--color-gray-600: #decfd0; /* warm dividers */
-	--color-gray-700: #f3e7e2; /* controls and inset surfaces */
-	--color-gray-800: #fffaf7; /* raised cards */
-	--color-gray-900: #fbf2ed; /* page canvas */
-	--color-gray-950: #fffdfb; /* brightest surface */
+   White cards sit above a cool slate canvas, with darker insets for controls.
+   Blue supplies the base ramp. The original Light palette and the other light
+   options override its surfaces and ink below; status colors stay shared. */
+[data-theme-mode="light"] {
+	--light-glow-start: color-mix(in srgb, var(--color-brand) 7%, transparent);
+	--light-glow-end: color-mix(in srgb, var(--color-brand) 4%, transparent);
+	--light-button-ink: #ffffff;
+	--light-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+	--light-panel-border: color-mix(in srgb, var(--color-brand) 10%, var(--color-gray-600));
+	--light-nav-border: color-mix(in srgb, var(--color-brand) 8%, var(--color-gray-600));
+	--color-brand: #1d4ed8;
+	--color-gray-50:  #0f172a; /* darkest slate ink */
+	--color-gray-100: #1e293b; /* primary text */
+	--color-gray-200: #334155;
+	--color-gray-300: #475569; /* secondary text */
+	--color-gray-400: #52627a; /* muted text */
+	--color-gray-500: #5c6c82; /* de-emphasized text / tracks */
+	--color-gray-600: #cbd5e1; /* dividers */
+	--color-gray-700: #e8eef5; /* controls and inset surfaces */
+	--color-gray-800: #ffffff; /* raised cards */
+	--color-gray-900: #f1f5f9; /* page canvas */
+	--color-gray-950: #f8fafc; /* subtle surface */
 
 	/* Pull-count status colors, deepened for light surfaces. The dark defaults
-	   are bright mid-tones meant for a near-black input fill and collapse to
-	   1.35:1 (green) and 2.14:1 (red) here; these hit 4.77:1 and 5.32:1 against
-	   the tinted fill, clearing WCAG AA while still reading green/red.
-	   Any future LIGHT theme needs its own copy of these six; a future dark
-	   theme inherits the @theme defaults and needs nothing.
+	   are bright mid-tones meant for a near-black input fill; these keep the
+	   green/red states readable against the light tinted fills.
+	   Every light palette inherits these; dark themes use the @theme defaults.
 
 	   The muted green inverts on this theme: on a dark surface "dimmer" means
 	   darker, but here the vivid green is already deep, so a darker grey-green
 	   would read as MORE prominent, not less. The light muted tone is therefore
-	   LIGHTER than its vivid counterpart (while still clearing AA at 4.81:1) —
+	   LIGHTER than its vivid counterpart —
 	   same intent, opposite direction, for the same reason the gray ramp above
 	   is inverted rather than re-picked. */
 	--color-pull-ok: #166534;
@@ -355,35 +355,105 @@
 	--color-pull-over: #991b1b;
 	--color-pull-over-border: #b91c1c;
 
-	/* Staging accent, deepened for light surfaces on the same reasoning as the
-	   pull colors: the dark default is a bright mid-amber meant for a near-black
-	   card and drops to ~1.7:1 on this theme's #fffaf7 raised surface. This hits
-	   7.4:1 on the page canvas and stays unmistakably amber rather than sliding
-	   into brown. Any future LIGHT theme needs its own copy; a future dark theme
-	   inherits the @theme default. */
+	/* Amber identifies provisional rows; violet identifies paid step-up actions.
+	   Both use deeper shades on light surfaces, independently of the blue brand. */
 	--color-staging: #92400e;
 	--color-step-up: #713a85;
 	--color-step-up-border: #8b4aa0;
 
-	/* Category accent, deepened for light surfaces on the same reasoning as the
-	   pull colors above: the dark default is a pale rose meant for a near-black
-	   card and measures 1.49:1 on this theme's #fffaf7 panel. This one clears AA
-	   at 5.32:1 (border 4.51:1) while staying recognisably the same rose. */
+	/* Revival categories retain their rose accent, deepened for white cards. */
 	--color-category-revival: #a3325c;
 	--color-category-revival-border: #c04a78;
 
-	/* Recommended accent, redrawn for light surfaces. The dark default is a
-	   bright mid-gold meant for a near-black card and all but vanishes on these
-	   warm grays; #7a4f00 is the same gold burnt down until it clears 5.9:1 on the
-	   menu surface (gray-700) and 4.7:1 on the focused gray-600. The SSR surface
-	   inverts to pale champagne, where that ink reads 6.6:1 at the lightest stop
-	   and 5.3:1 at the deepest. -fill and -ink inherit: the chip is the same
-	   solid gold with dark ink on every theme. */
+	/* Recommended banners keep their gold foil treatment with deeper text on
+	   light menu surfaces. -fill and -ink inherit: the chip uses the same solid
+	   gold with dark ink on every theme. */
 	--color-recommended: #7a4f00;
 	--color-recommended-tint: rgb(122 79 0 / 16%);
 	--color-ssr-deep: #fff5d9;
 	--color-ssr-mid: #f5dc93;
 	--color-ssr-glow: rgb(201 138 18 / 45%);
+}
+
+/* The original warm Light palette remains the primary light choice. */
+[data-theme="light"] {
+	--color-brand: #9a5d12;
+	--color-gray-50:  #261a28;
+	--color-gray-100: #352438;
+	--color-gray-200: #513e50;
+	--color-gray-300: #6d5969;
+	--color-gray-400: #806f7c;
+	--color-gray-500: #a08c97;
+	--color-gray-600: #decfd0;
+	--color-gray-700: #f3e7e2;
+	--color-gray-800: #fffaf7;
+	--color-gray-900: #fbf2ed;
+	--color-gray-950: #fffdfb;
+	--light-glow-start: rgb(210 142 53 / 18%);
+	--light-glow-end: rgb(129 73 114 / 10%);
+	--light-button-ink: #000000;
+	--light-shadow: 0 12px 30px rgb(70 37 47 / 9%);
+	--light-panel-border: color-mix(in srgb, var(--color-brand) 18%, var(--color-gray-600));
+	--light-nav-border: color-mix(in srgb, var(--color-brand) 16%, var(--color-gray-600));
+}
+
+[data-theme="light-green"] {
+	--color-brand: #166534;
+	--color-gray-50:  #10221a;
+	--color-gray-100: #1a3026;
+	--color-gray-200: #2b4438;
+	--color-gray-300: #405c4d;
+	--color-gray-400: #50685a;
+	--color-gray-500: #5d7065;
+	--color-gray-600: #c5d9cd;
+	--color-gray-700: #e7f0e9;
+	--color-gray-900: #f1f7f3;
+	--color-gray-950: #f8fcf9;
+}
+
+[data-theme="light-red"] {
+	--color-brand: #b91c1c;
+	--color-gray-50:  #1f1418;
+	--color-gray-100: #321f25;
+	--color-gray-200: #4d343d;
+	--color-gray-300: #63444d;
+	--color-gray-400: #70555d;
+	--color-gray-500: #7f6269;
+	--color-gray-600: #e5ccd1;
+	--color-gray-700: #f6e8ec;
+	--color-gray-900: #fcf4f5;
+	--color-gray-950: #fffafb;
+}
+
+[data-theme="light-lilac"] {
+	--color-brand: #6d28d9;
+	--color-gray-50:  #1c1630;
+	--color-gray-100: #2a223d;
+	--color-gray-200: #433955;
+	--color-gray-300: #584a6b;
+	--color-gray-400: #685a79;
+	--color-gray-500: #706280;
+	--color-gray-600: #d8cfe5;
+	--color-gray-700: #eee9f6;
+	--color-gray-900: #f7f4fc;
+	--color-gray-950: #fcfaff;
+}
+
+/* Pearl is the softer neutral option: paper-white surfaces and charcoal actions. */
+[data-theme="light-pearl"] {
+	--color-brand: #52525b;
+	--color-gray-50:  #1c1917;
+	--color-gray-100: #292524;
+	--color-gray-200: #44403c;
+	--color-gray-300: #57534e;
+	--color-gray-400: #66625e;
+	--color-gray-500: #6b6763;
+	--color-gray-600: #d9d6d1;
+	--color-gray-700: #f0eeeb;
+	--color-gray-900: #f8f7f5;
+	--color-gray-950: #fdfcfa;
+	--light-glow-start: transparent;
+	--light-glow-end: transparent;
 }
 
 /* Blue/orange is distinguishable for the common red-green colour vision
@@ -398,7 +468,7 @@
 	--color-pull-over-border: #f97316;
 }
 
-[data-theme="light"][data-colorblind-mode="true"] {
+[data-theme-mode="light"][data-colorblind-mode="true"] {
 	--color-pull-ok: #1d4ed8;
 	--color-pull-ok-border: #2563eb;
 	--color-pull-neutral: #526273;
@@ -411,33 +481,38 @@
    card, form, timeline entry, and auth view gains the same sense of hierarchy.
    The two low-opacity glows keep large empty areas intentional without competing
    with planner data. */
-[data-theme="light"] {
+[data-theme-mode="light"] {
 	color-scheme: light;
 }
 
-[data-theme="light"] body,
-[data-theme="light"] #root > .bg-gray-900 {
+/* Original Light retains its black button labels; the newer palettes use white. */
+[data-theme-mode="light"] .bg-brand.text-black {
+	color: var(--light-button-ink);
+}
+
+[data-theme-mode="light"] body,
+[data-theme-mode="light"] #root > .bg-gray-900 {
 	background-color: var(--color-gray-900);
 	background-image:
-		radial-gradient(circle at 10% -10%, rgb(210 142 53 / 18%), transparent 28rem),
-		radial-gradient(circle at 94% 8%, rgb(129 73 114 / 10%), transparent 25rem);
+		radial-gradient(circle at 10% -10%, var(--light-glow-start), transparent 28rem),
+		radial-gradient(circle at 94% 8%, var(--light-glow-end), transparent 25rem);
 	background-attachment: fixed;
 }
 
-[data-theme="light"] .card-panel,
-[data-theme="light"] .shadow-md,
-[data-theme="light"] .shadow-sm,
-[data-theme="light"] .shadow-lg,
-[data-theme="light"] .shadow-2xl {
-	box-shadow: 0 12px 30px rgb(70 37 47 / 9%);
+[data-theme-mode="light"] .card-panel,
+[data-theme-mode="light"] .shadow-md,
+[data-theme-mode="light"] .shadow-sm,
+[data-theme-mode="light"] .shadow-lg,
+[data-theme-mode="light"] .shadow-2xl {
+	box-shadow: var(--light-shadow);
 }
 
-[data-theme="light"] .card-panel {
-	border-color: color-mix(in srgb, var(--color-brand) 18%, var(--color-gray-600));
+[data-theme-mode="light"] .card-panel {
+	border-color: var(--light-panel-border);
 }
 
-[data-theme="light"] .bg-gray-800.border-b {
-	border-color: color-mix(in srgb, var(--color-brand) 16%, var(--color-gray-600));
+[data-theme-mode="light"] .bg-gray-800.border-b {
+	border-color: var(--light-nav-border);
 }
 
 /* Violet gets depth from coloured light rather than brighter flat panels. This

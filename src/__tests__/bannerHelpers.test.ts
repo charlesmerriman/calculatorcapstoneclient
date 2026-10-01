@@ -163,6 +163,19 @@ describe('applyPullStrategy — maxPullBreakdown', () => {
     expect(maxPossiblePulls).toBe(0)
     expect(b).toEqual({ freePulls: 5, tickets: 3, paidPulls: 0, freeCaratPulls: 0 })
   })
+
+  it('shows a ticket debt as 0 tickets while the total still counts the debt', () => {
+    // An earlier-starting banner that ends later can spend tickets this banner
+    // hasn't earned by its own end date, handing it a negative balance. The row
+    // must not print "-5", but Max Pulls keeps the debt: 1,500 carats is 10
+    // pulls, minus the 5 owed.
+    const { maxPossiblePulls, maxPullBreakdown: b } = strat({
+      umaTickets: -5,
+      freeCarats: 1_500,
+    })
+    expect(b.tickets).toBe(0)
+    expect(maxPossiblePulls).toBe(5)
+  })
 })
 
 // ── Actual spend (leftover balances) ────────────────────────────────────────────
@@ -173,6 +186,34 @@ describe('applyPullStrategy — spend', () => {
     expect(r.umaTickets).toBe(0)
     expect(r.freeCarats).toBe(1_000 - 3 * 150) // 3 remaining pulls at 150
     expect(r.paidCarats).toBe(0)
+  })
+
+  it('keeps tickets and pays in carats when ticket spending is off', () => {
+    // The worked example from the feature request: 40 tickets, 6,000 carats,
+    // 50 pulls. Tickets stay at 40 and the whole plan is charged to carats.
+    const r = strat({
+      plannedPulls: 50,
+      umaTickets: 40,
+      freeCarats: 6_000,
+      spendTickets: false,
+    })
+    expect(r.umaTickets).toBe(40)
+    expect(r.freeCarats).toBe(6_000 - 50 * 150) // -1,500: the row goes red
+    // Held-back tickets are not pulls this banner can count on.
+    expect(r.maxPossiblePulls).toBe(40) // 6,000 / 150, tickets excluded
+    expect(r.maxPullBreakdown.tickets).toBe(0)
+  })
+
+  it('still takes free pulls first when ticket spending is off', () => {
+    const r = strat({
+      plannedPulls: 10,
+      freePulls: 10,
+      umaTickets: 5,
+      freeCarats: 1_000,
+      spendTickets: false,
+    })
+    expect(r.umaTickets).toBe(5)
+    expect(r.freeCarats).toBe(1_000)
   })
 
   it('uses support tickets (not uma) for a support banner', () => {

@@ -42,6 +42,21 @@ color in `src/index.css`.
 `src/index.css`.** The light theme *inverts* the gray ramp, so existing utilities keep
 working unchanged. Read the comments there before adding a theme.
 
+The compact picker puts **Dark** and **Light** first as the primary choices, with
+small swatches for alternative **Dark themes** and **Light themes** underneath,
+grouped by the `mode` in `themeStore.ts`. Dark retains the saved `gold` id and
+remains the initial default. Light (`light`) restores the original warm palette;
+Blue (`light-blue`), Green, Red, Purple and Pearl remain alternatives, giving
+each mode six themes. Purple keeps its saved `light-lilac` id.
+
+`data-theme-mode="light"` supplies the shared light ramp, status colors, button
+labels and surface polish. Individual `data-theme` selectors override the palette,
+including the original Light theme's glows, shadows and black button labels.
+Pearl uses softer paper-white surfaces and charcoal actions. Toasts use the same
+mode metadata, and the pre-paint script in `index.html` sets both attributes.
+When adding a theme, update that script's ids and light-mode list together with
+the registry; `themeScript.test.ts` checks their agreement.
+
 ### Semantic status colors must be theme tokens, not palette classes
 
 Tailwind's stock `green-400` / `red-500` are **not** theme-aware and measure ~1.35:1
@@ -51,7 +66,7 @@ belongs in `@theme` as its own token.
 The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
 `App.css`) are the worked example to copy. `--color-category-revival[-border]`
 (`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
-pattern: dark values in `@theme`, deepened counterparts under `[data-theme="light"]`.
+pattern: dark values in `@theme`, deepened counterparts under `[data-theme-mode="light"]`.
 
 A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
 to read as "not the usual banner" against seven different brand hues, and would vanish into
@@ -381,7 +396,7 @@ neighbours. Re-measure the stats box before you move it.
 
 ### The bulk-adjust pad (`CountStepper`)
 
-The `# Pulls` field opens a pad of bulk-adjust buttons — the planner's answer to "set this
+The `# Pulls` field (and the copies field) opens a pad of bulk-adjust buttons — the planner's answer to "set this
 to 600 without pressing ↑ sixty times". It is deliberately **not** a set of `+100/-100`
 buttons in the column: that column is `5rem`, the table's width is capped
 (`--container-banner-table`, above), and four buttons plus a field want ~11.5rem. A pad
@@ -405,13 +420,22 @@ Three things about it are load-bearing:
   input. That is what lets you click four in a row and keep the arrow keys live
   afterwards — and the panel-level handler is what stops a press on the pad's own dead
   space blurring the field and closing it mid-use.
-- **The quantities are per row kind, and they are not powers of ten.** The unit of account
-  on a pull row is a pity copy, so the coarse delta is `PULLS_PER_PITY_COPY` and one preset
-  lands on the next threshold — the same number that turns the field green. A step-up row
-  counts *steps*, clamped to `banner_count * 5`, so its ruler is ±1 / ±5 and it gets no
-  Ctrl shortcut at all. `buildCountChips` in `utils/countChips.ts` is the one place this is
-  decided; `NumberField`'s `mediumStep` / `largeStep` are its keyboard mirror, advertised
-  in the pad's footer.
+- **The quantities are per row kind.** `buildCountChips` in `utils/countChips.ts` is the
+  one place this is decided:
+
+  | Row | Pad | Why |
+  |---|---|---|
+  | Uma | `−100 −10 +10 +100 \| Next pity` | one copy is the whole goal, so nobody plans past the first pity; half a pity is the useful coarse step |
+  | Support | `−200 +200 \| Next pity` | plans move in whole pities (`PULLS_PER_PITY_COPY`) |
+  | Step Up | `−5 +5 \| Limit N \| Next round` | counts *steps*, bought a round at a time |
+  | Copies field | `−1 +1` | the range is 0-5 (`buildCopyChips`) |
+
+  Pull rows have **no Max chip**: the Max Pulls tile beside the field already shows the
+  number. A step-up's **Limit** is what the banner *sells* (`max_steps`, i.e.
+  `banner_count * 5`), never what is affordable, and is named differently from the
+  affordable "Max Steps" tile on purpose. `NumberField`'s `mediumStep` / `largeStep` are
+  the keyboard mirror (`coarsePullDelta` feeds both), advertised in the pad's title; a
+  step-up gets no Ctrl shortcut at all.
 
 **It needs no phone-specific wiring, but it does need two phone-specific
 allowances.** The card and the desktop cell render the *same* `pullsInput` node, so the
@@ -717,6 +741,18 @@ own "Add to Planner". A section whose own end date differs from the header's say
   their end dates can differ — and income is a pure function of a banner's end date.
 - A group of one is the common case and is the *same* code path, so there is no second
   layout to keep in sync.
+- **A shared `jp_start_date` groups too: the staggered release.** JP runs a release as one
+  window; global can open its uma and support banners on different days (first seen
+  2026-10, Hokko Tarumae). That is entered as **two `BannerTimeline` rows with the same JP
+  dates and their own global dates**, and the shared JP start is what puts them on one
+  card. There is no flag to set. The rule is a union with the start rule, never a
+  replacement: the launch window has one global start and two JP starts.
+- **Complementary halves fuse into one section** (`buildWindowSections`): an uma-only row
+  and a support-only row of the same category draw as the ordinary art | umas | supports
+  row, each panel reading its banner, expiry and dates from its own row. When the halves'
+  dates differ, the **card header** says how each side differs from the window it states
+  ("Support banner starts 2026/10/27"). Never inside a panel: a line there makes the panel
+  taller and the art row grows with it. Anything else stacks as separate sections.
 
 ### Count drives the layout, category drives the accents
 

@@ -1,6 +1,6 @@
 # State, Auto-save, and Guest Mode
 
-How the SPA holds its data, when it saves, and how anonymous users are supported.
+How the SPA holds its data, when and where it saves, and how anonymous users are supported.
 
 For the resource math itself see
 [resource-projection-logic.md](resource-projection-logic.md).
@@ -30,9 +30,7 @@ changed about that guarantee.
 
 **Anything that renders OUTSIDE the gate must tolerate empty collections**, because while
 `isLoading` is true every array on the context is still at its initial `[]` and
-`userStatsData` is `null`. `Navbar` is the one such component today: its "Sign in to save"
-button is disabled while loading, since stashing an empty plan would clear a guest's
-already-stashed one.
+`userStatsData` is `null`. `Navbar` is the one such component today.
 
 ### The payload is prefetched
 
@@ -59,13 +57,16 @@ for why it is never "whichever plan is active".
 
 - Save state is surfaced through Sonner toasts.
 - An `onbeforeunload` warning fires if a save is still pending.
-- **Guests never arm the timer** — their plan is in-memory only.
+- **Guests never arm the timer.** Their plan is written straight to the device on every
+  change instead (see "Guest mode"), so there is nothing pending to show or warn about.
+- **Which of the two a tab does is decided when it loads, not per edit.** See "A tab saves
+  the way it loaded" below.
 - **A row's note commits on blur, not per keystroke.** `BannerNoteEditor`
   (`components/carat-calculator/BannerNote.tsx`) keeps the text in local state while the
   person types, because every change to `userPlannedBannerData` re-arms this timer and the
   PATCH re-sends the whole row list. The note is an optional `note?: string` on the row and
   needs no mapping: `toBannerPayload` spreads the row, so autosave, the Navbar save and the
-  guest migration all carry it. `NOTE_MAX_LENGTH` (500) mirrors the API's cap, and the
+  guest's device store all carry it. `NOTE_MAX_LENGTH` (500) mirrors the API's cap, and the
   textarea's `maxLength` keeps a save from ever failing on it.
 
 ---
@@ -74,19 +75,25 @@ for why it is never "whichever plan is active".
 
 A signed-in account holds up to five named pull plans and the calculator shows one at a
 time. **A plan is its banner rows and nothing else, plus at most a pointer to which of the
-owner's stats blocks it reads.** Planned purchases and step-up selections belong to the
-account and stay put when the plan changes. Stats and toggles belong to the account too,
-but a plan with "separate resources" on (`income_profile_id` non-null) reads and saves its
-own copy of them, for people who plan for more than one game account. The reasoning, and
-why it keeps a plan safe to copy between accounts later, is in
+owner's stats blocks it reads.** Step-up selections belong to the account and stay put when
+the plan changes. Stats, toggles and planned purchases belong to the account too, but a
+plan with "separate resources" on (`income_profile_id` non-null) reads and saves its own
+copy of all three, for people who plan for more than one game account. The purchases
+follow the stats because they feed the same income (since 2026-09-24; before that they
+were the account's under every plan). The reasoning, and why it keeps a plan safe to copy
+between accounts later, is in
 [../../backend/docs/data-model.md](../../backend/docs/data-model.md) ("`Plan`" and
 "`IncomeProfile`").
 
 That split is why the projection engine did not change. `useBannerResources` reads
-`userPlannedBannerData` and `userStatsData` as it always did; they now mean "the open
-plan's". The client never decides which stats block a plan reads: `GET /plans/<id>` sends
-`user_stats_data` beside the rows, in the same shape either way, and the save path is
-unchanged because `PATCH /calculator-data` already carries the plan id beside the stats.
+`userPlannedBannerData`, `userStatsData` and `userPlannedPurchaseData` as it always did;
+they now mean "the open plan's". The client never decides which block a plan reads:
+`GET /plans/<id>` sends `user_stats_data` and `user_planned_purchase_data` beside the rows,
+in the same shape either way, and `applyPlan` swaps all three in together. Either key may
+be absent from an older API, and then what is on screen is kept. The save path is
+unchanged because `PATCH /calculator-data` already carries the plan id beside the stats
+and purchases. The Selectors page, which has no plan switcher, says whose purchases it
+shows when the open plan has separate resources on.
 
 The provider adds `plans`, `activePlanId`, `isPlanBusy` and five actions (`switchPlan`,
 `createPlan`, `renamePlan`, `deletePlan`, `setSeparateIncome`).
@@ -139,8 +146,8 @@ throw. They lose banners.
 For a guest `plans` is `[]` and `activePlanId` is `null`, and `PlanSwitcher` renders
 nothing. An API from before plans existed sends neither key and gets the same treatment:
 the switcher is hidden and saves omit `plan_id`, which the server reads as the account's
-only plan. Guest migration is unchanged and sends `data.active_plan_id`, so a guest's rows
-join the active plan.
+only plan. A guest keeps ONE plan, on the device; several plans are an account feature.
+What happens to that plan at sign-in is under "Signing in with a plan on the device".
 
 `PlanSwitcher` is a header bar in the Income & Resources style with **one tab per plan**, a
 "New" button and a "..." menu for the open plan. Below `@min-[40rem]` (a container query on
@@ -157,39 +164,117 @@ plan has no rows to make the box taller than the menu.
 
 ## Guest mode
 
-The app is fully usable without an account. No route requires one; signing in is only
-needed to *save* a plan.
+The app is fully usable without an account. No route requires one. A guest's plan is
+**kept on their device**; an account is what puts a plan on every device, and what the
+account-only features (several plans, separate resources, supporter perks) hang off.
 
-- The API returns `user_stats_data: null` for anonymous requests, and the frontend seeds
-  `DEFAULT_GUEST_STATS` from that.
-- Guests plan in memory. A refresh discards the plan, by design.
+- The API returns `user_stats_data: null` and empty collections for anonymous requests.
+  The provider replaces them with the device's plan, or with `DEFAULT_GUEST_STATS` and
+  nothing when there is none.
+- **Nothing about a guest reaches the server.** No route was added for this and guest
+  rows are not in the analytics.
 - A request carrying an **invalid** token still 401s even on public endpoints (DRF
   authenticates before permissions run). The frontend clears the token and retries as a
   guest.
 
-### Guest → account migration (`services/guestMigration.ts`)
+### The device store (`services/guestPlanStore.ts`)
 
-The Navbar shows a "Sign in to save" button that **snapshots the guest plan into
-sessionStorage** (`guestPlanMigration.v1`, 1-hour expiry) before navigating to `/login`.
+One `localStorage` key, `guestPlan.v1`: `{ version, savedAt, stats, banners, purchases,
+stepUpSelections }`. Four rules, each with a failure behind it.
 
-The snapshot is necessary because `CalculatorProvider` unmounts on route change — without
-it the plan would simply be gone by the time the user came back.
+- **Ids, never objects.** A planned row in state carries the whole banner. Stored, that
+  object would keep the dates it had on the day of the save:
 
-On the next provider mount **with** a token, the stash is migrated via PATCH **before any
-state is set**, so auto-save cannot race it:
+  | Day | What happens |
+  |---|---|
+  | Oct 1 | Guest plans a banner the API predicts ends Dec 10. |
+  | Oct 20 | An editor corrects the prediction to Dec 24. |
+  | Oct 21 | A stored OBJECT still says Dec 10 and shows 14 days less income. A stored ID is looked up in today's catalogue and says Dec 24. |
 
-- account banners are preserved (sent **with** ids),
-- guest banners are appended (sent **without** ids),
-- planned **purchases** follow exactly the same rule, in their own `purchases` key,
-- guest stats are sent only if edited away from the defaults (`statsAreDirty`).
+  So the store holds the PATCH shape (`toBannerPayload` and friends) and
+  `guestPlanToState()` rebuilds the rows against the payload that was just fetched. A row
+  whose banner, product or step-up has left the catalogue is dropped on its own, and a
+  rank that no longer exists reads as no rank. That also protects the sign-in import:
+  one id the server does not know would 400 the whole body.
+- **Stats are read over the defaults**, key by key and type-checked, so a stat added after
+  the plan was saved gets its default instead of arriving `undefined`.
+- **Every storage call is wrapped, and a failed write is reported.** `writeGuestPlan`
+  returns whether it landed. On the first failure the guest gets one toast, the context's
+  `isGuestPlanStored` goes false and the navbar button's tooltip says so. The calculator carries
+  on in memory.
+- **Written on every change, with no timer.** A write this size is synchronous and takes
+  well under a millisecond, so a closed tab never loses work. An empty plan removes the
+  key.
 
-`purchases` is optional on `GuestPlanStash` so a stash written before the Selectors page
-existed still validates — the version stays `1` because an absent key degrades to "no
-purchases", which is correct rather than a reason to discard the whole plan.
+`localStorage` is not durable: clearing site data deletes it, and Safari deletes
+script-written storage after seven days without a visit. **The copy therefore says "saved
+on this device", never just "saved".**
 
-The guest stash survives the OAuth round trip unchanged — sessionStorage persists across a
-same-tab navigation to the provider and back — so social sign-in reuses this machinery
-with no changes of its own.
+"Clear plan and start over" in the settings menu (guests only) is `resetGuestPlan()`. A
+reload used to be how a guest started over.
+
+Staged rows are still not stored anywhere, for guests or accounts.
+
+### A tab saves the way it loaded
+
+`CalculatorProvider` records `loadedAsRef` (`guest` or `account`) when the payload arrives
+and the save path reads that, never the live token. The token is shared by every tab, so
+asking "is there a token?" per edit has two wrong answers:
+
+| Tab loaded as | In another tab | The next edit would |
+|---|---|---|
+| guest | they sign in | PATCH the guest's rows with no `plan_id`. The server reads that as the active plan and deletes every account row not in the body. |
+| account | they sign out | write the account's rows into the device store, left behind on what may be a shared computer. |
+
+With the mode latched a guest tab only writes the device store and an account tab only
+PATCHes. When the token appears or disappears under a tab (`subscribeToAuthToken`), the tab
+reloads through `services/reloadPage.ts`, a one-line module that exists so tests can mock
+it.
+
+**The device store only ever holds what was typed while signed out.** Account data is never
+copied into it, including at sign-out.
+
+### Two guest tabs
+
+The provider subscribes to the `storage` event for the key (`subscribeToGuestPlan`), which
+the browser fires in every tab except the one that wrote. A tab that hears it swaps in the
+new plan, flagged with `suppressAutoSaveRef` the way `applyPlan` flags server rows so it
+is not written straight back. Without this, a tab opened yesterday would write its old
+plan over the work done in a newer one.
+
+### Signing in with a plan on the device (`services/guestPlanImport.ts`)
+
+On the first provider mount **with** a token, `importGuestPlan()` runs on the raw payload
+**before any state is set**, so auto-save cannot race it.
+
+| The account | Rows | Stats, purchases | Step-up picks |
+|---|---|---|---|
+| is empty (no rows or purchases, one plan) | into its plan | the guest's | the guest's |
+| has data | a NEW plan, "From this device", not opened | the account's are kept | merged per banner (`mergeStepUpSelections`) |
+| has data and `PLAN_CAP` plans | left on the device, one notice per tab session | kept | kept |
+
+Rows are choices and can sit in a plan of their own without changing any number. Stats are
+facts, and a device plan can be weeks older than the account's. The old rule (append to
+the active plan, let edited guest stats overwrite) would add stale duplicate rows and set
+the account's carats back.
+
+- The new-plan import is two calls, `planCreate` then `userCalculatorDataPatch` with the
+  new plan's id. **Purchases and stats are omitted from that PATCH (`null`), not sent
+  empty**: an absent key is left alone by the server, `[]` deletes every row, and the
+  purchases in hand belong to the ACTIVE plan's stats block, not the new plan's.
+- If the PATCH fails after the plan was created, the empty plan is deleted so retries do
+  not stack up "From this device" tabs.
+- **The device copy is cleared only after the server confirms.** A 5xx or a network
+  failure keeps it for the next load. A 4xx keeps it too and sets `importBlocked`, so the
+  same body is not retried on every load; the next guest edit rewrites the entry without
+  the flag.
+
+**Transitional, one release:** before 2026-10 the plan was in memory and "Sign in to save"
+stashed it in sessionStorage (`guestPlanMigration.v1`, `services/guestMigration.ts`).
+Nothing writes that stash now, but the import still reads one, for someone who was on a
+provider's consent screen while the deploy landed. Delete the stash functions and their
+tests after that release. `DEFAULT_GUEST_STATS`, `statsAreDirty` and
+`mergeStepUpSelections` in the same file stay.
 
 ---
 

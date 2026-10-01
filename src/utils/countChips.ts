@@ -1,8 +1,10 @@
+import type { BannerRowType } from "./bannerHelpers"
+
 /**
  * One button in the stepper pad.
  *
  * `next` is a pure function of the CURRENT value rather than a fixed delta or a
- * fixed target, because the pad holds both kinds at once ("+10" and "Max 340")
+ * fixed target, because the pad holds both kinds at once ("+10" and "Next pity")
  * and the disabled rule below wants to treat them identically.
  */
 export interface CountChip {
@@ -25,34 +27,63 @@ export interface CountChipSet {
 }
 
 /**
- * The pull/step quantities this planner actually deals in.
+ * The coarse delta on a pull row, which is also what Ctrl+arrow steps by.
  *
- * The competitor UI this was modelled on offers +100/-100, because its unit of
- * account is a pull. Ours is a pity copy, so the coarse delta is the pity
- * interval (200) and there is a preset that lands exactly on the next one —
- * which is also what turns the field green (see getPullCountStatus).
+ * A support card wants up to five copies, so its plans are several pities deep
+ * and the useful big step is a whole pity (200). An uma only ever needs ONE
+ * copy: nobody plans past the first pity, "Next pity" already jumps there, and
+ * a ±200 that can only mean "0 or 200" duplicates it. Half a pity (100) is the
+ * step that is still useful below that ceiling.
+ *
+ * Exported because the rows hand the same number to NumberField's `largeStep`,
+ * and the pad and the keyboard must never disagree about it. Undefined on a
+ * step-up, whose ladder tops out around 25 steps and has no third quantity.
+ */
+export function coarsePullDelta(
+	rowType: BannerRowType,
+	pullsPerPity: number
+): number | undefined {
+	if (rowType === "StepUp") return undefined
+	return rowType === "Uma" ? pullsPerPity / 2 : pullsPerPity
+}
+
+/**
+ * The pull/step quantities this planner actually deals in, per row kind.
+ *
+ *   Uma      −100 −10 +10 +100 | Next pity
+ *   Support  −200 +200         | Next pity
+ *   Step Up  −5 +5             | Limit N | Next round
+ *
+ * A pull row's unit of account is a pity copy, so one preset lands exactly on
+ * the next threshold, which is also what turns the field green (see
+ * getPullCountStatus). Support rows drop ±10 because their plans move in whole
+ * pities; a one-off multi is quicker typed (or Shift+arrow) than hunted for.
+ *
+ * NO "Max" ON A PULL ROW. It used to jump to the affordable ceiling, but
+ * spending every pull you own on one banner is almost never the plan, and the
+ * Max Pulls tile right beside the field already shows the number.
  *
  * A step-up row is a different unit entirely: `number_of_pulls` carries STEPS
- * there, clamped to `banner_count * 5`, so a plan is 15-25 of them and a
- * hundred-step button would be nonsense. Its ruler is +/-1 and +/-5 (one round).
+ * there, and a plan is 5-15 of them. People buy whole rounds, so the ruler is
+ * ±5 only (single steps stay on the arrow keys).
  *
- * @param upperBound Affordable ceiling — `maxPossiblePulls`, or
- *   `maxPossibleSteps` on a step-up. Only the "Max" preset reads it; the deltas
- *   deliberately step straight past it, because over-planning is surfaced as a
- *   red field rather than prevented (same rule as handlePullCountChange).
- *   Pass Infinity when there is no ceiling to know — a STAGED row is not on the
- *   sheet, so useBannerResources has projected nothing for it — and the Max chip
- *   is dropped rather than invented. That is the same opt-out the staged row
- *   already hands getPullCountStatus to suppress the "over" state.
+ * @param stepLimit The most steps the banner SELLS (`max_steps`, which is
+ *   `banner_count * 5`), NOT what the carats can pay for. With two banners and
+ *   carats for 8 steps the chip still reads "Limit 10": over-planning past the
+ *   budget is surfaced as a red field rather than prevented (same rule as
+ *   handlePullCountChange), and the chip's job is "plan the whole thing".
+ *   Named "Limit" so it cannot be read as the affordable "Max Steps" tile.
+ *   Pass Infinity when no banner is chosen yet and the chip is dropped rather
+ *   than invented. Ignored on pull rows.
  */
 export function buildCountChips({
-	isStepUp,
-	upperBound,
+	rowType,
+	stepLimit,
 	pullsPerPity,
 	stepsPerRound,
 }: {
-	isStepUp: boolean
-	upperBound: number
+	rowType: BannerRowType
+	stepLimit: number
 	pullsPerPity: number
 	stepsPerRound: number
 }): CountChipSet {
@@ -70,34 +101,30 @@ export function buildCountChips({
 	const toNextMultiple = (interval: number): CountChip["next"] => (current) =>
 		Math.ceil((current + 1) / interval) * interval
 
-	/**
-	 * Spread into the presets, so an unknown ceiling drops the chip instead of
-	 * rendering one. Neither degenerate alternative is acceptable: "Max Infinity"
-	 * is not a button, and a Max that quietly meant 0 would wipe a field the user
-	 * had just filled in.
-	 */
-	const maxGroup: CountChip[] = Number.isFinite(upperBound)
-		? [
-				{
-					label: `Max ${upperBound}`,
-					title: isStepUp
-						? "Every step this banner's carats can pay for"
-						: "Every pull this banner's carats, tickets and free pulls can pay for",
-					next: () => upperBound,
-				},
-		  ]
-		: []
+	if (rowType === "StepUp") {
+		/**
+		 * Spread into the presets, so an unknown limit drops the chip instead of
+		 * rendering one. Neither degenerate alternative is acceptable: "Limit
+		 * Infinity" is not a button, and a Limit that quietly meant 0 would wipe
+		 * a field the user had just filled in.
+		 */
+		const limitGroup: CountChip[] = Number.isFinite(stepLimit)
+			? [
+					{
+						label: `Limit ${stepLimit}`,
+						title: `Every step this banner sells (${stepLimit})`,
+						next: () => stepLimit,
+					},
+			  ]
+			: []
 
-	if (isStepUp) {
 		return {
 			deltas: [
 				{ label: `−${stepsPerRound}`, title: `One round fewer (${stepsPerRound} steps)`, next: by(-stepsPerRound) },
-				{ label: "−1", title: "One step fewer", next: by(-1) },
-				{ label: "+1", title: "One step more", next: by(1) },
 				{ label: `+${stepsPerRound}`, title: `One round more (${stepsPerRound} steps)`, next: by(stepsPerRound) },
 			],
 			presets: [
-				...maxGroup,
+				...limitGroup,
 				{
 					label: "Next round",
 					title: `Round up to a complete ladder (a multiple of ${stepsPerRound} steps)`,
@@ -108,21 +135,72 @@ export function buildCountChips({
 		}
 	}
 
+	// Defined for both pull kinds; the fallback only satisfies the type.
+	const coarse = coarsePullDelta(rowType, pullsPerPity) ?? pullsPerPity
+	const coarseTitle = coarse === pullsPerPity ? "One pity copy" : "Half a pity"
+	const multiChips = (sign: 1 | -1): CountChip[] =>
+		rowType === "Uma"
+			? [
+					{
+						label: `${sign > 0 ? "+" : "−"}10`,
+						title: `One multi ${sign > 0 ? "more" : "fewer"} (10 pulls)`,
+						next: by(sign * 10),
+					},
+			  ]
+			: []
+
 	return {
 		deltas: [
-			{ label: `−${pullsPerPity}`, title: `One pity copy fewer (${pullsPerPity} pulls)`, next: by(-pullsPerPity) },
-			{ label: "−10", title: "One multi fewer (10 pulls)", next: by(-10) },
-			{ label: "+10", title: "One multi more (10 pulls)", next: by(10) },
-			{ label: `+${pullsPerPity}`, title: `One pity copy more (${pullsPerPity} pulls)`, next: by(pullsPerPity) },
+			{ label: `−${coarse}`, title: `${coarseTitle} fewer (${coarse} pulls)`, next: by(-coarse) },
+			...multiChips(-1),
+			...multiChips(1),
+			{ label: `+${coarse}`, title: `${coarseTitle} more (${coarse} pulls)`, next: by(coarse) },
 		],
 		presets: [
-			...maxGroup,
 			{
 				label: "Next pity",
 				title: `Round up to the next pity threshold (a multiple of ${pullsPerPity} pulls)`,
 				next: toNextMultiple(pullsPerPity),
 			},
 		],
-		hint: `↑↓ ±1 · Shift ±10 · Ctrl ±${pullsPerPity}`,
+		// Shift ±10 stays on a support row's keyboard even though its pad has no
+		// ±10 chip: a key costs no space, a chip does.
+		hint: `↑↓ ±1 · Shift ±10 · Ctrl ±${coarse}`,
+	}
+}
+
+/**
+ * The pad for the copies field (copies taken with a selector or crystal). The
+ * whole range is 0-5, so one copy either way is the only useful button.
+ */
+export function buildCopyChips(): CountChipSet {
+	return {
+		deltas: [
+			{ label: "−1", title: "One copy fewer", next: (current) => Math.max(0, current - 1) },
+			{ label: "+1", title: "One copy more", next: (current) => current + 1 },
+		],
+		presets: [],
+		hint: "↑↓ ±1",
+	}
+}
+
+/**
+ * The pad for a discounted pack's quantity on the Selectors page.
+ *
+ * Unlike a pull count, this one CLAMPS: `max` is the campaign's purchase limit
+ * (`max_quantity`), a rule of the shop and not a budget, so there is nothing
+ * past it to plan. "+1" therefore stops at the limit and disables itself there,
+ * and "Max" is the common case of buying every discounted pack on offer.
+ */
+export function buildQuantityChips(max: number): CountChipSet {
+	return {
+		deltas: [
+			{ label: "−1", title: "One fewer", next: (current) => Math.max(0, current - 1) },
+			{ label: "+1", title: "One more", next: (current) => Math.min(max, current + 1) },
+		],
+		presets: [
+			{ label: `Max ${max}`, title: `Buy all ${max}, the most this campaign sells`, next: () => max },
+		],
+		hint: "↑↓ ±1",
 	}
 }

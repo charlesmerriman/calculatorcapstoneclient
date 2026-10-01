@@ -707,6 +707,45 @@ describe('Timeline concurrent banners', () => {
     expect(screen.queryByText(/This banner ends/)).not.toBeInTheDocument()
   })
 
+  it('draws a staggered release as one ordinary card, each side with its own dates', () => {
+    // One JP window that global opened in two steps: the uma banner first, the
+    // support banner three days later. Two rows in the data, one release.
+    const jp = { jp_start_date: '2023-01-10T22:00:00Z', jp_end_date: '2023-01-20T21:59:59Z' }
+    const umaHalf = { ...categorised(1, 'standard', ['Hokko Tarumae']), ...jp }
+    const supportHalf = {
+      ...categorised(2, 'standard', [], ['Agnes Tachyon', 'Tokai Teio']),
+      ...jp,
+      start_date: '2099-03-04T22:00:00Z',
+      end_date: umaHalf.end_date,
+    }
+    events = [umaHalf, supportHalf]
+    renderTimeline()
+
+    const fmt = (iso: string) => {
+      const d = new Date(iso)
+      return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+    }
+
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 of 1')
+    // One section: one of each panel, and neither empty state.
+    expect(screen.getAllByText('Featured Umamusume')).toHaveLength(1)
+    expect(screen.getAllByText('Featured Support Cards')).toHaveLength(1)
+    expect(screen.queryByText('No Support Banner')).not.toBeInTheDocument()
+    expect(screen.queryByText('No Umamusume banner')).not.toBeInTheDocument()
+    expect(screen.getByAltText('Hokko Tarumae')).toBeInTheDocument()
+    expect(screen.getByAltText('Tokai Teio')).toBeInTheDocument()
+    // The header states the span of both, then how the late side differs. The
+    // uma side opens with the card, so it gets no note. The note sits in the
+    // header rather than a panel: a line inside a panel makes the art row taller.
+    expect(
+      screen.getByText(`${fmt(umaHalf.start_date)} through ${fmt(umaHalf.end_date)}`),
+    ).toBeInTheDocument()
+    const note = screen.getByText(`Support banner starts ${fmt(supportHalf.start_date)}`)
+    expect(note.closest('section')).toBeNull()
+    expect(screen.queryByText(/Umamusume banner starts/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/This banner/)).not.toBeInTheDocument()
+  })
+
   it('never groups across the past/future boundary', () => {
     // Same start date, but one has already ended. Grouping runs after the
     // filter, so the ended banner must not be dragged into the current view.

@@ -2,6 +2,9 @@ import { Gift, Ticket, Package } from "lucide-react"
 import PredictedBadge from "../PredictedBadge"
 import { formatDate } from "../../utils/dateFormat"
 import { formatUsd } from "../../utils/formatCurrency"
+import { NumberField } from "../NumberField"
+import { CountStepper } from "../carat-calculator/CountStepper"
+import { buildQuantityChips } from "../../utils/countChips"
 import { SelectorTargetPicker } from "./SelectorTargetPicker"
 import { StepUpSelectionStrip } from "./StepUpSelectionStrip"
 import type { PlannedCampaign, PlannedProduct } from "../../hooks/useSelectorPlanner"
@@ -120,18 +123,26 @@ export const CampaignCard = ({
 									<span className="text-right text-xs text-gray-400">
 										{formatUsd(line.product.usd_cost)}
 									</span>
-									<input
-										type="number"
-										min={0}
-										max={line.product.max_quantity}
+									{/* NumberField rather than a native number input: it selects
+									    its contents on focus like every other count on the site,
+									    so typing replaces the value. The pad (±1 and Max) opens
+									    on that same focus. onQuantityChange clamps to
+									    max_quantity, and NumberField re-syncs to the clamped
+									    value. */}
+									<CountStepper
 										value={line.quantity}
-										disabled={locked}
-										aria-label={`Quantity of ${line.product.name}`}
-										className="w-full rounded border border-gray-600 bg-gray-900 px-2 py-1 text-right text-sm text-gray-100 disabled:cursor-not-allowed"
-										onChange={(e) =>
-											onQuantityChange(line, Number(e.target.value))
-										}
-									/>
+										onChange={(quantity) => onQuantityChange(line, quantity)}
+										chips={buildQuantityChips(line.product.max_quantity)}
+										label="Quantity"
+									>
+										<NumberField
+											value={line.quantity}
+											disabled={locked}
+											ariaLabel={`Quantity of ${line.product.name}`}
+											className="w-full rounded border border-gray-600 bg-gray-900 px-2 py-1 text-right text-sm text-gray-100 disabled:cursor-not-allowed"
+											onChange={(quantity) => onQuantityChange(line, quantity)}
+										/>
+									</CountStepper>
 								</li>
 							))}
 						</ul>

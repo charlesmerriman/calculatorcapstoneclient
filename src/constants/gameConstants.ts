@@ -203,6 +203,14 @@ export const MONTHLY_SHOP_UMA_TICKETS = 4
 export const MONTHLY_SHOP_SUPPORT_TICKETS = 4
 
 /**
+ * The most the shop sells in a month. The two above are what the projection
+ * ASSUMES a player buys (the sheet's figure); these only cap a count the
+ * player sets themselves.
+ */
+export const MONTHLY_SHOP_UMA_TICKETS_MAX = 9
+export const MONTHLY_SHOP_SUPPORT_TICKETS_MAX = 9
+
+/**
  * Day of the month the shop stocks the bundle. Deliberately NOT the 1st: these
  * used to be counted with the same month-boundary helper as Club Rank income,
  * which credited them a day early and could hand a banner ending on the 1st a
@@ -325,6 +333,8 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 	white_day_day: WHITE_DAY_DAY,
 	monthly_shop_uma_tickets: MONTHLY_SHOP_UMA_TICKETS,
 	monthly_shop_support_tickets: MONTHLY_SHOP_SUPPORT_TICKETS,
+	monthly_shop_uma_tickets_max: MONTHLY_SHOP_UMA_TICKETS_MAX,
+	monthly_shop_support_tickets_max: MONTHLY_SHOP_SUPPORT_TICKETS_MAX,
 	monthly_shop_restock_day: MONTHLY_SHOP_TICKET_DAY,
 
 	pull_cost_carats: PULL_COST_CARATS,

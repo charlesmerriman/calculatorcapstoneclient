@@ -175,7 +175,7 @@ export const HomePage = () => {
 									to="/login"
 									className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-600 px-4 text-sm font-semibold text-gray-200 transition hover:border-gray-500 hover:bg-gray-700"
 								>
-									Sign in to save a plan
+									Sign in to sync your plan
 								</Link>
 							</div>
 						</div>
