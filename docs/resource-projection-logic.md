@@ -211,6 +211,15 @@ figure dripped as `monthly / 30`.
 - **Overplanning is reported, not clamped** — the debt cascades to later banners.
 - **Uma tickets only offset uma pulls; support tickets only support pulls.** No
   cross-substitution.
+- **`spend_tickets_on_banners` off means tickets fund nothing.** `applyPullStrategy`
+  zeroes the matching tickets once, so the spend, `maxPossiblePulls` and the
+  breakdown all agree; the balances still accrue and show on every row. The hook
+  reads it as `!== false`, so an API without the field behaves as "on".
+- **Monthly shop tickets have a default and a cap, and they are two constants.**
+  `monthly_shop_*_tickets` (4) is what an untouched account is assumed to buy;
+  `monthly_shop_*_tickets_max` (9) only caps a player's own count
+  (`shop_*_tickets_bought`, null = the default). Both hooks pass the counts to
+  `cumulativeMonthlyShopTickets`, which resolves and clamps them at the read.
 - **A campaign's paid carats credit at its MAIN part, not at its opening.** An
   anniversary spends its Part 1 announcing itself with login rewards; the packs
   go on sale with the anniversary proper, which is Part 2 and about ten days

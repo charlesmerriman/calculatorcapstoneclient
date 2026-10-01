@@ -222,6 +222,38 @@ export interface MonthlyShopTickets {
 }
 
 /**
+ * How many of each ticket the player buys from the shop each month
+ * (UserStats.shop_*_tickets_bought). null / undefined means "the default".
+ */
+export interface ShopTicketsBought {
+	uma?: number | null
+	support?: number | null
+}
+
+/**
+ * One month's purchase of one ticket kind.
+ *
+ * Two different numbers bound it, and they are not interchangeable:
+ *   - `defaultCount` is what an untouched account is assumed to buy (4, the
+ *     sheet's figure). It is the answer when `bought` is null.
+ *   - `max` is the most the shop sells (9). It only caps a count the player
+ *     set themselves.
+ *
+ * The clamp lives HERE, at the read, because the server stores the count
+ * unchecked against the cap on purpose (see GameStats on the backend): if an
+ * editor lowers the cap, a stored 9 has to start reading as the new cap, not
+ * keep paying out tickets the shop no longer sells.
+ */
+export function shopTicketsPerMonth(
+	bought: number | null | undefined,
+	defaultCount: number,
+	max: number
+): number {
+	const wanted = bought === null || bought === undefined ? defaultCount : bought
+	return Math.min(Math.max(0, wanted), max)
+}
+
+/**
  * Monthly shop bundle — sheet `BG42`:
  *   `DATEDIF(EOMONTH(today, -1) + 2, E, "M") * quantity`
  *
@@ -229,11 +261,16 @@ export interface MonthlyShopTickets {
  * restock day of the current month rather than the 1st — a banner ending on the
  * 1st would otherwise be credited a bundle the player can't buy yet. Off by
  * default.
+ *
+ * `bought` replaces the default purchase with what the player actually buys
+ * each month. Optional, and absent means the default, so the sheet's figure is
+ * what comes back unless someone has set their own count.
  */
 export function cumulativeMonthlyShopTickets(
 	today: Date,
 	end: Date,
-	k: CalculationConstants
+	k: CalculationConstants,
+	bought: ShopTicketsBought = {}
 ): MonthlyShopTickets {
 	const restockDay = addUtcDays(
 		startOfUtcMonth(today),
@@ -242,8 +279,20 @@ export function cumulativeMonthlyShopTickets(
 	const months = utcMonthsBetween(restockDay, end)
 	if (months <= 0) return { umaTickets: 0, supportTickets: 0 }
 	return {
-		umaTickets: months * k.monthly_shop_uma_tickets,
-		supportTickets: months * k.monthly_shop_support_tickets,
+		umaTickets:
+			months *
+			shopTicketsPerMonth(
+				bought.uma,
+				k.monthly_shop_uma_tickets,
+				k.monthly_shop_uma_tickets_max
+			),
+		supportTickets:
+			months *
+			shopTicketsPerMonth(
+				bought.support,
+				k.monthly_shop_support_tickets,
+				k.monthly_shop_support_tickets_max
+			),
 	}
 }
 

@@ -145,6 +145,42 @@ describe('cumulativeMonthlyShopTickets', () => {
   })
 })
 
+describe('cumulativeMonthlyShopTickets — a player\'s own count', () => {
+  // Three restocks: Sep 2, Oct 2, Nov 2... measured the same way as above, so
+  // read the month count off the full-bundle answer instead of assuming it.
+  const end = utc('2026-12-02T00:00:00Z')
+  const full = cumulativeMonthlyShopTickets(TODAY, end, K)
+  const months = full.umaTickets / K.monthly_shop_uma_tickets
+
+  it('credits only the count the player buys, per kind', () => {
+    expect(months).toBeGreaterThan(0)
+    expect(cumulativeMonthlyShopTickets(TODAY, end, K, { uma: 1, support: 0 })).toEqual({
+      umaTickets: months * 1,
+      supportTickets: 0,
+    })
+  })
+
+  it('reads null and absent as the default purchase', () => {
+    expect(cumulativeMonthlyShopTickets(TODAY, end, K, { uma: null })).toEqual(full)
+  })
+
+  it('lets a player buy more than the default, up to the shop cap', () => {
+    // The default is 4 and the cap is 9, so 9 has to pay 9, not snap back to 4.
+    expect(K.monthly_shop_uma_tickets_max).toBeGreaterThan(K.monthly_shop_uma_tickets)
+    expect(
+      cumulativeMonthlyShopTickets(TODAY, end, K, { uma: K.monthly_shop_uma_tickets_max })
+        .umaTickets
+    ).toBe(months * K.monthly_shop_uma_tickets_max)
+  })
+
+  it('never pays more than the shop sells, or less than nothing', () => {
+    expect(cumulativeMonthlyShopTickets(TODAY, end, K, { uma: 99, support: -3 })).toEqual({
+      umaTickets: months * K.monthly_shop_uma_tickets_max,
+      supportTickets: 0,
+    })
+  })
+})
+
 describe('cumulativeTrainingPassIncome', () => {
   it('earns nothing before the feature launches', () => {
     expect(cumulativeTrainingPassIncome(TODAY, addUtcDays(TODAY, 30), true, K)).toEqual({
