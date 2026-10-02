@@ -66,6 +66,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			? routePublicId
 			: undefined
 	)
+	const [openedAtCalculatorRoot] = useState(() => routePublicId === undefined)
 	/**
 	 * TYPESCRIPT CONCEPT: useState Generic Parameter
 	 *
@@ -181,6 +182,19 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		saveFn: performSave,
 		delayMs: 5000
 	})
+
+	const navigateToPlan = useCallback((plan: Plan | undefined): void => {
+		navigate(
+			plan?.public_id
+				? `/app/${encodeURIComponent(plan.public_id)}`
+				: "/app",
+			{ replace: true }
+		)
+	}, [navigate])
+	const navigateToPlanRef = useRef(navigateToPlan)
+	useEffect(() => {
+		navigateToPlanRef.current = navigateToPlan
+	}, [navigateToPlan])
 
 	// Guards the guest-plan migration against firing twice when React
 	// StrictMode double-runs the mount effect in dev.
@@ -417,6 +431,15 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			}
 
 			applyData(data, sharedMode)
+			if (
+				openedAtCalculatorRoot &&
+				!sharedMode &&
+				getAuthToken()
+			) {
+				navigateToPlanRef.current(
+					data.user_plans?.find((plan) => plan.id === data.active_plan_id)
+				)
+			}
 		}
 
 		load().catch((error: unknown) => {
@@ -428,7 +451,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		})
 
 		return () => controller.abort()
-	}, [requestedPublicId])
+	}, [requestedPublicId, openedAtCalculatorRoot])
 
 	// prevStatsRef tracks what userStatsData was on the last effect run.
 	// When it's null, this is either the initial mount or the initial data load — both should
@@ -541,9 +564,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					data.user_stats_data,
 					data.user_planned_purchase_data
 				)
+				navigateToPlan(data.plan)
 				return true
 			}),
-		[runPlanAction, activePlanId, isSharedMode, flushPendingSave, applyPlan]
+		[runPlanAction, activePlanId, isSharedMode, flushPendingSave, applyPlan, navigateToPlan]
 	)
 
 	const exitSharedPlan = useCallback(async (): Promise<void> => {
@@ -554,7 +578,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				toast.error("Couldn't find a saved plan to return to.")
 				return
 			}
-			if (await switchPlan(firstPlan.id)) navigate("/app", { replace: true })
+			await switchPlan(firstPlan.id)
 			return
 		}
 
@@ -603,10 +627,11 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					data.user_stats_data,
 					data.user_planned_purchase_data
 				)
+				navigateToPlan(data.plan)
 				toast.success(copyFromId === undefined ? "Plan created" : "Plan copied")
 				return true
 			}),
-		[runPlanAction, flushPendingSave, applyPlan]
+		[runPlanAction, flushPendingSave, applyPlan, navigateToPlan]
 	)
 
 	const renamePlan = useCallback(
@@ -669,11 +694,12 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 						data.user_stats_data,
 						data.user_planned_purchase_data
 					)
+					navigateToPlan(data.plan)
 				}
 				toast.success("Plan deleted")
 				return true
 			}),
-		[runPlanAction, activePlanId, cancelTimer, flushPendingSave, applyPlan]
+		[runPlanAction, activePlanId, cancelTimer, flushPendingSave, applyPlan, navigateToPlan]
 	)
 
 	const setSeparateIncome = useCallback(
@@ -774,7 +800,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	// Selectors are all written assuming their collections are populated, and
 	// letting them mount early would mean auditing all three for empty data.
 	const BUTTON_PRIMARY =
-		"rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-brand/85 disabled:cursor-not-allowed disabled:opacity-50"
+		"ml-4 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-brand/85 disabled:cursor-not-allowed disabled:opacity-50"
 
 	return (
 		<CalculatorContext.Provider value={value}>
@@ -783,10 +809,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 					role="status"
 					className="border-b border-amber-400/20 bg-amber-400/10 px-4 py-2 text-center text-sm text-amber-200"
 				>
+					Viewing a shared plan in read-only mode
 					<button className={BUTTON_PRIMARY} type="button" onClick={() => void exitSharedPlan()} disabled={isPlanBusy}>
 						Exit Shared Plan
 					</button>
-					Viewing a shared plan in read-only mode.
 				</div>
 			)}
 			{children}

@@ -93,7 +93,8 @@ interface BannerRowProps {
 	setUserPlannedBannerData: React.Dispatch<
 		React.SetStateAction<UserPlannedBanner[]>
 	>
-	initialBannerType?: BannerRowType
+	initialBannerType?: BannerRowType,
+	isReadOnly: boolean
 }
 
 interface BannerOption {
@@ -149,7 +150,8 @@ export const BannerRow = ({
 	constants,
 	resources,
 	setUserPlannedBannerData,
-	initialBannerType
+	initialBannerType,
+	isReadOnly
 }: BannerRowProps) => {
 	// The row's kind: from its FK when it has one, else the kind it was staged
 	// as. Never sniffed inline — see plannedBannerRowType for why the old
@@ -450,6 +452,7 @@ export const BannerRow = ({
 
 	const renderBannerSelect = (styles: import("react-select").StylesConfig<BannerOption, false>) => (
 		<Select<BannerOption>
+			isDisabled={isReadOnly}
 			className="w-full"
 			styles={withRecommendedOption<BannerOption>(
 				{
@@ -693,7 +696,7 @@ export const BannerRow = ({
 			onToggle={() => setNoteOpen((open) => !open)}
 			// A row with no banner chosen is never saved (toBannerPayload drops
 			// it), so a note typed on it would vanish on reload.
-			disabled={!hasBanner}
+			disabled={isReadOnly || !hasBanner}
 			className={className}
 		/>
 	)
@@ -754,12 +757,14 @@ export const BannerRow = ({
 	// what that factory does there, and the stepper is wired up once.
 	const pullsInput = (
 		<CountStepper
+			isReadOnly={isReadOnly}
 			value={plannedCount}
 			onChange={handlePullCountChange}
 			chips={countChips}
 			label={isStepUp ? "Steps" : "Pulls"}
 		>
 			<NumberField
+				disabled={isReadOnly}
 				value={plannedCount}
 				className={`pull-input pull-input--${countStatus} w-14`}
 				title={countStatusHint}
@@ -787,7 +792,7 @@ export const BannerRow = ({
 				title={reservedHint}
 				ariaLabel="Copies obtained without pulling"
 				ariaInvalid={reservedStatus === "over"}
-				disabled={!hasBanner}
+				disabled={isReadOnly || !hasBanner}
 				onChange={handleReservedChange}
 			/>
 			{plannedBanner.reserved_copies > 0 && (
@@ -830,6 +835,7 @@ export const BannerRow = ({
 			noteEditor={renderNoteEditor("border-t border-gray-700 p-2")}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
+			isReadOnly={isReadOnly}
 		/>
 
 		{/* Column widths come from .banner-grid (App.css), shared with the header
@@ -936,6 +942,7 @@ export const BannerRow = ({
 				"flex flex-1 items-center justify-center border-l border-b border-gray-700 bg-gray-800 transition hover:bg-gray-700 cursor-pointer"
 			)}
 			<button
+				disabled={isReadOnly}
 				onClick={handleDeleteBannerClick}
 				aria-label="Delete banner"
 				title="Delete banner"

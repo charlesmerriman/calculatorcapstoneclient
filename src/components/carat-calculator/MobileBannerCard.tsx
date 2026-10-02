@@ -77,7 +77,8 @@ interface MobileBannerCardProps {
 	 * decision applied to two elements (shell and body), and a caller supplying
 	 * only one of them would half-tint the card.
 	 */
-	staged?: boolean
+	staged?: boolean,
+	isReadOnly?: boolean
 }
 
 /**
@@ -173,6 +174,7 @@ export const MobileBannerCard = ({
 	removeLabel,
 	removeIcon = "delete",
 	staged = false,
+	isReadOnly
 }: MobileBannerCardProps) => {
 	const Icon = removeIcon === "delete" ? Trash2 : X
 	const style = TYPE_STYLES[bannerType]
@@ -209,6 +211,7 @@ export const MobileBannerCard = ({
 				{noteButton}
 
 				<button
+					disabled={isReadOnly}
 					onClick={onRemove}
 					aria-label={removeLabel}
 					title={removeLabel}

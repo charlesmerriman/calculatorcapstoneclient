@@ -17,7 +17,7 @@
  */
 
 import { useEffect } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CalculatorProvider } from '../services/CalculatorProvider'
@@ -75,8 +75,8 @@ const mockedSetSeparateIncome = vi.mocked(planSetSeparateIncome)
 const json = (body: unknown, status = 200): Response =>
 	({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response
 
-const PLAN_A: Plan = { id: 1, name: 'Main plan', is_active: true, updated_at: '2026-09-17T00:00:00Z' }
-const PLAN_B: Plan = { id: 2, name: 'What if', is_active: false, updated_at: '2026-09-17T00:00:00Z' }
+const PLAN_A: Plan = { id: 1, public_id: 'main-plan', name: 'Main plan', is_active: true, updated_at: '2026-09-17T00:00:00Z' }
+const PLAN_B: Plan = { id: 2, public_id: 'what-if', name: 'What if', is_active: false, updated_at: '2026-09-17T00:00:00Z' }
 
 /** A saved row. Only what toBannerPayload reads: an id, a target, two counts. */
 const row = (id: number, bannerId: number, pulls: number, plan: number): UserPlannedBanner =>
@@ -128,11 +128,14 @@ const calculatorData = (): CalculatorData =>
 // during render (a component may not write to anything outside itself while
 // rendering); act() flushes effects, so it is current by the time a test reads.
 const latest: { current: CalculatorContextType | null } = { current: null }
+const latestPath: { current: string } = { current: '' }
 const Probe = () => {
 	const value = useCalculatorData()
+	const location = useLocation()
 	useEffect(() => {
 		latest.current = value
-	})
+		latestPath.current = location.pathname
+	}, [value, location.pathname])
 	return null
 }
 const ctx = (): CalculatorContextType => {
@@ -163,6 +166,7 @@ const editOpenPlan = async (pulls: number): Promise<void> => {
 
 beforeEach(() => {
 	latest.current = null
+	latestPath.current = ''
 	localStorage.clear()
 	sessionStorage.clear()
 	vi.clearAllMocks()
@@ -214,6 +218,8 @@ describe('CalculatorProvider plans', () => {
 
 		expect(mockedActivate).toHaveBeenCalledWith(PLAN_A.id)
 		expect(ctx().isReadOnly).toBe(false)
+		expect(mockedInitialFetch).toHaveBeenCalledTimes(1)
+		expect(mockedPublicPlanFetch).toHaveBeenCalledTimes(1)
 	})
 
 	it('opens an owned public id as a normal editable plan', async () => {
@@ -248,6 +254,7 @@ describe('CalculatorProvider plans', () => {
 		expect(ctx().plans.map((plan) => plan.name)).toEqual(['Main plan', 'What if'])
 		expect(ctx().activePlanId).toBe(1)
 		expect(ctx().userPlannedBannerData).toEqual(ROWS_A)
+		await waitFor(() => expect(latestPath.current).toBe('/app/main-plan'))
 	})
 
 	it('hides plans from an API that predates them', async () => {
@@ -286,6 +293,7 @@ describe('CalculatorProvider plans', () => {
 		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
 		expect(ctx().plans.find((plan) => plan.id === PLAN_B.id)?.is_active).toBe(true)
 		expect(ctx().plans.find((plan) => plan.id === PLAN_A.id)?.is_active).toBe(false)
+		await waitFor(() => expect(latestPath.current).toBe('/app/what-if'))
 	})
 
 	it('does not arm a save for rows that just arrived from the server', async () => {

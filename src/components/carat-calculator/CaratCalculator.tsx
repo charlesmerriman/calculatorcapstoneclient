@@ -76,6 +76,7 @@ export const CaratCalculator: React.FC = () => {
 		userPlannedPurchaseData,
 		incomeLedger,
 		calculationConstants,
+		isReadOnly,
 		setUserPlannedBannerData,
 		setStagedBanners,
 	} = useCalculatorData()
@@ -241,6 +242,7 @@ export const CaratCalculator: React.FC = () => {
 											<div className="hidden w-px bg-gray-700 self-stretch sm:block" />
 										)}
 										<button
+											disabled={isReadOnly}
 											className={`flex-1 rounded-lg py-2.5 font-medium transition ${button.className}`}
 											onClick={() => handleAddBanner(button.type)}
 										>
@@ -422,6 +424,7 @@ export const CaratCalculator: React.FC = () => {
 																setUserPlannedBannerData={setUserPlannedBannerData}
 																resources={resources}
 																initialBannerType={plannedBanner.initialBannerType}
+																isReadOnly={isReadOnly}
 															/>
 														</motion.div>
 													)
