@@ -98,6 +98,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [plans, setPlans] = useState<Plan[]>([])
 	const [activePlanId, setActivePlanId] = useState<number | null>(null)
 	const [isSharedMode, setIsSharedMode] = useState(false)
+	const [sharedPlanPublicId, setSharedPlanPublicId] = useState(requestedPublicId)
+	const currentPlanPublicId = isSharedMode
+		? sharedPlanPublicId
+		: plans.find((plan) => plan.id === activePlanId)?.public_id
 	const isReadOnly = isSharedMode
 	const [isPlanBusy, setIsPlanBusy] = useState(false)
 	// Deliberately NOT persisted — not to localStorage, not to sessionStorage,
@@ -267,6 +271,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				setPlans(data.user_plans ?? [])
 				setActivePlanId(sharedMode ? null : data.active_plan_id ?? null)
 				setIsSharedMode(sharedMode)
+				setSharedPlanPublicId(sharedMode ? requestedPublicId : undefined)
 				// Defaulted, unlike the keys above, because these two arrived later
 				// than the rest of the payload. A backend running a build from
 				// before the selector planner omits them entirely, and an
@@ -509,6 +514,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	): void => {
 		suppressAutoSaveRef.current = true
 		setIsSharedMode(false)
+		setSharedPlanPublicId(undefined)
 		setActivePlanId(planId)
 		setUserPlannedBannerData(rows)
 		if (stats) setUserStatsData(stats)
@@ -583,6 +589,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		}
 
 		setIsSharedMode(false)
+		setSharedPlanPublicId(undefined)
 		setPlans([])
 		setActivePlanId(null)
 		setUserStatsData(DEFAULT_GUEST_STATS)
@@ -773,6 +780,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		organizedTimelineData,
 		plans,
 		activePlanId,
+		currentPlanPublicId,
 		isReadOnly,
 		isPlanBusy,
 		switchPlan,

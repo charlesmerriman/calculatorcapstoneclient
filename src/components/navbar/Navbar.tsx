@@ -64,7 +64,10 @@ export const Navbar = () => {
 		</>
 	)
 
-	const isCalculator = location.pathname === "/app"
+	const calculatorPath = calculatorData?.currentPlanPublicId
+		? `/app/${encodeURIComponent(calculatorData.currentPlanPublicId)}`
+		: "/app"
+	const isCalculator = location.pathname === "/app" || location.pathname === calculatorPath
 	const isTimeline = location.pathname === "/app/timeline"
 	const isSelectors = location.pathname === "/app/selectors"
 
@@ -167,7 +170,7 @@ export const Navbar = () => {
 				</div>
 
 				<div className="grid grid-cols-3 gap-1 border-t border-gray-700 px-2 py-2">
-					<Link to="/app" className={mobileNavClass(isCalculator)} {...prefetchOnIntent}>
+					<Link to={calculatorPath} className={mobileNavClass(isCalculator)} {...prefetchOnIntent}>
 						<CalculatorIcon className="h-4 w-4 shrink-0" />
 						<span className="truncate">Calculator</span>
 					</Link>
@@ -197,7 +200,7 @@ export const Navbar = () => {
 
 				{/* Center: Nav links */}
 				<div className="flex items-center justify-center gap-0.5 rounded-xl border border-gray-700 bg-gray-800/60 p-1">
-					<Link to="/app" className={desktopNavClass(isCalculator)} {...prefetchOnIntent}>
+					<Link to={calculatorPath} className={desktopNavClass(isCalculator)} {...prefetchOnIntent}>
 						<CalculatorIcon className="w-4 h-4" />
 						Calculator
 					</Link>

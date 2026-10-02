@@ -318,6 +318,7 @@ export const StagedBannerRow = ({
 	// chip; the ruler and "Next pity" are the same as on the sheet.
 	const pullsInput = (
 		<CountStepper
+			isReadOnly={false}
 			value={stagedBanner.number_of_pulls}
 			onChange={handlePullCountChange}
 			chips={buildCountChips({

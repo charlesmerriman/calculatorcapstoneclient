@@ -198,6 +198,7 @@ describe('CalculatorProvider plans', () => {
 		expect(mockedPublicPlanFetch).toHaveBeenCalledWith('shared-id')
 		expect(ctx().isReadOnly).toBe(true)
 		expect(ctx().activePlanId).toBeNull()
+		expect(ctx().currentPlanPublicId).toBe('shared-id')
 		expect(ctx().userStatsData).toEqual(STATS_B)
 		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
 
@@ -218,6 +219,7 @@ describe('CalculatorProvider plans', () => {
 
 		expect(mockedActivate).toHaveBeenCalledWith(PLAN_A.id)
 		expect(ctx().isReadOnly).toBe(false)
+		expect(ctx().currentPlanPublicId).toBe(PLAN_A.public_id)
 		expect(mockedInitialFetch).toHaveBeenCalledTimes(1)
 		expect(mockedPublicPlanFetch).toHaveBeenCalledTimes(1)
 	})
@@ -232,6 +234,7 @@ describe('CalculatorProvider plans', () => {
 		expect(mockedPublicPlanFetch).not.toHaveBeenCalled()
 		expect(ctx().isReadOnly).toBe(false)
 		expect(ctx().activePlanId).toBe(PLAN_A.id)
+		expect(ctx().currentPlanPublicId).toBe('shared-id')
 	})
 
 	it('clears a guest shared plan when exiting', async () => {
@@ -291,6 +294,7 @@ describe('CalculatorProvider plans', () => {
 		// Now on B, with B's rows.
 		expect(ctx().activePlanId).toBe(PLAN_B.id)
 		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
+		expect(ctx().currentPlanPublicId).toBe(PLAN_B.public_id)
 		expect(ctx().plans.find((plan) => plan.id === PLAN_B.id)?.is_active).toBe(true)
 		expect(ctx().plans.find((plan) => plan.id === PLAN_A.id)?.is_active).toBe(false)
 		await waitFor(() => expect(latestPath.current).toBe('/app/what-if'))
