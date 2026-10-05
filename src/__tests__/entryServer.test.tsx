@@ -24,11 +24,13 @@ const EXPECTED: Record<(typeof PRERENDER_ROUTES)[number], { title: string; phras
 	"/feedback": { title: `Feedback | ${SITE_NAME}`, phrase: "Open our Discord" },
 	"/guides/carat-income": { title: `Carat Income Guide | ${SITE_NAME}`, phrase: "running balance" },
 	// The tool itself renders behind the data gate, so a build-time render of these
-	// three is the app shell: navbar, the loading state, footer. The route identity
+	// four is the app shell: navbar, the loading state, footer. The route identity
 	// is in the head tags (asserted below), not in the body.
 	"/app": { title: `Calculator | ${SITE_NAME}`, phrase: "Loading your plan" },
 	"/app/timeline": { title: `Banner Timeline | ${SITE_NAME}`, phrase: "Loading your plan" },
 	"/app/selectors": { title: `Selector Tickets | ${SITE_NAME}`, phrase: "Loading your plan" },
+	// The title is the admin page row's (snapshot.json carries the seed's).
+	"/app/legend-races": { title: `Daily Legend Races | ${SITE_NAME}`, phrase: "Loading your plan" },
 }
 
 describe("entry-server render()", () => {
@@ -96,6 +98,12 @@ describe("entry-server render()", () => {
 			}
 		})
 
+		it("is the legend races row alone for its tab, which reads it for its head tags", () => {
+			const { content } = render("/app/legend-races", CONTENT)
+			expect(content.pages?.map((page) => page.slug)).toEqual(["daily-legend-races"])
+			expect(content.faq).toBeUndefined()
+		})
+
 		it("is nothing for a page that reads no content", () => {
 			expect(render("/terms", CONTENT).content).toEqual({})
 			expect(render("/app", CONTENT).content).toEqual({})
@@ -106,6 +114,18 @@ describe("entry-server render()", () => {
 		const withoutAbout: SiteContent = { ...CONTENT, pages: CONTENT.pages!.filter((page) => page.slug !== "about") }
 		expect(() => render("/about", withoutAbout)).toThrow(/no page "about"/)
 		expect(() => render("/faq", { pages: CONTENT.pages })).toThrow(/no FAQ/)
+	})
+
+	it("still builds the legend races tab from an API that lacks its row", () => {
+		// The one optional read: the first build after the page ships fetches
+		// /site-content from the API it is replacing. See AppRouteMeta.
+		const withoutIt: SiteContent = {
+			...CONTENT,
+			pages: CONTENT.pages!.filter((page) => page.slug !== "daily-legend-races"),
+		}
+		const { meta, content } = render("/app/legend-races", withoutIt)
+		expect(meta.title).toBe(`Daily Legend Races | ${SITE_NAME}`)
+		expect(content).toEqual({})
 	})
 
 	it("bakes the admin's words, not a copy in the bundle", () => {
