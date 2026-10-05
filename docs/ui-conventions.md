@@ -1210,23 +1210,23 @@ shows when each batch of umas joins the daily legend races and how long grinding
 takes. Plan and decisions: workspace-root `legend-races-plan.md`.
 
 - **Everything editable comes from the API.** Batches and umas from
-  `daily_legend_race_data`, the three grind numbers from `calculation_constants`, the
-  title and intro from the `daily-legend-races` site page. The provider defaults the
+  `daily_legend_race_data`; the title and the text under it from the
+  `daily-legend-races` site page. That text IS the grind guidance (the source sheet's
+  three lines: 1 Star Piece a day, ~80 from the original event, 70 or 140 days), so an
+  editor changes the numbers in the words. The page computes no grind dates (owner's
+  call, 2026-10-05: computed "150 pieces by …" lines read as noise). The provider defaults the
   collection to `[]`, so an API without it shows the empty state.
 - **The rules are pure functions in `utils/dailyLegendRaces.ts`** (undated dropped,
-  split around now, ★ groups, `grindFinish` / `grindSummary`, by-banner grouping, the
-  `?release=` deep link), tested on their own. The finish is the day of the LAST race
-  (`days - 1` after the start), and a batch already out counts from now.
-- **Short on purpose (owner's call, 2026-10-05).** A two-sentence intro, the name, date
-  and badges on one line, and one grind line per batch still to come. Batches already out
-  share ONE "Starting today" line above them, since from today their grind is identical.
+  split around now, ★ groups, by-banner grouping, the `?release=` deep link), tested on
+  their own.
+- **Short on purpose (owner's call, 2026-10-05).** The admin text, then cards with the
+  name, date and badges on one line and the uma tiles. Nothing else per card.
 - **On the Timeline a batch is a pill, not a card.** `LegendRaceNote` sits in the header of
   the card of the banner it arrives with (`banner_timeline` id, grouped by
   `legendRacesByBanner`), beside the countdown, like the staggered-release notes, so it
   cannot resize the art. It links to `?release=<id>`; the page card links back with a
   `banner` focus. A full-width marker card was tried first and floated between unrelated
   cards. The pill uses the `--color-legend-race` token.
-- **No queue.** Every uma has her own daily race, so each finish date is independent.
 - **The oshi strip reads the covered oshis only** (`oshis.slice(0, oshi_slots)`), the
   same cut as the account picture.
 - **Head tags come from `AppRouteMeta`**, which reads the site page as an OPTIONAL read

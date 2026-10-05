@@ -50,7 +50,7 @@ const META: Record<AppPath, RouteMeta> = {
 	"/app/legend-races": {
 		title: "Daily Legend Races",
 		description:
-			"When each batch of umas joins the Uma Musume daily legend races on global, and how long grinding one of them takes.",
+			"When each batch of umas joins the Uma Musume daily legend races on global, and how long grinding Star Pieces for one of them takes.",
 	},
 }
 

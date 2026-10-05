@@ -4,8 +4,8 @@ import PredictedBadge from "../PredictedBadge"
 import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
 import { formatDate } from "../../utils/dateFormat"
 import { timelineFocusHref } from "../../utils/timelineFocus"
-import { arrivalCountdown, grindSummary, rarityGroups } from "../../utils/dailyLegendRaces"
-import type { DatedRelease, GrindNumbers } from "../../utils/dailyLegendRaces"
+import { arrivalCountdown, rarityGroups } from "../../utils/dailyLegendRaces"
+import type { DatedRelease } from "../../utils/dailyLegendRaces"
 import type { DailyLegendRaceUma } from "../../types"
 
 const STARS: Record<1 | 2 | 3, string> = { 1: "★", 2: "★★", 3: "★★★" }
@@ -40,15 +40,13 @@ const UmaTile = ({ uma, isOshi }: { uma: DailyLegendRaceUma; isOshi: boolean }) 
 )
 
 /**
- * One batch of umas joining the daily legend races: the name and date on one
- * line, the umas grouped ★3 / ★2 / ★1, and (for a batch still to come) one
- * line on how long the grind takes. A batch already out has no grind line of
- * its own: from today it is the same for every one, so the page says it once.
+ * One batch of umas joining the daily legend races: the name, date and badges
+ * on one line, then the umas grouped ★3 / ★2 / ★1. The grind guidance is the
+ * page's intro text, said once, not on every card.
  */
 export const LegendRaceReleaseCard = ({
 	release,
 	now,
-	numbers,
 	isAvailable,
 	oshiIds,
 	focusRef,
@@ -56,7 +54,6 @@ export const LegendRaceReleaseCard = ({
 }: {
 	release: DatedRelease
 	now: Date
-	numbers: GrindNumbers
 	isAvailable: boolean
 	oshiIds: ReadonlySet<number>
 	focusRef?: RefObject<HTMLElement | null>
@@ -110,10 +107,6 @@ export const LegendRaceReleaseCard = ({
 						</div>
 					))}
 				</div>
-			)}
-
-			{!isAvailable && (
-				<p className="mt-3 text-sm text-gray-400">{grindSummary(start, now, numbers)}</p>
 			)}
 		</section>
 	)

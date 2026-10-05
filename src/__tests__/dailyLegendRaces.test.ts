@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   arrivalCountdown,
   datedReleases,
-  grindFinish,
   legendRacesByBanner,
   rarityGroups,
   releaseByUmaId,
@@ -13,9 +12,6 @@ import type { DailyLegendRaceRelease, DailyLegendRaceUma } from '../types'
 /**
  * The Legend Races page's rules, tested without React.
  *
- * The grind cases are the worked example from legend-races-plan.md, with
- * today = 2026-10-05: a batch still to come counts from its own date, one
- * already out counts from today, and the finish is the day of the LAST race.
  */
 
 const uma = (id: number, rarity: 1 | 2 | 3, name = `Uma ${id}`): DailyLegendRaceUma => ({
@@ -39,9 +35,7 @@ const release = (
   umas,
 })
 
-const day = (iso: string) => new Date(`${iso}T00:00:00Z`)
 const NOW = new Date('2026-10-05T12:00:00Z')
-const DEFAULTS = { goal: 150, perDay: 1 }
 
 describe('datedReleases', () => {
   it('drops the undated and sorts the rest soonest first', () => {
@@ -83,57 +77,6 @@ describe('rarityGroups', () => {
 
     expect(groups.map((g) => g.rarity)).toEqual([3, 1])
     expect(groups[0].umas.map((u) => u.id)).toEqual([1, 3])
-  })
-})
-
-describe('grindFinish (the worked example)', () => {
-  it('a batch still to come counts from its own date', () => {
-    const start = day('2027-04-14')
-    const withEvent = grindFinish({ start, now: NOW, held: 80, ...DEFAULTS })
-    const fromZero = grindFinish({ start, now: NOW, held: 0, ...DEFAULTS })
-
-    expect(withEvent.days).toBe(70)
-    expect(withEvent.finish).toEqual(day('2027-06-22'))
-    expect(fromZero.days).toBe(150)
-    expect(fromZero.finish).toEqual(day('2027-09-10'))
-  })
-
-  it('a batch already out counts from today', () => {
-    const start = day('2026-03-26')
-    const today = day('2026-10-05')
-    const withEvent = grindFinish({ start, now: today, held: 80, ...DEFAULTS })
-    const fromZero = grindFinish({ start, now: today, held: 0, ...DEFAULTS })
-
-    expect(withEvent.finish).toEqual(day('2026-12-13'))
-    expect(fromZero.finish).toEqual(day('2027-03-03'))
-  })
-
-  it('the first race is day 1, so a one-day grind finishes on the start', () => {
-    const start = day('2027-04-14')
-    expect(grindFinish({ start, now: NOW, held: 149, ...DEFAULTS })).toEqual({
-      days: 1,
-      finish: start,
-    })
-  })
-
-  it('needs no days when the pieces already reach the goal', () => {
-    expect(grindFinish({ start: day('2027-04-14'), now: NOW, held: 160, ...DEFAULTS })).toEqual({
-      days: 0,
-      finish: null,
-    })
-  })
-
-  it('rounds up when a race gives more than one piece', () => {
-    // 70 pieces at 3 a day: 23 days leaves 1 short, so 24.
-    expect(
-      grindFinish({ start: day('2027-04-14'), now: NOW, held: 80, goal: 150, perDay: 3 }).days
-    ).toBe(24)
-  })
-
-  it('never divides by zero', () => {
-    expect(
-      grindFinish({ start: day('2027-04-14'), now: NOW, held: 0, goal: 150, perDay: 0 }).days
-    ).toBe(150)
   })
 })
 

@@ -3,9 +3,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SiteContentContext } from '../services/SiteContentContext'
 import { buildSiteContentValue } from '../services/siteContent'
-import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import type { Account, Oshi } from '../types/account'
-import type { CalculationConstants, DailyLegendRaceRelease } from '../types'
+import type { DailyLegendRaceRelease } from '../types'
 import type { SiteContent } from '../types/siteContent'
 
 /**
@@ -54,12 +53,10 @@ const LATER = {
 
 let releases: DailyLegendRaceRelease[] = []
 let account: Account | null = null
-let constants: CalculationConstants = DEFAULT_CONSTANTS
 
 vi.mock('../services/CalculatorContext', () => ({
   useCalculatorData: () => ({
     dailyLegendRaceData: releases,
-    calculationConstants: constants,
   }),
 }))
 
@@ -76,7 +73,7 @@ const CONTENT: SiteContent = {
       slug: 'daily-legend-races',
       title: 'Daily Legend Races',
       meta_description: 'x',
-      body: 'Every uma has her own race.',
+      body: 'Daily Legend Races reward 1 Star Piece.\n\nThe original event gives ~80 Star Pieces.',
       updated_at: '2026-10-05T00:00:00Z',
     },
   ],
@@ -112,7 +109,6 @@ let scrollIntoView: ReturnType<typeof vi.fn<ScrollIntoViewFn>>
 beforeEach(() => {
   releases = [OUT, NEXT, LATER]
   account = null
-  constants = DEFAULT_CONSTANTS
   scrollIntoView = vi.fn<ScrollIntoViewFn>()
   Element.prototype.scrollIntoView = scrollIntoView
 })
@@ -126,7 +122,9 @@ describe('DailyLegendRaces', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { level: 1, name: 'Daily Legend Races' })).toBeInTheDocument()
-    expect(screen.getByText('Every uma has her own race.')).toBeInTheDocument()
+    expect(screen.getByText('Daily Legend Races reward 1 Star Piece.')).toBeInTheDocument()
+    // One tilde is not strikethrough: the "~80" in the owner's text survives.
+    expect(screen.getByText('The original event gives ~80 Star Pieces.')).toBeInTheDocument()
     const names = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
     expect(names).toEqual(['2nd Anniversary', '2.5th Anniversary'])
   })
@@ -141,22 +139,11 @@ describe('DailyLegendRaces', () => {
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('heading', { level: 3, name: '1st Anniversary' })).toBeInTheDocument()
-    // From today the grind is the same for every batch already out, so it is
-    // said once above them, not on each card.
-    expect(screen.getAllByText(/^Starting today: 150 pieces by/)).toHaveLength(1)
-    expect(
-      within(screen.getByRole('region', { name: '1st Anniversary' })).queryByText(/pieces by/)
-    ).not.toBeInTheDocument()
   })
 
-  it('builds the grind line from the admin numbers', () => {
-    constants = { ...DEFAULT_CONSTANTS, daily_legend_race_piece_goal: 140 }
+  it('shows no computed grind line on any card; the guidance is the page text', () => {
     renderPage()
-
-    const card = screen.getByRole('region', { name: '2nd Anniversary' })
-    expect(
-      within(card).getByText(/^140 pieces by \S+ with the event's 80, or \S+ from zero\.$/)
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/pieces by/)).not.toBeInTheDocument()
   })
 
   it('search hides a batch with no matching uma and opens the list already out', () => {

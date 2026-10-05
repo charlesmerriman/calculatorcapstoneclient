@@ -1,7 +1,7 @@
 /**
  * The pure half of the Legend Races page: which batches show, how they split
- * around today, how a batch's umas group by star count, and how long grinding
- * one uma takes.
+ * around today, and how a batch's umas group by star count. The grind
+ * guidance is admin-written page text, not maths.
  *
  * No React here, so every rule is tested on its own (see
  * __tests__/dailyLegendRaces.test.ts) and the page is mostly wiring.
@@ -10,8 +10,6 @@
  */
 
 import { differenceInCalendarDays } from "date-fns"
-import { addUtcDays } from "./utcDates"
-import { formatDate } from "./dateFormat"
 import type { DailyLegendRaceRelease, DailyLegendRaceUma } from "../types/dailyLegendRace"
 
 /** A release that has a date, which is the only kind the site shows. */
@@ -64,71 +62,6 @@ export function rarityGroups(umas: DailyLegendRaceUma[]): RarityGroup[] {
 	return ([3, 2, 1] as const)
 		.map((rarity) => ({ rarity, umas: umas.filter((uma) => uma.rarity === rarity) }))
 		.filter((group) => group.umas.length > 0)
-}
-
-export interface GrindInput {
-	/** When the uma's daily race arrives (an API instant). */
-	start: Date
-	/** The current instant. A batch that is already out starts from here instead. */
-	now: Date
-	/** Pieces the player already holds for this uma. */
-	held: number
-	/** `daily_legend_race_piece_goal` */
-	goal: number
-	/** `daily_legend_race_pieces_per_day`, at least 1 */
-	perDay: number
-}
-
-export interface GrindResult {
-	/** Days of racing needed. 0 when `held` already reaches the goal. */
-	days: number
-	/**
-	 * The day of the LAST race, or null when no racing is needed.
-	 *
-	 * Day 1 is the first race, so the finish is `days - 1` days after the
-	 * start: 70 races starting Apr 14 end on Jun 22, not Jun 23. Same time of
-	 * day as the start, so it formats onto the matching calendar day.
-	 */
-	finish: Date | null
-}
-
-/**
- * How long one uma takes to reach the goal, racing once a day.
- *
- * Every uma has her own daily race, so umas grind side by side and each
- * finish date is independent; there is no queue to model.
- */
-export function grindFinish({ start, now, held, goal, perDay }: GrindInput): GrindResult {
-	const remaining = Math.max(goal - held, 0)
-	// Guarded even though the admin refuses 0: a division by zero here would
-	// put "Infinity days" on the page.
-	const days = Math.ceil(remaining / Math.max(perDay, 1))
-	if (days === 0) return { days, finish: null }
-	const from = start.getTime() > now.getTime() ? start : now
-	return { days, finish: addUtcDays(from, days - 1) }
-}
-
-/** The three admin numbers the grind line is built from. */
-export interface GrindNumbers {
-	goal: number
-	eventPieces: number
-	perDay: number
-}
-
-/**
- * "150 pieces by 2027/2/26 with the event's 80, or 2027/5/17 from zero."
- *
- * Every number comes from the API (the three grind constants), so an admin
- * edit changes the sentence without a deploy. `start` is when racing can
- * begin: the batch's date, or now for a batch already out.
- */
-export function grindSummary(start: Date, now: Date, { goal, eventPieces, perDay }: GrindNumbers): string {
-	const withEvent = grindFinish({ start, now, held: eventPieces, goal, perDay })
-	const fromZero = grindFinish({ start, now, held: 0, goal, perDay })
-	const by = (finish: Date | null) => (finish ? formatDate(finish.toISOString()) : "")
-	// An event that already gave the whole goal leaves nothing to grind with it.
-	if (withEvent.finish === null) return `${goal} pieces by ${by(fromZero.finish)} from zero.`
-	return `${goal} pieces by ${by(withEvent.finish)} with the event's ${eventPieces}, or ${by(fromZero.finish)} from zero.`
 }
 
 /**

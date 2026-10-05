@@ -11,13 +11,12 @@ import {
 	LEGEND_RACES_RELEASE_PARAM,
 	arrivalCountdown,
 	datedReleases,
-	grindSummary,
 	legendRacesReleaseHref,
 	parseReleaseFocus,
 	releaseByUmaId,
 	splitByToday,
 } from "../../utils/dailyLegendRaces"
-import type { DatedRelease, GrindNumbers } from "../../utils/dailyLegendRaces"
+import type { DatedRelease } from "../../utils/dailyLegendRaces"
 import { LegendRaceReleaseCard } from "./LegendRaceReleaseCard"
 
 /** The heading while the page's admin row has not loaded. Mirrors the seed's title. */
@@ -27,21 +26,20 @@ const FALLBACK_TITLE = "Daily Legend Races"
  * The Legend Races tab (route: /app/legend-races): when each batch of umas
  * joins the daily legend races, and how long grinding one of them takes.
  *
- * Top to bottom: the admin-written intro, a line per oshi (signed-in
+ * Top to bottom: the admin-written text (the grind guidance), a line per oshi (signed-in
  * supporters only), a search box, the batches still to come, and the ones
  * already out (collapsed, since the reader came for what is next).
  *
  * Everything an editor might change comes from the API: the batches and
- * their umas (`daily_legend_race_data`), the three grind numbers
- * (`calculation_constants`), and the title and intro (the
- * `daily-legend-races` site page). The date maths lives in
+ * their umas (`daily_legend_race_data`), and the title and text (the
+ * `daily-legend-races` site page, numbers included). The date rules live in
  * utils/dailyLegendRaces.ts.
  *
  * Inside the /app loading gate, so it is never prerendered and can read the
  * clock and the account freely. Its head tags come from AppRouteMeta.
  */
 export const DailyLegendRaces = () => {
-	const { dailyLegendRaceData, calculationConstants } = useCalculatorData()
+	const { dailyLegendRaceData } = useCalculatorData()
 	const { account } = useAccount()
 	const page = useSiteContent().page("daily-legend-races")
 	const [searchParams] = useSearchParams()
@@ -52,12 +50,6 @@ export const DailyLegendRaces = () => {
 	const now = useMemo(() => new Date(), [])
 	const dated = useMemo(() => datedReleases(dailyLegendRaceData), [dailyLegendRaceData])
 	const { upcoming, available } = useMemo(() => splitByToday(dated, now), [dated, now])
-
-	const numbers: GrindNumbers = {
-		goal: calculationConstants.daily_legend_race_piece_goal,
-		eventPieces: calculationConstants.daily_legend_race_event_pieces,
-		perDay: calculationConstants.daily_legend_race_pieces_per_day,
-	}
 
 	// The oshis this account's tier covers (the first `oshi_slots`), the same
 	// cut the account picture uses. A lapsed supporter keeps their rows but
@@ -117,7 +109,6 @@ export const DailyLegendRaces = () => {
 			key={release.id}
 			release={release}
 			now={now}
-			numbers={numbers}
 			isAvailable={isAvailable}
 			oshiIds={oshiIds}
 			focusRef={release.id === focusId ? focusRef : undefined}
@@ -136,7 +127,7 @@ export const DailyLegendRaces = () => {
 				    and they are already here. The words fill in when they land. */}
 				{page && (
 					<div className="text-sm">
-						<MarkdownContent markdown={page.body} paragraphClassName="mt-2 leading-relaxed text-gray-300" />
+						<MarkdownContent markdown={page.body} paragraphClassName="mt-1 leading-relaxed text-gray-300" />
 					</div>
 				)}
 			</header>
@@ -218,12 +209,7 @@ export const DailyLegendRaces = () => {
 					</h2>
 					{availableOpen &&
 						(shownAvailable.length > 0 ? (
-							<>
-								{/* Said once: from today the grind is the same for every
-								    batch already out, so a line per card would repeat it. */}
-								<p className="text-sm text-gray-400">Starting today: {grindSummary(now, now, numbers)}</p>
-								{shownAvailable.map((release) => renderCard(release, true))}
-							</>
+							shownAvailable.map((release) => renderCard(release, true))
 						) : (
 							<p className="text-sm text-gray-500">No batch already out has an uma by that name.</p>
 						))}
