@@ -9,6 +9,7 @@ import type {
   BannerTimeline,
   BannerTimelineForViewing,
   ChampionsMeeting,
+  DailyLegendRaceRelease,
   Scenario,
   SupportCard,
   TimelineEvent,
@@ -253,6 +254,7 @@ function categorised(
  */
 let scenarios: Scenario[] = []
 let campaigns: AnniversaryEvent[] = []
+let legendRaces: DailyLegendRaceRelease[] = []
 
 /** A dated scenario, which is all a marker needs from one. */
 function scenario(id: number, name: string): Scenario {
@@ -308,6 +310,7 @@ vi.mock('../services/CalculatorContext', () => ({
     setStagedBanners: vi.fn(),
     scenarioData: scenarios,
     anniversaryEventData: campaigns,
+    dailyLegendRaceData: legendRaces,
   }),
 }))
 
@@ -357,6 +360,7 @@ afterEach(() => {
   events = BASE_EVENTS
   scenarios = []
   campaigns = []
+  legendRaces = []
 })
 
 describe('Timeline infinite scroll', () => {
@@ -1062,6 +1066,36 @@ describe('Timeline recommended banners and card purposes', () => {
 
     fireEvent.pointerUp(tile, { pointerType: 'touch' })
     expect(note).toHaveClass('opacity-0')
+  })
+})
+
+describe('Timeline legend race notes', () => {
+  it('puts a batch on the card of the banner it arrives with, and nowhere else', () => {
+    events = [
+      categorised(1, 'standard', ['Rice Shower']),
+      categorised(2, 'standard', ['Kitasan Black']),
+    ]
+    legendRaces = [
+      {
+        id: 4,
+        name: '2nd Anniversary',
+        image: null,
+        banner_timeline: 2,
+        start_date: '2099-03-03T22:00:00Z',
+        is_predicted: true,
+        applied_offset_days: 0,
+        umas: [{ id: 50, name: 'Hishi Amazon', image: null, rarity: 3 }],
+      },
+    ]
+    renderTimeline()
+
+    const notes = screen.getAllByRole('link', { name: /join(s)? daily legend races/ })
+    expect(notes).toHaveLength(1)
+    expect(notes[0]).toHaveAttribute('href', '/app/legend-races?release=4')
+    // Banner 2's card holds Kitasan Black; banner 1's holds Rice Shower.
+    const card = notes[0].closest('.my-3') as HTMLElement
+    expect(card).toContainElement(screen.getByAltText('Kitasan Black'))
+    expect(card).not.toContainElement(screen.getByAltText('Rice Shower'))
   })
 })
 

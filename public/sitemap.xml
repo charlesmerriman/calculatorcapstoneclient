@@ -33,6 +33,11 @@
 		<loc>https://umacaratcalculator.com/app/selectors</loc>
 		<priority>0.8</priority>
 	</url>
+	<!-- When each batch of umas joins the daily legend races. -->
+	<url>
+		<loc>https://umacaratcalculator.com/app/legend-races</loc>
+		<priority>0.7</priority>
+	</url>
 	<!-- 16 questions across 4 groups. -->
 	<url>
 		<loc>https://umacaratcalculator.com/faq</loc>

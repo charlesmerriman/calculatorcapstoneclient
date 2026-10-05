@@ -19,6 +19,7 @@ import type {
 	OrganizedTimelineData,
 	AnniversaryEvent,
 	Scenario,
+	DailyLegendRaceRelease,
 	UserPlannedPurchase,
 	UserStepUpSelection,
 	IncomeLedgerRow,
@@ -107,6 +108,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 	const [leagueOfHeroesData, setLeagueOfHeroesData] = useState<LeagueOfHeroes[]>([])
 	const [anniversaryEventData, setAnniversaryEventData] = useState<AnniversaryEvent[]>([])
 	const [scenarioData, setScenarioData] = useState<Scenario[]>([])
+	const [dailyLegendRaceData, setDailyLegendRaceData] = useState<DailyLegendRaceRelease[]>([])
 	const [userPlannedPurchaseData, setUserPlannedPurchaseData] = useState<UserPlannedPurchase[]>([])
 	const [userStepUpSelectionData, setUserStepUpSelectionData] = useState<UserStepUpSelection[]>([])
 	const [organizedTimelineData, setOrganizedTimelineData] = useState<OrganizedTimelineData>([])
@@ -285,6 +287,10 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 				// that predates it must degrade to "no scenarios" rather than
 				// putting undefined where the planner expects an array.
 				setScenarioData(data.scenario_data ?? [])
+				// Defaulted for the same reason again. The web deploy can land
+				// before the API one, and the Legend Races page must show its
+				// empty state then, not crash on undefined.
+				setDailyLegendRaceData(data.daily_legend_race_data ?? [])
 				setUserPlannedPurchaseData(data.user_planned_purchase_data ?? [])
 				// Defaulted for the same reason as the two above: an API predating
 				// step-up selections omits the key entirely.
@@ -720,6 +726,7 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 		stagedBanners,
 		anniversaryEventData,
 		scenarioData,
+		dailyLegendRaceData,
 		userPlannedPurchaseData,
 		userStepUpSelectionData,
 		gameEventsData,

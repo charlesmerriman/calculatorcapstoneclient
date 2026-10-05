@@ -1203,6 +1203,64 @@ from seeing a campaign to planning what you'd spend at it.
   `FOCUS_SCROLL_MARGIN` / `FOCUS_TAILROOM` classes. A second copy would be a second place
   for the two to drift apart.
 
+## Legend Races page (`components/legend-races/`)
+
+`/app/legend-races` is the fourth nav destination ("Legends" in the mobile bar). It
+shows when each batch of umas joins the daily legend races and how long grinding one
+takes. Plan and decisions: workspace-root `legend-races-plan.md`.
+
+- **Everything editable comes from the API.** Batches and umas from
+  `daily_legend_race_data`; the title and the text under it from the
+  `daily-legend-races` site page. That text IS the grind guidance (the source sheet's
+  three lines: 1 Star Piece a day, ~80 from the original event, 70 or 140 days), so an
+  editor changes the numbers in the words. The page computes no grind dates (owner's
+  call, 2026-10-05: computed "150 pieces by …" lines read as noise). The provider defaults the
+  collection to `[]`, so an API without it shows the empty state.
+- **A batch with no date is TENTATIVE, and shown** (owner's call, 2026-10-05; it was
+  hidden before). An editor enters a future batch before the timeline has a banner for
+  it, so `start_date` and `banner_timeline` are null. The page lists these under "No
+  date yet", between "Coming up" and the batches already out, in the order entered
+  (`tentativeReleases`, by id: by name "6.5th" sorts before "6th"). The card says "No
+  date yet", wears a Tentative badge and a dashed border, and has no countdown and no
+  Timeline link. It says so on the card as well as in the section heading because a
+  search or a `?release=` link can show the card alone. The oshi strip and the search
+  cover them. **The Timeline does not**: a pill needs a banner card to sit on
+  (`legendRacesByBanner` reads `datedReleases`). A tentative batch with no umas is a
+  draft: the API holds it back and `tentativeReleases` drops it too.
+- **The rules are pure functions in `utils/dailyLegendRaces.ts`** (dated and tentative
+  lists, split around now, ★ groups, by-banner grouping, the countdown wording, the outfit
+  split, the `?release=` deep link), tested on their own.
+- **A tile gives an alternate outfit its own line** (`splitOutfit`: "Mejiro McQueen
+  (Anime)" is "Mejiro McQueen" over a smaller "Anime"). The outfit is what tells two
+  versions of an uma apart and it sits at the end of the name, so one clamp over the
+  whole name cut off exactly that part. The full name is the tile's `title`.
+- **Star groups sit side by side from `sm` up** when a whole group fits beside the
+  last, so "five ★3 and one ★2" is one row. That needs each group to be as wide as its
+  tiles, so from `sm` the tiles are fixed-width in a wrapping flex row; an auto-fill
+  grid has no width of its own. A phone keeps the fluid grid, one group per row.
+- **A far-off countdown is rounded** (`arrivalCountdown`): days up to 90, then "in
+  about 6 months", then years to the nearest half. Nearly every far date is an
+  estimate, and "in 720 days" claimed a precision it does not have.
+- **The arrival highlight is the Timeline's** (`TIMELINE_FOCUS_HIGHLIGHT`), an outline.
+  It was a `ring-*` until 2026-10-05, which the gold and gilded themes' own
+  `box-shadow` on `.card-panel` overrode, so it never drew in the default theme.
+- **Short on purpose (owner's call, 2026-10-05).** The admin text, then cards with the
+  name, date and badges on one line and the uma tiles. Nothing else per card.
+- **On the Timeline a batch is a pill, not a card.** `LegendRaceNote` sits in the header of
+  the card of the banner it arrives with (`banner_timeline` id, grouped by
+  `legendRacesByBanner`), beside the countdown, like the staggered-release notes, so it
+  cannot resize the art. It reads "join" until the batch is out and "joined" after. It
+  links to `?release=<id>`; the page card links back with a `banner` focus. A full-width marker card was tried first and floated between unrelated
+  cards. The pill uses the `--color-legend-race` token.
+- **The oshi strip reads the covered oshis only** (`oshis.slice(0, oshi_slots)`), the
+  same cut as the account picture.
+- **Head tags come from `AppRouteMeta`**, which reads the site page as an OPTIONAL read
+  (`page(slug, { optional: true })`): the one deployment that ships this page builds
+  the site against the old API, which has no row yet. Every other page read stays strict.
+- **Four mobile tabs stack icon above label** at 11px; side by side they truncated at
+  375px. The profile pill's name waits for `xl` for the same reason on desktop: with a
+  fourth link it pushed the signed-in bar past 1024px.
+
 ## Selectors page (`components/selectors/`)
 
 `/app/selectors` is the third nav destination, alongside Calculator and Timeline. It

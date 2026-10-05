@@ -47,6 +47,16 @@ describe("buildSiteContentValue", () => {
 		expect(() => value.page("carat-income-guide")).toThrow(/no page "carat-income-guide"/)
 		expect(() => value.faq()).toThrow(/no FAQ/)
 	})
+
+	it("returns null for an optional read even when strict, and still records it", () => {
+		const read: string[] = []
+		const value = buildSiteContentValue(
+			{ pages: [CONTENT.pages![0]] },
+			{ strict: true, onRead: (key) => read.push(key) },
+		)
+		expect(value.page("daily-legend-races", { optional: true })).toBeNull()
+		expect(read).toEqual(["page:daily-legend-races"])
+	})
 })
 
 describe("selectEmbedded", () => {

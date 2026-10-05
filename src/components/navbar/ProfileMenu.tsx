@@ -23,6 +23,13 @@ import { NAV_POPOVER, NAV_PROFILE_TRIGGER } from "./navStyles"
  * already save + settings + theme + this, and a name does not fit; a phone
  * keeps the avatar ring alone, and the name is one tap away in the menu.
  *
+ * THE NAME WAITS FOR `xl` (1280px). With four tabs in the centre (Legend Races
+ * added the fourth), a full-width name made the signed-in bar wider than the
+ * window from 1024 to ~1110px, and the grid took the difference out of the
+ * logo. Measured: the right cluster was 353px with a capped name and the
+ * centre 517px. Below xl the pill is avatar + chevron, the title attribute
+ * still names the account, and the menu shows it in full.
+ *
  * The avatar renders from the first paint. `isLoggedIn` is synchronous, so the
  * button is there immediately; the picture and name arrive with /account and
  * the Avatar shows its default silhouette until then (see Avatar.tsx). The name
@@ -92,7 +99,7 @@ export const ProfileMenu = () => {
 			>
 				<Avatar src={account?.avatar_url} size="md" />
 				<span className="hidden items-center gap-1 desktop-nav:flex">
-					{name && <span className="max-w-36 truncate text-sm font-medium text-gray-200">{name}</span>}
+					{name && <span className="hidden max-w-36 truncate text-sm font-medium text-gray-200 xl:block">{name}</span>}
 					<ChevronDown
 						className={`h-4 w-4 shrink-0 text-gray-400 transition ${open ? "rotate-180" : ""}`}
 						aria-hidden="true"

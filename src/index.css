@@ -182,6 +182,12 @@
 	--color-step-up: #c4b5fd;
 	--color-step-up-border: #c084fc;
 
+	/* Daily legend races: the pill on a Timeline banner card and the page's
+	   arrival countdown. Orange so it reads apart from the brand on every theme (one of
+	   which is teal, one violet), from the staging amber and from the
+	   recommended gold. */
+	--color-legend-race: #fdba74;
+
 	/* ── Recommended banner accent ─────────────────────────────────────────
 	   The editorial "Recommended" flag: the SSR panel on the Timeline
 	   (.ssr-panel / .recommended-chip in App.css) and the gold star and wash in
@@ -360,6 +366,7 @@
 	--color-staging: #92400e;
 	--color-step-up: #713a85;
 	--color-step-up-border: #8b4aa0;
+	--color-legend-race: #9a3412;
 
 	/* Revival categories retain their rose accent, deepened for white cards. */
 	--color-category-revival: #a3325c;
