@@ -1018,6 +1018,7 @@ export function BannerWindowCard({
 								key={release.id}
 								release={release}
 								windowStartDate={group.start_date}
+								now={today}
 							/>
 						))}
 						{staggerNotes.map(({ text, icon: NoteIcon }) => (

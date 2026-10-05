@@ -7,7 +7,7 @@
  * pieces was her original limited Legend Race event.
  *
  * Nothing here touches the projection: pieces buy nothing the calculator
- * counts. The page and the Timeline marker read it, nothing else.
+ * counts. The page and the pill on a Timeline banner card read it, nothing else.
  */
 
 /** One uma tile. Mirrors DailyLegendRaceUmaSerializer. */
@@ -27,18 +27,20 @@ export interface DailyLegendRaceRelease {
 	id: number
 	/** "2nd Anniversary" */
 	name: string
-	/** Optional art. Not shown anywhere yet. */
+	/** Optional art. Not shown anywhere, and not on the admin form either. */
 	image: string | null
 	/**
-	 * The banner this batch arrives with, as a bare id (null until an editor
-	 * links one). The Timeline puts the batch on that banner's card. Optional
-	 * because the API sent no such key before api #88.
+	 * The banner this batch arrives with, as a bare id. The Timeline puts the
+	 * batch on that banner's card. Null for a TENTATIVE batch: one an editor
+	 * entered before the timeline had a banner for it.
 	 */
-	banner_timeline?: number | null
+	banner_timeline: number | null
 	/**
 	 * The banner's resolved start plus the release's own day offset, or null
-	 * when the release has no banner yet. A null release is not on the site:
-	 * `datedReleases()` drops it.
+	 * when the release has no banner yet. A null start is a tentative batch:
+	 * the Legend Races page lists it with no date (`tentativeReleases()`), and
+	 * the Timeline, which needs a date and a banner, leaves it out
+	 * (`datedReleases()`).
 	 *
 	 * No `end_date`, and the API sends none. A batch arrives and stays.
 	 */

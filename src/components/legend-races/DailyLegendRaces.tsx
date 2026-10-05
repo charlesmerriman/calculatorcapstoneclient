@@ -15,8 +15,9 @@ import {
 	parseReleaseFocus,
 	releaseByUmaId,
 	splitByToday,
+	tentativeReleases,
 } from "../../utils/dailyLegendRaces"
-import type { DatedRelease } from "../../utils/dailyLegendRaces"
+import type { DailyLegendRaceRelease } from "../../types"
 import { LegendRaceReleaseCard } from "./LegendRaceReleaseCard"
 
 /** The heading while the page's admin row has not loaded. Mirrors the seed's title. */
@@ -27,8 +28,9 @@ const FALLBACK_TITLE = "Daily Legend Races"
  * joins the daily legend races, and how long grinding one of them takes.
  *
  * Top to bottom: the admin-written text (the grind guidance), a line per oshi (signed-in
- * supporters only), a search box, the batches still to come, and the ones
- * already out (collapsed, since the reader came for what is next).
+ * supporters only), a search box, the batches still to come, the tentative
+ * ones with no date yet, and the ones already out (collapsed, since the
+ * reader came for what is next).
  *
  * Everything an editor might change comes from the API: the batches and
  * their umas (`daily_legend_race_data`), and the title and text (the
@@ -50,6 +52,9 @@ export const DailyLegendRaces = () => {
 	const now = useMemo(() => new Date(), [])
 	const dated = useMemo(() => datedReleases(dailyLegendRaceData), [dailyLegendRaceData])
 	const { upcoming, available } = useMemo(() => splitByToday(dated, now), [dated, now])
+	// Batches an editor entered before the timeline had a banner for them, so
+	// they have no date. Listed in a section of their own, marked tentative.
+	const tentative = useMemo(() => tentativeReleases(dailyLegendRaceData), [dailyLegendRaceData])
 
 	// The oshis this account's tier covers (the first `oshi_slots`), the same
 	// cut the account picture uses. A lapsed supporter keeps their rows but
@@ -60,17 +65,17 @@ export const DailyLegendRaces = () => {
 	)
 	const oshiIds = useMemo(() => new Set(coveredOshis.map((oshi) => oshi.id)), [coveredOshis])
 	const oshiReleases = useMemo(() => {
-		const byUma = releaseByUmaId(dated)
+		const byUma = releaseByUmaId<DailyLegendRaceRelease>([...dated, ...tentative])
 		return coveredOshis.flatMap((oshi) => {
 			const release = byUma.get(oshi.id)
 			return release ? [{ oshi, release }] : []
 		})
-	}, [coveredOshis, dated])
+	}, [coveredOshis, dated, tentative])
 
-	// A link to one batch (the Timeline marker, or an oshi line) names it in
-	// the URL. If that batch is already out, its list opens for it. Adjusted
-	// during render, keyed on the target, so following a second link opens the
-	// list again even after the reader closed it.
+	// A link to one batch (the pill on a Timeline banner card, or an oshi
+	// line) names it in the URL. If that batch is already out, its list opens
+	// for it. Adjusted during render, keyed on the target, so following a
+	// second link opens the list again even after the reader closed it.
 	const focusId = parseReleaseFocus(searchParams.get(LEGEND_RACES_RELEASE_PARAM))
 	const [openedForFocus, setOpenedForFocus] = useState<number | null>(null)
 	if (focusId !== openedForFocus) {
@@ -84,7 +89,7 @@ export const DailyLegendRaces = () => {
 	// batch with none. A batch with no umas entered yet still shows when there
 	// is no query: its date is news on its own.
 	const search = query.trim().toLowerCase()
-	const narrow = (releases: DatedRelease[]): DatedRelease[] =>
+	const narrow = <T extends DailyLegendRaceRelease>(releases: T[]): T[] =>
 		search === ""
 			? releases
 			: releases
@@ -94,17 +99,18 @@ export const DailyLegendRaces = () => {
 				}))
 				.filter((release) => release.umas.length > 0)
 	const shownUpcoming = narrow(upcoming)
+	const shownTentative = narrow(tentative)
 	const shownAvailable = narrow(available)
 	const availableOpen = showAvailable || search !== ""
 
 	const focusRef = useRef<HTMLElement | null>(null)
-	const rendered = [...shownUpcoming, ...(availableOpen ? shownAvailable : [])]
+	const rendered = [...shownUpcoming, ...shownTentative, ...(availableOpen ? shownAvailable : [])]
 	const focusIndex = focusId === null ? -1 : rendered.findIndex((release) => release.id === focusId)
 	useFocusScroll(focusRef, focusIndex >= 0 ? focusId : null)
 	// Room to scroll the last card to the top; see FOCUS_TAILROOM.
 	const focusNeedsTailroom = focusIndex >= 0 && focusIndex === rendered.length - 1
 
-	const renderCard = (release: DatedRelease, isAvailable: boolean) => (
+	const renderCard = (release: DailyLegendRaceRelease, isAvailable: boolean) => (
 		<LegendRaceReleaseCard
 			key={release.id}
 			release={release}
@@ -139,14 +145,17 @@ export const DailyLegendRaces = () => {
 					</h2>
 					<ul className="mt-1 space-y-0.5 text-sm text-gray-300">
 						{oshiReleases.map(({ oshi, release }) => {
-							const start = new Date(release.start_date)
-							const isOut = start.getTime() <= now.getTime()
+							// Null for an oshi in a tentative batch: she is on the
+							// list, but nobody knows when yet.
+							const start = release.start_date === null ? null : new Date(release.start_date)
 							return (
 								<li key={oshi.id}>
 									<span className="font-medium text-gray-100">{oshi.name}</span>
-									{isOut
-										? ": in the daily races now ("
-										: `: joins ${formatDate(release.start_date)}, ${arrivalCountdown(start, now)} (`}
+									{start === null
+										? ": no date yet ("
+										: start.getTime() <= now.getTime()
+											? ": in the daily races now ("
+											: `: joins ${formatDate(release.start_date)}, ${arrivalCountdown(start, now)} (`}
 									<Link
 										to={legendRacesReleaseHref(release.id)}
 										className="text-brand transition hover:text-brand/75"
@@ -188,6 +197,23 @@ export const DailyLegendRaces = () => {
 				)}
 			</section>
 
+			{/* No empty line of its own: with nothing to list, or nothing a
+			    search matches, the whole section steps aside. */}
+			{shownTentative.length > 0 && (
+				<section aria-labelledby="legend-races-tentative" className="flex flex-col gap-3">
+					<div>
+						<h2 id="legend-races-tentative" className="text-base font-semibold text-gray-100">
+							No date yet
+						</h2>
+						<p className="text-sm text-gray-400">
+							These batches are tentative. The date isn't known yet, and who is in them could
+							change.
+						</p>
+					</div>
+					{shownTentative.map((release) => renderCard(release, false))}
+				</section>
+			)}
+
 			{available.length > 0 && (
 				<section aria-labelledby="legend-races-available" className="flex flex-col gap-3">
 					<h2 id="legend-races-available">
@@ -204,7 +230,9 @@ export const DailyLegendRaces = () => {
 								className={`h-4 w-4 shrink-0 transition-transform ${availableOpen ? "" : "-rotate-90"}`}
 								aria-hidden="true"
 							/>
-							Already in the daily races ({available.length})
+							{/* The count follows the search, so it matches the cards
+							    listed under it and not the total behind the filter. */}
+							Already in the daily races ({shownAvailable.length})
 						</button>
 					</h2>
 					{availableOpen &&

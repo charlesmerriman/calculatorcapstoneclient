@@ -9,8 +9,8 @@ import type { SiteContent } from '../types/siteContent'
 
 /**
  * The Legend Races tab. Pins what it shows and hides, not its styling: the
- * oshi strip, the search, the collapsed "already out" list and the deep link
- * from a Timeline marker. The date maths has its own unit tests
+ * oshi strip, the search, the tentative batches with no date, the collapsed
+ * "already out" list and the deep link from the pill on a Timeline card. The date maths has its own unit tests
  * (dailyLegendRaces.test.ts).
  *
  * Dates sit in 2020 (out) and 2099 (to come) so "now" never matters.
@@ -49,6 +49,19 @@ const LATER = {
   is_predicted: true,
   applied_offset_days: 0,
   umas: [uma(30, 'Nishino Flower')],
+} satisfies DailyLegendRaceRelease
+
+// No banner, so no date: entered before the timeline reached it. Not in the
+// default list, so the tests above it read as they did before it existed.
+const TENTATIVE = {
+  id: 13,
+  name: '6th Anniversary',
+  image: null,
+  banner_timeline: null,
+  start_date: null,
+  is_predicted: false,
+  applied_offset_days: 0,
+  umas: [uma(60, 'Duramente'), uma(61, 'Maruzensky (Summer)')],
 } satisfies DailyLegendRaceRelease
 
 let releases: DailyLegendRaceRelease[] = []
@@ -195,6 +208,87 @@ describe('DailyLegendRaces', () => {
     expect(scrollIntoView).toHaveBeenCalled()
   })
 
+  it('puts an alternate outfit on its own line, with the full name as the tooltip', () => {
+    releases = [{ ...NEXT, umas: [uma(22, 'Mejiro McQueen (Anime)')] }]
+    renderPage()
+
+    const card = screen.getByRole('region', { name: '2nd Anniversary' })
+    // Two elements, so a clamp on the name can never cut the outfit off.
+    expect(within(card).getByText('Mejiro McQueen')).toBeInTheDocument()
+    expect(within(card).getByText('Anime')).toBeInTheDocument()
+    expect(within(card).getByTitle('Mejiro McQueen (Anime)')).toBeInTheDocument()
+  })
+
+  it('counts only the matching batches already out while a search is running', () => {
+    releases = [OUT, { ...OUT, id: 4, name: '1.5th Anniversary', umas: [uma(40, 'Curren Chan')] }, NEXT]
+    renderPage()
+    expect(screen.getByRole('button', { name: /Already in the daily races \(2\)/ })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search umas' }), {
+      target: { value: 'curren' },
+    })
+    expect(screen.getByRole('button', { name: /Already in the daily races \(1\)/ })).toBeInTheDocument()
+  })
+
+  it('lists a batch with no date as tentative, after the ones to come', () => {
+    releases = [OUT, NEXT, TENTATIVE]
+    renderPage()
+
+    // Shown without opening anything, below the dated batch.
+    const names = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(names).toEqual(['2nd Anniversary', '6th Anniversary'])
+    expect(screen.getByRole('heading', { level: 2, name: 'No date yet' })).toBeInTheDocument()
+    expect(screen.getByText(/These batches are tentative/)).toBeInTheDocument()
+
+    // The card says so itself: a search or a link can show it on its own.
+    const card = screen.getByRole('region', { name: '6th Anniversary' })
+    expect(within(card).getByText('Tentative')).toBeInTheDocument()
+    expect(within(card).getByText('No date yet')).toBeInTheDocument()
+    expect(within(card).getByText('Duramente')).toBeInTheDocument()
+    // No banner card to link to, and nothing to count down to.
+    expect(within(card).queryByRole('link', { name: 'On the Timeline' })).not.toBeInTheDocument()
+    expect(within(card).queryByText(/^in /)).not.toBeInTheDocument()
+  })
+
+  it('shows no tentative section when there is nothing tentative, or only a draft', () => {
+    renderPage()
+    expect(screen.queryByRole('heading', { level: 2, name: 'No date yet' })).not.toBeInTheDocument()
+
+    // No date and no umas: nothing to show, so it stays off the page.
+    releases = [NEXT, { ...TENTATIVE, umas: [] }]
+    renderPage()
+    expect(screen.queryByRole('heading', { level: 2, name: 'No date yet' })).not.toBeInTheDocument()
+    expect(screen.queryByText('6th Anniversary')).not.toBeInTheDocument()
+  })
+
+  it('searches the tentative batches too, and drops the section when none match', () => {
+    releases = [OUT, NEXT, TENTATIVE]
+    renderPage()
+    const box = screen.getByRole('searchbox', { name: 'Search umas' })
+
+    fireEvent.change(box, { target: { value: 'duramente' } })
+    const card = screen.getByRole('region', { name: '6th Anniversary' })
+    expect(within(card).getByText('Duramente')).toBeInTheDocument()
+    expect(within(card).queryByText('Maruzensky')).not.toBeInTheDocument()
+
+    fireEvent.change(box, { target: { value: 'hishi' } })
+    expect(screen.queryByRole('heading', { level: 2, name: 'No date yet' })).not.toBeInTheDocument()
+  })
+
+  it('tells a supporter their oshi is in a batch with no date yet', () => {
+    releases = [OUT, NEXT, TENTATIVE]
+    account = supporterWith([oshi(0, 60, 'Duramente')], 1)
+    renderPage()
+
+    const strip = screen.getByRole('region', { name: 'Your oshis' })
+    const line = within(strip).getByRole('listitem')
+    expect(line.textContent).toBe('Duramente: no date yet (6th Anniversary)')
+    expect(within(line).getByRole('link', { name: '6th Anniversary' })).toHaveAttribute(
+      'href',
+      '/app/legend-races?release=13'
+    )
+  })
+
   it("links each card to its banner's card on the Timeline", () => {
     renderPage()
     const card = screen.getByRole('region', { name: '2nd Anniversary' })
@@ -214,10 +308,12 @@ describe('DailyLegendRaces', () => {
 })
 
 describe('LegendRaceNote (on a Timeline banner card)', () => {
-  const renderNote = (windowStartDate: string) =>
+  // NEXT and LATER are in 2099 and 2100, OUT is in 2020, so any real "now"
+  // sits between them.
+  const renderNote = (windowStartDate: string, release: typeof NEXT | typeof OUT = NEXT) =>
     render(
       <MemoryRouter>
-        <LegendRaceNote release={NEXT} windowStartDate={windowStartDate} />
+        <LegendRaceNote release={release} windowStartDate={windowStartDate} now={new Date()} />
       </MemoryRouter>
     )
 
@@ -230,6 +326,11 @@ describe('LegendRaceNote (on a Timeline banner card)', () => {
   it("names the date only when it differs from the window's", () => {
     renderNote(NEXT.start_date)
     expect(screen.getByRole('link').textContent).toBe('2 umas join daily legend races')
+  })
+
+  it('says "joined" once the batch is out', () => {
+    renderNote(OUT.start_date, OUT)
+    expect(screen.getByRole('link').textContent).toBe('2 umas joined daily legend races')
   })
 
   it('adds the date for a batch that lands after its banner opens', () => {

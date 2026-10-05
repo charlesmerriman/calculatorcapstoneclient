@@ -6,6 +6,8 @@ import {
   rarityGroups,
   releaseByUmaId,
   splitByToday,
+  splitOutfit,
+  tentativeReleases,
 } from '../utils/dailyLegendRaces'
 import type { DailyLegendRaceRelease, DailyLegendRaceUma } from '../types'
 
@@ -29,6 +31,7 @@ const release = (
   id,
   name: `Release ${id}`,
   image: null,
+  banner_timeline: null,
   start_date,
   is_predicted: false,
   applied_offset_days: 0,
@@ -44,6 +47,22 @@ describe('datedReleases', () => {
     const sooner = release(3, '2026-12-22T22:00:00Z')
 
     expect(datedReleases([later, undated, sooner]).map((r) => r.id)).toEqual([3, 1])
+  })
+})
+
+describe('tentativeReleases', () => {
+  it('keeps the undated ones that have umas, in the order they were entered', () => {
+    const dated = release(1, '2026-12-22T00:00:00Z', [uma(10, 3)])
+    // Entered second but named to sort first: "6.5th" comes before "6th".
+    const sixAndAHalf = { ...release(14, null, [uma(12, 3)]), name: '6.5th Anniversary' }
+    const sixth = { ...release(13, null, [uma(11, 3)]), name: '6th Anniversary' }
+    // No date and nobody in it: a draft, nothing to show.
+    const draft = release(15, null)
+
+    expect(tentativeReleases([sixAndAHalf, dated, draft, sixth]).map((r) => r.name)).toEqual([
+      '6th Anniversary',
+      '6.5th Anniversary',
+    ])
   })
 })
 
@@ -85,6 +104,38 @@ describe('arrivalCountdown', () => {
     expect(arrivalCountdown(new Date(2026, 9, 5, 23), new Date(2026, 9, 5, 1))).toBe('today')
     expect(arrivalCountdown(new Date(2026, 9, 6, 1), new Date(2026, 9, 5, 23))).toBe('tomorrow')
     expect(arrivalCountdown(new Date(2026, 9, 17), new Date(2026, 9, 5))).toBe('in 12 days')
+  })
+
+  it('rounds a far-off date to months, then to half years', () => {
+    const from = new Date(2026, 9, 5)
+    const inDays = (days: number) => new Date(2026, 9, 5 + days)
+
+    // Days up to three months: still something a reader plans around.
+    expect(arrivalCountdown(inDays(75), from)).toBe('in 75 days')
+    expect(arrivalCountdown(inDays(90), from)).toBe('in 90 days')
+    // Then months, never "1 months": 91 days already rounds to 3.
+    expect(arrivalCountdown(inDays(91), from)).toBe('in about 3 months')
+    expect(arrivalCountdown(inDays(193), from)).toBe('in about 6 months')
+    expect(arrivalCountdown(inDays(594), from)).toBe('in about 20 months')
+    // Two years on, years to the nearest half.
+    expect(arrivalCountdown(inDays(720), from)).toBe('in about 2 years')
+    expect(arrivalCountdown(inDays(900), from)).toBe('in about 2.5 years')
+    expect(arrivalCountdown(inDays(986), from)).toBe('in about 2.5 years')
+  })
+})
+
+describe('splitOutfit', () => {
+  it('takes a trailing outfit off the name', () => {
+    expect(splitOutfit('Mejiro McQueen (Anime)')).toEqual({ base: 'Mejiro McQueen', outfit: 'Anime' })
+    expect(splitOutfit('Sakura Bakushin O (Sports Festival)')).toEqual({
+      base: 'Sakura Bakushin O',
+      outfit: 'Sports Festival',
+    })
+  })
+
+  it('leaves a name with no outfit whole', () => {
+    expect(splitOutfit('Special Week')).toEqual({ base: 'Special Week', outfit: null })
+    expect(splitOutfit('Ines Fujin ♡')).toEqual({ base: 'Ines Fujin ♡', outfit: null })
   })
 })
 

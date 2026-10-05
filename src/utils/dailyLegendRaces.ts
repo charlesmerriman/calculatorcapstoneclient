@@ -12,20 +12,44 @@
 import { differenceInCalendarDays } from "date-fns"
 import type { DailyLegendRaceRelease, DailyLegendRaceUma } from "../types/dailyLegendRace"
 
-/** A release that has a date, which is the only kind the site shows. */
+/** A release that has a date: on the Timeline, and in the page's two dated lists. */
 export type DatedRelease = DailyLegendRaceRelease & { start_date: string }
+
+/**
+ * A release with no date yet. An editor entered it before the timeline had a
+ * banner to link it to, so there is nothing to date it from. The page lists
+ * these as tentative; the Timeline cannot show them at all.
+ */
+export type TentativeRelease = DailyLegendRaceRelease & { start_date: null }
 
 /**
  * Drop the undated releases and sort the rest by date, soonest first.
  *
- * Undated is normal: an editor can enter a batch before the timeline has a
- * banner to link it to, and it stays off the site until they do. The API
- * already sorts, but the page sorts again so it never depends on that.
+ * Undated is normal (see `tentativeReleases`). The API already sorts, but
+ * the page sorts again so it never depends on that.
  */
 export function datedReleases(releases: DailyLegendRaceRelease[]): DatedRelease[] {
 	return releases
 		.filter((release): release is DatedRelease => release.start_date !== null)
 		.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+}
+
+/**
+ * The releases with no date, for the page's "No date yet" list.
+ *
+ * In the order they were entered (by id). There is no date to sort on, and
+ * by name "6.5th Anniversary" would come before "6th Anniversary".
+ *
+ * One with no umas is left out: no date and nobody in it is nothing to show.
+ * The API already holds those back, so this only guards an older one.
+ */
+export function tentativeReleases(releases: DailyLegendRaceRelease[]): TentativeRelease[] {
+	return releases
+		.filter(
+			(release): release is TentativeRelease =>
+				release.start_date === null && release.umas.length > 0
+		)
+		.sort((a, b) => a.id - b.id)
 }
 
 /**
@@ -65,17 +89,57 @@ export function rarityGroups(umas: DailyLegendRaceUma[]): RarityGroup[] {
 }
 
 /**
- * "today", "tomorrow" or "in 12 days", for a release that has not arrived.
+ * Past this many days a countdown stops counting days. Three months is about
+ * where "in 97 days" stops being something a reader plans around.
+ */
+const APPROXIMATE_AFTER_DAYS = 90
+
+/** The average month, in days (365.25 / 12). Only used to round a countdown. */
+const DAYS_PER_MONTH = 30.44
+
+/**
+ * "today", "tomorrow", "in 12 days", then "in about 6 months" and "in about
+ * 2.5 years", for a release that has not arrived.
  *
  * Calendar days in the viewer's own time, like the Timeline's countdown
  * badge (getCountdownLabel), so the count agrees with the date printed
  * beside it, which formatDate also renders locally.
+ *
+ * Far-off dates are rounded on purpose. Nearly all of them are estimates, and
+ * "in 720 days" claims a precision the date beside it does not have. Months
+ * up to two years, then years to the nearest half:
+ *
+ *   75 days  -> "in 75 days"
+ *   193 days -> "in about 6 months"
+ *   594 days -> "in about 20 months"
+ *   720 days -> "in about 2 years"
+ *   900 days -> "in about 2.5 years"
  */
 export function arrivalCountdown(start: Date, now: Date): string {
 	const days = differenceInCalendarDays(start, now)
 	if (days <= 0) return "today"
 	if (days === 1) return "tomorrow"
-	return `in ${days} days`
+	if (days <= APPROXIMATE_AFTER_DAYS) return `in ${days} days`
+
+	const months = Math.round(days / DAYS_PER_MONTH)
+	if (months < 24) return `in about ${months} months`
+	// Halves of a year: 29 months is 2.5, 33 months is 3 (written "3", not "3.0").
+	const years = Math.round(months / 6) / 2
+	return `in about ${years} years`
+}
+
+/**
+ * Split an alternate outfit off an uma's name, so a tile can give each half
+ * its own line: "Mejiro McQueen (Anime)" -> base "Mejiro McQueen", outfit
+ * "Anime". A name with no trailing parentheses comes back whole, with a null
+ * outfit ("Special Week", "Ines Fujin ♡").
+ *
+ * Only a bracket at the very END counts, which is where every outfit sits.
+ * The search still matches on the full name; this is for display only.
+ */
+export function splitOutfit(name: string): { base: string; outfit: string | null } {
+	const match = /^(.*\S)\s*\(([^()]+)\)$/.exec(name.trim())
+	return match ? { base: match[1], outfit: match[2] } : { base: name, outfit: null }
 }
 
 /**
@@ -92,9 +156,12 @@ export function legendRacesByBanner(releases: DailyLegendRaceRelease[]): Map<num
 	return byBanner
 }
 
-/** Which dated release each uma joins, by uma id. For the oshi strip. */
-export function releaseByUmaId(releases: DatedRelease[]): Map<number, DatedRelease> {
-	const byUma = new Map<number, DatedRelease>()
+/**
+ * Which release each uma joins, by uma id. For the oshi strip, which covers
+ * dated and tentative batches alike, hence the generic.
+ */
+export function releaseByUmaId<T extends DailyLegendRaceRelease>(releases: T[]): Map<number, T> {
+	const byUma = new Map<number, T>()
 	for (const release of releases) {
 		for (const uma of release.umas) byUma.set(uma.id, release)
 	}

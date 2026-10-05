@@ -270,11 +270,19 @@ export interface TimelineFocusProps {
  * The ring that says "this is the card you clicked through for".
  *
  * Applied to the card PANEL rather than a card's outer wrapper, so it follows
- * the panel's own rounding and sits flush against its edge. `ring-offset-gray-900`
- * matches the Timeline's page background.
+ * the panel's own rounding and sits just off its edge.
+ *
+ * An OUTLINE, not a Tailwind `ring-*`. A ring is drawn with `box-shadow`, and
+ * the gold and gilded themes set `box-shadow` on `.card-panel` themselves
+ * (index.css, `[data-theme="gold"] .card-panel`). That selector outranks a
+ * utility class, so the ring was silently dropped in the default theme. No
+ * shadow rule can touch an outline, and its offset gap is see-through, so it
+ * needs no colour matched to the page background either.
+ *
+ * Shared with the Legend Races page's cards (LegendRaceReleaseCard).
  */
 export const TIMELINE_FOCUS_HIGHLIGHT =
-	"ring-2 ring-brand ring-offset-2 ring-offset-gray-900"
+	"outline-2 outline-offset-2 outline-brand"
 
 
 /**
