@@ -94,4 +94,12 @@ export interface CalculationConstants {
 	// Global date prediction (used server-side; served for reference)
 	prediction_factor: number
 	game_event_end_buffer_days: number
+
+	// Daily legend races. Read by the Legend Races page only, never the projection.
+	/** Pieces a player grinds one uma toward. */
+	daily_legend_race_piece_goal: number
+	/** Pieces from that uma's original limited Legend Race event, if it was played. */
+	daily_legend_race_event_pieces: number
+	/** Pieces one daily race gives. At least 1 (the model's validator). */
+	daily_legend_race_pieces_per_day: number
 }

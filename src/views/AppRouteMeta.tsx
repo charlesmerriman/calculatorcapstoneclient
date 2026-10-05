@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom"
 import { useDocumentMeta } from "../hooks/useDocumentMeta"
+import { useSiteContent } from "../services/SiteContentContext"
 
 /**
  * The owner of the /app routes' document titles and descriptions. Renders nothing.
@@ -26,7 +27,9 @@ interface RouteMeta {
 	description: string
 }
 
-const META: Record<"/app" | "/app/timeline" | "/app/selectors", RouteMeta> = {
+type AppPath = "/app" | "/app/timeline" | "/app/selectors" | "/app/legend-races"
+
+const META: Record<AppPath, RouteMeta> = {
 	"/app": {
 		title: "Calculator",
 		description:
@@ -42,17 +45,41 @@ const META: Record<"/app" | "/app/timeline" | "/app/selectors", RouteMeta> = {
 		description:
 			"Plan which Uma Musume support cards and umas to take with your selector tickets, filtered by each ticket's eligibility cutoff.",
 	},
+	// The fallback only. The admin's "daily-legend-races" page row supplies
+	// the real title and description; see AppRouteMeta below.
+	"/app/legend-races": {
+		title: "Daily Legend Races",
+		description:
+			"When each batch of umas joins the Uma Musume daily legend races on global, and how long grinding one of them takes.",
+	},
 }
 
-/** The meta for a pathname, tolerating a trailing slash. Falls back to the calculator's. */
-function metaFor(pathname: string): RouteMeta {
+/** The route a pathname names, tolerating a trailing slash. Falls back to the calculator. */
+function appPathFor(pathname: string): AppPath {
 	const path = pathname.replace(/\/+$/, "")
-	return path in META ? META[path as keyof typeof META] : META["/app"]
+	return path in META ? (path as AppPath) : "/app"
 }
 
 export const AppRouteMeta = () => {
 	const { pathname } = useLocation()
-	const meta = metaFor(pathname)
+	const content = useSiteContent()
+	const path = appPathFor(pathname)
+
+	// The Legend Races tab's title and description are the team's to write,
+	// so they come from its admin page row when it is here.
+	//
+	// OPTIONAL, which no other page read is: a build fails on a missing row
+	// everywhere else. One deployment builds the site while the OLD API is
+	// still serving, and the prerender reads /site-content from it, so the
+	// first build after this page shipped could not have the row yet. The code
+	// fallback covers that one build; every later one bakes the admin's words.
+	// Read only on this route, so no other page's document embeds the row.
+	const page =
+		path === "/app/legend-races"
+			? content.page("daily-legend-races", { optional: true })
+			: null
+	const meta = page ? { title: page.title, description: page.meta_description } : META[path]
+
 	useDocumentMeta(meta.title, meta.description)
 	return null
 }

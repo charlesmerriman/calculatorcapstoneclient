@@ -267,6 +267,7 @@ export const Timeline = () => {
 		setStagedBanners,
 		scenarioData,
 		anniversaryEventData,
+		dailyLegendRaceData,
 	} = useCalculatorData()
 	const [searchParams, setSearchParams] = useSearchParams()
 	/**
@@ -361,12 +362,18 @@ export const Timeline = () => {
 			const scenario = scenarioData.find((candidate) => candidate.id === focus.id)
 			return scenario?.start_date ? new Date(scenario.start_date) < today : null
 		}
+		// A legend race batch has no end either, so it is past once it has
+		// arrived, exactly like a scenario.
+		if (focus.kind === "legend_race") {
+			const release = dailyLegendRaceData.find((candidate) => candidate.id === focus.id)
+			return release?.start_date ? new Date(release.start_date) < today : null
+		}
 		const event = anniversaryEventData.find((candidate) => candidate.id === focus.id)
 		// main_start_date ?? start_date — where the campaign actually lands, the
 		// same instant buildTimelineMarkers sorts its card on.
 		const startDate = event ? event.main_start_date ?? event.start_date : null
 		return startDate ? new Date(startDate) < today : null
-	}, [focus, organizedTimelineData, scenarioData, anniversaryEventData, today])
+	}, [focus, organizedTimelineData, scenarioData, anniversaryEventData, dailyLegendRaceData, today])
 
 	// The user's choice wins; failing that a deep link picks the half its target
 	// lives in; failing that, the future.
@@ -438,7 +445,7 @@ export const Timeline = () => {
 		// filter is lifted. See rowMarkers.
 		const matchingMarkerRows = (): TimelineRow[] => {
 			const query = searchQuery.toLowerCase()
-			return buildMarkerRows(buildTimelineMarkers(scenarioData, anniversaryEventData))
+			return buildMarkerRows(buildTimelineMarkers(scenarioData, anniversaryEventData, dailyLegendRaceData))
 				.filter((row) =>
 					showPast
 						? timelineRowStart(row) < today.getTime()
@@ -516,6 +523,7 @@ export const Timeline = () => {
 		organizedTimelineData,
 		scenarioData,
 		anniversaryEventData,
+		dailyLegendRaceData,
 		showPast,
 		searchQuery,
 		eventFilter,
@@ -562,11 +570,11 @@ export const Timeline = () => {
 	// list it filters drift apart.
 	const availableMarkerKinds = useMemo(() => {
 		const present = new Set<TimelineMarker["kind"]>()
-		for (const marker of buildTimelineMarkers(scenarioData, anniversaryEventData)) {
+		for (const marker of buildTimelineMarkers(scenarioData, anniversaryEventData, dailyLegendRaceData)) {
 			present.add(marker.kind)
 		}
 		return MARKER_ORDER.filter((kind) => present.has(kind))
-	}, [scenarioData, anniversaryEventData])
+	}, [scenarioData, anniversaryEventData, dailyLegendRaceData])
 
 	/**
 	 * Where the row the list is anchored on ended up, once filtering, grouping and

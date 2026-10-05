@@ -987,7 +987,7 @@ card per campaign with no filtering.
   capture happens only on the transition *into* it; a move between two narrow values
   degrades on its own, because the row simply won't resolve in the new list.
 - **Cards key off `timelineRowKey(row)`** — `cm-` / `loh-` + id for race events, `win-` +
-  the shared start date for a banner window, `sce-` / `ann-` + id for a marker and
+  the shared start date for a banner window, `sce-` / `ann-` / `dlr-` + id for a marker and
   `sce-N+ann-M` for a paired one. Ids are unique only *within* a model, and
   positional keys make React reuse a card's DOM — including decoded images — for a
   different event when the list grows or re-filters. A window keys on its date rather than
@@ -1021,7 +1021,7 @@ rows' card art both link through it; the Timeline resolves the target.
   three row kinds carry the same `banner_timeline` FK, so it is the only id that identifies
   a card from any of them. `rowMatchesFocus` matches a window by **any** banner inside it.
 - **Kind-prefixed, because ids are unique only within a model.** `banner` / `scenario` /
-  `anniversary`; the latter two are `TimelineMarker["kind"]` verbatim, so neither end needs
+  `anniversary` / `legend_race`; the last three are `TimelineMarker["kind"]` verbatim, so neither end needs
   a translation table. Both marker types carry a `sourceId` for this — the primary key,
   held separately from the React `key` rather than parsed back out of it.
 - **A malformed value degrades to "no focus".** It comes off the URL, where a user can edit
@@ -1124,7 +1124,7 @@ exist, though in practice they cannot: typing in the search box drops the deep l
 Covered by `src/__tests__/timelineFocus.test.ts`, the "Timeline deep links" suite and
 "Timeline keeps its place when a filter is lifted".
 
-### Marker cards: scenario launches and campaign openings
+### Marker cards: scenario launches, campaign openings and legend race batches
 
 `EventMarkerCard` is the timeline's third card, fed by a third `TimelineRow` kind
 (`{ kind: "marker" }`) and built by `buildTimelineMarkers` / `mergeTimelineMarkers`.
@@ -1135,7 +1135,14 @@ the same UTC day and renders as `EventMarkerPairCard`.
   `organizedTimelineData` narrows on the backend's `event_type` tag, but
   `AnniversaryEvent.event_type` already means the campaign kind
   (`anniversary` / `new_year` / `campaign`). Tagging markers server-side would collide with
-  a shipped field. Key prefixes are `sce-` and `ann-`.
+  a shipped field. Key prefixes are `sce-`, `ann-` and `dlr-`.
+- **Three kinds, in `MARKER_ORDER`: scenario, anniversary, legend_race.** The order is
+  both the filter's and the same-instant tie-break in `buildMarkerRows`, and scenario
+  before anniversary is what lets pairing find its pairs among neighbours, so a new kind
+  goes after both. A legend race marker (`kind: "legend_race"`, a `DailyLegendRaceRelease`)
+  never pairs. It is the one kind with a `detail` line ("11 umas join the daily legend
+  races") and a `link` to its card on `/app/legend-races`, the other half of that card's
+  "See it on the Timeline". Its chip uses the `--color-legend-race` token.
 - **`mergeTimelineMarkers` runs AFTER `groupTimelineEvents`**, for the same reason grouping
   runs after filtering: it inserts against the final row order, so running earlier would
   let a marker land inside a window that later folds together.
@@ -1162,10 +1169,10 @@ the same UTC day and renders as `EventMarkerPairCard`.
   padded `p-2 sm:p-3` and carries the ring. That is what lines the panel edges up down
   the list. Art is centred in a lone card (nothing beside it) and hard left in a pair
   (a column edge beside it), the same rule as `BANNER_ART_ALONE`.
-- **A scenario has no end date and never will** — it stays playable after release. The card
-  branches on the *presence* of an end date rather than on the kind, showing
-  "Releases &lt;date&gt;" instead of a range. The past/future toggle classifies a scenario by
-  its start instant, since it can never be "over".
+- **A scenario has no end date and never will** — it stays playable after release. Nor
+  does a legend race batch. The card branches on the *presence* of an end date rather than
+  on the kind, showing "Releases &lt;date&gt;" instead of a range. The past/future toggle
+  classifies both by their start instant, since neither can ever be "over".
 - **Markers are suppressed under a category filter.** They are cross-cutting context rather
   than banners, so a scenario card stranded in a list of reruns answers a question nobody
   asked — the same reasoning that drops race events there.
@@ -1202,6 +1209,30 @@ from seeing a campaign to planning what you'd spend at it.
 - Both pages share `hooks/useFocusScroll` (the instant scroll plus settle loop) and its
   `FOCUS_SCROLL_MARGIN` / `FOCUS_TAILROOM` classes. A second copy would be a second place
   for the two to drift apart.
+
+## Legend Races page (`components/legend-races/`)
+
+`/app/legend-races` is the fourth nav destination ("Legends" in the mobile bar). It
+shows when each batch of umas joins the daily legend races and how long grinding one
+takes. Plan and decisions: workspace-root `legend-races-plan.md`.
+
+- **Everything editable comes from the API.** Batches and umas from
+  `daily_legend_race_data`, the three grind numbers from `calculation_constants`, the
+  title and intro from the `daily-legend-races` site page. The provider defaults the
+  collection to `[]`, so an API without it shows the empty state.
+- **The rules are pure functions in `utils/dailyLegendRaces.ts`** (undated dropped,
+  split around now, ★ groups, `grindFinish`, the `?release=` deep link), tested on their
+  own. The finish is the day of the LAST race (`days - 1` after the start), and a batch
+  already out counts from now.
+- **No queue.** Every uma has her own daily race, so each finish date is independent.
+- **The oshi strip reads the covered oshis only** (`oshis.slice(0, oshi_slots)`), the
+  same cut as the account picture.
+- **Head tags come from `AppRouteMeta`**, which reads the site page as an OPTIONAL read
+  (`page(slug, { optional: true })`): the one deployment that ships this page builds
+  the site against the old API, which has no row yet. Every other page read stays strict.
+- **Four mobile tabs stack icon above label** at 11px; side by side they truncated at
+  375px. The profile pill's name waits for `xl` for the same reason on desktop: with a
+  fourth link it pushed the signed-in bar past 1024px.
 
 ## Selectors page (`components/selectors/`)
 

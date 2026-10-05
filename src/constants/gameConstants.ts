@@ -359,4 +359,8 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 
 	prediction_factor: 0.664,
 	game_event_end_buffer_days: GAME_EVENT_END_DATE_BUFFER_DAYS,
+
+	daily_legend_race_piece_goal: 150,
+	daily_legend_race_event_pieces: 80,
+	daily_legend_race_pieces_per_day: 1,
 }

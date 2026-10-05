@@ -21,11 +21,11 @@
 /**
  * What a link points at.
  *
- * `id` is the SOURCE ROW's primary key — a `BannerTimeline`, a `Scenario` or an
- * `AnniversaryEvent` — never a rendered row's index or React key, both of which
- * shift as the list is filtered.
+ * `id` is the SOURCE ROW's primary key — a `BannerTimeline`, a `Scenario`, an
+ * `AnniversaryEvent` or a `DailyLegendRaceRelease` — never a rendered row's
+ * index or React key, both of which shift as the list is filtered.
  *
- * `kind` deliberately mirrors `TimelineMarker["kind"]` for the two marker
+ * `kind` deliberately mirrors `TimelineMarker["kind"]` for the marker
  * cases, so neither surface needs a translation table: a marker of kind
  * "scenario" focuses a focus of kind "scenario".
  *
@@ -36,7 +36,7 @@
  * identifies a card from any of them.
  */
 export interface TimelineFocus {
-	kind: "banner" | "scenario" | "anniversary"
+	kind: "banner" | "scenario" | "anniversary" | "legend_race"
 	id: number
 }
 
@@ -70,7 +70,12 @@ export function parseTimelineFocus(raw: string | null | undefined): TimelineFocu
 	if (separator <= 0) return null
 
 	const kind = raw.slice(0, separator)
-	if (kind !== "banner" && kind !== "scenario" && kind !== "anniversary") return null
+	if (
+		kind !== "banner" &&
+		kind !== "scenario" &&
+		kind !== "anniversary" &&
+		kind !== "legend_race"
+	) return null
 
 	// Number() rather than parseInt: parseInt("12abc") is 12, which would send a
 	// reader to a card the URL never named. The positivity check is doing real

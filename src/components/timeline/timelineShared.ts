@@ -11,6 +11,7 @@ import type { RefObject } from "react"
 import { differenceInCalendarDays } from "date-fns"
 import { parseApiDate } from "../../utils/dateFormat"
 import { startOfUtcDay } from "../../utils/utcDates"
+import { datedReleases, legendRacesReleaseHref } from "../../utils/dailyLegendRaces"
 import { isRaceEvent } from "../../types"
 import type { TimelineFocus } from "../../utils/timelineFocus"
 import type {
@@ -18,6 +19,7 @@ import type {
 	AttachedAnniversaryEvent,
 	BannerCategory,
 	BannerTimelineForViewing,
+	DailyLegendRaceRelease,
 	RaceEvent,
 	Scenario,
 	TimelineEvent,
@@ -88,10 +90,16 @@ export const CATEGORY_ORDER: BannerCategory[] = [
 export const MARKER_LABELS: Record<TimelineMarker["kind"], string> = {
 	scenario: "Scenarios",
 	anniversary: "Campaigns",
+	legend_race: "Legend races",
 }
 
-/** Filter order, matching how the two kinds sort against each other. */
-export const MARKER_ORDER: TimelineMarker["kind"][] = ["scenario", "anniversary"]
+/**
+ * Filter order, and the order the kinds sort in when two land at the same
+ * instant (buildMarkerRows). Scenario before campaign is what lets
+ * pairSameDayMarkers find its pairs among neighbours, so a new kind goes
+ * AFTER both, never between them.
+ */
+export const MARKER_ORDER: TimelineMarker["kind"][] = ["scenario", "anniversary", "legend_race"]
 
 /**
  * Banners that open at the same moment, presented as one timeline card.
@@ -152,8 +160,9 @@ export type TimelineRow =
 	| { kind: "marker_pair"; scenario: TimelineMarker; anniversary: TimelineMarker }
 
 /**
- * A scenario launch or a campaign opening, rendered as its own card in the
- * stream rather than attached to a banner.
+ * A scenario launch, a campaign opening or a batch of umas joining the daily
+ * legend races, rendered as its own card in the stream rather than attached
+ * to a banner.
  *
  * A FRONTEND row kind, not a backend union member, and deliberately so:
  * `organizedTimelineData` narrows on the backend's `event_type` tag, but
@@ -161,15 +170,14 @@ export type TimelineRow =
  * campaign kind — anniversary / new_year / campaign). Tagging these server-side
  * would collide with a shipped field.
  *
- * `endDate` is null for a scenario and only a scenario: a scenario is released
- * and then stays available permanently, so it is a single dated instant with
- * nothing to close. Branch on that rather than on `kind` when deciding whether
- * to render a range.
+ * `endDate` is null for a scenario and a legend race batch: both arrive and
+ * then stay, so each is a single dated instant with nothing to close. Branch
+ * on that rather than on `kind` when deciding whether to render a range.
  */
 export interface TimelineMarker {
 	/** Collision-proof across kinds; see timelineRowKey. */
 	key: string
-	kind: "scenario" | "anniversary"
+	kind: "scenario" | "anniversary" | "legend_race"
 	/**
 	 * The Scenario / AnniversaryEvent primary key this was built from.
 	 *
@@ -185,11 +193,15 @@ export interface TimelineMarker {
 	 * anniversary rather than on the Part 1 run-up that opens the campaign.
 	 */
 	startDate: string
-	/** Null for scenarios — they have no end. */
+	/** Null for scenarios and legend race batches — they have no end. */
 	endDate: string | null
 	/** Often null: art routinely lands after the row does. */
 	image: string | null
 	isPredicted: boolean
+	/** An extra line under the date, e.g. "11 umas join the daily races". */
+	detail?: string
+	/** Where the card's "see more" link goes, when the kind has a page of its own. */
+	link?: { to: string; label: string }
 }
 
 /**
@@ -474,15 +486,21 @@ export function formatStepUpChip(
 }
 
 /**
- * Turn scenarios and campaigns into timeline markers, dropping the undated.
+ * Turn scenarios, campaigns and legend race batches into timeline markers,
+ * dropping the undated.
  *
  * Undated is a normal state, not an error: a scenario with no launch banner
- * yet, or a campaign with no linked parts, has nothing to sort by and so has no
- * place in a chronological list.
+ * yet, a campaign with no linked parts, or a batch entered before the
+ * timeline reaches it has nothing to sort by and so has no place in a
+ * chronological list.
+ *
+ * `legendRaces` defaults to none, so a caller with no batches to show passes
+ * nothing.
  */
 export function buildTimelineMarkers(
 	scenarios: Scenario[],
-	anniversaryEvents: AnniversaryEvent[]
+	anniversaryEvents: AnniversaryEvent[],
+	legendRaces: DailyLegendRaceRelease[] = []
 ): TimelineMarker[] {
 	const markers: TimelineMarker[] = []
 
@@ -526,6 +544,29 @@ export function buildTimelineMarkers(
 			endDate: event.end_date,
 			image: event.image,
 			isPredicted: event.is_predicted,
+		})
+	}
+
+	for (const release of datedReleases(legendRaces)) {
+		const count = release.umas.length
+		markers.push({
+			key: `dlr-${release.id}`,
+			kind: "legend_race",
+			sourceId: release.id,
+			name: release.name,
+			startDate: release.start_date,
+			// A batch arrives and stays, like a scenario.
+			endDate: null,
+			image: release.image,
+			isPredicted: release.is_predicted,
+			// No count at all for a batch whose umas aren't entered yet, rather
+			// than "0 umas", which would read as an empty batch.
+			detail:
+				count > 0
+					? `${count} ${count === 1 ? "uma joins" : "umas join"} the daily legend races`
+					: undefined,
+			// The other half of the page card's "See it on the Timeline".
+			link: { to: legendRacesReleaseHref(release.id), label: "See the umas" },
 		})
 	}
 
@@ -676,7 +717,10 @@ export function buildMarkerRows(markers: TimelineMarker[]): TimelineRow[] {
 		const byTime =
 			new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
 		if (byTime !== 0) return byTime
-		if (a.kind !== b.kind) return a.kind === "scenario" ? -1 : 1
+		// MARKER_ORDER, which keeps scenario before campaign (what pairing
+		// relies on) and puts any later kind after both.
+		const byKind = MARKER_ORDER.indexOf(a.kind) - MARKER_ORDER.indexOf(b.kind)
+		if (byKind !== 0) return byKind
 		return a.name.localeCompare(b.name)
 	})
 	return pairSameDayMarkers(sorted)
