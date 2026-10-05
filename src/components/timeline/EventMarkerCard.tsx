@@ -1,5 +1,4 @@
-import { Sparkles, Trophy } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Sparkles } from "lucide-react"
 import PredictedBadge from "../PredictedBadge"
 import { formatDate } from "../../utils/dateFormat"
 import { TIMELINE_FOCUS_HIGHLIGHT } from "./timelineShared"
@@ -7,11 +6,10 @@ import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
 import type { TimelineFocusProps, TimelineMarker } from "./timelineShared"
 
 /**
- * The timeline card for a scenario launch, a campaign opening or a batch of
- * umas joining the daily legend races — and the paired card for a scenario
- * and campaign arriving together (EventMarkerPairCard).
+ * The timeline card for a scenario launch or a campaign opening — and the
+ * paired card for the two arriving together (EventMarkerPairCard).
  *
- * One body for every kind, the way RaceEventCard serves Champions Meeting
+ * One body for both kinds, the way RaceEventCard serves Champions Meeting
  * and League of Heroes without ever branching on which it holds. The single
  * branch here is on whether the marker HAS an end date, not on its kind: a
  * scenario has none (it stays playable after release, so there is nothing to
@@ -42,13 +40,6 @@ const MARKER_CHROME: Record<
 		icon: Sparkles,
 		label: "Campaign",
 		accent: "border-gray-600 bg-gray-700/70 text-gray-200",
-	},
-	// Its own theme token (--color-legend-race in index.css), so the chip
-	// reads apart from the brand and the campaign grey on every theme.
-	legend_race: {
-		icon: Trophy,
-		label: "Daily legend races",
-		accent: "border-legend-race/50 bg-legend-race/15 text-legend-race",
 	},
 }
 
@@ -123,15 +114,6 @@ const EventMarkerBody = ({
 					? `${formatDate(marker.startDate)} through ${formatDate(marker.endDate)}`
 					// No end, and none is coming — see TimelineMarker.endDate.
 					: `Releases ${formatDate(marker.startDate)}`}
-				{marker.detail && <span className="block text-gray-400">{marker.detail}</span>}
-				{marker.link && (
-					<Link
-						to={marker.link.to}
-						className="mt-1 block w-fit text-brand transition hover:text-brand/75"
-					>
-						{marker.link.label}
-					</Link>
-				)}
 			</p>
 
 			{marker.image && (

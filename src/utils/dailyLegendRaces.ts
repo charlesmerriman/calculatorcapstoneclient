@@ -11,6 +11,7 @@
 
 import { differenceInCalendarDays } from "date-fns"
 import { addUtcDays } from "./utcDates"
+import { formatDate } from "./dateFormat"
 import type { DailyLegendRaceRelease, DailyLegendRaceUma } from "../types/dailyLegendRace"
 
 /** A release that has a date, which is the only kind the site shows. */
@@ -107,6 +108,29 @@ export function grindFinish({ start, now, held, goal, perDay }: GrindInput): Gri
 	return { days, finish: addUtcDays(from, days - 1) }
 }
 
+/** The three admin numbers the grind line is built from. */
+export interface GrindNumbers {
+	goal: number
+	eventPieces: number
+	perDay: number
+}
+
+/**
+ * "150 pieces by 2027/2/26 with the event's 80, or 2027/5/17 from zero."
+ *
+ * Every number comes from the API (the three grind constants), so an admin
+ * edit changes the sentence without a deploy. `start` is when racing can
+ * begin: the batch's date, or now for a batch already out.
+ */
+export function grindSummary(start: Date, now: Date, { goal, eventPieces, perDay }: GrindNumbers): string {
+	const withEvent = grindFinish({ start, now, held: eventPieces, goal, perDay })
+	const fromZero = grindFinish({ start, now, held: 0, goal, perDay })
+	const by = (finish: Date | null) => (finish ? formatDate(finish.toISOString()) : "")
+	// An event that already gave the whole goal leaves nothing to grind with it.
+	if (withEvent.finish === null) return `${goal} pieces by ${by(fromZero.finish)} from zero.`
+	return `${goal} pieces by ${by(withEvent.finish)} with the event's ${eventPieces}, or ${by(fromZero.finish)} from zero.`
+}
+
 /**
  * "today", "tomorrow" or "in 12 days", for a release that has not arrived.
  *
@@ -119,6 +143,20 @@ export function arrivalCountdown(start: Date, now: Date): string {
 	if (days <= 0) return "today"
 	if (days === 1) return "tomorrow"
 	return `in ${days} days`
+}
+
+/**
+ * Dated releases by the banner they arrive with, for the Timeline, which
+ * shows each one as a note on that banner's card. A release with no banner
+ * is undated anyway, so `datedReleases` has already dropped it.
+ */
+export function legendRacesByBanner(releases: DailyLegendRaceRelease[]): Map<number, DatedRelease[]> {
+	const byBanner = new Map<number, DatedRelease[]>()
+	for (const release of datedReleases(releases)) {
+		if (release.banner_timeline == null) continue
+		byBanner.set(release.banner_timeline, [...(byBanner.get(release.banner_timeline) ?? []), release])
+	}
+	return byBanner
 }
 
 /** Which dated release each uma joins, by uma id. For the oshi strip. */
@@ -134,8 +172,8 @@ export function releaseByUmaId(releases: DatedRelease[]): Map<number, DatedRelea
 export const LEGEND_RACES_PATH = "/app/legend-races"
 
 /**
- * The query parameter naming one release card, for the Timeline marker's
- * "See the umas" link. A parameter and not a `#hash` for the reason given in
+ * The query parameter naming one release card, for the Timeline note's
+ * link. A parameter and not a `#hash` for the reason given in
  * utils/selectorsFocus.ts: the browser acts on a hash only for a document it
  * is loading, and this is a client-side route change. One kind of target, so
  * no kind prefix (the same call selectorsFocus makes).

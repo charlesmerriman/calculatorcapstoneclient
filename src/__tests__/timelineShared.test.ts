@@ -19,7 +19,6 @@ import type {
   AnniversaryEvent,
   BannerTimelineForViewing,
   ChampionsMeeting,
-  DailyLegendRaceRelease,
   Scenario,
   TimelineEvent,
 } from '../types'
@@ -537,51 +536,6 @@ describe('buildTimelineMarkers', () => {
     )
     expect(markers.map((m) => m.key)).toEqual(['sce-1', 'ann-1'])
   })
-
-  const release = (
-    id: number,
-    start: string | null,
-    umaCount: number,
-  ): DailyLegendRaceRelease => ({
-    id,
-    name: `Release ${id}`,
-    image: null,
-    start_date: start,
-    is_predicted: true,
-    applied_offset_days: 0,
-    umas: Array.from({ length: umaCount }, (_, index) => ({
-      id: id * 100 + index,
-      name: `Uma ${index}`,
-      image: null,
-      rarity: 3 as const,
-    })),
-  })
-
-  it('turns a legend race batch into an endless marker that links to its card', () => {
-    const [marker] = buildTimelineMarkers([], [], [release(4, '2026-12-22T22:00:00Z', 11)])
-
-    expect(marker).toMatchObject({
-      key: 'dlr-4',
-      kind: 'legend_race',
-      sourceId: 4,
-      startDate: '2026-12-22T22:00:00Z',
-      endDate: null,
-      isPredicted: true,
-      detail: '11 umas join the daily legend races',
-      link: { to: '/app/legend-races?release=4', label: 'See the umas' },
-    })
-  })
-
-  it('drops an undated batch, and says nothing about umas a batch has none of yet', () => {
-    const markers = buildTimelineMarkers(
-      [],
-      [],
-      [release(1, null, 3), release(2, '2027-01-01T00:00:00Z', 0), release(3, '2027-02-01T00:00:00Z', 1)],
-    )
-    expect(markers.map((m) => m.key)).toEqual(['dlr-2', 'dlr-3'])
-    expect(markers[0].detail).toBeUndefined()
-    expect(markers[1].detail).toBe('1 uma joins the daily legend races')
-  })
 })
 
 describe('mergeTimelineMarkers', () => {
@@ -701,15 +655,6 @@ describe('mergeTimelineMarkers', () => {
     expect(markerRowMatchesSearch(pair, 'anniversary')).toBe(true)
     expect(markerRowMatchesSearch(pair, 'mecha')).toBe(false)
     expect(timelineRowKey(pair)).toBe('sce-1+ann-1')
-  })
-
-  it('sorts a legend race after both other kinds at one instant, so the pair still forms', () => {
-    const rows = buildMarkerRows([
-      marker('dlr-1', 'legend_race', 'A batch', '2028-03-01T00:00:00Z'),
-      marker('ann-1', 'anniversary', 'Campaign', '2028-03-01T00:00:00Z'),
-      marker('sce-1', 'scenario', 'Scenario', '2028-03-01T00:00:00Z'),
-    ])
-    expect(rows.map(timelineRowKey)).toEqual(['sce-1+ann-1', 'dlr-1'])
   })
 
   it('keys a pair on both halves so it never collides with a lone marker', () => {

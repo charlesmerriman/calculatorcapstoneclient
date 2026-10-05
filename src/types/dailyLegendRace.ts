@@ -27,8 +27,14 @@ export interface DailyLegendRaceRelease {
 	id: number
 	/** "2nd Anniversary" */
 	name: string
-	/** Optional art. Without it the Timeline marker collapses to chip + name + date. */
+	/** Optional art. Not shown anywhere yet. */
 	image: string | null
+	/**
+	 * The banner this batch arrives with, as a bare id (null until an editor
+	 * links one). The Timeline puts the batch on that banner's card. Optional
+	 * because the API sent no such key before api #88.
+	 */
+	banner_timeline?: number | null
 	/**
 	 * The banner's resolved start plus the release's own day offset, or null
 	 * when the release has no banner yet. A null release is not on the site:

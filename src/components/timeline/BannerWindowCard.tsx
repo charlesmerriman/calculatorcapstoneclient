@@ -18,6 +18,8 @@ import type { BannerKey } from "../../utils/bannerHelpers"
 import { formatDate } from "../../utils/dateFormat"
 import { BannerArtPlaceholder } from "./BannerArtPlaceholder"
 import { AnniversaryEventStrip } from "./AnniversaryEventStrip"
+import { LegendRaceNote } from "./LegendRaceNote"
+import type { DatedRelease } from "../../utils/dailyLegendRaces"
 import {
 	CATEGORY_LABELS,
 	TIMELINE_FOCUS_HIGHLIGHT,
@@ -921,6 +923,8 @@ type BannerWindowCardProps = {
 	plannedBannerKeys: Set<BannerKey>
 	stagedBanners: UserPlannedBanner[]
 	onAddBanner: (banner: BannerUma | BannerSupport, type: "Uma" | "Support") => void
+	/** Daily legend race batches arriving with a banner in this window. */
+	legendRaces?: DatedRelease[]
 } & TimelineFocusProps
 
 export function BannerWindowCard({
@@ -929,6 +933,7 @@ export function BannerWindowCard({
 	plannedBannerKeys,
 	stagedBanners,
 	onAddBanner,
+	legendRaces = [],
 	focusRef,
 	isFocused = false,
 }: BannerWindowCardProps) {
@@ -1008,6 +1013,13 @@ export function BannerWindowCard({
 						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
+						{legendRaces.map((release) => (
+							<LegendRaceNote
+								key={release.id}
+								release={release}
+								windowStartDate={group.start_date}
+							/>
+						))}
 						{staggerNotes.map(({ text, icon: NoteIcon }) => (
 							<div
 								key={text}

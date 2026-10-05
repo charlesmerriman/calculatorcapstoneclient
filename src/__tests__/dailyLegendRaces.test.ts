@@ -3,6 +3,7 @@ import {
   arrivalCountdown,
   datedReleases,
   grindFinish,
+  legendRacesByBanner,
   rarityGroups,
   releaseByUmaId,
   splitByToday,
@@ -153,5 +154,18 @@ describe('releaseByUmaId', () => {
     expect(byUma.get(11)?.id).toBe(1)
     expect(byUma.get(12)?.id).toBe(2)
     expect(byUma.has(99)).toBe(false)
+  })
+})
+
+describe('legendRacesByBanner', () => {
+  it('keys dated releases by their banner and skips the undated', () => {
+    const linked = { ...release(1, '2026-12-22T22:00:00Z'), banner_timeline: 75 }
+    const unlinked = { ...release(2, null), banner_timeline: null }
+    // An API from before the banner id was sent: dated, but nowhere to put it.
+    const oldShape = release(3, '2027-01-01T00:00:00Z')
+    const byBanner = legendRacesByBanner([linked, unlinked, oldShape])
+
+    expect([...byBanner.keys()]).toEqual([75])
+    expect(byBanner.get(75)?.map((r) => r.id)).toEqual([1])
   })
 })

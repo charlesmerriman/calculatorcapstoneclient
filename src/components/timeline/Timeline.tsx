@@ -38,6 +38,7 @@ import type { TimelineFocusProps, TimelineMarker, TimelineRow } from "./timeline
 import { FOCUS_TAILROOM, useFocusScroll } from "../../hooks/useFocusScroll"
 import { useBackToTop } from "../../hooks/useBackToTop"
 import { TIMELINE_FOCUS_PARAM, parseTimelineFocus } from "../../utils/timelineFocus"
+import { legendRacesByBanner } from "../../utils/dailyLegendRaces"
 import { isRaceEvent } from "../../types"
 import type {
 	BannerCategory,
@@ -362,18 +363,12 @@ export const Timeline = () => {
 			const scenario = scenarioData.find((candidate) => candidate.id === focus.id)
 			return scenario?.start_date ? new Date(scenario.start_date) < today : null
 		}
-		// A legend race batch has no end either, so it is past once it has
-		// arrived, exactly like a scenario.
-		if (focus.kind === "legend_race") {
-			const release = dailyLegendRaceData.find((candidate) => candidate.id === focus.id)
-			return release?.start_date ? new Date(release.start_date) < today : null
-		}
 		const event = anniversaryEventData.find((candidate) => candidate.id === focus.id)
 		// main_start_date ?? start_date — where the campaign actually lands, the
 		// same instant buildTimelineMarkers sorts its card on.
 		const startDate = event ? event.main_start_date ?? event.start_date : null
 		return startDate ? new Date(startDate) < today : null
-	}, [focus, organizedTimelineData, scenarioData, anniversaryEventData, dailyLegendRaceData, today])
+	}, [focus, organizedTimelineData, scenarioData, anniversaryEventData, today])
 
 	// The user's choice wins; failing that a deep link picks the half its target
 	// lives in; failing that, the future.
@@ -387,6 +382,13 @@ export const Timeline = () => {
 		userPlannedBannerData
 			.map(plannedBannerKey)
 			.filter((key): key is BannerKey => key !== null)
+	)
+
+	// Daily legend race batches by the banner they arrive with. Each shows as a
+	// note on that banner's card rather than as a card of its own.
+	const legendRacesForBanner = useMemo(
+		() => legendRacesByBanner(dailyLegendRaceData),
+		[dailyLegendRaceData]
 	)
 
 	// Banners nested inside BannerTimelineForViewing have banner_timeline omitted by the API serializer.
@@ -445,7 +447,7 @@ export const Timeline = () => {
 		// filter is lifted. See rowMarkers.
 		const matchingMarkerRows = (): TimelineRow[] => {
 			const query = searchQuery.toLowerCase()
-			return buildMarkerRows(buildTimelineMarkers(scenarioData, anniversaryEventData, dailyLegendRaceData))
+			return buildMarkerRows(buildTimelineMarkers(scenarioData, anniversaryEventData))
 				.filter((row) =>
 					showPast
 						? timelineRowStart(row) < today.getTime()
@@ -523,7 +525,6 @@ export const Timeline = () => {
 		organizedTimelineData,
 		scenarioData,
 		anniversaryEventData,
-		dailyLegendRaceData,
 		showPast,
 		searchQuery,
 		eventFilter,
@@ -570,11 +571,11 @@ export const Timeline = () => {
 	// list it filters drift apart.
 	const availableMarkerKinds = useMemo(() => {
 		const present = new Set<TimelineMarker["kind"]>()
-		for (const marker of buildTimelineMarkers(scenarioData, anniversaryEventData, dailyLegendRaceData)) {
+		for (const marker of buildTimelineMarkers(scenarioData, anniversaryEventData)) {
 			present.add(marker.kind)
 		}
 		return MARKER_ORDER.filter((kind) => present.has(kind))
-	}, [scenarioData, anniversaryEventData, dailyLegendRaceData])
+	}, [scenarioData, anniversaryEventData])
 
 	/**
 	 * Where the row the list is anchored on ended up, once filtering, grouping and
@@ -1070,6 +1071,9 @@ export const Timeline = () => {
 							plannedBannerKeys={plannedBannerKeys}
 							stagedBanners={stagedBanners}
 							onAddBanner={handleAddBanner}
+							legendRaces={row.group.banners.flatMap(
+								(banner) => legendRacesForBanner.get(banner.id) ?? []
+							)}
 							{...focusProps}
 						/>
 					)

@@ -182,8 +182,8 @@
 	--color-step-up: #c4b5fd;
 	--color-step-up-border: #c084fc;
 
-	/* Daily legend races: the Timeline marker chip and the page's arrival
-	   countdown. Orange so it reads apart from the brand on every theme (one of
+	/* Daily legend races: the pill on a Timeline banner card and the page's
+	   arrival countdown. Orange so it reads apart from the brand on every theme (one of
 	   which is teal, one violet), from the staging amber and from the
 	   recommended gold. */
 	--color-legend-race: #fdba74;

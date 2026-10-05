@@ -11,14 +11,14 @@ import {
 	LEGEND_RACES_RELEASE_PARAM,
 	arrivalCountdown,
 	datedReleases,
+	grindSummary,
 	legendRacesReleaseHref,
 	parseReleaseFocus,
 	releaseByUmaId,
 	splitByToday,
 } from "../../utils/dailyLegendRaces"
-import type { DatedRelease } from "../../utils/dailyLegendRaces"
+import type { DatedRelease, GrindNumbers } from "../../utils/dailyLegendRaces"
 import { LegendRaceReleaseCard } from "./LegendRaceReleaseCard"
-import type { GrindNumbers } from "./LegendRaceReleaseCard"
 
 /** The heading while the page's admin row has not loaded. Mirrors the seed's title. */
 const FALLBACK_TITLE = "Daily Legend Races"
@@ -218,7 +218,12 @@ export const DailyLegendRaces = () => {
 					</h2>
 					{availableOpen &&
 						(shownAvailable.length > 0 ? (
-							shownAvailable.map((release) => renderCard(release, true))
+							<>
+								{/* Said once: from today the grind is the same for every
+								    batch already out, so a line per card would repeat it. */}
+								<p className="text-sm text-gray-400">Starting today: {grindSummary(now, now, numbers)}</p>
+								{shownAvailable.map((release) => renderCard(release, true))}
+							</>
 						) : (
 							<p className="text-sm text-gray-500">No batch already out has an uma by that name.</p>
 						))}

@@ -23,6 +23,7 @@ const OUT = {
   id: 1,
   name: '1st Anniversary',
   image: null,
+  banner_timeline: 38,
   start_date: '2020-03-26T22:00:00Z',
   is_predicted: false,
   applied_offset_days: 0,
@@ -33,6 +34,7 @@ const NEXT = {
   id: 2,
   name: '2nd Anniversary',
   image: null,
+  banner_timeline: 75,
   start_date: '2099-12-22T22:00:00Z',
   is_predicted: true,
   applied_offset_days: 0,
@@ -43,6 +45,7 @@ const LATER = {
   id: 3,
   name: '2.5th Anniversary',
   image: null,
+  banner_timeline: 90,
   start_date: '2100-04-14T22:00:00Z',
   is_predicted: true,
   applied_offset_days: 0,
@@ -65,6 +68,7 @@ vi.mock('../services/AuthContext', () => ({
 }))
 
 const { DailyLegendRaces } = await import('../components/legend-races/DailyLegendRaces')
+const { LegendRaceNote } = await import('../components/timeline/LegendRaceNote')
 
 const CONTENT: SiteContent = {
   pages: [
@@ -137,6 +141,12 @@ describe('DailyLegendRaces', () => {
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('heading', { level: 3, name: '1st Anniversary' })).toBeInTheDocument()
+    // From today the grind is the same for every batch already out, so it is
+    // said once above them, not on each card.
+    expect(screen.getAllByText(/^Starting today: 150 pieces by/)).toHaveLength(1)
+    expect(
+      within(screen.getByRole('region', { name: '1st Anniversary' })).queryByText(/pieces by/)
+    ).not.toBeInTheDocument()
   })
 
   it('builds the grind line from the admin numbers', () => {
@@ -144,7 +154,9 @@ describe('DailyLegendRaces', () => {
     renderPage()
 
     const card = screen.getByRole('region', { name: '2nd Anniversary' })
-    expect(within(card).getByText(/To get one uma to 140 pieces from the day they arrive: 60 days/)).toBeInTheDocument()
+    expect(
+      within(card).getByText(/^140 pieces by \S+ with the event's 80, or \S+ from zero\.$/)
+    ).toBeInTheDocument()
   })
 
   it('search hides a batch with no matching uma and opens the list already out', () => {
@@ -196,12 +208,12 @@ describe('DailyLegendRaces', () => {
     expect(scrollIntoView).toHaveBeenCalled()
   })
 
-  it('links each card to its Timeline marker', () => {
+  it("links each card to its banner's card on the Timeline", () => {
     renderPage()
     const card = screen.getByRole('region', { name: '2nd Anniversary' })
-    expect(within(card).getByRole('link', { name: 'See it on the Timeline' })).toHaveAttribute(
+    expect(within(card).getByRole('link', { name: 'On the Timeline' })).toHaveAttribute(
       'href',
-      '/app/timeline?focus=legend_race-2'
+      '/app/timeline?focus=banner-75'
     )
   })
 
@@ -211,5 +223,30 @@ describe('DailyLegendRaces', () => {
 
     expect(screen.getByText(/No batches are scheduled yet/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Already in the daily races/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('LegendRaceNote (on a Timeline banner card)', () => {
+  const renderNote = (windowStartDate: string) =>
+    render(
+      <MemoryRouter>
+        <LegendRaceNote release={NEXT} windowStartDate={windowStartDate} />
+      </MemoryRouter>
+    )
+
+  it('counts the umas and links to the batch on the Legend Races tab', () => {
+    renderNote(NEXT.start_date)
+    const link = screen.getByRole('link', { name: /2 umas join daily legend races/ })
+    expect(link).toHaveAttribute('href', '/app/legend-races?release=2')
+  })
+
+  it("names the date only when it differs from the window's", () => {
+    renderNote(NEXT.start_date)
+    expect(screen.getByRole('link').textContent).toBe('2 umas join daily legend races')
+  })
+
+  it('adds the date for a batch that lands after its banner opens', () => {
+    renderNote('2099-12-19T22:00:00Z')
+    expect(screen.getByRole('link').textContent).toMatch(/^2 umas join daily legend races \d{4}\/\d+\/\d+$/)
   })
 })

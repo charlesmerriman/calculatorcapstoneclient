@@ -51,9 +51,6 @@ describe('parseTimelineFocus', () => {
       { kind: 'banner' as const, id: 812 },
       { kind: 'scenario' as const, id: 4 },
       { kind: 'anniversary' as const, id: 17 },
-      // The underscore is inside the kind, and the parser splits on the LAST
-      // dash, so it survives.
-      { kind: 'legend_race' as const, id: 4 },
     ]) {
       expect(parseTimelineFocus(formatTimelineFocus(focus))).toEqual(focus)
     }

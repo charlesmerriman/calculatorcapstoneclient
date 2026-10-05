@@ -4,26 +4,16 @@ import PredictedBadge from "../PredictedBadge"
 import { FOCUS_SCROLL_MARGIN } from "../../hooks/useFocusScroll"
 import { formatDate } from "../../utils/dateFormat"
 import { timelineFocusHref } from "../../utils/timelineFocus"
-import { arrivalCountdown, grindFinish, rarityGroups } from "../../utils/dailyLegendRaces"
-import type { DatedRelease } from "../../utils/dailyLegendRaces"
+import { arrivalCountdown, grindSummary, rarityGroups } from "../../utils/dailyLegendRaces"
+import type { DatedRelease, GrindNumbers } from "../../utils/dailyLegendRaces"
 import type { DailyLegendRaceUma } from "../../types"
-
-/** The three admin numbers the grind line is built from. */
-export interface GrindNumbers {
-	goal: number
-	eventPieces: number
-	perDay: number
-}
 
 const STARS: Record<1 | 2 | 3, string> = { 1: "★", 2: "★★", 3: "★★★" }
 
 /**
- * One uma: her card art with her name under it.
- *
- * The name is visible rather than left to alt text, because the point of the
- * page is "is MY uma in this batch", and card art alone makes a reader
- * recognise every outfit by sight. Clamped to two lines so a long outfit name
- * ("Sakura Bakushin O (Sports Festival)") cannot stretch its row.
+ * One uma: her card art with her name under it, clamped to two lines so a
+ * long outfit name cannot stretch its row. The name is visible because the
+ * point of the page is "is MY uma in this batch".
  */
 const UmaTile = ({ uma, isOshi }: { uma: DailyLegendRaceUma; isOshi: boolean }) => (
 	<li className="flex min-w-0 flex-col items-center gap-1">
@@ -50,39 +40,10 @@ const UmaTile = ({ uma, isOshi }: { uma: DailyLegendRaceUma; isOshi: boolean }) 
 )
 
 /**
- * The "how long" line under a batch.
- *
- * Every number comes from the API (the three grind constants), so an admin
- * edit changes the sentence without a deploy. A batch already out counts from
- * today, because that is the soonest a player can start.
- */
-function grindLine(release: DatedRelease, now: Date, numbers: GrindNumbers, isAvailable: boolean): string {
-	const start = new Date(release.start_date)
-	const { goal, eventPieces, perDay } = numbers
-	const withEvent = grindFinish({ start, now, held: eventPieces, goal, perDay })
-	const fromZero = grindFinish({ start, now, held: 0, goal, perDay })
-	const when = isAvailable ? "starting today" : "from the day they arrive"
-	const done = (finish: Date | null) => (finish ? ` (done ${formatDate(finish.toISOString())})` : "")
-
-	const fromZeroPart = `${fromZero.days} days from zero${done(fromZero.finish)}`
-	// An event that already gave the whole goal leaves nothing to grind, so
-	// that half of the sentence is dropped rather than reading "0 days".
-	if (withEvent.days === 0) {
-		return `To get one uma to ${goal} pieces ${when}: ${fromZeroPart}. The ${eventPieces} from their original event already covers it.`
-	}
-	return (
-		`To get one uma to ${goal} pieces ${when}: ${withEvent.days} days if you have ` +
-		`the ${eventPieces} from their original event${done(withEvent.finish)}, or ${fromZeroPart}.`
-	)
-}
-
-/**
- * One batch of umas joining the daily legend races.
- *
- * The heading says when, the tiles say who (grouped ★3 / ★2 / ★1, only the
- * groups the batch has), and the last line says how long. "See it on the
- * Timeline" is one half of a two-way link: the Timeline's marker for this
- * batch links back here.
+ * One batch of umas joining the daily legend races: the name and date on one
+ * line, the umas grouped ★3 / ★2 / ★1, and (for a batch still to come) one
+ * line on how long the grind takes. A batch already out has no grind line of
+ * its own: from today it is the same for every one, so the page says it once.
  */
 export const LegendRaceReleaseCard = ({
 	release,
@@ -116,24 +77,22 @@ export const LegendRaceReleaseCard = ({
 				<h3 id={headingId} className="text-lg font-bold text-gray-100">
 					{release.name}
 				</h3>
+				<span className="text-sm text-gray-400">{formatDate(release.start_date)}</span>
 				{release.is_predicted && <PredictedBadge />}
 				{!isAvailable && (
 					<span className="rounded-full border border-legend-race/50 bg-legend-race/15 px-2.5 py-0.5 text-xs font-semibold text-legend-race">
 						{arrivalCountdown(start, now)}
 					</span>
 				)}
+				{release.banner_timeline != null && (
+					<Link
+						to={timelineFocusHref({ kind: "banner", id: release.banner_timeline })}
+						className="ml-auto text-sm text-brand transition hover:text-brand/75"
+					>
+						On the Timeline
+					</Link>
+				)}
 			</div>
-			<p className="mt-1 text-sm text-gray-300">
-				{isAvailable ? "In the daily races since " : "Joins the daily races "}
-				{formatDate(release.start_date)}
-				<span aria-hidden="true"> · </span>
-				<Link
-					to={timelineFocusHref({ kind: "legend_race", id: release.id })}
-					className="text-brand transition hover:text-brand/75"
-				>
-					See it on the Timeline
-				</Link>
-			</p>
 
 			{release.umas.length > 0 && (
 				<div className="mt-3 flex flex-col gap-3">
@@ -153,7 +112,9 @@ export const LegendRaceReleaseCard = ({
 				</div>
 			)}
 
-			<p className="mt-3 text-sm text-gray-400">{grindLine(release, now, numbers, isAvailable)}</p>
+			{!isAvailable && (
+				<p className="mt-3 text-sm text-gray-400">{grindSummary(start, now, numbers)}</p>
+			)}
 		</section>
 	)
 }
