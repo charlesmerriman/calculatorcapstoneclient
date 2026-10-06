@@ -43,6 +43,8 @@ import type {
 	PlannableBanner,
 } from "../../utils/bannerHelpers"
 import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
+import { calculateCopyDistribution } from "../../utils/probabilityCalculations"
+import { rowRateUpRate } from "../../utils/rateUpRates"
 import {
 	effectiveSelections,
 	findGuaranteedCardArt,
@@ -437,14 +439,19 @@ export const BannerRow = ({
 			</>
 		)
 
-	// A step-up's odds run on steps x 10 pulls at the pool rate, 1-in-10 slots
-	// on steps 3 and 4, and a guaranteed pick on step 5 — none of which the
-	// standard binomial over `pulls` would get right. Built from chargeableSteps
-	// rather than the raw input so the odds and the carat deduction agree about
-	// how many steps happened. See stepUpCopyDistribution.
-	const stepUpOdds = isStepUp
-		? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
-		: undefined
+	// The odds strip's distribution. A step-up's run on steps x 10 pulls at the
+	// pool rate, 1-in-10 slots on steps 3 and 4, and a guaranteed pick on step
+	// 5 — none of which the standard binomial over `pulls` would get right.
+	// Built from chargeableSteps rather than the raw input so the odds and the
+	// carat deduction agree about how many steps happened. See
+	// stepUpCopyDistribution. An ordinary banner's runs at its rate-up card's
+	// own rate, which is 0.75% only on a typical banner (utils/rateUpRates.ts).
+	const odds =
+		target.type === "StepUp"
+			? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
+			: target.type === "Empty"
+				? null
+				: calculateCopyDistribution(plannedCount, rowRateUpRate(target, constants))
 
 	// Which options get the gold wash. An option already in the calculator keeps
 	// its greying instead: it is no longer a suggestion.
@@ -645,8 +652,8 @@ export const BannerRow = ({
 				{derivedStats.slice(0, 3).map(mobileStatCell)}
 			</div>
 			<div className="border-t border-gray-700">
-				{hasBanner ? (
-					<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
+				{odds ? (
+					<MLBChanceDisplay plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={odds} />
 				) : (
 					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
 				)}
@@ -926,12 +933,11 @@ export const BannerRow = ({
 
 			{/* === MLB chance grid === */}
 			<div className="flex items-center justify-center py-2 px-2 min-w-0">
-				{hasBanner ? (
+				{odds ? (
 					<MLBChanceDisplay
-						pulls={plannedCount}
 						plannedBanner={plannedBanner}
 						reservedCopies={fundedReservedCopies}
-						distribution={stepUpOdds}
+						distribution={odds}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>

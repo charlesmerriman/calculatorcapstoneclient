@@ -223,7 +223,7 @@ export function stepUpPulls(
  *   - the planned number is steps, ten pulls each. Reading it as pulls
  *     understates a 5-step plan by a factor of ten.
  *   - ordinary pulls roll the ~3% pool split across ten selected cards, not
- *     the 0.75% single-featured rate.
+ *     an ordinary banner's rate-up rate (0.75% on a typical one).
  *   - steps 3 and 4 each add a 1-in-10 chance, from their guaranteed card.
  *   - step 5 guarantees a copy each completed round, not one per 200 pulls.
  *

@@ -1,12 +1,4 @@
 /**
- * Per-pull chance of a standard banner's single featured card. Step-up banners
- * run at their own, much lower rate (the ~3% pool rate split ten ways), which
- * is why the binomial below takes a rate rather than closing over this one.
- */
-const SINGLE_ATTEMPT_SUCCESS_RATE = 0.75
-const SUCCESS_RATE_DECIMAL = SINGLE_ATTEMPT_SUCCESS_RATE / 100
-
-/**
  * Pulls required to earn one guaranteed copy from the pity exchange.
  *
  * Exported because the UI also keys off it: a planned pull count that lands
@@ -42,7 +34,7 @@ export interface AttemptGroup {
 export interface CopyDistributionInput {
 	/**
 	 * The random attempts, grouped by their chance. A standard banner has one
-	 * group: its pulls at 0.75%. A step-up has two, because its step 3 and 4
+	 * group: its pulls at the chased card's rate-up rate. A step-up has two, because its step 3 and 4
 	 * guaranteed slots land on the chased card at 1 in 10, far more often than
 	 * an ordinary pull does. See stepUpLadder.ts.
 	 */
@@ -120,18 +112,19 @@ export function getGuaranteedCopies(pulls: number): number {
 
 /**
  * Probability (0-100) of finishing a STANDARD banner with at least
- * `copiesNeeded` copies. Thin wrapper fixing the featured rate and pity.
+ * `copiesNeeded` copies, at `rate` per pull with pity every 200 pulls.
+ *
+ * `rate` is the chased card's rate-up rate as a decimal, from
+ * utils/rateUpRates.ts. It is a parameter, never a module constant, because
+ * it varies by banner and the numbers behind it come from the API.
  */
 export function calculateSuccessProbability(
 	pulls: number,
-	copiesNeeded: number
+	copiesNeeded: number,
+	rate: number
 ): number {
 	return getAtLeastProbability(
-		{
-			trials: pulls,
-			rate: SUCCESS_RATE_DECIMAL,
-			guaranteed: getGuaranteedCopies(pulls),
-		},
+		{ trials: pulls, rate, guaranteed: getGuaranteedCopies(pulls) },
 		copiesNeeded
 	)
 }
@@ -218,12 +211,13 @@ export function copyDistribution({
 }
 
 /**
- * The copy distribution for a STANDARD banner at `pulls` pulls: the featured
- * card's 0.75% rate, with pity credited every 200 pulls.
+ * The copy distribution for a STANDARD banner at `pulls` pulls, at `rate` per
+ * pull (the chased card's rate-up rate; see utils/rateUpRates.ts), with pity
+ * credited every 200 pulls.
  */
-export function calculateCopyDistribution(pulls: number): number[] {
+export function calculateCopyDistribution(pulls: number, rate: number): number[] {
 	return copyDistribution({
-		attempts: [{ trials: pulls, rate: SUCCESS_RATE_DECIMAL }],
+		attempts: [{ trials: pulls, rate }],
 		guaranteed: getGuaranteedCopies(pulls),
 	})
 }
