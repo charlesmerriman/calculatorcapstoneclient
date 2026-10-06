@@ -4,6 +4,7 @@ import {
   MAX_COPIES,
   calculateCopyDistribution,
   calculateSuccessProbability,
+  copyDistribution,
   getGuaranteedCopies,
   shiftDistribution,
 } from '../utils/probabilityCalculations'
@@ -111,6 +112,55 @@ describe('calculateCopyDistribution', () => {
         calculateSuccessProbability(150, MAX_COPIES)
       )
     })
+  })
+})
+
+// ── copyDistribution with more than one group ─────────────────────────────────
+
+describe('copyDistribution', () => {
+  it('gives the same answer when one group is split in two at the same rate', () => {
+    // 300 pulls at 0.75% are 300 pulls however you batch them, so combining
+    // 120 + 180 has to reproduce the single binomial.
+    const whole = copyDistribution({
+      attempts: [{ trials: 300, rate: 0.0075 }],
+      guaranteed: 1,
+    })
+    const split = copyDistribution({
+      attempts: [
+        { trials: 120, rate: 0.0075 },
+        { trials: 180, rate: 0.0075 },
+      ],
+      guaranteed: 1,
+    })
+    split.forEach((percent, copies) => {
+      expect(percent).toBeCloseTo(whole[copies], 9)
+    })
+  })
+
+  it('treats a group with no trials as contributing nothing', () => {
+    const alone = copyDistribution({
+      attempts: [{ trials: 40, rate: 0.003 }],
+      guaranteed: 0,
+    })
+    const withEmpty = copyDistribution({
+      attempts: [
+        { trials: 40, rate: 0.003 },
+        { trials: 0, rate: 0.1 },
+      ],
+      guaranteed: 0,
+    })
+    expect(withEmpty).toEqual(alone)
+  })
+
+  it('still sums to 100 with two rates mixed', () => {
+    const odds = copyDistribution({
+      attempts: [
+        { trials: 94, rate: 0.003 },
+        { trials: 4, rate: 0.1 },
+      ],
+      guaranteed: 2,
+    })
+    expect(odds.reduce((sum, p) => sum + p, 0)).toBeCloseTo(100, 9)
   })
 })
 

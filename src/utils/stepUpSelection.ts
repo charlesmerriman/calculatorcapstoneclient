@@ -11,7 +11,8 @@ import type {
  * Pure slot bookkeeping, deliberately free of React so the rules can be tested
  * directly. NOTHING HERE FEEDS THE PROJECTION — the step-up target rate is
  * 3% / 10 and holds whichever ten are chosen, so none of these functions can
- * move a carat total. See utils/stepUpLadder.ts for the part that does.
+ * move a carat total or an odds figure. See utils/stepUpLadder.ts for the part
+ * that does.
  */
 
 /**
@@ -22,6 +23,10 @@ import type {
  * the odds wrong, which is why the projection reads the rate from the API and
  * never derives it from how many slots are actually filled. A partial selection
  * is an unfinished plan, not a narrower pool.
+ *
+ * The odds DO read this constant itself: steps 3 and 4 guarantee a random one
+ * of the ten, which is the chased card 1 / SELECTION_SLOTS of the time. That is
+ * still the slot COUNT, never the number filled. See stepUpCopyDistribution.
  */
 export const SELECTION_SLOTS = 10
 

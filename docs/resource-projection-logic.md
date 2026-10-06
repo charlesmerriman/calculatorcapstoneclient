@@ -334,23 +334,42 @@ unaffordable, it is impossible, so it is clamped away instead of reported.
 
 ### Odds
 
-Three things differ from a standard banner, which is why `stepUpCopyDistribution`
-exists rather than reusing `calculateCopyDistribution`:
+Every step is a 10-pull, but steps 3, 4 and 5 each spend their last pull on a
+guaranteed card. `stepUpPulls` sorts a step count into the three kinds of pull:
+
+| Step in round | 1 | 2 | 3 | 4 | 5 | Round total |
+|---|---|---|---|---|---|---|
+| Pool pulls (0.3%) | 10 | 10 | 9 | 9 | 9 | **47** |
+| Selection slot (1 in 10) | | | 1 | 1 | | **2** |
+| Your pick (certain) | | | | | 1 | **1** |
+
+A partial round counts only the steps it reached: 3 steps is 29 / 1 / 0, and the
+three-banner ceiling of 15 steps is 141 / 6 / 3.
+
+How that compares with a standard banner:
 
 | | Standard banner | Step-up |
 |---|---|---|
-| Trials | the planned pull count | `chargeableSteps * 10` |
-| Rate | 0.75% (single featured card) | **0.3%** — the ~3% pool split across your 10 picks |
-| Guarantees | one per 200 pulls (pity) | one per completed 5-step round |
+| Random attempts | the planned pull count at **0.75%** (single featured card) | pool pulls at **0.3%** (the ~3% pool split across your 10 picks), plus selection slots at **1 in 10** |
+| Guarantees | one per 200 pulls (pity) | one per completed 5-step round (the step 5 pick) |
 
-Reading a step-up's step count as a pull count would understate a plan tenfold,
-on top of the other two being wrong. `copyDistribution({ trials, rate, guaranteed })`
-in `utils/probabilityCalculations.ts` is the shared core both go through.
+Reading a step-up's step count as a pull count would understate a plan tenfold.
+`copyDistribution({ attempts, guaranteed })` in `utils/probabilityCalculations.ts`
+is the shared core both go through. `attempts` is a list of `{ trials, rate }`
+groups combined by convolution, so a standard banner passes one group and a
+step-up passes two. With one group the result is bit-for-bit the old single
+binomial.
 
-The sheet credits only the step-5 "you choose" guarantee. Steps 3 and 4 also hand
-over a card, but a *random* one of your ten selections, and the sheet ignores
-them; we match the sheet. Modelling them properly is a second binomial at
-`p = 0.1` layered on the first — a refinement past parity, not parity.
+The selection slot's 1 in 10 is `1 / SELECTION_SLOTS`, not an API constant. It
+is the shape of the game (the selection is always ten cards), the same way
+`STEPS_PER_ROUND` is always five. The 0.3% stays in `calculation_constants`
+because it is a drop rate.
+
+**This departs from the source sheet on purpose.** The sheet credits only the
+step 5 pick and rolls all 50 pulls at 0.3%, ignoring the two 1-in-10 slots.
+Those slots are worth more than 60 ordinary pulls per round, so the sheet's model
+showed a three-banner plan's MLB chance as 7.5% when it is 27.3%. Fixed after a
+player report in October 2026.
 
 ### Paid carats are contended
 
@@ -374,8 +393,9 @@ equivalent concept either.
 A step-up row can carry the ten cards the user intends to select
 (`UserStepUpSelection`, edited on the campaign card in `/app/selectors`). **None of
 it reaches the projection.** The target rate is `step_up_target_rate` = 3% ÷ 10 —
-the pool rate split across the ten cards you named — and that holds whichever ten
-they are, so a partial, empty or edited selection moves no number. It is a planning
+the pool rate split across the ten cards you named — and the selection slot is
+1 ÷ 10. Both hold whichever ten they are, so a partial, empty or edited selection
+moves no number. It is a planning
 record, exactly as on the source sheet, whose Selection 1–10 columns feed no formula
 either.
 
