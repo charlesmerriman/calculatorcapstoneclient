@@ -437,11 +437,11 @@ export const BannerRow = ({
 			</>
 		)
 
-	// A step-up's odds run on steps x 10 pulls at the pool rate, with a
-	// guarantee per completed round — none of which the standard binomial over
-	// `pulls` would get right. Built from chargeableSteps rather than the raw
-	// input so the odds and the carat deduction agree about how many steps
-	// happened. See stepUpCopyDistribution.
+	// A step-up's odds run on steps x 10 pulls at the pool rate, 1-in-10 slots
+	// on steps 3 and 4, and a guaranteed pick on step 5 — none of which the
+	// standard binomial over `pulls` would get right. Built from chargeableSteps
+	// rather than the raw input so the odds and the carat deduction agree about
+	// how many steps happened. See stepUpCopyDistribution.
 	const stepUpOdds = isStepUp
 		? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
 		: undefined

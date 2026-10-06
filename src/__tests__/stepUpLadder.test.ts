@@ -8,6 +8,7 @@ import {
   stepCosts,
   stepLabel,
   stepUpCopyDistribution,
+  stepUpPulls,
   stepsAffordable,
 } from '../utils/stepUpLadder'
 import { DEFAULT_CONSTANTS as C } from '../constants/gameConstants'
@@ -171,10 +172,69 @@ describe('guaranteedCopies', () => {
   })
 })
 
+// ── stepUpPulls ───────────────────────────────────────────────────────────────
+
+describe('stepUpPulls', () => {
+  it('splits one round into 47 pool pulls, 2 selection slots and 1 pick', () => {
+    expect(stepUpPulls(5, C)).toEqual({ poolPulls: 47, selectionSlots: 2, guaranteed: 1 })
+  })
+
+  it('counts only the guaranteed slots a partial round has reached', () => {
+    expect(stepUpPulls(0, C)).toEqual({ poolPulls: 0, selectionSlots: 0, guaranteed: 0 })
+    expect(stepUpPulls(2, C)).toEqual({ poolPulls: 20, selectionSlots: 0, guaranteed: 0 })
+    expect(stepUpPulls(3, C)).toEqual({ poolPulls: 29, selectionSlots: 1, guaranteed: 0 })
+    expect(stepUpPulls(4, C)).toEqual({ poolPulls: 38, selectionSlots: 2, guaranteed: 0 })
+    expect(stepUpPulls(8, C)).toEqual({ poolPulls: 76, selectionSlots: 3, guaranteed: 1 })
+  })
+
+  it('reaches the three-banner ceiling as 141, 6 and 3', () => {
+    // The numbers from the #requests report: 141 pulls at 0.3%, 6 at 10%,
+    // and 3 selections.
+    expect(stepUpPulls(15, C)).toEqual({ poolPulls: 141, selectionSlots: 6, guaranteed: 3 })
+  })
+
+  it('never loses a pull: the three kinds always add up to steps x 10', () => {
+    for (let steps = 0; steps <= 35; steps++) {
+      const { poolPulls, selectionSlots, guaranteed } = stepUpPulls(steps, C)
+      expect(poolPulls + selectionSlots + guaranteed).toBe(steps * C.step_up_pulls_per_step)
+    }
+  })
+})
+
 // ── the step-up odds path through copyDistribution ────────────────────────────
 
 describe('stepUpCopyDistribution', () => {
   const stepUpOdds = (steps: number) => stepUpCopyDistribution(steps, C)
+
+  it('credits the step 3 slot as a 1-in-10 chance', () => {
+    // 3 steps: 29 pool pulls and 1 selection slot. Zero copies means every
+    // one of them misses.
+    expect(stepUpOdds(3)[0]).toBeCloseTo(Math.pow(0.997, 29) * 0.9 * 100, 9)
+  })
+
+  it('combines both kinds of roll on top of the step 5 pick', () => {
+    // One full round: the pick makes 1 copy certain, so "exactly 1" is
+    // "no random hits" and "exactly 2" is "one hit from either source".
+    const noPoolHit = Math.pow(0.997, 47)
+    const onePoolHit = 47 * 0.003 * Math.pow(0.997, 46)
+    const odds = stepUpOdds(5)
+
+    expect(odds[0]).toBe(0)
+    expect(odds[1]).toBeCloseTo(noPoolHit * 0.81 * 100, 9)
+    expect(odds[2]).toBeCloseTo(
+      (onePoolHit * 0.81 + noPoolHit * 2 * 0.1 * 0.9) * 100,
+      9
+    )
+  })
+
+  it('matches an independent model at the three-banner ceiling', () => {
+    // Reference values from a separate Python implementation (exact binomials
+    // convolved): 34.79 / 37.96 / 27.25. The sheet's model showed 7.5% MLB.
+    const odds = stepUpOdds(15)
+    expect(odds[3]).toBeCloseTo(34.791438, 5)
+    expect(odds[4]).toBeCloseTo(37.955353, 5)
+    expect(odds[5]).toBeCloseTo(27.253209, 5)
+  })
 
   it('runs at the 0.3% target rate, not the 0.75% featured rate', () => {
     // One step, no guarantee yet: a plain binomial over 10 pulls.

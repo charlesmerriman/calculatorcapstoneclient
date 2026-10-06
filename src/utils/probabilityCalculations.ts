@@ -21,24 +21,35 @@ export const PULLS_PER_PITY_COPY = 200
  */
 export const MAX_COPIES = 5
 
-/**
- * One banner's odds, reduced to the three things that actually vary.
- *
- * Standard banners and step-ups differ only in these numbers — same binomial,
- * same MLB cap, same "copies in hand don't need rolling for" treatment — so
- * they share one implementation instead of two that can drift apart.
- */
-export interface CopyDistributionInput {
-	/** Independent random attempts. Pulls on a normal banner; steps x 10 on a step-up. */
+/** A batch of independent random attempts that all share one chance. */
+export interface AttemptGroup {
+	/** How many attempts are in the batch. */
 	trials: number
 	/**
 	 * Per-attempt chance of the card being chased, as a DECIMAL (0.0075, not
 	 * 0.75). The one easy mistake to make here, hence the shouting.
 	 */
 	rate: number
+}
+
+/**
+ * One banner's odds, reduced to the things that actually vary.
+ *
+ * Standard banners and step-ups differ only in these numbers — same binomial,
+ * same MLB cap, same "copies in hand don't need rolling for" treatment — so
+ * they share one implementation instead of two that can drift apart.
+ */
+export interface CopyDistributionInput {
+	/**
+	 * The random attempts, grouped by their chance. A standard banner has one
+	 * group: its pulls at 0.75%. A step-up has two, because its step 3 and 4
+	 * guaranteed slots land on the chased card at 1 in 10, far more often than
+	 * an ordinary pull does. See stepUpLadder.ts.
+	 */
+	attempts: AttemptGroup[]
 	/**
 	 * Copies handed over outright, never rolled for — pity exchanges on a normal
-	 * banner, completed-round guarantees on a step-up.
+	 * banner, the step 5 pick on a step-up.
 	 */
 	guaranteed: number
 }
@@ -78,7 +89,7 @@ function getExactProbability(
  * alone get you there and the result is a certainty.
  */
 function getAtLeastProbability(
-	{ trials, rate, guaranteed }: CopyDistributionInput,
+	{ trials, rate, guaranteed }: AttemptGroup & { guaranteed: number },
 	copiesNeeded: number
 ): number {
 	const randomNeeded = copiesNeeded - guaranteed
@@ -126,6 +137,50 @@ export function calculateSuccessProbability(
 }
 
 /**
+ * The chance of EXACTLY 0, 1, ... MAX_COPIES - 1 random hits across every
+ * group of attempts, as decimals.
+ *
+ * Groups combine by convolution: the chance of k hits in total is the sum,
+ * over every way of splitting k between the groups, of the chances of each
+ * side of the split. One step-up round, 47 pulls at 0.3% plus 2 slots at 10%:
+ *
+ *     P(0 total) = P(0 from pulls) * P(0 from slots)
+ *     P(1 total) = P(1 from pulls) * P(0 from slots)
+ *                + P(0 from pulls) * P(1 from slots)
+ *     P(2 total) = P(2, 0) + P(1, 1) + P(0, 2)       ...and so on
+ *
+ * Only counts below MLB are kept. That loses nothing: a low total can only be
+ * made of low counts from each group, so the truncated arrays still combine
+ * exactly. Everything at or past MLB is recovered by the caller as "whatever
+ * probability is left over".
+ */
+function randomHitsBelowCap(attempts: AttemptGroup[]): number[] {
+	// Before any attempt, zero hits is a certainty. Starting from this rather
+	// than from the first group means one group passes through untouched
+	// (x * 1 and x + 0 are exact), so a standard banner's odds come out
+	// bit-for-bit the same as the single-binomial code this replaced.
+	let combined: number[] = Array.from({ length: MAX_COPIES }, (_, hits) =>
+		hits === 0 ? 1 : 0
+	)
+
+	for (const { trials, rate } of attempts) {
+		const group = Array.from({ length: MAX_COPIES }, (_, hits) =>
+			getExactProbability(trials, hits, rate)
+		)
+
+		combined = combined.map((_, total) => {
+			let sum = 0
+			for (let fromGroup = 0; fromGroup <= total; fromGroup++) {
+				sum += combined[total - fromGroup] * group[fromGroup]
+			}
+			return sum
+		})
+	}
+
+	return combined
+}
+
+/**
  * The full distribution of final copy counts as percentages, indexed by copy
  * count: [exactly 0, exactly 1, ... exactly 4, five-or-more].
  *
@@ -134,29 +189,32 @@ export function calculateSuccessProbability(
  * one deliberate exception: extra copies past MLB have nowhere else to go, so
  * that bucket stays cumulative or the total would fall short of 100.
  */
-export function copyDistribution(input: CopyDistributionInput): number[] {
+export function copyDistribution({
+	attempts,
+	guaranteed,
+}: CopyDistributionInput): number[] {
 	// Guarantees past MLB are real but unusable — a long step-up ladder can hand
 	// over more than five. Clamping here rather than at each call site keeps a
 	// caller from silently producing an all-zero distribution.
-	const guaranteed = Math.min(
-		Math.max(0, Math.floor(input.guaranteed)),
-		MAX_COPIES
+	const floor = Math.min(Math.max(0, Math.floor(guaranteed)), MAX_COPIES)
+	const random = randomHitsBelowCap(attempts)
+
+	// Guarantees already cover `floor` copies, so random attempts need only
+	// make up the difference. Totals below that floor are unreachable.
+	const exact = Array.from({ length: MAX_COPIES }, (_, copies) =>
+		copies < floor ? 0 : random[copies - floor] * 100
 	)
-	const clamped = { ...input, guaranteed }
 
-	return Array.from({ length: MAX_COPIES + 1 }, (_, copies) => {
-		// Guarantees already cover `guaranteed` copies, so random attempts need
-		// only make up the difference. Totals below that floor are unreachable.
-		const randomNeeded = copies - guaranteed
+	// The MLB bucket is 1 minus every random count that falls short of it.
+	// Summing many small floats can drift a hair past 1, which would surface as
+	// a negative percentage. Clamp rather than Math.abs — abs would flip a
+	// negative into a plausible-looking positive and hide the drift.
+	let shortOfMlb = 0
+	for (let hits = 0; hits < MAX_COPIES - floor; hits++) {
+		shortOfMlb += random[hits]
+	}
 
-		if (randomNeeded < 0) {
-			return 0
-		}
-
-		return copies === MAX_COPIES
-			? getAtLeastProbability(clamped, copies)
-			: getExactProbability(clamped.trials, randomNeeded, clamped.rate) * 100
-	})
+	return [...exact, Math.max(1 - shortOfMlb, 0) * 100]
 }
 
 /**
@@ -165,8 +223,7 @@ export function copyDistribution(input: CopyDistributionInput): number[] {
  */
 export function calculateCopyDistribution(pulls: number): number[] {
 	return copyDistribution({
-		trials: pulls,
-		rate: SUCCESS_RATE_DECIMAL,
+		attempts: [{ trials: pulls, rate: SUCCESS_RATE_DECIMAL }],
 		guaranteed: getGuaranteedCopies(pulls),
 	})
 }
