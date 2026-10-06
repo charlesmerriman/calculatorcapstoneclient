@@ -182,6 +182,32 @@
 	--color-step-up: #c4b5fd;
 	--color-step-up-border: #c084fc;
 
+	/* ── Banner-row type colours ───────────────────────────────────────────
+	   The UMA / SUPPORT / STEP UP badge at the left of a desktop planner row
+	   (.banner-type-tab--*) and the header strip of a mobile card
+	   (.banner-type-tile--*), both in App.css. Each kind has a fill and an ink.
+
+	   These were stock bg-blue-900 / green-900 / purple-900 with white text, the
+	   same deep blocks on every theme, which is what read as "too dark" on the
+	   light ones. The dark values below are those exact stock colours, so the
+	   dark themes don't move; [data-theme-mode="light"] swaps in pastel fills
+	   with deep same-hue ink. Colorblind mode redraws them (blue / red) for both
+	   modes further down. */
+	--color-type-uma: oklch(37.9% 0.146 265.522);
+	--color-type-uma-ink: #ffffff;
+	--color-type-support: oklch(39.3% 0.095 152.535);
+	--color-type-support-ink: #ffffff;
+	--color-type-step-up: oklch(38.1% 0.176 304.987);
+	--color-type-step-up-ink: #ffffff;
+
+	/* Text on the New Year and Campaign variants of the Timeline's campaign
+	   strip (AnniversaryEventStrip). The dark values are the stock amber-300 /
+	   sky-300 they used to be; a light surface needs the deep counterparts. The
+	   strip's border and wash stay stock amber-500 / sky-500 at low alpha, which
+	   read on either mode. */
+	--color-new-year: oklch(87.9% 0.169 91.605);
+	--color-campaign: oklch(82.8% 0.111 230.318);
+
 	/* Daily legend races: the pill on a Timeline banner card and the page's
 	   arrival countdown. Orange so it reads apart from the brand on every theme (one of
 	   which is teal, one violet), from the staging amber and from the
@@ -353,13 +379,19 @@
 	   would read as MORE prominent, not less. The light muted tone is therefore
 	   LIGHTER than its vivid counterpart —
 	   same intent, opposite direction, for the same reason the gray ramp above
-	   is inverted rather than re-picked. */
-	--color-pull-ok: #166534;
-	--color-pull-ok-border: #15803d;
+	   is inverted rather than re-picked.
+
+	   The ok/over borders are the VIVID 600 shades rather than the deep 700s,
+	   and App.css gives those two states a heavier fill and a doubled border on
+	   light themes. With deep borders and a 12% wash, an on-pity count was
+	   barely distinguishable from an off-pity one (player report, 2026-10-04).
+	   The ok ink is green-900 to keep 5.7:1 on that heavier fill. */
+	--color-pull-ok: #14532d;
+	--color-pull-ok-border: #16a34a;
 	--color-pull-neutral: #4c6057;
 	--color-pull-neutral-border: #5f7a6a;
 	--color-pull-over: #991b1b;
-	--color-pull-over-border: #b91c1c;
+	--color-pull-over-border: #dc2626;
 
 	/* Amber identifies provisional rows; violet identifies paid step-up actions.
 	   Both use deeper shades on light surfaces, independently of the blue brand. */
@@ -367,6 +399,17 @@
 	--color-step-up: #713a85;
 	--color-step-up-border: #8b4aa0;
 	--color-legend-race: #9a3412;
+	--color-new-year: #92400e;
+	--color-campaign: #075985;
+
+	/* Pastel type fills with deep same-hue ink: 6.9:1 to 7.6:1 on the fill, and
+	   still 4.9:1 on the mobile tile's darkened label column. */
+	--color-type-uma: #c7dafc;
+	--color-type-uma-ink: #1e3a8a;
+	--color-type-support: #c4e8cf;
+	--color-type-support-ink: #14532d;
+	--color-type-step-up: #e2d0f8;
+	--color-type-step-up-ink: #581c87;
 
 	/* Revival categories retain their rose accent, deepened for white cards. */
 	--color-category-revival: #a3325c;
@@ -473,8 +516,19 @@
 	--color-pull-neutral-border: #64748b;
 	--color-pull-over: #fb923c;
 	--color-pull-over-border: #f97316;
+
+	/* Uma stays blue; Support and Step Up turn red, so no row kind leans on
+	   telling green or purple from blue. Step-up's accent follows its tile. */
+	--color-type-uma: #1d4ed8;
+	--color-type-support: #991b1b;
+	--color-type-step-up: #991b1b;
+	--color-step-up: #fca5a5;
+	--color-step-up-border: #f87171;
 }
 
+/* Every token the block above sets must be restated here: it comes later than
+   [data-theme-mode="light"] at the same specificity, so anything left out would
+   keep the colorblind DARK value on a light theme. */
 [data-theme-mode="light"][data-colorblind-mode="true"] {
 	--color-pull-ok: #1d4ed8;
 	--color-pull-ok-border: #2563eb;
@@ -482,6 +536,14 @@
 	--color-pull-neutral-border: #64748b;
 	--color-pull-over: #9a3412;
 	--color-pull-over-border: #c2410c;
+
+	--color-type-uma: #c7dafc;
+	--color-type-support: #f8cccc;
+	--color-type-support-ink: #7f1d1d;
+	--color-type-step-up: #f8cccc;
+	--color-type-step-up-ink: #7f1d1d;
+	--color-step-up: #991b1b;
+	--color-step-up-border: #b91c1c;
 }
 
 /* Light-theme polish lives here rather than in each component so every existing

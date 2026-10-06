@@ -414,7 +414,7 @@ export const BannerRow = ({
 					title={stepUpCutoffHint}
 					className="flex flex-col items-center justify-center leading-none"
 				>
-					<span className="step-up-pool-chip text-sm font-bold text-purple-300">{stepUpChip}</span>
+					<span className="step-up-pool-chip text-sm font-bold text-step-up">{stepUpChip}</span>
 					{stepUpCutoff && (
 						<span className="mt-0.5 text-[9px] text-gray-400">
 							≤ {formatDate(stepUpCutoff)}
@@ -837,7 +837,7 @@ export const BannerRow = ({
 			reservedInput={renderReservedInput("w-14")}
 			chanceDisplay={null}
 			noteButton={renderNoteButton(
-				"my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/15 bg-black/10 transition hover:bg-black/25"
+				"my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-(--tile-button-border) bg-black/10 transition hover:bg-black/25"
 			)}
 			noteEditor={renderNoteEditor("border-t border-gray-700 p-2")}
 			onRemove={handleDeleteBannerClick}
