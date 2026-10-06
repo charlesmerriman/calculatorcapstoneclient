@@ -104,7 +104,7 @@ const StepUpRow = ({
 						className="h-full w-full object-contain"
 					/>
 				) : (
-					<span className="text-xs font-bold text-purple-300">
+					<span className="text-xs font-bold text-step-up">
 						{isUma ? "★3" : "SSR"}
 					</span>
 				)}

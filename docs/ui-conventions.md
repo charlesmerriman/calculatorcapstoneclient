@@ -67,6 +67,13 @@ The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
 `App.css`) are the worked example to copy. `--color-category-revival[-border]`
 (`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
 pattern: dark values in `@theme`, deepened counterparts under `[data-theme-mode="light"]`.
+So do `--color-type-*` (the banner-row kinds), `--color-step-up` (every step-up marker,
+including the Timeline strip's chip) and `--color-new-year` / `--color-campaign` (the
+strip's text).
+
+On light themes the pull-status fills are stronger than on dark (22% / 18% against 12%) and
+the ok/over states get an inset ring, because a faint wash on a near-white field could not
+be told apart from the neutral state.
 
 A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
 to read as "not the usual banner" against seven different brand hues, and would vanish into
@@ -121,13 +128,15 @@ carried on the `BannerRowType` tag, never inferred from which FK is set (see
 |---|---|
 | Type badge + glyph (desktop) | `BannerTypeBadge` |
 | Type glyph alone (mobile card) | `BannerTypeIcon`, same module |
-| Badge background colour | `.banner-type-tab--uma / --support / --step-up` in `App.css` |
-| Mobile tile colour + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
+| Fill + ink per kind (badge AND mobile tile) | `--color-type-*` tokens in `index.css`, applied by `.banner-type-tab--*` / `.banner-type-tile--*` in `App.css` |
+| Mobile tile classes + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
 | Which catalogue the row's select offers | `bannersForRowType` in `bannerHelpers` |
 
-The normal palette uses stock classes (`bg-blue-900` / `bg-green-900` / `bg-purple-900`).
-Colorblind mode overrides the named badge/tile hooks with dark blue and red; keep those
-hooks on both desktop and mobile treatments.
+Each kind has a fill and an ink token. The dark themes use the stock blue / green /
+purple-900 values with white ink; light themes swap in pastel fills with deep same-hue ink,
+and colorblind mode redraws them blue / red in both modes. Everything drawn on the mobile
+strip (the banner select, the note and delete buttons) reads `--tile-*` variables that
+`.banner-type-tile` declares per mode, because white-on-dark alphas vanish on a pastel.
 
 Adding a fourth kind means touching each row of that table once. It used to mean finding
 six hand-copied ternaries, any of which failed silently by rendering another kind's

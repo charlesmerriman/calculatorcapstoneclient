@@ -197,7 +197,7 @@ export const StagedBannerRow = ({
 			target.banner.image ? (
 				<img src={target.banner.image} alt={target.banner.name} className="thumb-banner" />
 			) : (
-				<span className="step-up-pool-chip text-sm font-bold leading-none text-purple-300">{stepUpChip}</span>
+				<span className="step-up-pool-chip text-sm font-bold leading-none text-step-up">{stepUpChip}</span>
 			)
 		) : (
 			<>
