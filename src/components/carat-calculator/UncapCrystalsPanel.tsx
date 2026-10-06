@@ -18,6 +18,32 @@ interface BannerOption {
 
 const iconCls = "w-4 h-4 shrink-0 text-brand"
 
+// The chosen banner outlives the panel: switching to Timeline or Selectors (or
+// off /app altogether) unmounts it, and a plain useState came back empty every
+// time. sessionStorage rather than the provider because the provider only
+// lives under /app/*, and rather than localStorage because this is a view
+// preference for the visit, not part of the plan. Only the id is kept; the
+// label and end date are re-read from the live catalogue on the way back in.
+// Both accessors can throw in hardened private modes, hence the try/catch.
+const SELECTED_BANNER_KEY = "uncapCrystals.selectedBannerId"
+
+const readSelectedBannerId = (): string | null => {
+	try {
+		return sessionStorage.getItem(SELECTED_BANNER_KEY)
+	} catch {
+		return null
+	}
+}
+
+const writeSelectedBannerId = (id: string | null) => {
+	try {
+		if (id === null) sessionStorage.removeItem(SELECTED_BANNER_KEY)
+		else sessionStorage.setItem(SELECTED_BANNER_KEY, id)
+	} catch {
+		// Not remembering the pick is harmless; the select still works.
+	}
+}
+
 // Cell showing a value (or placeholder when no date selected) with optional colored background.
 // `unit` is the singular noun; it pluralises on anything but exactly 1, so the
 // cell reads "1 Crystal" / "0 Crystals" rather than relying on the column header
@@ -37,24 +63,8 @@ const CrystalCell = ({ value, selected, green, unit, className = "" }: { value: 
 export const UncapCrystalsPanel = () => {
 	const { userStatsData, gameEventsData, incomeLedger, championsMeetingRankData, leagueOfHeroesRankData, supportBannerData, calculationConstants } =
 		useCalculatorData()
-	const [selectedOption, setSelectedOption] = useState<BannerOption | null>(null)
-	// The estimate is still purely a function of the end date; the option only
-	// exists so the control can be labelled with the banner's name.
-	const selectedEndDate = selectedOption?.endDate ?? null
-
-	// Race payouts come from incomeLedger, not championsMeetingData /
-	// leagueOfHeroesData: the ledger is where a race event's reward instant is
-	// decided (a CM settles 24h before its listed end), so reading the raw event
-	// lists here would put this panel a day out of step with the banner rows.
-	const crystals = useUncapCrystals(
-		userStatsData,
-		gameEventsData,
-		incomeLedger,
-		championsMeetingRankData,
-		leagueOfHeroesRankData,
-		selectedEndDate,
-		calculationConstants,
-	)
+	// Lazy initialiser: read storage once, on mount, not on every render.
+	const [selectedBannerId, setSelectedBannerId] = useState<string | null>(readSelectedBannerId)
 
 	const now = new Date()
 
@@ -74,6 +84,28 @@ export const UncapCrystalsPanel = () => {
 			endDate: b.banner_timeline.end_date,
 		}))
 
+	// Resolved against the options rather than stored whole, so a remembered
+	// banner that has since closed (or left the catalogue) quietly drops back
+	// to the placeholder instead of estimating against a stale end date.
+	const selectedOption = bannerOptions.find((o) => o.value === selectedBannerId) ?? null
+	// The estimate is still purely a function of the end date; the option only
+	// exists so the control can be labelled with the banner's name.
+	const selectedEndDate = selectedOption?.endDate ?? null
+
+	// Race payouts come from incomeLedger, not championsMeetingData /
+	// leagueOfHeroesData: the ledger is where a race event's reward instant is
+	// decided (a CM settles 24h before its listed end), so reading the raw event
+	// lists here would put this panel a day out of step with the banner rows.
+	const crystals = useUncapCrystals(
+		userStatsData,
+		gameEventsData,
+		incomeLedger,
+		championsMeetingRankData,
+		leagueOfHeroesRankData,
+		selectedEndDate,
+		calculationConstants,
+	)
+
 	return (
 		// Capped and centred while the income panel is compact, matching the
 		// blocks above it — see the rank grid in IncomeForm.
@@ -90,7 +122,11 @@ export const UncapCrystalsPanel = () => {
 				placeholder="Select Banner for Estimate"
 				options={bannerOptions}
 				value={selectedOption}
-				onChange={(opt: SingleValue<BannerOption>) => setSelectedOption(opt ?? null)}
+				onChange={(opt: SingleValue<BannerOption>) => {
+					const id = opt?.value ?? null
+					setSelectedBannerId(id)
+					writeSelectedBannerId(id)
+				}}
 			/>
 
 			<div className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border border-gray-700">
