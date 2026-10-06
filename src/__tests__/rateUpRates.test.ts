@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest'
 import type { BannerSupport, BannerUma, SupportCard, Uma } from '../types'
 import { DEFAULT_CONSTANTS as C } from '../constants/gameConstants'
 import {
+  oddsCards,
   primaryRateUpCard,
   rateUpCards,
   rowRateUpRate,
@@ -110,5 +111,30 @@ describe('rowRateUpRate', () => {
 
   it('falls back to the ★3/SSR rate when there is no card to rate', () => {
     expect(rowRateUpRate(umaTarget([]), C)).toBe(C.rate_up_rate_3)
+  })
+})
+
+describe('oddsCards', () => {
+  const pair = umaTarget([uma(1, 3), uma(2, 3)])
+
+  it('defaults to the primary card with two-card odds off', () => {
+    const { primary, second } = oddsCards(pair, {}, C)
+    expect(primary?.id).toBe(1)
+    expect(second).toBeNull()
+  })
+
+  it('follows the row’s saved choices', () => {
+    const { primary, second } = oddsCards(pair, { primary_card: 2, second_card: 1 }, C)
+    expect([primary?.id, second?.id]).toEqual([2, 1])
+  })
+
+  it('ignores a card the banner no longer features', () => {
+    const { primary, second } = oddsCards(pair, { primary_card: 99, second_card: 98 }, C)
+    expect(primary?.id).toBe(1)
+    expect(second).toBeNull()
+  })
+
+  it('never pairs a card with itself', () => {
+    expect(oddsCards(pair, { primary_card: 1, second_card: 1 }, C).second).toBeNull()
   })
 })

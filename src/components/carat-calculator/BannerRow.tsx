@@ -17,6 +17,8 @@ import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
+import { oddsLabels } from "../../utils/oddsDisplay"
+import { OddsCaption, OddsCardsPanel } from "./OddsCards"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { NumberField } from "../NumberField"
 import { formatDate } from "../../utils/dateFormat"
@@ -43,8 +45,12 @@ import type {
 	PlannableBanner,
 } from "../../utils/bannerHelpers"
 import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
-import { calculateCopyDistribution } from "../../utils/probabilityCalculations"
-import { rowRateUpRate } from "../../utils/rateUpRates"
+import {
+	calculateCopyDistribution,
+	mlbWithSecondCardDistribution,
+	shiftDistribution,
+} from "../../utils/probabilityCalculations"
+import { oddsCards } from "../../utils/rateUpRates"
 import {
 	effectiveSelections,
 	findGuaranteedCardArt,
@@ -439,19 +445,104 @@ export const BannerRow = ({
 			</>
 		)
 
-	// The odds strip's distribution. A step-up's run on steps x 10 pulls at the
-	// pool rate, 1-in-10 slots on steps 3 and 4, and a guaranteed pick on step
-	// 5 — none of which the standard binomial over `pulls` would get right.
-	// Built from chargeableSteps rather than the raw input so the odds and the
-	// carat deduction agree about how many steps happened. See
-	// stepUpCopyDistribution. An ordinary banner's runs at its rate-up card's
-	// own rate, which is 0.75% only on a typical banner (utils/rateUpRates.ts).
+	// --- Odds ---
+	// Which featured cards the strip is about: the row's saved choices, checked
+	// against the banner (a stale id falls back rather than breaking). Null on a
+	// step-up or an empty row, which have no featured cards to choose from.
+	const chosenCards =
+		target.type === "Uma" || target.type === "Support"
+			? oddsCards(target, plannedBanner, constants)
+			: null
+
+	// The six percentages the strip shows, final: pity, funded reserved copies
+	// and the second card are all applied here, not in MLBChanceDisplay.
+	//
+	// A step-up's run on steps x 10 pulls at the pool rate, 1-in-10 slots on
+	// steps 3 and 4, and a guaranteed pick on step 5 — none of which the
+	// standard binomial over `pulls` would get right. Built from chargeableSteps
+	// rather than the raw input so the odds and the carat deduction agree about
+	// how many steps happened. See stepUpCopyDistribution.
+	//
+	// An ordinary banner's run at its chosen card's own rate, which is 0.75%
+	// only on a typical banner (utils/rateUpRates.ts). With a second card the
+	// strip switches to "the first at MLB, and the second at each level", and
+	// the reserved copies go in as copies of the first card, since that is the
+	// card a selector on this row was planned for.
 	const odds =
 		target.type === "StepUp"
-			? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
-			: target.type === "Empty"
+			? shiftDistribution(
+					stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants),
+					fundedReservedCopies
+				)
+			: chosenCards === null
 				? null
-				: calculateCopyDistribution(plannedCount, rowRateUpRate(target, constants))
+				: chosenCards.primary && chosenCards.second
+					? mlbWithSecondCardDistribution({
+							pulls: plannedCount,
+							rateA: chosenCards.primary.rate,
+							rateB: chosenCards.second.rate,
+							reservedA: fundedReservedCopies,
+						})
+					: shiftDistribution(
+							calculateCopyDistribution(
+								plannedCount,
+								chosenCards.primary?.rate ?? constants.rate_up_rate_3
+							),
+							fundedReservedCopies
+						)
+
+	// Open/closed is view state, like the note's: it is not part of the plan and
+	// must not trigger a save. One flag drives both form factors.
+	const [oddsPanelOpen, setOddsPanelOpen] = useState(false)
+
+	// Only a banner with a choice to make gets the control. On a one-card
+	// banner the strip stays exactly as it always was.
+	const canChooseCards =
+		chosenCards !== null && chosenCards.primary !== null && chosenCards.cards.length > 1
+	const topLabel = oddsLabels(plannedBanner)[5]
+
+	const handlePrimaryCardChange = (id: number): void => {
+		const previous = chosenCards?.primary?.id ?? null
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({
+				...banner,
+				primary_card: id,
+				// Picking the second card as the first swaps the two, so two-card
+				// odds stay on instead of quietly pairing a card with itself.
+				second_card: banner.second_card === id ? previous : banner.second_card,
+			}))
+		)
+	}
+
+	const handleSecondCardChange = (id: number | null): void => {
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({ ...banner, second_card: id }))
+		)
+	}
+
+	const oddsCaption =
+		canChooseCards && chosenCards.primary ? (
+			<OddsCaption
+				primary={chosenCards.primary}
+				second={chosenCards.second}
+				topLabel={topLabel}
+				open={oddsPanelOpen}
+				onToggle={() => setOddsPanelOpen((open) => !open)}
+			/>
+		) : undefined
+
+	const renderOddsPanel = (className: string) =>
+		oddsPanelOpen && canChooseCards && chosenCards.primary ? (
+			<OddsCardsPanel
+				cards={chosenCards.cards}
+				primary={chosenCards.primary}
+				second={chosenCards.second}
+				topLabel={topLabel}
+				onPrimaryChange={handlePrimaryCardChange}
+				onSecondChange={handleSecondCardChange}
+				className={className}
+			/>
+		) : null
 
 	// Which options get the gold wash. An option already in the calculator keeps
 	// its greying instead: it is no longer a suggestion.
@@ -653,7 +744,7 @@ export const BannerRow = ({
 			</div>
 			<div className="border-t border-gray-700">
 				{odds ? (
-					<MLBChanceDisplay plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={odds} />
+					<MLBChanceDisplay plannedBanner={plannedBanner} values={odds} header={oddsCaption} />
 				) : (
 					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
 				)}
@@ -847,6 +938,7 @@ export const BannerRow = ({
 			noteButton={renderNoteButton(
 				"my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-(--tile-button-border) bg-black/10 transition hover:bg-black/25"
 			)}
+			oddsPanel={renderOddsPanel("border-t border-gray-700 p-2")}
 			noteEditor={renderNoteEditor("border-t border-gray-700 p-2")}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
@@ -932,12 +1024,15 @@ export const BannerRow = ({
 			</div>
 
 			{/* === MLB chance grid === */}
-			<div className="flex items-center justify-center py-2 px-2 min-w-0">
+			{/* py-1 when the strip carries its caption line: strip (41px) plus
+			    caption (13px) is 54px, and py-2 leaves only 48px inside this h-16
+			    row. Same trade as the reserved cell's py-0.5 above. */}
+			<div className={`flex items-center justify-center px-2 min-w-0 ${oddsCaption ? "py-1" : "py-2"}`}>
 				{odds ? (
 					<MLBChanceDisplay
 						plannedBanner={plannedBanner}
-						reservedCopies={fundedReservedCopies}
-						distribution={odds}
+						values={odds}
+						header={oddsCaption}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>
@@ -968,6 +1063,10 @@ export const BannerRow = ({
 		{/* The open note, as a strip under the table row. Outside the grid so the
 		    row keeps its fixed h-16 and the columns stay aligned; the motion.div
 		    around each row (CaratCalculator) animates the height change. */}
+		{/* The odds-card picker, the same way: a strip under the row. */}
+		{renderOddsPanel(
+			"hidden @banner-table:flex border-t border-gray-700 bg-gray-800 px-3 py-2"
+		)}
 		{renderNoteEditor(
 			"hidden @banner-table:flex border-t border-gray-700 bg-gray-800 px-3 py-2"
 		)}
