@@ -53,7 +53,10 @@ const userStats = {
   league_of_heroes_rank: null, ssr_crystals: 0, sr_crystals: 0, ssr_shards: 0, sr_shards: 0,
 } as UserStats
 
-function renderRow(bannerUma: BannerUma, extra: Partial<UserPlannedBanner> = {}) {
+function renderRow(
+  bannerUma: BannerUma,
+  extra: Pick<UserPlannedBanner, 'primary_card' | 'second_card'> = {},
+) {
   const planned: UserPlannedBanner = {
     tempId: 1,
     number_of_pulls: 600,
