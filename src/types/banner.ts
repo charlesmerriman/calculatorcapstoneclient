@@ -94,6 +94,13 @@ export interface Uma extends JpDated {
 	 */
 	is_time_limited: boolean
 	is_three_star: boolean
+	/**
+	 * The game's star count (1..3), for the rate-up rule: a featured ★2 is
+	 * 2.25%, not 0.75%. Null until imported and absent on an older API; both
+	 * read as ★3, the same default `is_three_star` applies. Read rates through
+	 * utils/rateUpRates.ts, never this directly.
+	 */
+	rarity?: number | null
 }
 
 /**
@@ -111,6 +118,8 @@ export interface SupportCard extends JpDated {
 	recommendation: string
 	/** See Uma.purpose. */
 	purpose: string
+	/** See Uma.rarity: R / SR / SSR as 1 / 2 / 3. Null reads as SSR. */
+	rarity?: number | null
 }
 
 /** An uma gacha banner — contains one or more featured umas */
@@ -131,6 +140,17 @@ export interface BannerUma {
 	 * (never recommended; it has no such flag).
 	 */
 	is_recommended: boolean
+	/**
+	 * Select banners only ("10 Select 2"): how many of the listed cards the
+	 * player picks to rate up. Null (or absent, on an older API) means every
+	 * listed card is a rate-up. Input to utils/rateUpRates.ts.
+	 */
+	rate_up_picks?: number | null
+	/**
+	 * `{card id: rate}` for the featured cards whose rate breaks the rule,
+	 * set by an editor. Usually empty. Input to utils/rateUpRates.ts.
+	 */
+	rate_overrides?: Record<number, number>
 }
 
 /** A support card gacha banner — contains one or more featured support cards */
@@ -143,6 +163,10 @@ export interface BannerSupport {
 	free_pulls: number
 	/** See BannerUma.is_recommended. */
 	is_recommended: boolean
+	/** See BannerUma.rate_up_picks. */
+	rate_up_picks?: number | null
+	/** See BannerUma.rate_overrides. */
+	rate_overrides?: Record<number, number>
 }
 
 /**

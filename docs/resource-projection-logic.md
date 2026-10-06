@@ -61,6 +61,8 @@ running spend total — it just stops carrying income.
 | `hooks/useBannerResources.ts` | The engine: income − spend, per banner |
 | `utils/bannerHelpers.ts` | `applyPullStrategy`, `applyStepUpStrategy`, `allocateReservedCopies` |
 | `utils/stepUpLadder.ts` | The step-up cost ladder and its odds, in closed form |
+| `utils/rateUpRates.ts` | Each rate-up card's per-pull rate on an ordinary banner |
+| `utils/probabilityCalculations.ts` | The copy-count distribution both kinds of row show |
 
 Every function in the first three names the spreadsheet cell it reproduces.
 Where we knowingly differ, the comment says so.
@@ -288,6 +290,34 @@ figure dripped as `monthly / 30`.
   SSR crystals; uma banners can only use selectors (no ★3 crystal in this data
   model). Over-reserving is reported via `reservedFunding.unfunded`.
 
+## Odds on an ordinary banner
+
+The six-cell strip (None … MLB, or 1x … 5x for umas) is a binomial over the planned
+pulls at the chased card's rate, with one guaranteed copy per 200 pulls (the pity
+exchange) and any funded reserved copies stacked on top (`shiftDistribution`).
+
+**The rate is per card, not a flat 0.75%.** `utils/rateUpRates.ts` applies the game's
+rule, read off the global client's own gacha table:
+
+```
+rate = min(rate_up_rate_N, rate_up_pool_N / rate-up cards of rarity N on the banner)
+```
+
+| Banner | Rate per card |
+|---|---|
+| 1 or 2 ★3/SSR rate-ups (almost every banner) | 0.75% |
+| 9 ★3 rate-ups (the launch uma banner) | 0.333% (3% ÷ 9) |
+| 20 SSR rate-ups (Launch Support) | 0.15% (3% ÷ 20) |
+| A ★2 rate-up | 2.25%, against the ★2 pool, beside any ★3's 0.75% |
+| "10 Select 2" | 0.75% for each of the 2 picks (`rate_up_picks` splits the pool by picks) |
+
+An editor's `rate_overrides` entry wins over the rule (the 2025-07-16 anime-collab doubles
+were 0.5% each). The six numbers are `calculation_constants`, passed in like every other
+constant; `calculateCopyDistribution(pulls, rate)` takes the rate as a parameter for the
+same reason. Which card the strip is about is `primaryRateUpCard`: the first card of the
+banner's highest rarity, so a ★3 + ★2 banner shows the ★3.
+Background, sources and the admin side: `backend/docs/data-model.md` ("Rate-up rates").
+
 ## Step-up banners
 
 A **Select Step-Up** is a third kind of planner row, alongside Uma and Support.
@@ -350,7 +380,7 @@ How that compares with a standard banner:
 
 | | Standard banner | Step-up |
 |---|---|---|
-| Random attempts | the planned pull count at **0.75%** (single featured card) | pool pulls at **0.3%** (the ~3% pool split across your 10 picks), plus selection slots at **1 in 10** |
+| Random attempts | the planned pull count at the rate-up card's rate (**0.75%** on a typical banner; see "Odds on an ordinary banner") | pool pulls at **0.3%** (the ~3% pool split across your 10 picks), plus selection slots at **1 in 10** |
 | Guarantees | one per 200 pulls (pity) | one per completed 5-step round (the step 5 pick) |
 
 Reading a step-up's step count as a pull count would understate a plan tenfold.

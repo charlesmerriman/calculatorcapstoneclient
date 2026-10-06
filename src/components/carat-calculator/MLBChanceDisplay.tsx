@@ -1,12 +1,8 @@
 import type { UserPlannedBanner } from "../../types"
-import {
-	calculateCopyDistribution,
-	shiftDistribution,
-} from "../../utils/probabilityCalculations"
+import { shiftDistribution } from "../../utils/probabilityCalculations"
 import { plannedBannerTarget } from "../../utils/bannerHelpers"
 
 interface MLBChanceDisplayProps {
-	pulls: number
 	plannedBanner: UserPlannedBanner
 	/**
 	 * Copies already secured with a selector ticket or an SSR crystal. They are
@@ -18,16 +14,16 @@ interface MLBChanceDisplayProps {
 	 */
 	reservedCopies?: number
 	/**
-	 * A pre-computed distribution, replacing the standard-banner binomial over
-	 * `pulls`. Step-up rows pass one: their input is STEPS, and reading it as
-	 * pulls would understate a plan tenfold on top of using the wrong rate and
-	 * the wrong guarantee rule. See stepUpCopyDistribution.
+	 * The row's copy distribution, worked out by the row: a standard banner's
+	 * at its rate-up card's rate (utils/rateUpRates.ts), a step-up's from its
+	 * steps (stepUpCopyDistribution). Passed in rather than computed here
+	 * because both need the API's calculation constants, and the row already
+	 * has them.
 	 */
-	distribution?: number[]
+	distribution: number[]
 }
 
 export const MLBChanceDisplay = ({
-	pulls,
 	plannedBanner,
 	reservedCopies = 0,
 	distribution
@@ -49,7 +45,7 @@ export const MLBChanceDisplay = ({
 	// Discrete odds per outcome — the six cells sum to 100%, so each one answers
 	// "how likely am I to finish here?" rather than "here or better?".
 	const values = shiftDistribution(
-		distribution ?? calculateCopyDistribution(pulls),
+		distribution,
 		reservedCopies
 	)
 
