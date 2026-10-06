@@ -146,10 +146,15 @@ A flat, date-sorted row per reward instant, built server-side from `GameEvent`,
 (`IncomeLedgerRow`) for the field-by-field contract. Four things matter here:
 
 - **`date` is when the reward lands** — an event's start; a race event's **end,
-  less that kind's lead time**. A Champions Meeting settles 24 hours before its
-  window closes, so its row is a day ahead of the end date the Timeline shows;
-  League of Heroes has no lead time. The offset lives server-side
-  (`RACE_REWARD_LEAD_TIME`) so nothing on the client re-derives it.
+  less that kind's lead time**. A Champions Meeting pays out at the daily reset a
+  day before its window closes (22:00:00, the end less 23:59:59), so its row is a
+  day ahead of the end date the Timeline shows; League of Heroes has no lead time.
+  The offset lives server-side (`RACE_REWARD_LEAD_TIME`) so nothing on the client
+  re-derives it. The client gate is `today <= date <= E`, the same instant
+  comparison every row kind gets; the sheet's `< E + 1 day` is deliberately NOT
+  ported, because the sheet dates race rows at their listed end and that extra day
+  is its stand-in for the lead time. With both applied, a CM ending the day after a
+  banner was credited to that banner a minute before its rewards existed.
 - **Race rows carry no amounts.** They are indicators; what a placement pays
   depends on the user's rank, which only the client knows. Once, it depends on
   the event too: League of Heroes #1 only ran to Platinum 1, so it pays at
