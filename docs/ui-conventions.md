@@ -257,21 +257,26 @@ the calculator yet. Because the confirm button is then the card's last band, it 
 full `p-3` rather than the `p-3 pb-0` it used while the odds strip supplied the bottom
 gutter.
 
-**The desktop table drops its MLB column on staged rows too**, for the same reason and via
-`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine, with the
-freed `minmax(14rem, 1fr)` handed to the banner select, which becomes the flexible track.
-`min-width` is inherited unchanged, so the staged table stays exactly as wide as the
-calculator table below it and the `@banner-table:` switch point still governs both. The
-staging header row in `CaratCalculator` carries the same modifier — both, or the header
-drifts out of alignment with the rows it labels.
+**The desktop table shows no stats or odds on staged rows either**, via
+`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine. The
+derived-stats width goes to the banner select, and the confirm button sits in the MLB
+track. Every track from # Pulls rightward matches the calculator table's, so the staged
+pulls and copies fields sit directly above the calculator's, and Add to calculator sits
+above the odds. Both templates have the same fixed sum and the same one flexible track
+(`minmax(14rem, 1fr)`) in the same place, so this holds at every width. Only the dates
+column is offset, by the wider select. `min-width` is inherited unchanged, so the staged
+table stays exactly as wide as the calculator table below it and the `@banner-table:`
+switch point still governs both. The staging header row in `CaratCalculator` carries the
+same modifier — both, or the header drifts out of alignment with the rows it labels.
 
-That flexible track must be spelled `minmax(0, 1fr)`, never a bare `1fr`. A bare `1fr` is
+The staged select track must stay a fixed size, never a `1fr`. A bare `1fr` is
 `minmax(auto, 1fr)`, and the auto floor grows the track to the cell's min-content — which,
-for react-select's `nowrap` label, is the whole banner name. The 242-character Golden Week
-revival ran the staged row 2450px wide inside a 1470px container and clipped the pulls
-field, the reserved field, the confirm button and the discard button off the right edge.
-The calculator table never had this bug because its select track is a fixed `10.5rem`; a
-definite max clamps the same minimum away. Only a flexible track is exposed to it.
+for react-select's `nowrap` label, is the whole banner name. When the select was the
+flexible track, the 242-character Golden Week revival ran the staged row 2450px wide
+inside a 1470px container and clipped the pulls field, the reserved field, the confirm
+button and the discard button off the right edge. A definite size clamps that minimum
+away, as it always has on the calculator table's `10.5rem` select. (If a select track ever
+has to flex again, spell it `minmax(0, 1fr)`.)
 
 The staged surfaces are tinted with `.staged-surface` / `.staged-surface-header`, a
 `color-mix` of `--color-staging` into the live gray ramp. The tint is a **background**
