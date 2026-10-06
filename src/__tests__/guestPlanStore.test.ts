@@ -26,7 +26,7 @@ const STORAGE_KEY = 'guestPlan.v1'
 const dirtyStats: UserStats = { ...DEFAULT_GUEST_STATS, current_carat: 1500, club_rank: 3 }
 
 const umaRow = { number_of_pulls: 10, reserved_copies: 1, banner_uma: 7, banner_support: null, banner_step_up: null }
-const supportRow = { number_of_pulls: 20, reserved_copies: 0, note: 'for MLB', banner_uma: null, banner_support: 9, banner_step_up: null }
+const supportRow = { number_of_pulls: 20, reserved_copies: 0, note: 'for MLB', primary_card: 31, second_card: 32, banner_uma: null, banner_support: 9, banner_step_up: null }
 const stepUpRow = { number_of_pulls: 5, reserved_copies: 0, banner_uma: null, banner_support: null, banner_step_up: 4 }
 const purchase = { product: 5, quantity: 2, target_uma: null, target_support: null }
 const selection = { banner_step_up: 4, uma: 11, support: null, slot: 1, is_target: true }
@@ -203,6 +203,10 @@ describe('guestPlanToState', () => {
 		expect(state.banners[0].banner_uma).toEqual({ id: 7, end: 'Dec 24' })
 		expect(state.banners[1].banner_support).toEqual({ id: 9, end: 'Dec 24' })
 		expect(state.banners[1].note).toBe('for MLB')
+		// The odds-card choices come back too; a row stored before two-card
+		// odds existed (umaRow) still loads, with neither.
+		expect(state.banners[1]).toMatchObject({ primary_card: 31, second_card: 32 })
+		expect(state.banners[0]).not.toHaveProperty('second_card')
 		expect(state.banners[2].banner_step_up).toEqual({ id: 4, end: 'Dec 24' })
 		expect(state.banners.map((row) => row.tempId)).toEqual([1, 2, 3])
 		expect(state.purchases).toEqual([{ ...purchase, tempId: 1 }])

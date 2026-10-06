@@ -259,3 +259,112 @@ export function shiftDistribution(
 			.reduce((sum, probability) => sum + probability, 0)
 	})
 }
+
+/** One row's two-card odds: the chased card A, and a second card B beside it. */
+export interface TwoCardInput {
+	/** Pulls planned on the banner. Every pull can land A, B, or neither. */
+	pulls: number
+	/** Per-pull chance of A and of B, as decimals (utils/rateUpRates.ts). */
+	rateA: number
+	rateB: number
+	/** Copies of A already secured with a selector or crystal (funded only). */
+	reservedA: number
+}
+
+/**
+ * The chance of finishing with A at MLB AND B at each level, as percentages
+ * indexed by B's copy count: [A MLB + B none, A MLB + B 1 copy, ... A MLB +
+ * B MLB]. What a player asks on a double rate-up: "if I take the one I want to
+ * MLB, what do I get of the other?"
+ *
+ * These are JOINT chances, so the six add up to A's own MLB chance, not to
+ * 100. That is on purpose: the cells answer "how likely is this exact
+ * finish", and the finishes where A falls short of MLB are not on the strip.
+ *
+ * Three things make this more than two copies of the one-card odds:
+ *
+ *   - The cards share pulls. One pull gives A, or B, or neither, never both,
+ *     so the counts are a three-way split of the same pulls, not two coins:
+ *
+ *         P(i of A, j of B) = Binomial(pulls, i; rateA)
+ *                           x Binomial(pulls - i, j; rateB / (1 - rateA))
+ *
+ *     (the second factor is B's chance among the pulls that were NOT A).
+ *
+ *   - The pity exchange is ONE pot of points for the whole banner, spent
+ *     after pulling. A player chasing A MLB spends it on A until A is MLB and
+ *     only then on B, so that is the rule here: one exchange per 200 pulls,
+ *     filling A first. With A at MLB from luck alone, every exchange goes to B.
+ *
+ *   - Reserved copies are certain copies of A, so they count before the
+ *     exchanges and leave more of the pot for B.
+ *
+ * Because A gets the exchanges first, the six cells always add up to exactly
+ * the one-card strip's MLB cell for A. A test pins that.
+ */
+export function mlbWithSecondCardDistribution({
+	pulls,
+	rateA,
+	rateB,
+	reservedA,
+}: TwoCardInput): number[] {
+	const n = Math.max(0, Math.floor(pulls))
+	const reserved = Math.max(0, Math.floor(reservedA))
+	// NOT getGuaranteedCopies: that caps at MLB because one card can use no
+	// more, but here an exchange A cannot use still buys a copy of B.
+	const exchanges = Math.floor(n / PULLS_PER_PITY_COPY)
+	// B's chance on a pull that did not give A. Guarded so a (nonsensical)
+	// rateA of 1 cannot divide by zero.
+	const rateBGivenNotA = rateA < 1 ? Math.min(rateB / (1 - rateA), 1) : 0
+
+	// joint[i][j]: the chance of EXACTLY i random A and j random B, for
+	// i, j < MAX_COPIES. Index MAX_COPIES is "this many or more", filled below
+	// from what the exact cells leave over, the same way copyDistribution
+	// builds its top bucket.
+	const size = MAX_COPIES + 1
+	const joint = Array.from({ length: size }, () => new Array<number>(size).fill(0))
+	for (let i = 0; i < MAX_COPIES; i++) {
+		const aExactly = getExactProbability(n, i, rateA)
+		for (let j = 0; j < MAX_COPIES; j++) {
+			joint[i][j] = aExactly * getExactProbability(n - i, j, rateBGivenNotA)
+		}
+	}
+
+	// The "or more" edges. A row's total is A's own binomial, and a column's
+	// is B's (on its own, B is just a binomial at rateB), so each edge cell is
+	// that total minus the exact cells already in it. Clamped like the top
+	// bucket in copyDistribution: summing small floats can overshoot by a hair.
+	let exactTotal = 0
+	for (let i = 0; i < MAX_COPIES; i++) {
+		let rowSum = 0
+		let columnSum = 0
+		for (let j = 0; j < MAX_COPIES; j++) {
+			rowSum += joint[i][j]
+			columnSum += joint[j][i]
+		}
+		exactTotal += rowSum
+		joint[i][MAX_COPIES] = Math.max(getExactProbability(n, i, rateA) - rowSum, 0)
+		joint[MAX_COPIES][i] = Math.max(getExactProbability(n, i, rateB) - columnSum, 0)
+	}
+	let edgeTotal = 0
+	for (let k = 0; k < MAX_COPIES; k++) {
+		edgeTotal += joint[k][MAX_COPIES] + joint[MAX_COPIES][k]
+	}
+	joint[MAX_COPIES][MAX_COPIES] = Math.max(1 - exactTotal - edgeTotal, 0)
+
+	// Spend the reserved copies and the exchange pot, then keep only the
+	// finishes where A is at MLB.
+	const result = new Array<number>(size).fill(0)
+	for (let i = 0; i < size; i++) {
+		const aBeforeExchanges = Math.min(i + reserved, MAX_COPIES)
+		const exchangesOnA = Math.min(exchanges, MAX_COPIES - aBeforeExchanges)
+		if (aBeforeExchanges + exchangesOnA < MAX_COPIES) continue
+
+		const exchangesOnB = exchanges - exchangesOnA
+		for (let j = 0; j < size; j++) {
+			result[Math.min(j + exchangesOnB, MAX_COPIES)] += joint[i][j]
+		}
+	}
+
+	return result.map((chance) => chance * 100)
+}

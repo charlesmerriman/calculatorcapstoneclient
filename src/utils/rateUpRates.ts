@@ -123,3 +123,40 @@ export function rowRateUpRate(
 ): number {
 	return primaryRateUpCard(target, constants)?.rate ?? constants.rate_up_rate_3
 }
+
+/** The two cards a row's odds are about. See `oddsCards`. */
+export interface OddsCards {
+	/** Every featured card, for the pickers. */
+	cards: RateUpCard[]
+	/** The card the strip is about. Null only on a banner with no cards. */
+	primary: RateUpCard | null
+	/** The second card for two-card odds, or null when they are off. */
+	second: RateUpCard | null
+}
+
+/**
+ * Resolves a row's saved card choices against the banner's featured cards.
+ *
+ * Forgiving on purpose: an id the banner does not (or no longer) feature is
+ * ignored rather than trusted, because the server stores the ids without
+ * checking them (an editor removing a card must not break a plan). So a stale
+ * primary falls back to the default card, and a second card that is missing,
+ * or the same card as the primary, switches two-card odds off.
+ */
+export function oddsCards(
+	target: RateUpTarget,
+	row: { primary_card?: number | null; second_card?: number | null },
+	constants: CalculationConstants
+): OddsCards {
+	const cards = rateUpCards(target, constants)
+	const primary =
+		cards.find((card) => card.id === row.primary_card) ??
+		primaryRateUpCard(target, constants)
+	const second =
+		row.second_card == null || primary === null
+			? null
+			: cards.find((card) => card.id === row.second_card && card.id !== primary.id) ??
+				null
+
+	return { cards, primary, second }
+}

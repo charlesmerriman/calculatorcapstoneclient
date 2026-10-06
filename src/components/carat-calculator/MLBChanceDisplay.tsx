@@ -1,53 +1,31 @@
+import type { ReactNode } from "react"
 import type { UserPlannedBanner } from "../../types"
-import { shiftDistribution } from "../../utils/probabilityCalculations"
-import { plannedBannerTarget } from "../../utils/bannerHelpers"
+import { oddsLabels } from "../../utils/oddsDisplay"
 
 interface MLBChanceDisplayProps {
 	plannedBanner: UserPlannedBanner
 	/**
-	 * Copies already secured with a selector ticket or an SSR crystal. They are
-	 * certainties, so they shift the whole distribution right rather than
-	 * entering the binomial — see shiftDistribution.
-	 *
-	 * Only what the user can actually PAY for is passed in; an over-reserved row
-	 * would otherwise show odds it hasn't earned.
+	 * The six percentages to show, FINAL: the row has already applied pity,
+	 * reserved copies and, on a two-card row, the second card. Worked out by
+	 * the row because every version needs the API's calculation constants and
+	 * the row's funded reserved copies, and the row has both.
 	 */
-	reservedCopies?: number
+	values: number[]
 	/**
-	 * The row's copy distribution, worked out by the row: a standard banner's
-	 * at its rate-up card's rate (utils/rateUpRates.ts), a step-up's from its
-	 * steps (stepUpCopyDistribution). Passed in rather than computed here
-	 * because both need the API's calculation constants, and the row already
-	 * has them.
+	 * An optional first line inside the strip's frame, spanning all six cells:
+	 * which card the odds are for, on a banner with more than one. With it the
+	 * cells give up 4px of padding, which is what lets strip and caption share
+	 * the desktop table's fixed-height row.
 	 */
-	distribution: number[]
+	header?: ReactNode
 }
 
 export const MLBChanceDisplay = ({
 	plannedBanner,
-	reservedCopies = 0,
-	distribution
+	values,
+	header,
 }: MLBChanceDisplayProps) => {
-	// Which vocabulary the six cells use. Support cards limit-break, so their
-	// copies read 0LB..MLB; umas just stack, so theirs read 1x..5x. A step-up
-	// follows its own pool: card_type says which of the two it draws from, and
-	// that is the reason a step-up row is per card type rather than the sheet's
-	// single pooled row — a pooled row cannot label its own odds column.
-	const target = plannedBannerTarget(plannedBanner)
-	const isSupport =
-		target.type === "Support" ||
-		(target.type === "StepUp" && target.banner.card_type === "support")
-
-	const labels = isSupport
-		? (["None", "0LB", "1LB", "2LB", "3LB", "MLB"] as const)
-		: (["None", "1x", "2x", "3x", "4x", "5x"] as const)
-
-	// Discrete odds per outcome — the six cells sum to 100%, so each one answers
-	// "how likely am I to finish here?" rather than "here or better?".
-	const values = shiftDistribution(
-		distribution,
-		reservedCopies
-	)
+	const labels = oddsLabels(plannedBanner)
 
 	// Bars use an absolute 0-100% scale, so a 33.5% cell is a third full. They
 	// used to be scaled against the tallest cell in the row, which kept small
@@ -67,6 +45,9 @@ export const MLBChanceDisplay = ({
 		// padded cell and needs one. Keyed to the viewport those two states drifted
 		// apart in the band where the viewport is wide but the container isn't.
 		<div className="w-full grid grid-cols-6 bg-gray-700 border-gray-600 @banner-table:rounded-lg @banner-table:border overflow-hidden">
+			{header && (
+				<div className="col-span-6 min-w-0 border-b border-gray-600">{header}</div>
+			)}
 			{labels.map((label, i) => (
 				<div
 					key={label}
@@ -74,7 +55,7 @@ export const MLBChanceDisplay = ({
 					// raw source text, and a token welded to an interpolation isn't
 					// recognised as one — the old `text-center${…}` meant `sm:px-1` was
 					// never actually generated. Keep interpolations space-separated.
-					className={`flex flex-col items-center justify-center px-0.5 py-1.5 text-[10px] leading-tight text-center @banner-table:px-1 ${i < labels.length - 1 ? "border-r border-gray-600" : ""}`}
+					className={`flex flex-col items-center justify-center px-0.5 ${header ? "py-1" : "py-1.5"} text-[10px] leading-tight text-center @banner-table:px-1 ${i < labels.length - 1 ? "border-r border-gray-600" : ""}`}
 				>
 					<div className="mlb-label">{label}</div>
 					<div className="mlb-value">{values[i].toFixed(1)}%</div>

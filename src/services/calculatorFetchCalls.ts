@@ -45,6 +45,9 @@ export interface PlannedBannerPayload {
 	reserved_copies: number
 	/** Absent on a row that never had one; the server defaults it to "". */
 	note?: string
+	/** Absent or null: the default card / two-card odds off. */
+	primary_card?: number | null
+	second_card?: number | null
 	banner_uma: number | null
 	banner_support: number | null
 	banner_step_up: number | null

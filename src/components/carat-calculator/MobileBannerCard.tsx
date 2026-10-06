@@ -62,6 +62,11 @@ interface MobileBannerCardProps {
 	 * none: a note belongs to a row that is on the sheet.
 	 */
 	noteButton?: ReactNode
+	/**
+	 * The open odds-card picker (which card the odds are for, and an optional
+	 * second one), under the odds. Owns its own padding.
+	 */
+	oddsPanel?: ReactNode
 	/** The open note editor, under everything else. Owns its own padding. */
 	noteEditor?: ReactNode
 	onRemove: () => void
@@ -169,6 +174,7 @@ export const MobileBannerCard = ({
 	reservedInput,
 	chanceDisplay,
 	noteButton,
+	oddsPanel,
 	noteEditor,
 	onRemove,
 	removeLabel,
@@ -269,6 +275,7 @@ export const MobileBannerCard = ({
 
 				{summary}
 				{chanceDisplay}
+				{oddsPanel}
 				{noteEditor}
 			</div>
 		</div>
