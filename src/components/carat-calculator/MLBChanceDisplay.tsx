@@ -53,10 +53,11 @@ export const MLBChanceDisplay = ({
 		reservedCopies
 	)
 
-	// Bars are scaled against the tallest cell in this row rather than a fixed
-	// 0-100%. Spreading one whole distribution across six cells keeps every
-	// value small, and an absolute scale would flatten the row into slivers.
-	const peak = Math.max(...values)
+	// Bars use an absolute 0-100% scale, so a 33.5% cell is a third full. They
+	// used to be scaled against the tallest cell in the row, which kept small
+	// values visible but meant the most likely outcome always drew a full bar
+	// even at 30%. Players read the bar as the percentage, so it has to match.
+	// Slivers on a spread-out distribution are the honest picture.
 
 	return (
 		// Six across at every width, phones included. Wrapping to 3x2 below `sm`
@@ -84,7 +85,7 @@ export const MLBChanceDisplay = ({
 					<div className="h-1 bg-gray-500 rounded-full overflow-hidden mt-0.5 w-full">
 						<div
 							className="h-full bg-blue-400 rounded-full"
-							style={{ width: peak > 0 ? `${(values[i] / peak) * 100}%` : "0%" }}
+							style={{ width: `${values[i]}%` }}
 						/>
 					</div>
 				</div>
