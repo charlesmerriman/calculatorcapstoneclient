@@ -1,0 +1,147 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, it, expect, vi } from 'vitest'
+import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
+import { BannerRow } from '../components/carat-calculator/BannerRow'
+import type { BannerUma, Uma, UserPlannedBanner, UserStats } from '../types'
+import { EMPTY_BANNER_RESOURCES } from '../hooks/bannerResources'
+import { mlbWithSecondCardDistribution } from '../utils/probabilityCalculations'
+
+// The banner picker is irrelevant here; see BannerRow.test.tsx.
+vi.mock('react-select', () => ({ default: () => null }))
+
+// ── Fixtures ──────────────────────────────────────────────────────────────────
+
+const timeline = {
+  id: 1,
+  name: 'Test Timeline',
+  start_date: '2099-01-01T22:00:00Z',
+  end_date: '2099-02-01T21:59:59Z',
+  is_predicted: false,
+  banner_category: 'standard' as const,
+  schedule_offset_days: 0,
+  applied_offset_days: 0,
+  jp_start_date: null,
+  jp_end_date: null,
+  global_start_date: '2099-01-01T22:00:00Z',
+  global_end_date: '2099-02-01T21:59:59Z',
+  image: '',
+}
+
+const uma = (id: number, name: string): Uma =>
+  ({ id, name, image: '', rarity: 3 }) as Uma
+
+const banner = (umas: Uma[]): BannerUma => ({
+  id: 10,
+  banner_timeline: timeline,
+  name: umas.map((u) => u.name).join(' + '),
+  admin_comments: '',
+  umas,
+  free_pulls: 0,
+  is_recommended: false,
+})
+
+const pair = banner([uma(1, 'Kitasan Black'), uma(2, 'Satono Diamond')])
+
+const userStats = {
+  current_carat: 0, current_paid_carat: 0, uma_ticket: 0, support_ticket: 0,
+  uma_selector_ticket: 0, support_selector_ticket: 0,
+  include_purchases_in_projection: false, webstore_bonus: false, daily_carat: false,
+  training_pass: false, misc_earnings: true, monthly_shop_tickets: false,
+  spend_tickets_on_banners: true, discounted_paid_pulls: false, full_price_paid_pulls: true,
+  club_rank: null, team_trials_rank: null, champions_meeting_rank: null,
+  league_of_heroes_rank: null, ssr_crystals: 0, sr_crystals: 0, ssr_shards: 0, sr_shards: 0,
+} as UserStats
+
+function renderRow(
+  bannerUma: BannerUma,
+  extra: Pick<UserPlannedBanner, 'primary_card' | 'second_card'> = {},
+) {
+  const planned: UserPlannedBanner = {
+    tempId: 1,
+    number_of_pulls: 600,
+    reserved_copies: 0,
+    banner_uma: bannerUma,
+    initialBannerType: 'Uma',
+    ...extra,
+  }
+  const setUserPlannedBannerData = vi.fn()
+  render(
+    <BannerRow
+      plannedBanner={planned}
+      userPlannedBannerData={[planned]}
+      clubRankData={[]}
+      teamTrialsRankData={[]}
+      championsMeetingRankData={[]}
+      userStatsData={userStats}
+      umaBannerData={[bannerUma]}
+      supportBannerData={[]}
+      userStepUpSelectionData={[]}
+      stepUpBannerData={[]}
+      constants={DEFAULT_CONSTANTS}
+      setUserPlannedBannerData={setUserPlannedBannerData}
+      resources={{ ...EMPTY_BANNER_RESOURCES, maxPossiblePulls: 600 }}
+      initialBannerType="Uma"
+    />,
+    { wrapper: MemoryRouter },
+  )
+  /** The row list the last change handed to the provider. */
+  const lastSaved = () =>
+    setUserPlannedBannerData.mock.calls.at(-1)?.[0] as UserPlannedBanner[]
+  return { lastSaved }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+describe('BannerRow odds cards', () => {
+  it('adds no control to a one-card banner', () => {
+    renderRow(banner([uma(1, 'Kitasan Black')]))
+    expect(screen.queryByRole('button', { name: /Odds for/ })).toBeNull()
+  })
+
+  it('names the card the odds are for on a two-card banner', () => {
+    renderRow(pair)
+    // Both layouts are in the DOM under jsdom; each carries the caption.
+    expect(screen.getAllByRole('button', { name: 'Odds for Kitasan Black' }).length)
+      .toBeGreaterThan(0)
+  })
+
+  it('turns two-card odds on from the panel', () => {
+    const { lastSaved } = renderRow(pair)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Odds for Kitasan Black' })[0])
+
+    fireEvent.click(screen.getAllByRole('checkbox', { name: 'Also show' })[0])
+
+    expect(lastSaved()[0].second_card).toBe(2)
+  })
+
+  it('swaps the two when the second card is picked as the first', () => {
+    const { lastSaved } = renderRow(pair, { second_card: 2 })
+    fireEvent.click(screen.getAllByRole('button', { name: /Kitasan Black 5x \+ Satono Diamond/ })[0])
+
+    fireEvent.change(screen.getAllByRole('combobox', { name: 'Odds for' })[0], {
+      target: { value: '2' },
+    })
+
+    expect(lastSaved()[0]).toMatchObject({ primary_card: 2, second_card: 1 })
+  })
+
+  it('shows the joint odds once a second card is on', () => {
+    renderRow(pair, { second_card: 2 })
+
+    expect(
+      screen.getAllByRole('button', { name: 'Kitasan Black 5x + Satono Diamond' }).length,
+    ).toBeGreaterThan(0)
+    // The top cell is "both at 5x", from the same function the row calls.
+    const joint = mlbWithSecondCardDistribution({
+      pulls: 600, rateA: 0.0075, rateB: 0.0075, reservedA: 0,
+    })
+    expect(screen.getAllByText(`${joint[5].toFixed(1)}%`).length).toBeGreaterThan(0)
+  })
+
+  it('falls back to the default card when the saved one has left the banner', () => {
+    renderRow(pair, { primary_card: 99, second_card: 98 })
+    expect(screen.getAllByRole('button', { name: 'Odds for Kitasan Black' }).length)
+      .toBeGreaterThan(0)
+  })
+})

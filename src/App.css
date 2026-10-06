@@ -182,49 +182,50 @@
 	min-width: var(--container-banner-table);
 }
 
-/* Staging variant — same nine-cell row minus the MLB column, whose width goes to
-   the banner select.
+/* Staging variant — same nine-cell row minus the derived-stats column, whose
+   width goes to the banner select. Add to calculator sits in the MLB track.
 
-   A staged row exists to answer one question ("which banner?"), and its odds are
-   speculative until it's on the sheet, so the widest column was spent on the
-   least useful thing. Handing that space to the select does double duty: the
-   control the row is actually for becomes the biggest thing in it, and the
-   staging block stops looking like a second copy of the sheet — which is what
-   people were misreading it as.
+   A staged row isn't on the sheet, so useBannerResources hasn't projected it:
+   it has no derived stats and no odds. Its select takes the derived-stats
+   width, so the control the row is actually for becomes the biggest thing in
+   it, and the staging block stops looking like a second copy of the sheet,
+   which is what people were misreading it as.
+
+   EVERY track from # pulls rightward matches .banner-grid exactly, so the
+   staged pulls and copies fields sit directly above the sheet's, and the
+   confirm button directly above the MLB odds. That holds at every width, not
+   just the narrowest: both templates have the same fixed sum and the same ONE
+   flexible track (`minmax(14rem, 1fr)`) in the same position from the right
+   edge, so the slack lands in the same place on both. Keep it that way: a
+   fixed track resized here without its partner in .banner-grid, or a second
+   `fr` track, puts the two tables back out of line. The one column that
+   doesn't line up is the dates, which sit after the wider select; aligning
+   them too would leave a 20.5rem hole in the staged row.
+
+   The select is FIXED (the sheet's select + derived-stats tracks), never
+   `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, and react-select's `nowrap`
+   label makes that auto floor the WHOLE banner name: when this track was
+   flexible, the 242-character Golden Week revival ran the row 2450px wide
+   inside a 1470px container and clipped everything right of the select. A
+   definite size clamps that content-based minimum away, as it always has on
+   the sheet's 10.5rem select.
 
    min-width is INHERITED from .banner-grid deliberately. The staged table stays
-   exactly as wide as the sheet below it, so the two line up on both edges and the
-   `@banner-table:` switch point still governs both. Only the internal split moves:
-   the select becomes 1fr and absorbs the freed 14rem floor (≈24.5rem at the
-   narrowest table width) plus any slack on a wider canvas.
+   exactly as wide as the sheet below it, and the `@banner-table:` switch point
+   still governs both.
 
    Used by StagedBannerRow AND the staging header in CaratCalculator — both, or
-   the header drifts out of alignment with the rows it labels.
-
-   The select track is `minmax(0, 1fr)`, and the 0 is LOAD-BEARING — a bare `1fr`
-   is `minmax(auto, 1fr)`, whose auto floor makes the track grow to the cell's
-   min-content. react-select's selected label is `white-space: nowrap`, so that
-   min-content is the WHOLE banner name: the 242-character Golden Week revival
-   ("Oguri Cap + (Christmas) + …") pushed this track to 1616px, ran the row 2450px
-   wide inside a 1470px container, and clipped the pulls field, the reserved
-   field, Add to calculator and the discard button off the right edge — while the
-   header row above stayed put and stopped lining up with the row it labels.
-   A 0 floor drops the track (and, per CSS Grid §6.6, the item's own automatic
-   minimum) back to the leftover space, and the label ellipsises inside it.
-
-   The sheet's .banner-grid never had this bug because its select track is a fixed
-   10.5rem: a definite max clamps the same content-based minimum away. Only a
-   flexible track is exposed to it, so any future `1fr` here wants the same 0. */
+   the header drifts out of alignment with the rows it labels. */
 .banner-grid--staged {
 	grid-template-columns:
-		70px             /* type badge                          */
-		8rem             /* images                              */
-		minmax(0, 1fr)   /* banner select — takes the MLB space */
-		6.75rem          /* start / end date                    */
-		20.5rem          /* confirm button                      */
-		5rem             /* # pulls                             */
-		5rem             /* reserved copies                     */
-		2.5rem;          /* discard                             */
+		70px                    /* type badge                           */
+		8rem                    /* images                               */
+		calc(10.5rem + 20.5rem) /* banner select + the derived-stats width */
+		6.75rem                 /* start / end date                     */
+		5rem                    /* # pulls                              */
+		5rem                    /* reserved copies                      */
+		minmax(14rem, 1fr)      /* add to calculator (the MLB track)    */
+		2.5rem;                 /* discard                              */
 }
 
 /* Amber wash marking a row as staged rather than counted.
@@ -275,37 +276,64 @@
 /* Sized by .banner-grid's first track, not by itself — this is a table cell. */
 .banner-type-tab {
 	@apply flex flex-col items-center justify-center gap-1
-		py-2 px-1 text-white font-bold select-none;
+		py-2 px-1 font-bold select-none;
 }
 
-.banner-type-tab--uma {
-	@apply bg-blue-900;
+/* One fill and one ink per kind, shared by the desktop badge and the mobile
+   card's header strip. Both come from --color-type-* tokens (index.css), which
+   the light themes and colorblind mode redraw; nothing here is mode-specific. */
+.banner-type-tab--uma,
+.banner-type-tile--uma {
+	background-color: var(--color-type-uma);
+	color: var(--color-type-uma-ink);
 }
 
-.banner-type-tab--support {
-	@apply bg-green-900;
+.banner-type-tab--support,
+.banner-type-tile--support {
+	background-color: var(--color-type-support);
+	color: var(--color-type-support-ink);
 }
 
-.banner-type-tab--step-up {
-	@apply bg-purple-900;
+.banner-type-tab--step-up,
+.banner-type-tile--step-up {
+	background-color: var(--color-type-step-up);
+	color: var(--color-type-step-up-ink);
 }
 
-/* Colorblind mode removes the green calculator cues: Uma remains dark blue,
-   while Support, Step Up and the staging action use red. These selectors
-   override the stock utility fills only in that mode. */
-[data-colorblind-mode="true"] .banner-type-tab--uma,
-[data-colorblind-mode="true"] .banner-type-tile--uma {
-	background-color: #1d4ed8;
+/* Everything drawn ON the mobile header strip: the banner select
+   (mobileBannerSelectStyles reads these), and the note and delete buttons.
+
+   On the dark themes the strip is a deep colour, so the controls are black and
+   white alphas that darken and outline whatever kind sits behind them. On the
+   light themes the strip is a pastel, where a white outline vanishes and a
+   black wash muddies it: the select becomes an ordinary light field instead,
+   and the delete icon needs a red deep enough for the pastel (4.5:1 on all
+   three). The text colour isn't here; it inherits each kind's ink. */
+.banner-type-tile {
+	--tile-control-fill: rgb(0 0 0 / 22%);
+	--tile-control-fill-focus: rgb(0 0 0 / 34%);
+	--tile-control-border: rgb(255 255 255 / 30%);
+	--tile-control-border-hover: rgb(255 255 255 / 55%);
+	--tile-control-border-focus: rgb(255 255 255 / 75%);
+	--tile-control-ring: rgb(255 255 255 / 45%);
+	--tile-button-border: rgb(255 255 255 / 15%);
+	--tile-danger: #f87171;
 }
 
-[data-colorblind-mode="true"] .banner-type-tab--support,
-[data-colorblind-mode="true"] .banner-type-tile--support,
+[data-theme-mode="light"] .banner-type-tile {
+	--tile-control-fill: rgb(255 255 255 / 60%);
+	--tile-control-fill-focus: rgb(255 255 255 / 85%);
+	--tile-control-border: rgb(0 0 0 / 15%);
+	--tile-control-border-hover: rgb(0 0 0 / 30%);
+	--tile-control-border-focus: rgb(0 0 0 / 45%);
+	--tile-control-ring: rgb(0 0 0 / 25%);
+	--tile-button-border: rgb(0 0 0 / 12%);
+	--tile-danger: #b91c1c;
+}
+
+/* Colorblind mode swaps the staging action's green for the same red Support
+   and Step Up rows take (those come from the --color-type-* tokens). */
 [data-colorblind-mode="true"] .add-to-calculator-button {
-	background-color: #991b1b;
-}
-
-[data-colorblind-mode="true"] .banner-type-tab--step-up,
-[data-colorblind-mode="true"] .banner-type-tile--step-up {
 	background-color: #991b1b;
 }
 
@@ -317,34 +345,35 @@
 	color: #fca5a5;
 }
 
-[data-colorblind-mode="true"] .step-up-pool-chip {
-	color: #fca5a5;
-}
-
 .crystal-cell--available {
 	@apply bg-green-900/60 text-green-300;
 }
 
+/* The stock green above only suits the dark themes: green-300 on that wash is
+   unreadable once the card behind it is white. Light themes and colorblind mode
+   take the pull-status "ok" tokens instead, so an available crystal reads the
+   same as an on-pity pull count. Plain fill first and the mix behind
+   @supports, for the reason given at the .pull-input tint below. */
+[data-theme-mode="light"] .crystal-cell--available,
 [data-colorblind-mode="true"] .crystal-cell--available {
 	color: var(--color-pull-ok);
-	background-color: color-mix(in srgb, var(--color-pull-ok-border) 22%, var(--color-gray-700));
+	background-color: var(--color-gray-700);
+}
+
+@supports (background-color: color-mix(in srgb, red 22%, blue)) {
+	[data-theme-mode="light"] .crystal-cell--available,
+	[data-colorblind-mode="true"] .crystal-cell--available {
+		background-color: color-mix(in srgb, var(--color-pull-ok-border) 22%, var(--color-gray-700));
+	}
 }
 
 /* The step-up action is semantically distinct from the ordinary banner actions.
    Its colour comes from theme tokens so the light theme does not inherit the
-   dark theme's pale purple on a bright surface. */
+   dark theme's pale purple on a bright surface, and colorblind mode turns it
+   red through the same tokens. */
 .step-up-add-button {
 	border-color: var(--color-step-up-border);
 	color: var(--color-step-up);
-}
-
-[data-colorblind-mode="true"] .step-up-add-button {
-	border-color: #f87171;
-	color: #fca5a5;
-}
-
-[data-colorblind-mode="true"] .step-up-add-button:hover {
-	background-color: rgb(153 27 27 / 18%);
 }
 
 @supports (background-color: color-mix(in srgb, red, transparent)) {
@@ -464,6 +493,35 @@
 	.pull-input--over {
 		background-color: color-mix(in srgb, var(--color-pull-over-border) 12%, var(--color-gray-700));
 	}
+
+	/* Light themes need a much stronger wash to say the same thing. A 12% tint
+	   of a deep green on a near-white field is a faint grey-green, and players
+	   could not tell an on-pity count from an off-pity one. The status states
+	   get a real pastel; neutral drops its tint entirely so the gap between
+	   "fine" and "optimal" is carried by fill as well as hue. */
+	[data-theme-mode="light"] .pull-input--ok {
+		background-color: color-mix(in srgb, var(--color-pull-ok-border) 22%, var(--color-gray-700));
+	}
+
+	[data-theme-mode="light"] .pull-input--neutral {
+		background-color: var(--color-gray-700);
+	}
+
+	[data-theme-mode="light"] .pull-input--over {
+		background-color: color-mix(in srgb, var(--color-pull-over-border) 18%, var(--color-gray-700));
+	}
+}
+
+/* ...and a doubled border on the two status states, drawn as an inset ring so
+   the box doesn't grow: the h-11 above is load-bearing. Neutral keeps its single
+   hairline, which is what makes the other two stand out at a glance. Not on dark
+   themes, where the bright borders already carry the state. */
+[data-theme-mode="light"] .pull-input--ok {
+	box-shadow: inset 0 0 0 1px var(--color-pull-ok-border);
+}
+
+[data-theme-mode="light"] .pull-input--over {
+	box-shadow: inset 0 0 0 1px var(--color-pull-over-border);
 }
 
 /* ── Banner category chip ─────────────────────────────────────────────────

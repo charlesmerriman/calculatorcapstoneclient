@@ -67,6 +67,13 @@ The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
 `App.css`) are the worked example to copy. `--color-category-revival[-border]`
 (`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
 pattern: dark values in `@theme`, deepened counterparts under `[data-theme-mode="light"]`.
+So do `--color-type-*` (the banner-row kinds), `--color-step-up` (every step-up marker,
+including the Timeline strip's chip) and `--color-new-year` / `--color-campaign` (the
+strip's text).
+
+On light themes the pull-status fills are stronger than on dark (22% / 18% against 12%) and
+the ok/over states get an inset ring, because a faint wash on a near-white field could not
+be told apart from the neutral state.
 
 A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
 to read as "not the usual banner" against seven different brand hues, and would vanish into
@@ -121,13 +128,15 @@ carried on the `BannerRowType` tag, never inferred from which FK is set (see
 |---|---|
 | Type badge + glyph (desktop) | `BannerTypeBadge` |
 | Type glyph alone (mobile card) | `BannerTypeIcon`, same module |
-| Badge background colour | `.banner-type-tab--uma / --support / --step-up` in `App.css` |
-| Mobile tile colour + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
+| Fill + ink per kind (badge AND mobile tile) | `--color-type-*` tokens in `index.css`, applied by `.banner-type-tab--*` / `.banner-type-tile--*` in `App.css` |
+| Mobile tile classes + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
 | Which catalogue the row's select offers | `bannersForRowType` in `bannerHelpers` |
 
-The normal palette uses stock classes (`bg-blue-900` / `bg-green-900` / `bg-purple-900`).
-Colorblind mode overrides the named badge/tile hooks with dark blue and red; keep those
-hooks on both desktop and mobile treatments.
+Each kind has a fill and an ink token. The dark themes use the stock blue / green /
+purple-900 values with white ink; light themes swap in pastel fills with deep same-hue ink,
+and colorblind mode redraws them blue / red in both modes. Everything drawn on the mobile
+strip (the banner select, the note and delete buttons) reads `--tile-*` variables that
+`.banner-type-tile` declares per mode, because white-on-dark alphas vanish on a pastel.
 
 Adding a fourth kind means touching each row of that table once. It used to mean finding
 six hand-copied ternaries, any of which failed silently by rendering another kind's
@@ -248,21 +257,26 @@ the calculator yet. Because the confirm button is then the card's last band, it 
 full `p-3` rather than the `p-3 pb-0` it used while the odds strip supplied the bottom
 gutter.
 
-**The desktop table drops its MLB column on staged rows too**, for the same reason and via
-`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine, with the
-freed `minmax(14rem, 1fr)` handed to the banner select, which becomes the flexible track.
-`min-width` is inherited unchanged, so the staged table stays exactly as wide as the
-calculator table below it and the `@banner-table:` switch point still governs both. The
-staging header row in `CaratCalculator` carries the same modifier — both, or the header
-drifts out of alignment with the rows it labels.
+**The desktop table shows no stats or odds on staged rows either**, via
+`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine. The
+derived-stats width goes to the banner select, and the confirm button sits in the MLB
+track. Every track from # Pulls rightward matches the calculator table's, so the staged
+pulls and copies fields sit directly above the calculator's, and Add to calculator sits
+above the odds. Both templates have the same fixed sum and the same one flexible track
+(`minmax(14rem, 1fr)`) in the same place, so this holds at every width. Only the dates
+column is offset, by the wider select. `min-width` is inherited unchanged, so the staged
+table stays exactly as wide as the calculator table below it and the `@banner-table:`
+switch point still governs both. The staging header row in `CaratCalculator` carries the
+same modifier — both, or the header drifts out of alignment with the rows it labels.
 
-That flexible track must be spelled `minmax(0, 1fr)`, never a bare `1fr`. A bare `1fr` is
+The staged select track must stay a fixed size, never a `1fr`. A bare `1fr` is
 `minmax(auto, 1fr)`, and the auto floor grows the track to the cell's min-content — which,
-for react-select's `nowrap` label, is the whole banner name. The 242-character Golden Week
-revival ran the staged row 2450px wide inside a 1470px container and clipped the pulls
-field, the reserved field, the confirm button and the discard button off the right edge.
-The calculator table never had this bug because its select track is a fixed `10.5rem`; a
-definite max clamps the same minimum away. Only a flexible track is exposed to it.
+for react-select's `nowrap` label, is the whole banner name. When the select was the
+flexible track, the 242-character Golden Week revival ran the staged row 2450px wide
+inside a 1470px container and clipped the pulls field, the reserved field, the confirm
+button and the discard button off the right edge. A definite size clamps that minimum
+away, as it always has on the calculator table's `10.5rem` select. (If a select track ever
+has to flex again, spell it `minmax(0, 1fr)`.)
 
 The staged surfaces are tinted with `.staged-surface` / `.staged-surface-header`, a
 `color-mix` of `--color-staging` into the live gray ramp. The tint is a **background**
@@ -1471,3 +1485,34 @@ react-markdown's default of not rendering raw HTML; do not add `rehype-raw`.
 The "Last updated" line formats `updated_at.slice(0, 10)`, the date half only. The build
 renders in UTC and the browser in local time, and an instant near midnight would
 otherwise format to different days on the two sides of hydration.
+
+## The update notice: stale tabs are told a newer build is live
+
+The site is a single-page app, so an open tab never reloads itself. A deploy changes
+nothing for a tab opened before it, and that tab keeps running the old bundle against the
+new API for as long as it stays open. The update notice is how such a tab finds out.
+
+**The mechanism.** `vite.config.ts` stamps every build with an id (`BUILD_ID` env var,
+else the git commit, else a timestamp; it only has to differ between deploys). The id is
+compiled into the bundle as `__BUILD_ID__` (declared in `src/buildId.d.ts`) and the client
+build emits the same value as `dist/version.json`. `services/updateWatch.ts` polls that
+file every ten minutes while the tab is visible, and again the moment a hidden tab comes
+back to the foreground. A different id means a newer build is live, and
+`hooks/useUpdateNotifier.ts`, mounted once in `App.tsx`, shows a persistent Sonner toast
+with a Refresh action.
+
+Rules that follow from it:
+
+- **It never reloads on its own.** The planner auto-saves, and a reload forced mid-save
+  could drop a row. The toast is the whole intervention; the refresh is the person's.
+- **A bad answer is never an update.** The App Platform catch-all serves a missing
+  `/version.json` as `spa.html` with a 200, so a response that is not JSON, or has no
+  non-empty `build` string, is ignored. `updateWatch.test.ts` pins this.
+- **The request cache-busts with a query string.** The static site sits behind a CDN that
+  keys its cache on the full URL, so `?t=<now>` reaches origin. The HTML itself carries
+  `s-maxage=86400`; App Platform purges the edge on deploy, which is what makes the
+  Refresh button land on the new build rather than the cached old one.
+- **The dev server answers `/version.json` itself**, with the same id the dev bundle
+  carries, so `npm run dev` and `npm run dev:live` never show the toast. To see it locally,
+  change the `build` value the middleware returns, or test through `startUpdateWatch` with
+  an injected fetch as the test file does.

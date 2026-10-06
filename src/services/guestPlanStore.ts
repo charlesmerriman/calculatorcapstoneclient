@@ -97,6 +97,10 @@ function readBanner(raw: unknown): PlannedBannerPayload | null {
 		number_of_pulls: row.number_of_pulls,
 		reserved_copies: row.reserved_copies,
 		...(typeof row.note === "string" && row.note !== "" ? { note: row.note } : {}),
+		// Kept only when they are real ids. A row stored before two-card odds
+		// has neither, and must still load rather than be thrown away.
+		...(isCount(row.primary_card) ? { primary_card: row.primary_card } : {}),
+		...(isCount(row.second_card) ? { second_card: row.second_card } : {}),
 		banner_uma: row.banner_uma,
 		banner_support: row.banner_support,
 		banner_step_up: row.banner_step_up
@@ -344,6 +348,8 @@ export function guestPlanToState(
 			number_of_pulls: row.number_of_pulls,
 			reserved_copies: row.reserved_copies,
 			...(row.note ? { note: row.note } : {}),
+			...(row.primary_card != null ? { primary_card: row.primary_card } : {}),
+			...(row.second_card != null ? { second_card: row.second_card } : {}),
 			...target
 		})
 	}

@@ -30,13 +30,19 @@ export const SITE_NAME = "Uma Musume Carat Calculator"
 /**
  * Canonical origin, hardcoded rather than read from window.location.
  *
- * App Platform keeps serving this same bundle on its generated
+ * App Platform served this same bundle on its generated
  * `umamusme-calculator-7zdcg.ondigitalocean.app` hostname, and that hostname
- * cannot be switched off. While the canonical was built from
+ * cannot be deleted. While the canonical was built from
  * `window.location.origin`, every page served there declared ITSELF canonical,
  * so Google saw two complete and equally authoritative copies of the site
  * competing with one another. A constant makes the DigitalOcean host point its
  * canonical at the real domain, which is what consolidates them.
+ *
+ * Since 2026-10-06 the starter hostname no longer serves the bundle at all: an
+ * ingress rule in the live App Platform spec (mirrored in the API repo's
+ * .do/app.yaml) answers every request there with a 301 to this origin. The
+ * constant stays, both as belt-and-braces and because it is what the
+ * prerendered pages embed.
  *
  * This reverses an earlier deliberate choice. Runtime origin was correct while
  * the custom domain was still pending — it meant the move could not break the

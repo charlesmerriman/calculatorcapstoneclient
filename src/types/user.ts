@@ -95,6 +95,18 @@ interface BasePlannedBanner {
 	 * Capped at NOTE_MAX_LENGTH (components/carat-calculator/BannerNote).
 	 */
 	note?: string
+	/**
+	 * Which featured card the odds strip is about, as a card id (an uma id on an
+	 * uma row, a support card id on a support row). Null or absent: the banner's
+	 * first card of its highest rarity. An id the banner does not feature is
+	 * ignored, never an error. Read through `oddsCards()` in utils/rateUpRates.
+	 */
+	primary_card?: number | null
+	/**
+	 * A second featured card to show joint odds for ("MLB of the first, and how
+	 * many of this one"). Null or absent: two-card odds are off.
+	 */
+	second_card?: number | null
 	banner_uma?: BannerUma | null
 	banner_support?: BannerSupport | null
 	/**

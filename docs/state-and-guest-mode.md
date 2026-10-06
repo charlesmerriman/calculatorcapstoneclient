@@ -68,6 +68,11 @@ for why it is never "whichever plan is active".
   needs no mapping: `toBannerPayload` spreads the row, so autosave, the Navbar save and the
   guest's device store all carry it. `NOTE_MAX_LENGTH` (500) mirrors the API's cap, and the
   textarea's `maxLength` keeps a save from ever failing on it.
+- **The odds-card choices ride the row the same way.** `primary_card` / `second_card`
+  (optional card ids, see "Two-card odds" in `resource-projection-logic.md`) go out through
+  `toBannerPayload`'s spread with no mapping. The guest store is the one place that names
+  them: `readBanner` rebuilds a row from checked fields, so it keeps the two ids only when
+  they are real ids, and a row stored before they existed still loads.
 
 ---
 

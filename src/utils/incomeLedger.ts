@@ -100,14 +100,19 @@ export function cumulativeEventRewards(
  *   live values: zero flagged rows predate today). Our ledger carries past rows,
  *   so the gate lives here instead — `date >= today`, midnight, matching where
  *   the sheet's own column starts.
- * - The upper bound is `< end + 1 day`, NOT `<= end`. Race rows are dated at
- *   midnight while banners end at 21:59:59, so this credits an event finishing
- *   the day after a banner closes. That is the sheet's behaviour and it is
- *   ported deliberately; the parity harness is what confirms it.
+ * - The upper bound is `<= end`, the banner's closing instant, and NOT the
+ *   sheet's `< end + 1 day`. The sheet dates a race row at its LISTED end and
+ *   uses the extra day to stand in for the Champions Meeting lead time (the
+ *   rewards drop at the daily reset a day before the listed end). Our backend
+ *   already dates the row at that reset (`RACE_REWARD_LEAD_TIME`), so porting
+ *   the sheet's `+ 1` on top of it shifted a CM twice and credited a CM ending
+ *   the day after a banner to that banner — one minute before its rewards
+ *   existed (reported by Daptrius, 2026-10-06). Compare instants, like
+ *   cumulativeEventRewards does, and the double shift is gone.
  *
- * The lead time a Champions Meeting settles ahead of its listed end is already
- * baked into `row.date` by the backend, so there is nothing to subtract here —
- * these bounds are about the banner window, not about when the event pays.
+ * Worked example, banner closing on the 15th at 21:59:59: a CM listed as
+ * ending the 15th is dated the 14th 22:00:00 and counts; one ending the 16th
+ * is dated the 15th 22:00:00, a second after the banner, and does not.
  *
  * The rows are indicators and carry no amounts; cumulativeRaceRewards below
  * values them at the user's rank.
@@ -119,9 +124,8 @@ export function raceEventsInWindow(
 	end: Date
 ): ParsedLedgerRow[] {
 	const from = startOfUtcDay(today)
-	const to = addUtcDays(end, 1)
 	return ledger.filter(
-		(row) => row.kind === kind && row.parsedDate >= from && row.parsedDate < to
+		(row) => row.kind === kind && row.parsedDate >= from && row.parsedDate <= end
 	)
 }
 

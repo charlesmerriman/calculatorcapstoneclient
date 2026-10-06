@@ -352,6 +352,15 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 	step_up_target_rate: 0.003,
 	step_up_max_rounds: 7,
 
+	// From the global client's own gacha table: each rate-up card gets its
+	// rarity's rate, unless the rate-ups would share more than the pool.
+	rate_up_rate_3: 0.0075,
+	rate_up_pool_3: 0.03,
+	rate_up_rate_2: 0.0225,
+	rate_up_pool_2: 0.03,
+	rate_up_rate_1: 0.0375,
+	rate_up_pool_1: 0.05,
+
 	throughout_end_offset_days: THROUGHOUT_END_OFFSET_DAYS,
 	throughout_filter_grace_days: THROUGHOUT_FILTER_GRACE_DAYS,
 	throughout_decay_k: 2,

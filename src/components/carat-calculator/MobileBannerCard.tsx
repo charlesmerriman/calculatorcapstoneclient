@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
-import { Trash2, X } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { BannerTypeIcon } from "./BannerTypeBadge"
 import type { BannerRowType } from "../../utils/bannerHelpers"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
@@ -52,8 +52,8 @@ interface MobileBannerCardProps {
 	 * A **staged** row passes none: the odds strip is the widest, most expensive
 	 * band on a phone, and a row that isn't on the sheet yet has nothing to spend
 	 * it on — the numbers it would show are answering a question the user hasn't
-	 * finished asking. The desktop table drops its MLB column on staged rows for
-	 * the same reason, and gives the width to the banner select instead
+	 * finished asking. The desktop table shows no odds on staged rows for the
+	 * same reason, and puts the confirm button in the MLB track instead
 	 * (.banner-grid--staged).
 	 */
 	chanceDisplay?: ReactNode
@@ -62,11 +62,15 @@ interface MobileBannerCardProps {
 	 * none: a note belongs to a row that is on the sheet.
 	 */
 	noteButton?: ReactNode
+	/**
+	 * The open odds-card picker (which card the odds are for, and an optional
+	 * second one), under the odds. Owns its own padding.
+	 */
+	oddsPanel?: ReactNode
 	/** The open note editor, under everything else. Owns its own padding. */
 	noteEditor?: ReactNode
 	onRemove: () => void
 	removeLabel: string
-	removeIcon?: "delete" | "discard"
 	/**
 	 * Marks the card as a STAGED row rather than one that counts. Swaps the
 	 * card's neutral surface for the amber staging tint, matching
@@ -94,12 +98,14 @@ const TYPE_STYLES: Record<
 	BannerRowType,
 	{ label: string; tile: string; thumbTileRadius: string }
 > = {
-	Uma: { label: "UMA", tile: "banner-type-tile--uma bg-blue-900", thumbTileRadius: "rounded-md" },
-	Support: { label: "SUPPORT", tile: "banner-type-tile--support bg-green-900", thumbTileRadius: "rounded-none" },
+	// Fill and ink come from .banner-type-tile--* in App.css (theme tokens), not a
+	// stock bg-* class here: a stock class can't change with the light themes.
+	Uma: { label: "UMA", tile: "banner-type-tile banner-type-tile--uma", thumbTileRadius: "rounded-md" },
+	Support: { label: "SUPPORT", tile: "banner-type-tile banner-type-tile--support", thumbTileRadius: "rounded-none" },
 	// Provisional: a step-up carries no featured cards, so the thumb radius is
 	// moot until its own artwork lands. Final treatment comes with the step-up
 	// UI phase — see step-up-banners-plan.md.
-	StepUp: { label: "STEP UP", tile: "banner-type-tile--step-up bg-purple-900", thumbTileRadius: "rounded-md" },
+	StepUp: { label: "STEP UP", tile: "banner-type-tile banner-type-tile--step-up", thumbTileRadius: "rounded-md" },
 }
 
 /**
@@ -168,13 +174,12 @@ export const MobileBannerCard = ({
 	reservedInput,
 	chanceDisplay,
 	noteButton,
+	oddsPanel,
 	noteEditor,
 	onRemove,
 	removeLabel,
-	removeIcon = "delete",
 	staged = false,
 }: MobileBannerCardProps) => {
-	const Icon = removeIcon === "delete" ? Trash2 : X
 	const style = TYPE_STYLES[bannerType]
 
 	return (
@@ -185,10 +190,11 @@ export const MobileBannerCard = ({
 		>
 			<div className={`flex min-h-[64px] items-stretch ${style.tile}`}>
 				<div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 bg-black/15 px-1">
-					<span className="text-xs font-bold tracking-wide text-white">
+					{/* No text colour: both inherit the kind's ink from the tile. */}
+					<span className="text-xs font-bold tracking-wide">
 						{style.label}
 					</span>
-					<BannerTypeIcon type={bannerType} className="h-5 w-5 text-white/90" />
+					<BannerTypeIcon type={bannerType} className="h-5 w-5 opacity-90" />
 				</div>
 
 				{/* Tight gutters: every pixel here comes off the banner name, which is
@@ -212,9 +218,11 @@ export const MobileBannerCard = ({
 					onClick={onRemove}
 					aria-label={removeLabel}
 					title={removeLabel}
-					className="my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-400/40 bg-black/10 text-red-400 transition hover:bg-black/25"
+					className="my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-(--tile-danger)/40 bg-black/10 text-(--tile-danger) transition hover:bg-black/25"
 				>
-					<Icon className="h-5 w-5" />
+					{/* The trashcan on staged cards too: the X they used to show
+					    read as "close" rather than "delete". */}
+					<Trash2 className="h-5 w-5" />
 				</button>
 			</div>
 
@@ -267,6 +275,7 @@ export const MobileBannerCard = ({
 
 				{summary}
 				{chanceDisplay}
+				{oddsPanel}
 				{noteEditor}
 			</div>
 		</div>

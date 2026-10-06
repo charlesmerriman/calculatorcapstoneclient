@@ -97,15 +97,30 @@ describe('raceEventsInWindow', () => {
     expect(raceEventsInWindow(ledger, 'champions_meeting', TODAY, utc('2029-01-01T00:00:00Z'))).toHaveLength(0)
   })
 
-  it('includes a race event finishing the day after the banner closes', () => {
-    // The sheet's upper bound is `< end + 1 day`, not `<= end`. Race rows are
-    // dated at midnight while banners end at 21:59:59, so this is the ported
-    // behaviour rather than an off-by-one.
+  it('credits a CM ending the same day as the banner, not one ending the day after', () => {
+    // The backend dates a CM row at the daily reset a day before its listed
+    // end, which is when the rewards drop. A banner closes at 21:59:59; a CM
+    // listed as ending the same day paid out at 22:00:00 the day before and
+    // counts, while one listed as ending the next day pays at 22:00:00 tonight,
+    // one second after the banner closed, and must go to a later banner.
+    // (The sheet's `< end + 1 day` is NOT ported: it stands in for the lead
+    // time the backend already applies, and porting both shifted a CM twice.)
     const ledger = parseLedger([
-      row({ date: '2026-09-02T00:00:00Z', kind: 'champions_meeting' }),
+      row({ date: '2026-08-31T22:00:00Z', kind: 'champions_meeting' }), // listed end Sep 1
+      row({ date: '2026-09-01T22:00:00Z', kind: 'champions_meeting' }), // listed end Sep 2
     ])
     const bannerEnd = utc('2026-09-01T21:59:59Z')
-    expect(raceEventsInWindow(ledger, 'champions_meeting', TODAY, bannerEnd)).toHaveLength(1)
+    const counted = raceEventsInWindow(ledger, 'champions_meeting', TODAY, bannerEnd)
+    expect(counted.map((r) => r.date)).toEqual(['2026-08-31T22:00:00Z'])
+  })
+
+  it('counts a race event dated exactly at the banner end', () => {
+    // The bound is inclusive: an LoH row sits at its listed end, 21:59:59, and
+    // a banner closing at the same second still collects it.
+    const ledger = parseLedger([
+      row({ date: '2026-09-01T21:59:59Z', kind: 'league_of_heroes' }),
+    ])
+    expect(raceEventsInWindow(ledger, 'league_of_heroes', TODAY, utc('2026-09-01T21:59:59Z'))).toHaveLength(1)
   })
 })
 

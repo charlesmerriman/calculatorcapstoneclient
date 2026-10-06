@@ -293,16 +293,17 @@ export const CaratCalculator: React.FC = () => {
 								    --container-banner-table in index.css. */}
 										<div className="@container">
 											{/* Eight cells, not the sheet's nine: .banner-grid--staged drops the
-											    MLB column and widens the select with it. Keep this row and
-											    StagedBannerRow on the same modifier or they drift apart. */}
+											    derived-stats column and widens the select with it, and puts
+											    Confirm in the MLB track. Keep this row and StagedBannerRow on
+											    the same modifier or they drift apart. */}
 											<div className="banner-grid banner-grid--staged staged-surface-header hidden w-full items-center text-xs text-gray-400 font-medium border-b border-gray-700 rounded-t-lg py-1.5 @banner-table:grid">
 												<div className="text-center">Type</div>
 												<div className="text-center">Images</div>
 												<div className="text-center">Banner</div>
 												<div className="text-center">Start / End Date</div>
-												<div className="text-center">Confirm</div>
 												<div className="text-center"># Pulls</div>
 												{reservedHeaderCell}
+												<div className="text-center">Confirm</div>
 												<div className="text-center"></div>
 											</div>
 											{/* Same spacing/divider rules as the sheet below: several staged

@@ -61,6 +61,8 @@ running spend total — it just stops carrying income.
 | `hooks/useBannerResources.ts` | The engine: income − spend, per banner |
 | `utils/bannerHelpers.ts` | `applyPullStrategy`, `applyStepUpStrategy`, `allocateReservedCopies` |
 | `utils/stepUpLadder.ts` | The step-up cost ladder and its odds, in closed form |
+| `utils/rateUpRates.ts` | Each rate-up card's per-pull rate on an ordinary banner |
+| `utils/probabilityCalculations.ts` | The copy-count distribution both kinds of row show |
 
 Every function in the first three names the spreadsheet cell it reproduces.
 Where we knowingly differ, the comment says so.
@@ -146,10 +148,15 @@ A flat, date-sorted row per reward instant, built server-side from `GameEvent`,
 (`IncomeLedgerRow`) for the field-by-field contract. Four things matter here:
 
 - **`date` is when the reward lands** — an event's start; a race event's **end,
-  less that kind's lead time**. A Champions Meeting settles 24 hours before its
-  window closes, so its row is a day ahead of the end date the Timeline shows;
-  League of Heroes has no lead time. The offset lives server-side
-  (`RACE_REWARD_LEAD_TIME`) so nothing on the client re-derives it.
+  less that kind's lead time**. A Champions Meeting pays out at the daily reset a
+  day before its window closes (22:00:00, the end less 23:59:59), so its row is a
+  day ahead of the end date the Timeline shows; League of Heroes has no lead time.
+  The offset lives server-side (`RACE_REWARD_LEAD_TIME`) so nothing on the client
+  re-derives it. The client gate is `today <= date <= E`, the same instant
+  comparison every row kind gets; the sheet's `< E + 1 day` is deliberately NOT
+  ported, because the sheet dates race rows at their listed end and that extra day
+  is its stand-in for the lead time. With both applied, a CM ending the day after a
+  banner was credited to that banner a minute before its rewards existed.
 - **Race rows carry no amounts.** They are indicators; what a placement pays
   depends on the user's rank, which only the client knows. Once, it depends on
   the event too: League of Heroes #1 only ran to Platinum 1, so it pays at
@@ -283,6 +290,61 @@ figure dripped as `monthly / 30`.
   SSR crystals; uma banners can only use selectors (no ★3 crystal in this data
   model). Over-reserving is reported via `reservedFunding.unfunded`.
 
+## Odds on an ordinary banner
+
+The six-cell strip (None … MLB, or 1x … 5x for umas) is a binomial over the planned
+pulls at the chased card's rate, with one guaranteed copy per 200 pulls (the pity
+exchange) and any funded reserved copies stacked on top (`shiftDistribution`).
+
+**The rate is per card, not a flat 0.75%.** `utils/rateUpRates.ts` applies the game's
+rule, read off the global client's own gacha table:
+
+```
+rate = min(rate_up_rate_N, rate_up_pool_N / rate-up cards of rarity N on the banner)
+```
+
+| Banner | Rate per card |
+|---|---|
+| 1 or 2 ★3/SSR rate-ups (almost every banner) | 0.75% |
+| 9 ★3 rate-ups (the launch uma banner) | 0.333% (3% ÷ 9) |
+| 20 SSR rate-ups (Launch Support) | 0.15% (3% ÷ 20) |
+| A ★2 rate-up | 2.25%, against the ★2 pool, beside any ★3's 0.75% |
+| "10 Select 2" | 0.75% for each of the 2 picks (`rate_up_picks` splits the pool by picks) |
+
+An editor's `rate_overrides` entry wins over the rule (the 2025-07-16 anime-collab doubles
+were 0.5% each). The six numbers are `calculation_constants`, passed in like every other
+constant; `calculateCopyDistribution(pulls, rate)` takes the rate as a parameter for the
+same reason. Which card the strip is about is `primaryRateUpCard`: the first card of the
+banner's highest rarity, so a ★3 + ★2 banner shows the ★3.
+Background, sources and the admin side: `backend/docs/data-model.md` ("Rate-up rates").
+
+### Two-card odds
+
+On a banner with more than one rate-up card, the strip's top line names the card it is
+about ("Odds for Kitasan Black") and opens a picker under the row: which card the odds are
+for, and a checkbox to **also show** a second card. Both choices are plan choices saved on
+the row (`primary_card`, `second_card`; card ids, resolved by `oddsCards()`, which ignores
+an id the banner no longer features).
+
+With a second card on, the strip answers the question a double rate-up raises: *if I take
+A to MLB, how many of B do I get?* Each cell is the **joint** chance of A at MLB and B at
+that level (`mlbWithSecondCardDistribution`), so the six cells add up to A's own MLB
+chance, not 100%. Three things set it apart from two one-card strips:
+
+- **The cards share pulls.** A pull gives A, or B, or neither, so the counts are a
+  three-way split: `P(i, j) = Binomial(n, i; pA) × Binomial(n - i, j; pB / (1 - pA))`.
+- **The 200-pull exchange is one pot, spent A first.** Points are banked during the
+  banner and spent after, so a player chasing A fills A to MLB and only then buys B. That
+  is the rule, and it is why the cells always sum to the one-card strip's MLB cell for A
+  (a test pins it). Exchanges A cannot use go to B, which is why this cannot reuse
+  `getGuaranteedCopies` (it caps at MLB).
+- **Reserved copies are copies of A**, counted before the exchanges.
+
+Worked example, 600 pulls on Kitasan Black + Satono Diamond (both 0.75%, three
+exchanges): A reaches MLB 94.0% of the time; the strip reads 0.1 / 0.7 / 2.3 / 5.2 / 9.4 /
+76.2, so both MLB is 76.2%. The reference values in the tests come from a separate
+brute-force model that walks every (A, B) outcome.
+
 ## Step-up banners
 
 A **Select Step-Up** is a third kind of planner row, alongside Uma and Support.
@@ -329,23 +391,42 @@ unaffordable, it is impossible, so it is clamped away instead of reported.
 
 ### Odds
 
-Three things differ from a standard banner, which is why `stepUpCopyDistribution`
-exists rather than reusing `calculateCopyDistribution`:
+Every step is a 10-pull, but steps 3, 4 and 5 each spend their last pull on a
+guaranteed card. `stepUpPulls` sorts a step count into the three kinds of pull:
+
+| Step in round | 1 | 2 | 3 | 4 | 5 | Round total |
+|---|---|---|---|---|---|---|
+| Pool pulls (0.3%) | 10 | 10 | 9 | 9 | 9 | **47** |
+| Selection slot (1 in 10) | | | 1 | 1 | | **2** |
+| Your pick (certain) | | | | | 1 | **1** |
+
+A partial round counts only the steps it reached: 3 steps is 29 / 1 / 0, and the
+three-banner ceiling of 15 steps is 141 / 6 / 3.
+
+How that compares with a standard banner:
 
 | | Standard banner | Step-up |
 |---|---|---|
-| Trials | the planned pull count | `chargeableSteps * 10` |
-| Rate | 0.75% (single featured card) | **0.3%** — the ~3% pool split across your 10 picks |
-| Guarantees | one per 200 pulls (pity) | one per completed 5-step round |
+| Random attempts | the planned pull count at the rate-up card's rate (**0.75%** on a typical banner; see "Odds on an ordinary banner") | pool pulls at **0.3%** (the ~3% pool split across your 10 picks), plus selection slots at **1 in 10** |
+| Guarantees | one per 200 pulls (pity) | one per completed 5-step round (the step 5 pick) |
 
-Reading a step-up's step count as a pull count would understate a plan tenfold,
-on top of the other two being wrong. `copyDistribution({ trials, rate, guaranteed })`
-in `utils/probabilityCalculations.ts` is the shared core both go through.
+Reading a step-up's step count as a pull count would understate a plan tenfold.
+`copyDistribution({ attempts, guaranteed })` in `utils/probabilityCalculations.ts`
+is the shared core both go through. `attempts` is a list of `{ trials, rate }`
+groups combined by convolution, so a standard banner passes one group and a
+step-up passes two. With one group the result is bit-for-bit the old single
+binomial.
 
-The sheet credits only the step-5 "you choose" guarantee. Steps 3 and 4 also hand
-over a card, but a *random* one of your ten selections, and the sheet ignores
-them; we match the sheet. Modelling them properly is a second binomial at
-`p = 0.1` layered on the first — a refinement past parity, not parity.
+The selection slot's 1 in 10 is `1 / SELECTION_SLOTS`, not an API constant. It
+is the shape of the game (the selection is always ten cards), the same way
+`STEPS_PER_ROUND` is always five. The 0.3% stays in `calculation_constants`
+because it is a drop rate.
+
+**This departs from the source sheet on purpose.** The sheet credits only the
+step 5 pick and rolls all 50 pulls at 0.3%, ignoring the two 1-in-10 slots.
+Those slots are worth more than 60 ordinary pulls per round, so the sheet's model
+showed a three-banner plan's MLB chance as 7.5% when it is 27.3%. Fixed after a
+player report in October 2026.
 
 ### Paid carats are contended
 
@@ -369,8 +450,9 @@ equivalent concept either.
 A step-up row can carry the ten cards the user intends to select
 (`UserStepUpSelection`, edited on the campaign card in `/app/selectors`). **None of
 it reaches the projection.** The target rate is `step_up_target_rate` = 3% ÷ 10 —
-the pool rate split across the ten cards you named — and that holds whichever ten
-they are, so a partial, empty or edited selection moves no number. It is a planning
+the pool rate split across the ten cards you named — and the selection slot is
+1 ÷ 10. Both hold whichever ten they are, so a partial, empty or edited selection
+moves no number. It is a planning
 record, exactly as on the source sheet, whose Selection 1–10 columns feed no formula
 either.
 
