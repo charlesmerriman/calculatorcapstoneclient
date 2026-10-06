@@ -182,49 +182,50 @@
 	min-width: var(--container-banner-table);
 }
 
-/* Staging variant — same nine-cell row minus the MLB column, whose width goes to
-   the banner select.
+/* Staging variant — same nine-cell row minus the derived-stats column, whose
+   width goes to the banner select. Add to calculator sits in the MLB track.
 
-   A staged row exists to answer one question ("which banner?"), and its odds are
-   speculative until it's on the sheet, so the widest column was spent on the
-   least useful thing. Handing that space to the select does double duty: the
-   control the row is actually for becomes the biggest thing in it, and the
-   staging block stops looking like a second copy of the sheet — which is what
-   people were misreading it as.
+   A staged row isn't on the sheet, so useBannerResources hasn't projected it:
+   it has no derived stats and no odds. Its select takes the derived-stats
+   width, so the control the row is actually for becomes the biggest thing in
+   it, and the staging block stops looking like a second copy of the sheet,
+   which is what people were misreading it as.
+
+   EVERY track from # pulls rightward matches .banner-grid exactly, so the
+   staged pulls and copies fields sit directly above the sheet's, and the
+   confirm button directly above the MLB odds. That holds at every width, not
+   just the narrowest: both templates have the same fixed sum and the same ONE
+   flexible track (`minmax(14rem, 1fr)`) in the same position from the right
+   edge, so the slack lands in the same place on both. Keep it that way: a
+   fixed track resized here without its partner in .banner-grid, or a second
+   `fr` track, puts the two tables back out of line. The one column that
+   doesn't line up is the dates, which sit after the wider select; aligning
+   them too would leave a 20.5rem hole in the staged row.
+
+   The select is FIXED (the sheet's select + derived-stats tracks), never
+   `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, and react-select's `nowrap`
+   label makes that auto floor the WHOLE banner name: when this track was
+   flexible, the 242-character Golden Week revival ran the row 2450px wide
+   inside a 1470px container and clipped everything right of the select. A
+   definite size clamps that content-based minimum away, as it always has on
+   the sheet's 10.5rem select.
 
    min-width is INHERITED from .banner-grid deliberately. The staged table stays
-   exactly as wide as the sheet below it, so the two line up on both edges and the
-   `@banner-table:` switch point still governs both. Only the internal split moves:
-   the select becomes 1fr and absorbs the freed 14rem floor (≈24.5rem at the
-   narrowest table width) plus any slack on a wider canvas.
+   exactly as wide as the sheet below it, and the `@banner-table:` switch point
+   still governs both.
 
    Used by StagedBannerRow AND the staging header in CaratCalculator — both, or
-   the header drifts out of alignment with the rows it labels.
-
-   The select track is `minmax(0, 1fr)`, and the 0 is LOAD-BEARING — a bare `1fr`
-   is `minmax(auto, 1fr)`, whose auto floor makes the track grow to the cell's
-   min-content. react-select's selected label is `white-space: nowrap`, so that
-   min-content is the WHOLE banner name: the 242-character Golden Week revival
-   ("Oguri Cap + (Christmas) + …") pushed this track to 1616px, ran the row 2450px
-   wide inside a 1470px container, and clipped the pulls field, the reserved
-   field, Add to calculator and the discard button off the right edge — while the
-   header row above stayed put and stopped lining up with the row it labels.
-   A 0 floor drops the track (and, per CSS Grid §6.6, the item's own automatic
-   minimum) back to the leftover space, and the label ellipsises inside it.
-
-   The sheet's .banner-grid never had this bug because its select track is a fixed
-   10.5rem: a definite max clamps the same content-based minimum away. Only a
-   flexible track is exposed to it, so any future `1fr` here wants the same 0. */
+   the header drifts out of alignment with the rows it labels. */
 .banner-grid--staged {
 	grid-template-columns:
-		70px             /* type badge                          */
-		8rem             /* images                              */
-		minmax(0, 1fr)   /* banner select — takes the MLB space */
-		6.75rem          /* start / end date                    */
-		20.5rem          /* confirm button                      */
-		5rem             /* # pulls                             */
-		5rem             /* reserved copies                     */
-		2.5rem;          /* discard                             */
+		70px                    /* type badge                           */
+		8rem                    /* images                               */
+		calc(10.5rem + 20.5rem) /* banner select + the derived-stats width */
+		6.75rem                 /* start / end date                     */
+		5rem                    /* # pulls                              */
+		5rem                    /* reserved copies                      */
+		minmax(14rem, 1fr)      /* add to calculator (the MLB track)    */
+		2.5rem;                 /* discard                              */
 }
 
 /* Amber wash marking a row as staged rather than counted.

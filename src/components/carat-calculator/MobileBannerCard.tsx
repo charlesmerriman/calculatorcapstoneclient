@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
-import { Trash2, X } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { BannerTypeIcon } from "./BannerTypeBadge"
 import type { BannerRowType } from "../../utils/bannerHelpers"
 import { ReservedColumnIcons, RESERVED_COLUMN_TITLE } from "./ReservedColumnIcons"
@@ -52,8 +52,8 @@ interface MobileBannerCardProps {
 	 * A **staged** row passes none: the odds strip is the widest, most expensive
 	 * band on a phone, and a row that isn't on the sheet yet has nothing to spend
 	 * it on — the numbers it would show are answering a question the user hasn't
-	 * finished asking. The desktop table drops its MLB column on staged rows for
-	 * the same reason, and gives the width to the banner select instead
+	 * finished asking. The desktop table shows no odds on staged rows for the
+	 * same reason, and puts the confirm button in the MLB track instead
 	 * (.banner-grid--staged).
 	 */
 	chanceDisplay?: ReactNode
@@ -66,7 +66,6 @@ interface MobileBannerCardProps {
 	noteEditor?: ReactNode
 	onRemove: () => void
 	removeLabel: string
-	removeIcon?: "delete" | "discard"
 	/**
 	 * Marks the card as a STAGED row rather than one that counts. Swaps the
 	 * card's neutral surface for the amber staging tint, matching
@@ -173,10 +172,8 @@ export const MobileBannerCard = ({
 	noteEditor,
 	onRemove,
 	removeLabel,
-	removeIcon = "delete",
 	staged = false,
 }: MobileBannerCardProps) => {
-	const Icon = removeIcon === "delete" ? Trash2 : X
 	const style = TYPE_STYLES[bannerType]
 
 	return (
@@ -217,7 +214,9 @@ export const MobileBannerCard = ({
 					title={removeLabel}
 					className="my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-(--tile-danger)/40 bg-black/10 text-(--tile-danger) transition hover:bg-black/25"
 				>
-					<Icon className="h-5 w-5" />
+					{/* The trashcan on staged cards too: the X they used to show
+					    read as "close" rather than "delete". */}
+					<Trash2 className="h-5 w-5" />
 				</button>
 			</div>
 
