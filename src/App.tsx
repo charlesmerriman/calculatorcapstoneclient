@@ -25,6 +25,7 @@ import { Feedback } from "./components/info/Feedback.js"
 import { NotFound } from "./components/NotFound.js"
 import { recordVisit } from "./services/visitBeacon.js"
 import { useScrollReset } from "./hooks/useScrollReset.js"
+import { useUpdateNotifier } from "./hooks/useUpdateNotifier.js"
 
 const ThemedToaster = () => {
 	const { activeTheme } = useTheme()
@@ -48,6 +49,11 @@ function App() {
 	useEffect(() => {
 		recordVisit()
 	}, [])
+
+	// Same reasoning: a tab left open through a deploy keeps running the old
+	// bundle until something tells it a newer one is live, and it has to be
+	// told on every route, not only inside the calculator.
+	useUpdateNotifier()
 
 	return (
 		<ThemeProvider>
