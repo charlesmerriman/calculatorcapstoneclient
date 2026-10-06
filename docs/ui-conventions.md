@@ -1471,3 +1471,34 @@ react-markdown's default of not rendering raw HTML; do not add `rehype-raw`.
 The "Last updated" line formats `updated_at.slice(0, 10)`, the date half only. The build
 renders in UTC and the browser in local time, and an instant near midnight would
 otherwise format to different days on the two sides of hydration.
+
+## The update notice: stale tabs are told a newer build is live
+
+The site is a single-page app, so an open tab never reloads itself. A deploy changes
+nothing for a tab opened before it, and that tab keeps running the old bundle against the
+new API for as long as it stays open. The update notice is how such a tab finds out.
+
+**The mechanism.** `vite.config.ts` stamps every build with an id (`BUILD_ID` env var,
+else the git commit, else a timestamp; it only has to differ between deploys). The id is
+compiled into the bundle as `__BUILD_ID__` (declared in `src/buildId.d.ts`) and the client
+build emits the same value as `dist/version.json`. `services/updateWatch.ts` polls that
+file every ten minutes while the tab is visible, and again the moment a hidden tab comes
+back to the foreground. A different id means a newer build is live, and
+`hooks/useUpdateNotifier.ts`, mounted once in `App.tsx`, shows a persistent Sonner toast
+with a Refresh action.
+
+Rules that follow from it:
+
+- **It never reloads on its own.** The planner auto-saves, and a reload forced mid-save
+  could drop a row. The toast is the whole intervention; the refresh is the person's.
+- **A bad answer is never an update.** The App Platform catch-all serves a missing
+  `/version.json` as `spa.html` with a 200, so a response that is not JSON, or has no
+  non-empty `build` string, is ignored. `updateWatch.test.ts` pins this.
+- **The request cache-busts with a query string.** The static site sits behind a CDN that
+  keys its cache on the full URL, so `?t=<now>` reaches origin. The HTML itself carries
+  `s-maxage=86400`; App Platform purges the edge on deploy, which is what makes the
+  Refresh button land on the new build rather than the cached old one.
+- **The dev server answers `/version.json` itself**, with the same id the dev bundle
+  carries, so `npm run dev` and `npm run dev:live` never show the toast. To see it locally,
+  change the `build` value the middleware returns, or test through `startUpdateWatch` with
+  an injected fetch as the test file does.
