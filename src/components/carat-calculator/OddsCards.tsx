@@ -11,9 +11,11 @@ import { formatRate, type OddsTarget } from "../../utils/oddsDisplay"
  *     control costs no space of its own in the fixed-height table row.
  *   - OddsCardsPanel: the strip under the row (a band of the card on phones)
  *     where the player picks that card, ticks a second one for two-card
- *     odds, and then chooses how far the first card is taken (one copy, or
- *     all of them). Laid out like the note editor, for the same reason: the
- *     table row keeps its height and its columns.
+ *     odds, and chooses how far the first card is taken (one copy, or all of
+ *     them). Every control is always rendered, the second-card ones greyed
+ *     out until the box is ticked, so nothing moves when it is. Laid out like
+ *     the note editor, for the same reason: the table row keeps its height
+ *     and its columns.
  *
  * Both are plain view code. The choices they report are saved on the planned
  * row (`primary_card` / `second_card` / `primary_target`), resolved by
@@ -148,47 +150,48 @@ export const OddsCardsPanel = ({
 			</div>
 
 			{/*
-			  How far the first card is taken, last in the row and only once a
-			  second card is on: on its own the strip shows every level and has
-			  no target. Two segments with the chosen one lit, so the current
-			  choice reads here without going back to the caption.
+			  How far the first card is taken, last in the row. Always rendered,
+			  greyed out until a second card is on (like the second select), so
+			  ticking the box changes nothing's position. On its own the strip
+			  shows every level and has no target.
 			*/}
-			{second && (
-				<div
-					role="radiogroup"
-					aria-label="First card target"
-					className="flex shrink-0 overflow-hidden rounded-md border border-gray-600"
-				>
-					{targetChoices.map((choice) => {
-						const chosen = choice.copies === target.copies
-						return (
-							<button
-								key={choice.copies}
-								type="button"
-								role="radio"
-								aria-checked={chosen}
-								title={`Take ${primary.name} to ${choice.label} first`}
-								onClick={() => onTargetChange(choice.copies)}
-								className={`px-2 py-1 text-xs transition ${
-									chosen
-										? "bg-brand/20 font-semibold text-brand"
-										: "bg-gray-900 text-gray-300 hover:bg-gray-700"
-								}`}
-							>
-								{choice.label}
-							</button>
-						)
-					})}
-				</div>
-			)}
+			<div
+				role="radiogroup"
+				aria-label="First card target"
+				aria-disabled={second === null}
+				className={`flex shrink-0 overflow-hidden rounded-md border border-gray-600 ${
+					second === null ? "opacity-50" : ""
+				}`}
+			>
+				{targetChoices.map((choice) => {
+					const chosen = choice.copies === target.copies
+					return (
+						<button
+							key={choice.copies}
+							type="button"
+							role="radio"
+							aria-checked={chosen}
+							disabled={second === null}
+							title={second ? `Take ${primary.name} to ${choice.label} first` : undefined}
+							onClick={() => onTargetChange(choice.copies)}
+							className={`px-2 py-1 text-xs transition ${
+								chosen
+									? "bg-brand/20 font-semibold text-brand"
+									: "bg-gray-900 text-gray-300 enabled:hover:bg-gray-700"
+							}`}
+						>
+							{choice.label}
+						</button>
+					)
+				})}
+			</div>
 
-			{second && (
-				<p className="w-full text-[11px] leading-snug text-gray-400">
-					Each box is the chance that {primary.name} reaches {target.label} and{" "}
-					{second.name} ends at that level. Pity copies and reserved copies go to{" "}
-					{primary.name} first, then {second.name}.
-				</p>
-			)}
+			{/* One line either way, so the panel keeps its height. */}
+			<p className="w-full text-[11px] leading-snug text-gray-400">
+				{second
+					? `Each box is the chance that ${primary.name} reaches ${target.label} and ${second.name} ends at that level.`
+					: "Tick Also show for the odds of two cards at once."}
+			</p>
 		</div>
 	)
 }

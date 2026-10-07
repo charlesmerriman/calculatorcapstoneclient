@@ -140,10 +140,11 @@ describe('BannerRow odds cards', () => {
     expect(screen.getAllByText(`${joint[5].toFixed(1)}%`).length).toBeGreaterThan(0)
   })
 
-  it('offers the target toggle only once a second card is on', () => {
+  it('keeps the target toggle greyed out until a second card is on', () => {
     renderRow(pair)
     fireEvent.click(screen.getAllByRole('button', { name: 'Odds for Kitasan Black' })[0])
-    expect(screen.queryByRole('radiogroup', { name: 'First card target' })).toBeNull()
+    // Rendered, so ticking the box moves nothing, but not usable yet.
+    expect(screen.getAllByRole('radio', { name: '5x' })[0]).toHaveProperty('disabled', true)
   })
 
   it('saves the first card target from the toggle', () => {

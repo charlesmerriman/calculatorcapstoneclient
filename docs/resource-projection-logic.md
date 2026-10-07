@@ -333,7 +333,7 @@ the target, not 100%. The cells are labelled with A's target in front ("MLB & 1L
 "1x & 2x").
 
 The target is the row's `primary_target` when set, chosen from a two-segment toggle in the
-picker that appears once "also show" is ticked: one copy ("1x" on either kind of banner),
+picker, greyed out until "also show" is ticked: one copy ("1x" on either kind of banner),
 or all of them ("5x" on an uma banner, "MLB" on a support banner). Unset, `oddsTarget()`
 defaults it to **MLB for a support card and 1x for an uma**, since an uma's extra copies
 are worth far less than a support's limit breaks. `oddsTargetChoices()` is the list the
