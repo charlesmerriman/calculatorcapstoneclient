@@ -47,6 +47,7 @@ import type {
 	StepUpSelectionPayload
 } from "./calculatorFetchCalls"
 import { DEFAULT_GUEST_STATS, statsAreDirty } from "./guestMigration"
+import { isTargetCopies } from "../utils/probabilityCalculations"
 
 const STORAGE_KEY = "guestPlan.v1"
 
@@ -101,6 +102,8 @@ function readBanner(raw: unknown): PlannedBannerPayload | null {
 		// has neither, and must still load rather than be thrown away.
 		...(isCount(row.primary_card) ? { primary_card: row.primary_card } : {}),
 		...(isCount(row.second_card) ? { second_card: row.second_card } : {}),
+		// And the first card's target only when it is one the strip can show.
+		...(isTargetCopies(row.primary_target) ? { primary_target: row.primary_target } : {}),
 		banner_uma: row.banner_uma,
 		banner_support: row.banner_support,
 		banner_step_up: row.banner_step_up
@@ -350,6 +353,7 @@ export function guestPlanToState(
 			...(row.note ? { note: row.note } : {}),
 			...(row.primary_card != null ? { primary_card: row.primary_card } : {}),
 			...(row.second_card != null ? { second_card: row.second_card } : {}),
+			...(row.primary_target != null ? { primary_target: row.primary_target } : {}),
 			...target
 		})
 	}
