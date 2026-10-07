@@ -113,53 +113,16 @@ export const OddsCardsPanel = ({
 
 	return (
 		<div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-300 ${className}`}>
-			<div className="flex min-w-0 items-center gap-1.5">
-				<label className="flex min-w-0 items-center gap-1.5">
-					<span className="shrink-0">Odds for</span>
-					<select
-						value={primary.id}
-						onChange={(event) => onPrimaryChange(Number(event.target.value))}
-						className={selectClass}
-					>
-						{cards.map(option)}
-					</select>
-				</label>
-
-				{/*
-				  How far the first card is taken, only once a second card is on:
-				  on its own the strip shows every level and has no target. Two
-				  segments with the chosen one lit, so the current choice reads
-				  here without going back to the caption.
-				*/}
-				{second && (
-					<div
-						role="radiogroup"
-						aria-label="First card target"
-						className="flex shrink-0 overflow-hidden rounded-md border border-gray-600"
-					>
-						{targetChoices.map((choice) => {
-							const chosen = choice.copies === target.copies
-							return (
-								<button
-									key={choice.copies}
-									type="button"
-									role="radio"
-									aria-checked={chosen}
-									title={`Take ${primary.name} to ${choice.label} before any spare copy goes to ${second.name}`}
-									onClick={() => onTargetChange(choice.copies)}
-									className={`px-2 py-1 text-xs transition ${
-										chosen
-											? "bg-brand/20 font-semibold text-brand"
-											: "bg-gray-900 text-gray-300 hover:bg-gray-700"
-									}`}
-								>
-									{choice.label}
-								</button>
-							)
-						})}
-					</div>
-				)}
-			</div>
+			<label className="flex min-w-0 items-center gap-1.5">
+				<span className="shrink-0">Odds for</span>
+				<select
+					value={primary.id}
+					onChange={(event) => onPrimaryChange(Number(event.target.value))}
+					className={selectClass}
+				>
+					{cards.map(option)}
+				</select>
+			</label>
 
 			<div className="flex min-w-0 items-center gap-1.5">
 				<label className="flex shrink-0 cursor-pointer items-center gap-1.5">
@@ -183,6 +146,41 @@ export const OddsCardsPanel = ({
 					{others.map(option)}
 				</select>
 			</div>
+
+			{/*
+			  How far the first card is taken, last in the row and only once a
+			  second card is on: on its own the strip shows every level and has
+			  no target. Two segments with the chosen one lit, so the current
+			  choice reads here without going back to the caption.
+			*/}
+			{second && (
+				<div
+					role="radiogroup"
+					aria-label="First card target"
+					className="flex shrink-0 overflow-hidden rounded-md border border-gray-600"
+				>
+					{targetChoices.map((choice) => {
+						const chosen = choice.copies === target.copies
+						return (
+							<button
+								key={choice.copies}
+								type="button"
+								role="radio"
+								aria-checked={chosen}
+								title={`Take ${primary.name} to ${choice.label} before any spare copy goes to ${second.name}`}
+								onClick={() => onTargetChange(choice.copies)}
+								className={`px-2 py-1 text-xs transition ${
+									chosen
+										? "bg-brand/20 font-semibold text-brand"
+										: "bg-gray-900 text-gray-300 hover:bg-gray-700"
+								}`}
+							>
+								{choice.label}
+							</button>
+						)
+					})}
+				</div>
+			)}
 
 			{second && (
 				<p className="w-full text-[11px] leading-snug text-gray-400">
