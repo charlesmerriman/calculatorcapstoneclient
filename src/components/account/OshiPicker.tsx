@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Search, X } from "lucide-react"
+import { Lock, Search, X } from "lucide-react"
 import { OguriSpinner } from "../OguriSpinner"
 import { umasFetch } from "../../services/umasFetchCalls"
 import type { OshiOption } from "../../types/account"
 
 /**
- * The modal for choosing an oshi: a search box over a grid of art tiles, the
+ * The modal for choosing a favourite uma ("oshi" in the code and on the wire;
+ * "your favourite uma musume" on screen): a search box over a grid of art tiles, the
  * same browse-and-search shape as the Selectors page's card pickers
  * (SelectorTargetPicker, StepUpSelectionPicker). Those two are bound to the
  * calculator's banner catalogue and to a ticket; this one is bound to GET /umas
@@ -17,7 +18,10 @@ import type { OshiOption } from "../../types/account"
  * (marked, still clickable — a no-op pick is harmless); `takenIds` are the umas
  * in the person's other slots, which are disabled rather than hidden, so the
  * grid does not appear to be missing anyone. The server refuses a duplicate
- * anyway; the disabled tile just saves the round trip.
+ * anyway; the disabled tile just saves the round trip. Costume variants are
+ * disabled the same way while `variantsLocked` (a free account), labelled
+ * "Supporters only", so the perk is visible rather than the list quietly
+ * shorter; the server enforces it (`account.oshi_variants` is its answer).
  *
  * The catalogue is fetched when the dialog first opens, not when the page
  * mounts: most visits to /account never open it, and a few hundred rows are
@@ -40,6 +44,8 @@ interface OshiPickerProps {
 	currentId: number | null
 	/** Umas in the person's other slots: shown, but not pickable twice. */
 	takenIds: number[]
+	/** True for a free account: costume variants are shown locked. */
+	variantsLocked: boolean
 	/** One line under the title saying what this pick becomes. */
 	description: string
 	onClose: () => void
@@ -56,6 +62,7 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 	open,
 	currentId,
 	takenIds,
+	variantsLocked,
 	description,
 	onClose,
 	onChoose,
@@ -148,35 +155,48 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 				{matching.map((option) => {
 					const isCurrent = option.id === currentId
 					const isTaken = !isCurrent && takenIds.includes(option.id)
+					// A held variant stays pickable in its own slot after a lapse.
+					const isLocked = !isCurrent && !isTaken && variantsLocked && option.is_variant
 					const isSaving = option.id === saving
+					const lockedReason = isTaken
+						? "Already one of your favourites"
+						: isLocked
+							? "Costume variants are for Patreon supporters"
+							: undefined
 					return (
 						<button
 							key={option.id}
 							type="button"
 							aria-pressed={isCurrent}
-							disabled={saving !== null || isTaken}
-							title={isTaken ? "Already one of your oshis" : undefined}
+							disabled={saving !== null || isTaken || isLocked}
+							title={lockedReason}
 							onClick={() => void choose(option)}
 							className={`group flex min-w-0 flex-col items-center rounded-lg border p-2 text-center transition ${
-								isTaken
+								isTaken || isLocked
 									? "cursor-not-allowed border-gray-700 bg-gray-800 opacity-50"
 									: isCurrent
 										? "border-brand bg-brand/10 disabled:cursor-wait"
 										: "border-gray-600 bg-gray-700/50 hover:border-gray-500 hover:bg-gray-700 disabled:cursor-wait"
 							}`}
 						>
-							{/* Round, like the avatar it becomes, so the person sees the crop they will get. */}
+							{/* Square with the avatar's corners, so the person sees what they will get. */}
 							<img
 								src={option.image}
 								alt=""
 								loading="lazy"
 								decoding="async"
-								className={`h-20 w-20 rounded-full bg-gray-800 object-cover ${isSaving ? "opacity-50" : ""}`}
+								className={`h-20 w-20 rounded-lg bg-gray-800 object-cover ${isSaving ? "opacity-50" : ""}`}
 							/>
 							<span className="mt-2 line-clamp-2 min-h-8 text-xs font-medium leading-tight text-gray-100">
 								{option.name}
 							</span>
 							{isTaken && <span className="text-[10px] text-gray-400">Already picked</span>}
+							{isLocked && (
+								<span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+									<Lock className="h-2.5 w-2.5" aria-hidden="true" />
+									Supporters only
+								</span>
+							)}
 						</button>
 					)
 				})}
@@ -194,12 +214,12 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 			<section
 				role="dialog"
 				aria-modal="true"
-				aria-label="Choose an oshi"
+				aria-label="Choose a favourite uma musume"
 				className="flex max-h-[min(44rem,calc(100vh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-gray-600 bg-gray-800 shadow-2xl"
 			>
 				<header className="flex flex-wrap items-center gap-3 border-b border-gray-700 bg-gray-800/80 px-4 py-3">
 					<div className="min-w-0 flex-1">
-						<h2 className="text-base font-semibold text-gray-100">Choose an oshi</h2>
+						<h2 className="text-base font-semibold text-gray-100">Choose a favourite</h2>
 						<p className="text-xs text-gray-400">
 							{description}
 							{catalogue.state === "ready" ? ` ${options.length} umas.` : ""}
@@ -219,7 +239,7 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 					</label>
 					<button
 						type="button"
-						aria-label="Close oshi picker"
+						aria-label="Close picker"
 						onClick={onClose}
 						className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:bg-gray-700 hover:text-gray-100"
 					>

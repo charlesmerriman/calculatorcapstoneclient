@@ -17,7 +17,7 @@ import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
-import { oddsLabels } from "../../utils/oddsDisplay"
+import { oddsTarget, oddsTargetChoices } from "../../utils/oddsDisplay"
 import { OddsCaption, OddsCardsPanel } from "./OddsCards"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { NumberField } from "../NumberField"
@@ -47,7 +47,7 @@ import type {
 import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
 import {
 	calculateCopyDistribution,
-	mlbWithSecondCardDistribution,
+	twoCardDistribution,
 	shiftDistribution,
 } from "../../utils/probabilityCalculations"
 import { oddsCards } from "../../utils/rateUpRates"
@@ -465,9 +465,15 @@ export const BannerRow = ({
 	//
 	// An ordinary banner's run at its chosen card's own rate, which is 0.75%
 	// only on a typical banner (utils/rateUpRates.ts). With a second card the
-	// strip switches to "the first at MLB, and the second at each level", and
-	// the reserved copies go in as copies of the first card, since that is the
-	// card a selector on this row was planned for.
+	// strip switches to "the first at its target, and the second at each
+	// level". The reserved copies then join the 200-pull exchanges as one pot
+	// of free copies, spent on the first card up to its target and then on
+	// the second: a selector or a crystal buys whichever card still needs it.
+	//
+	// The target is the row's saved choice from the panel's toggle, else the
+	// default for the banner type (one copy of an uma, MLB of a support).
+	// Declared before `odds` because the maths reads it.
+	const oddsGoal = oddsTarget(plannedBanner)
 	const odds =
 		target.type === "StepUp"
 			? shiftDistribution(
@@ -477,11 +483,12 @@ export const BannerRow = ({
 			: chosenCards === null
 				? null
 				: chosenCards.primary && chosenCards.second
-					? mlbWithSecondCardDistribution({
+					? twoCardDistribution({
 							pulls: plannedCount,
 							rateA: chosenCards.primary.rate,
 							rateB: chosenCards.second.rate,
-							reservedA: fundedReservedCopies,
+							reservedCopies: fundedReservedCopies,
+							targetA: oddsGoal.copies,
 						})
 					: shiftDistribution(
 							calculateCopyDistribution(
@@ -499,7 +506,6 @@ export const BannerRow = ({
 	// banner the strip stays exactly as it always was.
 	const canChooseCards =
 		chosenCards !== null && chosenCards.primary !== null && chosenCards.cards.length > 1
-	const topLabel = oddsLabels(plannedBanner)[5]
 
 	const handlePrimaryCardChange = (id: number): void => {
 		const previous = chosenCards?.primary?.id ?? null
@@ -520,12 +526,25 @@ export const BannerRow = ({
 		)
 	}
 
+	// The toggle's pick: 1 or MAX_COPIES. Saved on the row like the card ids,
+	// so the caption, the cell prefixes and the numbers all follow one value.
+	const handleTargetChange = (copies: number): void => {
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({ ...banner, primary_target: copies }))
+		)
+	}
+
+	// Set only while the strip shows joint odds: the first card's target cell,
+	// which MLBChanceDisplay prefixes onto every label ("MLB & 1LB", "1x & 2x").
+	const pairedTopLabel =
+		canChooseCards && chosenCards.second ? oddsGoal.label : undefined
+
 	const oddsCaption =
 		canChooseCards && chosenCards.primary ? (
 			<OddsCaption
 				primary={chosenCards.primary}
 				second={chosenCards.second}
-				topLabel={topLabel}
+				targetLabel={oddsGoal.label}
 				open={oddsPanelOpen}
 				onToggle={() => setOddsPanelOpen((open) => !open)}
 			/>
@@ -537,9 +556,11 @@ export const BannerRow = ({
 				cards={chosenCards.cards}
 				primary={chosenCards.primary}
 				second={chosenCards.second}
-				topLabel={topLabel}
+				target={oddsGoal}
+				targetChoices={oddsTargetChoices(plannedBanner)}
 				onPrimaryChange={handlePrimaryCardChange}
 				onSecondChange={handleSecondCardChange}
+				onTargetChange={handleTargetChange}
 				className={className}
 			/>
 		) : null
@@ -744,7 +765,12 @@ export const BannerRow = ({
 			</div>
 			<div className="border-t border-gray-700">
 				{odds ? (
-					<MLBChanceDisplay plannedBanner={plannedBanner} values={odds} header={oddsCaption} />
+					<MLBChanceDisplay
+						plannedBanner={plannedBanner}
+						values={odds}
+						header={oddsCaption}
+						pairedWith={pairedTopLabel}
+					/>
 				) : (
 					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
 				)}
@@ -1033,6 +1059,7 @@ export const BannerRow = ({
 						plannedBanner={plannedBanner}
 						values={odds}
 						header={oddsCaption}
+						pairedWith={pairedTopLabel}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>

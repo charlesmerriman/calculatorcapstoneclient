@@ -13,6 +13,16 @@ export const PULLS_PER_PITY_COPY = 200
  */
 export const MAX_COPIES = 5
 
+/**
+ * A two-card target the strip can show: a whole number of copies from one to
+ * MLB. The one rule for the saved `primary_target`, shared by the odds display
+ * (which falls back to a default when it fails) and the guest store (which
+ * drops the value when it fails).
+ */
+export function isTargetCopies(value: unknown): value is number {
+	return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_COPIES
+}
+
 /** A batch of independent random attempts that all share one chance. */
 export interface AttemptGroup {
 	/** How many attempts are in the batch. */
@@ -267,19 +277,29 @@ export interface TwoCardInput {
 	/** Per-pull chance of A and of B, as decimals (utils/rateUpRates.ts). */
 	rateA: number
 	rateB: number
-	/** Copies of A already secured with a selector or crystal (funded only). */
-	reservedA: number
+	/**
+	 * The row's funded reserved copies (selectors and crystals). Free copies
+	 * of EITHER card, pooled with the exchanges: a selector or a crystal buys
+	 * a copy of whichever card you choose, the same as an exchange does.
+	 */
+	reservedCopies: number
+	/**
+	 * Copies A is taken to before any free copy goes to B: 1..MAX_COPIES from
+	 * the odds panel's toggle (oddsTarget in utils/oddsDisplay).
+	 */
+	targetA: number
 }
 
 /**
- * The chance of finishing with A at MLB AND B at each level, as percentages
- * indexed by B's copy count: [A MLB + B none, A MLB + B 1 copy, ... A MLB +
- * B MLB]. What a player asks on a double rate-up: "if I take the one I want to
- * MLB, what do I get of the other?"
+ * The chance of finishing with A at its target AND B at each level, as
+ * percentages indexed by B's copy count: [A at target + B none, A at target
+ * + B 1 copy, ... A at target + B MLB]. What a player asks on a double
+ * rate-up: "if I get the one I want, what do I get of the other?"
  *
- * These are JOINT chances, so the six add up to A's own MLB chance, not to
- * 100. That is on purpose: the cells answer "how likely is this exact
- * finish", and the finishes where A falls short of MLB are not on the strip.
+ * These are JOINT chances, so the six add up to A's own chance of reaching
+ * the target, not to 100. That is on purpose: the cells answer "how likely is
+ * this exact finish", and the finishes where A falls short are not on the
+ * strip.
  *
  * Three things make this more than two copies of the one-card odds:
  *
@@ -291,28 +311,35 @@ export interface TwoCardInput {
  *
  *     (the second factor is B's chance among the pulls that were NOT A).
  *
- *   - The pity exchange is ONE pot of points for the whole banner, spent
- *     after pulling. A player chasing A MLB spends it on A until A is MLB and
- *     only then on B, so that is the rule here: one exchange per 200 pulls,
- *     filling A first. With A at MLB from luck alone, every exchange goes to B.
+ *   - The free copies are ONE pot for the whole banner, spent after pulling:
+ *     one exchange per 200 pulls, plus the row's reserved copies, which buy a
+ *     copy of whichever card needs it just as an exchange does. The pot goes
+ *     to A until A reaches the target, and the rest goes to B. So a reserved
+ *     copy A turned out not to need is a copy of B, not a wasted one.
  *
- *   - Reserved copies are certain copies of A, so they count before the
- *     exchanges and leave more of the pot for B.
+ *   - A past the target still counts. Extra copies of A are luck, not a
+ *     miss, so with a target of one copy the row "pulls gave three of A" is
+ *     in, and every free copy on it goes to B.
  *
- * Because A gets the exchanges first, the six cells always add up to exactly
- * the one-card strip's MLB cell for A. A test pins that.
+ * Because A gets the pot first, the six cells always add up to the one-card
+ * strip's cells from the target up (its MLB cell when the target is MLB). A
+ * test pins that.
  */
-export function mlbWithSecondCardDistribution({
+export function twoCardDistribution({
 	pulls,
 	rateA,
 	rateB,
-	reservedA,
+	reservedCopies,
+	targetA,
 }: TwoCardInput): number[] {
 	const n = Math.max(0, Math.floor(pulls))
-	const reserved = Math.max(0, Math.floor(reservedA))
+	// A target the strip cannot show falls back to MLB rather than throwing;
+	// oddsTarget never sends one, this is belt and braces.
+	const target = isTargetCopies(targetA) ? targetA : MAX_COPIES
 	// NOT getGuaranteedCopies: that caps at MLB because one card can use no
-	// more, but here an exchange A cannot use still buys a copy of B.
-	const exchanges = Math.floor(n / PULLS_PER_PITY_COPY)
+	// more, but here a copy A cannot use still buys a copy of B.
+	const pot =
+		Math.floor(n / PULLS_PER_PITY_COPY) + Math.max(0, Math.floor(reservedCopies))
 	// B's chance on a pull that did not give A. Guarded so a (nonsensical)
 	// rateA of 1 cannot divide by zero.
 	const rateBGivenNotA = rateA < 1 ? Math.min(rateB / (1 - rateA), 1) : 0
@@ -352,17 +379,17 @@ export function mlbWithSecondCardDistribution({
 	}
 	joint[MAX_COPIES][MAX_COPIES] = Math.max(1 - exactTotal - edgeTotal, 0)
 
-	// Spend the reserved copies and the exchange pot, then keep only the
-	// finishes where A is at MLB.
+	// Spend the pot, A first up to the target and the rest on B, then keep
+	// only the finishes where A got there. A row past the target (i >= target)
+	// needs nothing, so its whole pot goes to B.
 	const result = new Array<number>(size).fill(0)
 	for (let i = 0; i < size; i++) {
-		const aBeforeExchanges = Math.min(i + reserved, MAX_COPIES)
-		const exchangesOnA = Math.min(exchanges, MAX_COPIES - aBeforeExchanges)
-		if (aBeforeExchanges + exchangesOnA < MAX_COPIES) continue
+		const onA = Math.min(pot, Math.max(target - i, 0))
+		if (i + onA < target) continue
 
-		const exchangesOnB = exchanges - exchangesOnA
+		const onB = pot - onA
 		for (let j = 0; j < size; j++) {
-			result[Math.min(j + exchangesOnB, MAX_COPIES)] += joint[i][j]
+			result[Math.min(j + onB, MAX_COPIES)] += joint[i][j]
 		}
 	}
 

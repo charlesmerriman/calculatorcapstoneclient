@@ -326,24 +326,42 @@ for, and a checkbox to **also show** a second card. Both choices are plan choice
 the row (`primary_card`, `second_card`; card ids, resolved by `oddsCards()`, which ignores
 an id the banner no longer features).
 
-With a second card on, the strip answers the question a double rate-up raises: *if I take
-A to MLB, how many of B do I get?* Each cell is the **joint** chance of A at MLB and B at
-that level (`mlbWithSecondCardDistribution`), so the six cells add up to A's own MLB
-chance, not 100%. Three things set it apart from two one-card strips:
+With a second card on, the strip answers the question a double rate-up raises: *if I get
+A, how many of B do I get?* Each cell is the **joint** chance of A at its target and B at
+that level (`twoCardDistribution`), so the six cells add up to A's own chance of reaching
+the target, not 100%. The cells are labelled with A's target in front ("MLB & 1LB",
+"1x & 2x").
+
+The target is the row's `primary_target` when set, chosen from a five-segment toggle in
+the picker, greyed out until "also show" is ticked: one copy up to all five, in the
+strip's own words (1x..5x on an uma banner, 0LB..MLB on a support banner). Unset,
+`oddsTarget()` defaults it to **MLB for a support card and 1x for an uma**, since an uma's
+extra copies are worth far less than a support's limit breaks. `oddsTargetChoices()` is
+the list the toggle offers. Three things set the maths apart from two one-card strips:
 
 - **The cards share pulls.** A pull gives A, or B, or neither, so the counts are a
   three-way split: `P(i, j) = Binomial(n, i; pA) × Binomial(n - i, j; pB / (1 - pA))`.
-- **The 200-pull exchange is one pot, spent A first.** Points are banked during the
-  banner and spent after, so a player chasing A fills A to MLB and only then buys B. That
-  is the rule, and it is why the cells always sum to the one-card strip's MLB cell for A
-  (a test pins it). Exchanges A cannot use go to B, which is why this cannot reuse
+- **Free copies are one pot, spent A first.** One exchange per 200 pulls plus the row's
+  funded reserved copies: a selector or a crystal buys a copy of whichever card needs it,
+  the same as an exchange. The pot goes to A until A reaches its target and the rest to B,
+  which is why the cells always sum to the one-card strip's cells from the target up (a
+  test pins it, for both targets). A reserved copy A turned out not to need is a copy of
+  B, not a wasted one. Exchanges A cannot use go to B, which is why this cannot reuse
   `getGuaranteedCopies` (it caps at MLB).
-- **Reserved copies are copies of A**, counted before the exchanges.
+- **A past the target still counts.** Extra copies of A are luck, so with a one-copy
+  target the rows where the pulls gave two or three of A are in, with every free copy
+  going to B.
+
+Known simplification: a purchased selector is picked for one card on the Selectors page,
+and that card may be B. The pot treats every funded reserved copy as spendable on either
+card, which is right when the pick is A and a little generous when it is B.
 
 Worked example, 600 pulls on Kitasan Black + Satono Diamond (both 0.75%, three
-exchanges): A reaches MLB 94.0% of the time; the strip reads 0.1 / 0.7 / 2.3 / 5.2 / 9.4 /
-76.2, so both MLB is 76.2%. The reference values in the tests come from a separate
-brute-force model that walks every (A, B) outcome.
+exchanges). A to 1x: the pot alone guarantees one copy, so every exchange goes to B and
+the strip reads 0.0 / 0.0 / 0.0 / 1.1 / 5.0 / 93.8. A to 5x: A reaches it 94.0% of the
+time; the strip reads 0.1 / 0.7 / 2.3 / 5.2 / 9.4 / 76.2, so both at 5x is 76.2%. The
+reference values in the tests come from a separate brute-force model that walks every
+(A, B) outcome.
 
 ## Step-up banners
 

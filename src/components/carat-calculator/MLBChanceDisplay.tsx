@@ -18,14 +18,25 @@ interface MLBChanceDisplayProps {
 	 * the desktop table's fixed-height row.
 	 */
 	header?: ReactNode
+	/**
+	 * On a two-card row, the cell the first card is taken to ("MLB" for a
+	 * support, "1x" for an uma: oddsTarget). The strip then shows joint odds,
+	 * so every label carries it: "MLB & None" ... "MLB & MLB" says in the cell
+	 * what the caption says above it, that the first card is at its target in
+	 * every column and only the second card varies.
+	 */
+	pairedWith?: string
 }
 
 export const MLBChanceDisplay = ({
 	plannedBanner,
 	values,
 	header,
+	pairedWith,
 }: MLBChanceDisplayProps) => {
-	const labels = oddsLabels(plannedBanner)
+	const labels = oddsLabels(plannedBanner).map((label) =>
+		pairedWith ? `${pairedWith} & ${label}` : label
+	)
 
 	// Bars use an absolute 0-100% scale, so a 33.5% cell is a third full. They
 	// used to be scaled against the tallest cell in the row, which kept small

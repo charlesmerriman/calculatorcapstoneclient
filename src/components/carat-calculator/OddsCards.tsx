@@ -1,6 +1,7 @@
+import { useId } from "react"
 import { ChevronDown } from "lucide-react"
 import type { RateUpCard } from "../../utils/rateUpRates"
-import { formatRate } from "../../utils/oddsDisplay"
+import { formatRate, type OddsTarget } from "../../utils/oddsDisplay"
 
 /**
  * The two pieces of the "which card are these odds for" control, shown only on
@@ -10,20 +11,27 @@ import { formatRate } from "../../utils/oddsDisplay"
  *     strip is about, and doubles as the button that opens the panel, so the
  *     control costs no space of its own in the fixed-height table row.
  *   - OddsCardsPanel: the strip under the row (a band of the card on phones)
- *     where the player picks that card, and ticks a second one for two-card
- *     odds. Laid out like the note editor, for the same reason: the table row
- *     keeps its height and its columns.
+ *     where the player picks that card, ticks a second one for two-card
+ *     odds, and chooses how far the first card is taken (one copy up to
+ *     MLB). Every control is always rendered, the second-card ones greyed
+ *     out until the box is ticked, so nothing moves when it is. Laid out like
+ *     the note editor, for the same reason: the table row keeps its height
+ *     and its columns.
  *
  * Both are plain view code. The choices they report are saved on the planned
- * row (`primary_card` / `second_card`), resolved by `oddsCards()` in
- * utils/rateUpRates, and turned into numbers by the row.
+ * row (`primary_card` / `second_card` / `primary_target`), resolved by
+ * `oddsCards()` in utils/rateUpRates and `oddsTarget()` in utils/oddsDisplay,
+ * and turned into numbers by the row.
  */
 
 interface OddsCaptionProps {
 	primary: RateUpCard
 	second: RateUpCard | null
-	/** The strip's top cell, "MLB" or "5x", so the caption matches it. */
-	topLabel: string
+	/**
+	 * The cell the first card is taken to on a two-card row, "MLB" for a
+	 * support or "1x" for an uma (oddsTarget), so the caption matches the strip.
+	 */
+	targetLabel: string
 	open: boolean
 	onToggle: () => void
 }
@@ -31,15 +39,15 @@ interface OddsCaptionProps {
 export const OddsCaption = ({
 	primary,
 	second,
-	topLabel,
+	targetLabel,
 	open,
 	onToggle,
 }: OddsCaptionProps) => {
 	const text = second
-		? `${primary.name} ${topLabel} + ${second.name}`
+		? `${primary.name} ${targetLabel} + ${second.name}`
 		: `Odds for ${primary.name}`
 	const title = second
-		? `Each box is the chance of ending with ${primary.name} at ${topLabel} and ${second.name} at that level. Together they add up to ${primary.name}'s ${topLabel} chance.`
+		? `Chance of ${primary.name} at ${targetLabel} and ${second.name} at each level. The boxes add up to ${primary.name}'s ${targetLabel} chance.`
 		: "Pick which card these odds are for, or add a second card"
 
 	return (
@@ -50,7 +58,11 @@ export const OddsCaption = ({
 			title={title}
 			// leading-3 keeps the line at 12px: the strip, this caption and the
 			// table cell's padding have to fit the row's fixed 64px.
-			className="flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 px-1 text-[10px] leading-3 text-gray-300 transition hover:bg-gray-600 hover:text-gray-100"
+			//
+			// The band is a shade lighter than the cells below it (the strip's
+			// border colour), so the caption reads as a header over the six
+			// cells rather than a seventh one; hover steps up one more shade.
+			className="flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 px-1 text-[10px] leading-3 text-gray-100 bg-gray-600 transition hover:bg-gray-500"
 		>
 			<span className="truncate">{text}</span>
 			<ChevronDown
@@ -65,12 +77,19 @@ interface OddsCardsPanelProps {
 	cards: RateUpCard[]
 	primary: RateUpCard
 	second: RateUpCard | null
-	topLabel: string
+	/** The first card's target on a two-card row, and the two the toggle offers. */
+	target: OddsTarget
+	targetChoices: OddsTarget[]
 	onPrimaryChange: (id: number) => void
 	/** A card id to turn two-card odds on with, or null to turn them off. */
 	onSecondChange: (id: number | null) => void
+	/** Copies to take the first card to: one of `targetChoices`. */
+	onTargetChange: (copies: number) => void
 	className?: string
 }
+
+/** "once", "2 times", ... : the target as a count, the same on both banner types. */
+const timesWord = (copies: number): string => (copies === 1 ? "once" : `${copies} times`)
 
 const selectClass =
 	"min-w-0 max-w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-gray-100 focus:border-gray-400 focus:outline-none disabled:opacity-50"
@@ -79,9 +98,11 @@ export const OddsCardsPanel = ({
 	cards,
 	primary,
 	second,
-	topLabel,
+	target,
+	targetChoices,
 	onPrimaryChange,
 	onSecondChange,
+	onTargetChange,
 	className = "",
 }: OddsCardsPanelProps) => {
 	const others = cards.filter((card) => card.id !== primary.id)
@@ -89,6 +110,7 @@ export const OddsCardsPanel = ({
 	// other one. The select shows it greyed out until then, so the player can
 	// see what the box will add.
 	const secondChoice = second ?? others[0]
+	const primarySelectId = useId()
 
 	const option = (card: RateUpCard) => (
 		<option key={card.id} value={card.id}>
@@ -98,16 +120,68 @@ export const OddsCardsPanel = ({
 
 	return (
 		<div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-300 ${className}`}>
-			<label className="flex min-w-0 items-center gap-1.5">
-				<span className="shrink-0">Odds for</span>
+			{/*
+			  "Odds for [target] [card]": the copies the player is after
+			  (1x..5x on an uma banner, 0LB..MLB on a support) sit between the
+			  words and the card, so the pick reads as one phrase.
+
+			  The words are a <label htmlFor> instead of a wrapping <label>: a
+			  wrapping label names its FIRST labelable descendant, and the
+			  target's buttons now come before the select, so wrapping would
+			  hand "Odds for" to a button. useId because the panel renders
+			  twice (table row and phone card), and each copy needs its own id.
+			*/}
+			<div className="flex min-w-0 items-center gap-1.5">
+				<label htmlFor={primarySelectId} className="shrink-0 cursor-pointer">
+					Odds for
+				</label>
+
+				{/*
+				  How far the first card is taken. Always rendered, greyed out
+				  until a second card is on (like the second select), so ticking
+				  the box changes nothing's position. On its own the strip shows
+				  every level and has no target.
+				*/}
+				<div
+					role="radiogroup"
+					aria-label="First card target"
+					aria-disabled={second === null}
+					className={`flex shrink-0 overflow-hidden rounded-md border border-gray-600 ${
+						second === null ? "opacity-50" : ""
+					}`}
+				>
+					{targetChoices.map((choice) => {
+						const chosen = choice.copies === target.copies
+						return (
+							<button
+								key={choice.copies}
+								type="button"
+								role="radio"
+								aria-checked={chosen}
+								disabled={second === null}
+								title={second ? `Take ${primary.name} to ${choice.label} first` : undefined}
+								onClick={() => onTargetChange(choice.copies)}
+								className={`px-2 py-1 text-xs transition ${
+									chosen
+										? "bg-brand/20 font-semibold text-brand"
+										: "bg-gray-900 text-gray-300 enabled:hover:bg-gray-700"
+								}`}
+							>
+								{choice.label}
+							</button>
+						)
+					})}
+				</div>
+
 				<select
+					id={primarySelectId}
 					value={primary.id}
 					onChange={(event) => onPrimaryChange(Number(event.target.value))}
 					className={selectClass}
 				>
 					{cards.map(option)}
 				</select>
-			</label>
+			</div>
 
 			<div className="flex min-w-0 items-center gap-1.5">
 				<label className="flex shrink-0 cursor-pointer items-center gap-1.5">
@@ -132,13 +206,16 @@ export const OddsCardsPanel = ({
 				</select>
 			</div>
 
-			{second && (
-				<p className="w-full text-[11px] leading-snug text-gray-400">
-					Each box is the chance of ending with {primary.name} at {topLabel} and{" "}
-					{second.name} at that level. Every 200 pulls you can exchange for a copy,
-					and those go to {primary.name} first.
-				</p>
-			)}
+			{/*
+			  What the boxes mean in the current state, one line either way so
+			  the panel keeps its height. The one-card line says what the strip
+			  always said; the two-card line is the joint reading.
+			*/}
+			<p className="w-full text-[11px] leading-snug text-gray-400">
+				{second
+					? `Each box shows the chance of getting ${primary.name} ${timesWord(target.copies)} and ${second.name} at the indicated level.`
+					: `Each box is the chance of getting ${primary.name} at the indicated level.`}
+			</p>
 		</div>
 	)
 }

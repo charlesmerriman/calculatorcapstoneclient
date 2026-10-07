@@ -6,7 +6,7 @@ import {
   calculateSuccessProbability,
   copyDistribution,
   getGuaranteedCopies,
-  mlbWithSecondCardDistribution,
+  twoCardDistribution,
   shiftDistribution,
 } from '../utils/probabilityCalculations'
 import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
@@ -301,45 +301,63 @@ describe('shiftDistribution', () => {
   })
 })
 
-// ── mlbWithSecondCardDistribution ─────────────────────────────────────────────
+// ── twoCardDistribution ───────────────────────────────────────────────────────
 
-describe('mlbWithSecondCardDistribution', () => {
+describe('twoCardDistribution', () => {
   // Reference values from a separate brute-force Python model that walks every
-  // (A, B) outcome of the three-way split with no truncation, then spends
-  // reserved copies and exchanges A-first.
-  const cases: [number, number, number, number, number[]][] = [
-    [600, 0.0075, 0.0075, 0, [0.120098184, 0.729124002, 2.278628167, 5.218761024, 9.441884701, 76.167164961]],
-    [400, 0.0075, 0.0225, 1, [0.002439359, 0.025022287, 0.130834471, 0.460898293, 1.222217758, 78.35606223]],
-    [200, 0.0015, 0.0015, 2, [2.469886181, 1.000317118, 0.187416178, 0.022269688, 0.001915354, 0.000135594]],
+  // (A, B) outcome of the three-way split with no truncation, then spends one
+  // pot (exchanges plus reserved copies) on A up to the target and the rest
+  // on B. Columns: pulls, rateA, rateB, reservedCopies, targetA, expected.
+  const cases: [number, number, number, number, number, number[]][] = [
+    [600, 0.0075, 0.0075, 0, 5, [0.120098184, 0.729124002, 2.278628167, 5.218761024, 9.441884701, 76.167164961]],
+    [400, 0.0075, 0.0225, 1, 5, [0.002439359, 0.025022287, 0.128653572, 0.443134634, 1.151195455, 78.447029092]],
+    [200, 0.0015, 0.0015, 2, 5, [2.469886181, 0.981017982, 0.199899633, 0.027920686, 0.00295069, 0.000264943]],
+    [600, 0.0075, 0.0075, 0, 1, [0, 0, 0.011527584, 1.133354334, 5.019555229, 93.835562854]],
+    [400, 0.0075, 0.0225, 1, 1, [0, 0, 0.000511321, 0.015368311, 0.119735576, 99.864384792]],
+    [150, 0.0075, 0.0075, 0, 1, [21.966101743, 24.809174324, 13.916147963, 5.168828022, 1.430091649, 0.381769605]],
   ]
 
-  it.each(cases)('matches the brute-force model at %i pulls', (pulls, rateA, rateB, reservedA, expected) => {
-    const odds = mlbWithSecondCardDistribution({ pulls, rateA, rateB, reservedA })
-    odds.forEach((percent, copies) => expect(percent).toBeCloseTo(expected[copies], 6))
-  })
+  it.each(cases)(
+    'matches the brute-force model: %i pulls, rates %f / %f, %i reserved, target %i',
+    (pulls, rateA, rateB, reservedCopies, targetA, expected) => {
+      const odds = twoCardDistribution({ pulls, rateA, rateB, reservedCopies, targetA })
+      odds.forEach((percent, copies) => expect(percent).toBeCloseTo(expected[copies], 6))
+    },
+  )
 
-  it('adds up to the one-card strip’s MLB cell for A', () => {
-    // A gets the exchanges first, so its MLB chance cannot depend on B.
+  it('adds up to the one-card strip from A’s target up', () => {
+    // A gets the pot first, so its chance of reaching the target cannot depend
+    // on B. The one-card strip stacks the same reserved copies on A.
     for (const [pulls, reserved] of [[150, 0], [400, 1], [600, 0], [800, 2]]) {
-      const joint = mlbWithSecondCardDistribution({
-        pulls, rateA: RATE, rateB: RATE, reservedA: reserved,
-      })
-      const single = shiftDistribution(calculateCopyDistribution(pulls, RATE), reserved)
-      expect(joint.reduce((sum, p) => sum + p, 0)).toBeCloseTo(single[MAX_COPIES], 9)
+      for (const targetA of [1, MAX_COPIES]) {
+        const joint = twoCardDistribution({
+          pulls, rateA: RATE, rateB: RATE, reservedCopies: reserved, targetA,
+        })
+        const single = shiftDistribution(calculateCopyDistribution(pulls, RATE), reserved)
+        const fromTarget = single.slice(targetA).reduce((sum, p) => sum + p, 0)
+        expect(joint.reduce((sum, p) => sum + p, 0)).toBeCloseTo(fromTarget, 9)
+      }
     }
   })
 
-  it('gives B the exchanges A cannot use', () => {
+  it('gives B the copies A cannot use', () => {
     // 1,000 pulls is five exchanges. With five reserved copies A is MLB before
     // pulling, so all five go to B and B is MLB for certain.
-    const odds = mlbWithSecondCardDistribution({
-      pulls: 1000, rateA: RATE, rateB: RATE, reservedA: 5,
-    })
-    expect(odds[MAX_COPIES]).toBeCloseTo(100, 9)
+    expect(twoCardDistribution({
+      pulls: 1000, rateA: RATE, rateB: RATE, reservedCopies: 5, targetA: MAX_COPIES,
+    })[MAX_COPIES]).toBeCloseTo(100, 9)
+    // With a one-copy target, six exchanges leave B at least five whatever
+    // the pulls gave.
+    expect(twoCardDistribution({
+      pulls: 1200, rateA: RATE, rateB: RATE, reservedCopies: 0, targetA: 1,
+    })[MAX_COPIES]).toBeCloseTo(100, 9)
   })
 
-  it('is all zeroes when A cannot reach MLB', () => {
-    expect(mlbWithSecondCardDistribution({ pulls: 0, rateA: RATE, rateB: RATE, reservedA: 0 }))
-      .toEqual([0, 0, 0, 0, 0, 0])
+  it('is all zeroes when A cannot reach the target', () => {
+    for (const targetA of [1, MAX_COPIES]) {
+      expect(twoCardDistribution({
+        pulls: 0, rateA: RATE, rateB: RATE, reservedCopies: 0, targetA,
+      })).toEqual([0, 0, 0, 0, 0, 0])
+    }
   })
 })

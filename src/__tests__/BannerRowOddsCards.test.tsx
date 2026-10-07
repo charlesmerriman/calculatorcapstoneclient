@@ -5,7 +5,7 @@ import { DEFAULT_CONSTANTS } from '../constants/gameConstants'
 import { BannerRow } from '../components/carat-calculator/BannerRow'
 import type { BannerUma, Uma, UserPlannedBanner, UserStats } from '../types'
 import { EMPTY_BANNER_RESOURCES } from '../hooks/bannerResources'
-import { mlbWithSecondCardDistribution } from '../utils/probabilityCalculations'
+import { twoCardDistribution } from '../utils/probabilityCalculations'
 
 // The banner picker is irrelevant here; see BannerRow.test.tsx.
 vi.mock('react-select', () => ({ default: () => null }))
@@ -55,7 +55,7 @@ const userStats = {
 
 function renderRow(
   bannerUma: BannerUma,
-  extra: Pick<UserPlannedBanner, 'primary_card' | 'second_card'> = {},
+  extra: Pick<UserPlannedBanner, 'primary_card' | 'second_card' | 'primary_target'> = {},
 ) {
   const planned: UserPlannedBanner = {
     tempId: 1,
@@ -117,7 +117,7 @@ describe('BannerRow odds cards', () => {
 
   it('swaps the two when the second card is picked as the first', () => {
     const { lastSaved } = renderRow(pair, { second_card: 2 })
-    fireEvent.click(screen.getAllByRole('button', { name: /Kitasan Black 5x \+ Satono Diamond/ })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /Kitasan Black 1x \+ Satono Diamond/ })[0])
 
     fireEvent.change(screen.getAllByRole('combobox', { name: 'Odds for' })[0], {
       target: { value: '2' },
@@ -130,11 +130,42 @@ describe('BannerRow odds cards', () => {
     renderRow(pair, { second_card: 2 })
 
     expect(
+      screen.getAllByRole('button', { name: 'Kitasan Black 1x + Satono Diamond' }).length,
+    ).toBeGreaterThan(0)
+    // The top cell reads "1x & 5x" on an uma banner, and its number is the
+    // one-copy target's, from the same function the row calls.
+    const joint = twoCardDistribution({
+      pulls: 600, rateA: 0.0075, rateB: 0.0075, reservedCopies: 0, targetA: 1,
+    })
+    expect(screen.getAllByText(`${joint[5].toFixed(1)}%`).length).toBeGreaterThan(0)
+  })
+
+  it('keeps the target toggle greyed out until a second card is on', () => {
+    renderRow(pair)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Odds for Kitasan Black' })[0])
+    // Rendered, so ticking the box moves nothing, but not usable yet.
+    expect(screen.getAllByRole('radio', { name: '5x' })[0]).toHaveProperty('disabled', true)
+  })
+
+  it('saves the first card target from the toggle', () => {
+    const { lastSaved } = renderRow(pair, { second_card: 2 })
+    fireEvent.click(screen.getAllByRole('button', { name: /Kitasan Black 1x \+ Satono Diamond/ })[0])
+
+    // An uma banner offers one copy or all five, and starts on one copy.
+    expect(screen.getAllByRole('radio', { name: '1x' })[0].getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(screen.getAllByRole('radio', { name: '5x' })[0])
+
+    expect(lastSaved()[0].primary_target).toBe(5)
+  })
+
+  it('reads a saved target into the caption and the cells', () => {
+    renderRow(pair, { second_card: 2, primary_target: 5 })
+
+    expect(
       screen.getAllByRole('button', { name: 'Kitasan Black 5x + Satono Diamond' }).length,
     ).toBeGreaterThan(0)
-    // The top cell is "both at 5x", from the same function the row calls.
-    const joint = mlbWithSecondCardDistribution({
-      pulls: 600, rateA: 0.0075, rateB: 0.0075, reservedA: 0,
+    const joint = twoCardDistribution({
+      pulls: 600, rateA: 0.0075, rateB: 0.0075, reservedCopies: 0, targetA: 5,
     })
     expect(screen.getAllByText(`${joint[5].toFixed(1)}%`).length).toBeGreaterThan(0)
   })
