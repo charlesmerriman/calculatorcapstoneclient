@@ -17,7 +17,7 @@ import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
-import { oddsLabels } from "../../utils/oddsDisplay"
+import { oddsTarget } from "../../utils/oddsDisplay"
 import { OddsCaption, OddsCardsPanel } from "./OddsCards"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { NumberField } from "../NumberField"
@@ -465,9 +465,14 @@ export const BannerRow = ({
 	//
 	// An ordinary banner's run at its chosen card's own rate, which is 0.75%
 	// only on a typical banner (utils/rateUpRates.ts). With a second card the
-	// strip switches to "the first at MLB, and the second at each level", and
-	// the reserved copies go in as copies of the first card, since that is the
-	// card a selector on this row was planned for.
+	// strip switches to "the first at its target, and the second at each
+	// level", and the reserved copies go in as copies of the first card, since
+	// that is the card a selector on this row was planned for.
+	//
+	// KNOWN GAP: the labels (oddsTarget) say the first card's target is one
+	// copy on an uma banner, but mlbWithSecondCardDistribution still takes it
+	// to MLB. The maths is being redone separately; until it lands, the uma
+	// cells are labelled "1x & ..." over MLB-based numbers.
 	const odds =
 		target.type === "StepUp"
 			? shiftDistribution(
@@ -499,7 +504,9 @@ export const BannerRow = ({
 	// banner the strip stays exactly as it always was.
 	const canChooseCards =
 		chosenCards !== null && chosenCards.primary !== null && chosenCards.cards.length > 1
-	const topLabel = oddsLabels(plannedBanner)[5]
+	// "MLB" for a support, "1x" for an uma: the cell the first card is taken
+	// to on a two-card row.
+	const oddsGoal = oddsTarget(plannedBanner)
 
 	const handlePrimaryCardChange = (id: number): void => {
 		const previous = chosenCards?.primary?.id ?? null
@@ -520,17 +527,17 @@ export const BannerRow = ({
 		)
 	}
 
-	// Set only while the strip shows joint odds: the first card's top cell,
-	// which MLBChanceDisplay prefixes onto every label ("MLB & 1LB").
+	// Set only while the strip shows joint odds: the first card's target cell,
+	// which MLBChanceDisplay prefixes onto every label ("MLB & 1LB", "1x & 2x").
 	const pairedTopLabel =
-		canChooseCards && chosenCards.second ? topLabel : undefined
+		canChooseCards && chosenCards.second ? oddsGoal.label : undefined
 
 	const oddsCaption =
 		canChooseCards && chosenCards.primary ? (
 			<OddsCaption
 				primary={chosenCards.primary}
 				second={chosenCards.second}
-				topLabel={topLabel}
+				targetLabel={oddsGoal.label}
 				open={oddsPanelOpen}
 				onToggle={() => setOddsPanelOpen((open) => !open)}
 			/>
@@ -542,7 +549,7 @@ export const BannerRow = ({
 				cards={chosenCards.cards}
 				primary={chosenCards.primary}
 				second={chosenCards.second}
-				topLabel={topLabel}
+				targetLabel={oddsGoal.label}
 				onPrimaryChange={handlePrimaryCardChange}
 				onSecondChange={handleSecondCardChange}
 				className={className}

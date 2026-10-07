@@ -19,10 +19,11 @@ interface MLBChanceDisplayProps {
 	 */
 	header?: ReactNode
 	/**
-	 * On a two-card row, the first card's top cell ("MLB" or "5x"). The strip
-	 * then shows joint odds, so every label carries it: "MLB & None" ...
-	 * "MLB & MLB" says in the cell what the caption says above it, that the
-	 * first card is at MLB in every column and only the second card varies.
+	 * On a two-card row, the cell the first card is taken to ("MLB" for a
+	 * support, "1x" for an uma: oddsTarget). The strip then shows joint odds,
+	 * so every label carries it: "MLB & None" ... "MLB & MLB" says in the cell
+	 * what the caption says above it, that the first card is at its target in
+	 * every column and only the second card varies.
 	 */
 	pairedWith?: string
 }
