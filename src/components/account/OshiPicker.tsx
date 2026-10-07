@@ -6,7 +6,8 @@ import { umasFetch } from "../../services/umasFetchCalls"
 import type { OshiOption } from "../../types/account"
 
 /**
- * The modal for choosing an oshi: a search box over a grid of art tiles, the
+ * The modal for choosing a favourite uma ("oshi" in the code and on the wire;
+ * "your favourite uma musume" on screen): a search box over a grid of art tiles, the
  * same browse-and-search shape as the Selectors page's card pickers
  * (SelectorTargetPicker, StepUpSelectionPicker). Those two are bound to the
  * calculator's banner catalogue and to a ticket; this one is bound to GET /umas
@@ -155,7 +156,7 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 							type="button"
 							aria-pressed={isCurrent}
 							disabled={saving !== null || isTaken}
-							title={isTaken ? "Already one of your oshis" : undefined}
+							title={isTaken ? "Already one of your favourites" : undefined}
 							onClick={() => void choose(option)}
 							className={`group flex min-w-0 flex-col items-center rounded-lg border p-2 text-center transition ${
 								isTaken
@@ -165,13 +166,13 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 										: "border-gray-600 bg-gray-700/50 hover:border-gray-500 hover:bg-gray-700 disabled:cursor-wait"
 							}`}
 						>
-							{/* Round, like the avatar it becomes, so the person sees the crop they will get. */}
+							{/* Square with the avatar's corners, so the person sees what they will get. */}
 							<img
 								src={option.image}
 								alt=""
 								loading="lazy"
 								decoding="async"
-								className={`h-20 w-20 rounded-full bg-gray-800 object-cover ${isSaving ? "opacity-50" : ""}`}
+								className={`h-20 w-20 rounded-lg bg-gray-800 object-cover ${isSaving ? "opacity-50" : ""}`}
 							/>
 							<span className="mt-2 line-clamp-2 min-h-8 text-xs font-medium leading-tight text-gray-100">
 								{option.name}
@@ -194,12 +195,12 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 			<section
 				role="dialog"
 				aria-modal="true"
-				aria-label="Choose an oshi"
+				aria-label="Choose a favourite uma musume"
 				className="flex max-h-[min(44rem,calc(100vh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-gray-600 bg-gray-800 shadow-2xl"
 			>
 				<header className="flex flex-wrap items-center gap-3 border-b border-gray-700 bg-gray-800/80 px-4 py-3">
 					<div className="min-w-0 flex-1">
-						<h2 className="text-base font-semibold text-gray-100">Choose an oshi</h2>
+						<h2 className="text-base font-semibold text-gray-100">Choose a favourite</h2>
 						<p className="text-xs text-gray-400">
 							{description}
 							{catalogue.state === "ready" ? ` ${options.length} umas.` : ""}
@@ -219,7 +220,7 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 					</label>
 					<button
 						type="button"
-						aria-label="Close oshi picker"
+						aria-label="Close picker"
 						onClick={onClose}
 						className="flex h-9 w-9 items-center justify-center rounded border border-gray-600 text-gray-300 transition hover:bg-gray-700 hover:text-gray-100"
 					>

@@ -174,7 +174,7 @@ describe('DailyLegendRaces', () => {
 
   it('shows no oshi strip for a guest', () => {
     renderPage()
-    expect(screen.queryByRole('region', { name: 'Your oshis' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Your favourites' })).not.toBeInTheDocument()
   })
 
   it('lists only the oshis the tier covers, and only those in a dated batch', () => {
@@ -190,7 +190,7 @@ describe('DailyLegendRaces', () => {
     )
     renderPage()
 
-    const strip = screen.getByRole('region', { name: 'Your oshis' })
+    const strip = screen.getByRole('region', { name: 'Your favourites' })
     const lines = within(strip).getAllByRole('listitem').map((li) => li.textContent)
     expect(lines).toHaveLength(2)
     expect(lines[0]).toMatch(/^Hishi Amazon: joins .* \(2nd Anniversary\)$/)
@@ -280,7 +280,7 @@ describe('DailyLegendRaces', () => {
     account = supporterWith([oshi(0, 60, 'Duramente')], 1)
     renderPage()
 
-    const strip = screen.getByRole('region', { name: 'Your oshis' })
+    const strip = screen.getByRole('region', { name: 'Your favourites' })
     const line = within(strip).getByRole('listitem')
     expect(line.textContent).toBe('Duramente: no date yet (6th Anniversary)')
     expect(within(line).getByRole('link', { name: '6th Anniversary' })).toHaveAttribute(

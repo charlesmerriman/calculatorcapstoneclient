@@ -141,7 +141,7 @@ export const DailyLegendRaces = () => {
 			{oshiReleases.length > 0 && (
 				<section aria-labelledby="legend-races-oshis" className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-3">
 					<h2 id="legend-races-oshis" className="text-sm font-semibold text-gray-100">
-						Your oshis
+						Your favourites
 					</h2>
 					<ul className="mt-1 space-y-0.5 text-sm text-gray-300">
 						{oshiReleases.map(({ oshi, release }) => {

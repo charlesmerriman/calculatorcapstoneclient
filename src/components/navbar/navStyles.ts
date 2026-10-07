@@ -34,11 +34,14 @@ export const NAV_SAVE_BUTTON =
  * (h-10 against their h-9) because it holds a picture rather than text, and
  * still inside the 56px mobile bar with the breathing room the rest get.
  * `p-px` plus the 1px border leaves exactly 36px inside, which is the `md`
- * Avatar. Below `desktop-nav:` the tail is hidden and this is the ring alone
- * (see ProfileMenu.tsx for why the pill is desktop-only).
+ * Avatar. `rounded-lg` (8px) around the avatar's `rounded-md` (6px) plus the
+ * 2px of border and padding keeps the frame an even width around the square
+ * picture; it was a `rounded-full` pill around a circle until 2026-10-07.
+ * Below `desktop-nav:` the tail is hidden and this is the frame alone (see
+ * ProfileMenu.tsx for why the pill is desktop-only).
  */
 export const NAV_PROFILE_TRIGGER =
-	"flex h-10 items-center rounded-full border p-px transition desktop-nav:gap-2 desktop-nav:pr-2.5"
+	"flex h-10 items-center rounded-lg border p-px transition desktop-nav:gap-2 desktop-nav:pr-2.5"
 
 /** A popover panel anchored under one of the buttons above. */
 export const NAV_POPOVER = "rounded-xl border border-gray-700 bg-gray-800 shadow-lg"

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import type React from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowUpRight, Heart, ImagePlus, Lock, LogOut, Star, Trash2, X } from "lucide-react"
+import { ArrowUpRight, Heart, ImagePlus, LogOut, Star, Trash2, X } from "lucide-react"
 import { Navbar } from "../navbar/Navbar"
 import { Footer } from "../footer/Footer"
 import { OguriSpinner } from "../OguriSpinner"
@@ -21,9 +21,10 @@ import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 import type { Account, AccountPreferencesPatch, OshiOption } from "../../types/account"
 
 /**
- * /account — the signed-in person's account: their display name, their oshis
- * (the supporter perk whose first pick is their picture), which providers are
- * connected, whether they are a Patreon supporter, and sign-out.
+ * /account — the signed-in person's account: their display name, their
+ * favourite umas ("oshis" in the code and on the wire; the first pick is their
+ * picture, everyone gets one slot and supporters get more), which providers
+ * are connected, whether they are a Patreon supporter, and sign-out.
  *
  * THE PICTURE IS THE PERK. A free account has no picture and the navbar shows
  * the quiet default; the oshi card below is where that is explained and where
@@ -55,7 +56,7 @@ import type { Account, AccountPreferencesPatch, OshiOption } from "../../types/a
  */
 const BENEFIT_LABELS: Record<string, string> = {
 	ad_free: "Ad-free browsing",
-	oshi: "Oshi picture",
+	oshi: "Extra favourite slots",
 }
 
 const CARD = "rounded-xl border border-gray-700 bg-gray-800 p-5"
@@ -274,7 +275,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 		else ids.push(uma.id)
 		return saveOshis(
 			ids,
-			pickerSlot === 0 ? `Your picture is now ${uma.name}.` : `${uma.name} added to your oshis.`
+			pickerSlot === 0 ? `Your picture is now ${uma.name}.` : `${uma.name} added to your favourites.`
 		)
 	}
 
@@ -291,7 +292,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 		const removed = oshis.find((oshi) => oshi.id === id)
 		await saveOshis(
 			oshiIds.filter((other) => other !== id),
-			`${removed?.name ?? "That uma"} removed from your oshis.`
+			`${removed?.name ?? "That uma"} removed from your favourites.`
 		)
 	}
 
@@ -351,10 +352,8 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 					)}
 					<p className="mt-1 text-xs leading-relaxed text-gray-500">
 						{account.avatar_url && oshis[0]
-							? `Your picture is ${oshis[0].name}, your first oshi.`
-							: oshiSlots > 0
-								? "Pick an oshi below and it becomes your picture."
-								: "Pictures are a Patreon supporter perk."}{" "}
+							? `Your picture is ${oshis[0].name}, your first favourite.`
+							: "Pick a favourite uma musume below and it becomes your picture."}{" "}
 						We never store your real name, email or provider picture.
 					</p>
 				</div>
@@ -364,7 +363,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 				open={pickerSlot !== null}
 				currentId={pickerSlot !== null ? (oshiIds[pickerSlot] ?? null) : null}
 				takenIds={oshiIds}
-				description={pickerSlot === 0 ? "This one is your picture." : "Added to your oshis."}
+				description={pickerSlot === 0 ? "This one is your picture." : "Added to your favourites."}
 				onClose={() => setPickerSlot(null)}
 				onChoose={handleChooseOshi}
 			/>
@@ -404,33 +403,23 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 				</form>
 			</section>
 
-			{/* Oshis: the supporter perk. One tile per covered slot, plus any held
-			    oshis a downgrade stopped covering (greyed), plus one locked tile
-			    for a free account with nothing held. */}
+			{/* Favourites: one tile per covered slot (everyone has at least one),
+			    plus any held picks a lapse or downgrade stopped covering (greyed).
+			    The server says how many are covered; the page does no tier maths. */}
 			<section className={`${CARD} mt-4`} aria-labelledby="oshis">
 				<h2 id="oshis" className={`${CARD_TITLE} flex items-center gap-2`}>
 					<Star className="h-4 w-4 text-brand" aria-hidden="true" />
-					{oshiSlots === 1 ? "Your oshi" : "Your oshis"}
+					Your favourite uma musume
 				</h2>
 				<p className="mt-1 text-sm leading-relaxed text-gray-400">
-					{oshiSlots > 0 ? (
-						<>
-							Your favourite umas. The first one is your picture in the menu and on this page.
-							Your tier covers {oshiSlots === 1 ? "one" : oshiSlots}.
-							{oshis.length > oshiSlots &&
-								" The greyed ones are kept, but not shown, until your tier covers them again."}
-						</>
-					) : oshis.length > 0 ? (
-						<>
-							Your pledge isn't active right now, so your oshis are on hold. They're kept, and
-							they come back the day a pledge is seen again. You can still remove them.
-						</>
-					) : (
-						<>
-							Patreon supporters pick their favourite umas here, and the first one becomes their
-							picture. Higher tiers get more slots.
-						</>
-					)}
+					The first one is your picture in the menu and on this page.{" "}
+					{supporter.is_supporter
+						? `Your tier covers ${oshiSlots}.`
+						: oshiSlots > 1
+							? `You can pick ${oshiSlots}.`
+							: "Free accounts get one. Patreon supporters get more."}
+					{oshis.length > oshiSlots &&
+						" The greyed ones are kept, but not shown, until your tier covers them again."}
 				</p>
 				<ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
 					{Array.from({ length: Math.max(oshiSlots, oshis.length) }, (_, slot) => {
@@ -446,7 +435,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 										className="flex h-full min-h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-600 p-3 text-xs font-medium text-gray-400 transition hover:border-brand/60 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<ImagePlus className="h-6 w-6" aria-hidden="true" />
-										{slot === 0 ? "Pick your picture" : "Pick an oshi"}
+										{slot === 0 ? "Pick your picture" : "Pick a favourite"}
 									</button>
 								</li>
 							)
@@ -501,21 +490,15 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 							</li>
 						)
 					})}
-					{oshiSlots === 0 && oshis.length === 0 && (
-						<li className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 p-3 text-center text-xs text-gray-500">
-							<Lock className="h-6 w-6" aria-hidden="true" />
-							Supporters only
-						</li>
-					)}
 				</ul>
-				{oshiSlots === 0 && (
+				{!supporter.is_supporter && (
 					<a
 						href={PATREON_URL}
 						target="_blank"
 						rel="noopener noreferrer"
 						className="mt-4 inline-flex items-center gap-1 text-sm text-brand underline-offset-2 hover:underline"
 					>
-						{oshis.length > 0 ? "Renew on Patreon" : "Support the site on Patreon"}
+						{oshis.length > oshiSlots ? "Renew on Patreon" : "More slots on Patreon"}
 						<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
 					</a>
 				)}
@@ -690,7 +673,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 				</h2>
 				<p className="mt-1 text-sm leading-relaxed text-gray-400">
 					This permanently removes your saved plan, your connected sign-in methods, your
-					display name and your oshis. It can't be undone. A Patreon pledge is unaffected,
+					display name and your favourite umas. It can't be undone. A Patreon pledge is unaffected,
 					since it belongs to your Patreon account, not to this one.
 				</p>
 				<form

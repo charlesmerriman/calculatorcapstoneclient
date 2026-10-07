@@ -19,9 +19,10 @@ export interface LinkedProvider {
 }
 
 /**
- * One of a supporter's oshis: a uma they picked, in the order they picked
- * them. The first is their picture. The server lists EVERY stored row, covered
- * by the current tier or not, so the page can grey out the ones a downgrade
+ * One of the person's favourite umas ("oshi" on the wire and in the code;
+ * "your favourite uma musume" on screen), in the order they picked them. The
+ * first is their picture. The server lists EVERY stored row, covered by the
+ * current tier or not, so the page can grey out the ones a lapse or downgrade
  * stopped covering rather than pretend they are gone; `oshi_slots` on the
  * account says how many are covered.
  */
@@ -70,21 +71,20 @@ export interface Account {
 	 */
 	display_name: string
 	/**
-	 * The picture for the navbar, chosen by the server: the first oshi's art
-	 * while the account's tier covers at least one slot, else `null`. Free
-	 * accounts always get null — the picture IS the supporter perk. Null rather
-	 * than "" so a component branches to its default instead of trying to load
-	 * an empty `src`. No provider picture is ever held or served.
+	 * The picture for the navbar, chosen by the server: the first oshi's art,
+	 * or `null` until they have picked one. Null rather than "" so a component
+	 * branches to its default instead of trying to load an empty `src`. No
+	 * provider picture is ever held or served.
 	 */
 	avatar_url: string | null
-	/** Every oshi they hold, first to last. Empty for a free account. */
+	/** Every favourite they hold, first to last. Empty until they pick one. */
 	oshis: Oshi[]
 	/**
-	 * How many oshis the current tier covers: 5, 3 or 1 by tier, 0 for a free
-	 * account. A count the server has already resolved from its ladder, not a
-	 * tier order — draw this many tiles and do no arithmetic. Top-level rather
-	 * than inside `supporter` because 0 is a real answer the page needs even
-	 * when there is no entitlement block to put it in.
+	 * How many favourites the account covers: 1 for everyone, more by Patreon
+	 * tier (the free slot plus 2, 4 or 6). A count the server has already
+	 * resolved from its ladder, not a tier order — draw this many tiles and do
+	 * no arithmetic. Top-level rather than inside `supporter` because a free
+	 * account has a count too.
 	 */
 	oshi_slots: number
 	linked_providers: LinkedProvider[]
@@ -106,8 +106,9 @@ export interface AccountPreferencesPatch {
 }
 
 /**
- * One row of GET /umas: what the oshi picker needs to draw a tile. The route
- * lists only umas that have an image, so `image` is never "".
+ * One row of GET /umas: what the favourites picker needs to draw a tile. The
+ * route lists only umas that have an image and stand for one uma musume (no
+ * "(All)" placeholder, no outfit variants), so `image` is never "".
  */
 export interface OshiOption {
 	id: number
