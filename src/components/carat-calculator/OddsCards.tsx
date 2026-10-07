@@ -193,8 +193,8 @@ export const OddsCardsPanel = ({
 			*/}
 			<p className="w-full text-[11px] leading-snug text-gray-400">
 				{second
-					? `Each box is the chance that ${primary.name} reaches ${target.label} and ${second.name} ends at that level.`
-					: `Each box is the chance of ending with that many copies of ${primary.name}.`}
+					? `Each box is the chance of ending with ${primary.name} at ${target.label} and ${second.name} at that level.`
+					: `Each box is the chance of ending with ${primary.name} at that level.`}
 			</p>
 		</div>
 	)
