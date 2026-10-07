@@ -46,7 +46,7 @@ const UmaTile = ({ uma, isOshi }: { uma: DailyLegendRaceUma; isOshi: boolean }) 
 			<span className="text-center text-xs leading-tight text-gray-300">
 				<span className="line-clamp-2">{base}</span>
 				{outfit && <span className="line-clamp-2 text-[0.6875rem] text-gray-400">{outfit}</span>}
-				{isOshi && <span className="sr-only"> (your oshi)</span>}
+				{isOshi && <span className="sr-only"> (your favourite)</span>}
 			</span>
 		</li>
 	)

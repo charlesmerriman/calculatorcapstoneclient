@@ -15,8 +15,8 @@ import { NAV_POPOVER, NAV_PROFILE_TRIGGER } from "./navStyles"
  * 2026-09-13. Sign-out moved one step further away on purpose — it is the
  * rarest action in the bar, and the slot it held is better spent telling the
  * person WHO is signed in. That matters more now that an account can hold
- * several providers and a chosen name: the picture is a supporter's first
- * oshi (free accounts get the quiet default), and the name is the one they
+ * several providers and a chosen name: the picture is their first favourite
+ * uma (the quiet default until they pick one), and the name is the one they
  * chose (or their handle), which together answer "which account am I in?".
  *
  * THE PILL IS DESKTOP-ONLY (`desktop-nav:`). At 390px the app-mode cluster is

@@ -42,7 +42,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: October 1, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: October 7, 2026</p>
 
 					<p className={paragraph}>
 						This policy explains what the Uma Musume Carat Calculator (&quot;the Site&quot;)
@@ -103,9 +103,9 @@ export const PrivacyPolicy: React.FC = () => {
 							it whenever you like.
 						</li>
 						<li>
-							If you support the Site on Patreon, the favourite characters you pick on your
-							account page (your &quot;oshis&quot;). These are picks from the Site&apos;s own
-							catalogue, not anything about you, and the first one is used as your picture.
+							The favourite characters you pick on your account page. These are picks from
+							the Site&apos;s own catalogue, not anything about you, and the first one is used
+							as your picture.
 						</li>
 					</ul>
 					<p className={paragraph}>
@@ -137,7 +137,7 @@ export const PrivacyPolicy: React.FC = () => {
 					<ul className={list}>
 						<li>
 							<strong>Running your account and saving your plan</strong> (your account
-							reference, username, display name, oshis and planning data). Basis:{" "}
+							reference, username, display name, favourite characters and planning data). Basis:{" "}
 							<strong>performance of a contract</strong>, Article 6(1)(b). This is the
 							service you asked for when you signed in.
 						</li>
@@ -346,7 +346,7 @@ export const PrivacyPolicy: React.FC = () => {
 								Account page
 							</Link>{" "}
 							shows all of it: your username, your linked sign-in methods, your display
-							name, your oshis, and the plans themselves are on the calculator.
+							name, your favourite characters, and the plans themselves are on the calculator.
 						</li>
 						<li>
 							<strong>Rectification</strong>: to correct it. Everything we hold is editable

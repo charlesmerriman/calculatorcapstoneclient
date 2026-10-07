@@ -628,19 +628,23 @@ mono under a chosen name, because the handle is the account's identity and what
 an admin would ask for. The name span is omitted while `/account` is in flight,
 so the pill widens once rather than jumping from a placeholder.
 
-**The avatar is a supporter's first oshi, and free accounts have none.**
-`Avatar.tsx` shows `account.avatar_url` — the server sends the first oshi's art
-while the tier covers at least one slot, else `null` — and on `null` or a broken
-image draws the quiet default: a muted `UserRound` silhouette on a `bg-gray-700`
-disc, styled like the settings and theme icon buttons beside it so it reads as
-one more control. The same default for everyone and for the loading state, on
-purpose: the avatar is only ever shown to its owner, so two free accounts have
+**The avatar is the person's first favourite uma, and it is square.**
+`Avatar.tsx` shows `account.avatar_url` — the server sends the first oshi's art,
+`null` until they pick one — and on `null` or a broken image draws the quiet
+default: a muted `UserRound` silhouette on a `bg-gray-700` rounded square,
+styled like the settings and theme icon buttons beside it so it reads as one
+more control. The same default for everyone and for the loading state, on
+purpose: the avatar is only ever shown to its owner, so two empty accounts have
 no reason to look different, and the initials-on-a-hue circle it replaced
-(2026-09-13) was loud in an otherwise grey bar. No provider picture is ever held
-or shown. Three sizes: `sm` (menu rows), `md` (the navbar trigger, 36px inside
-the 40px pill), `lg` (the account header and the oshi tiles). Avatars never
-appear anywhere public today; the supporters list on the home page is names
-only. (Oshis will be shown publicly by a future feature.)
+(2026-09-13) was loud in an otherwise grey bar. **Square since 2026-10-07**
+(`rounded-md` for `sm`/`md`, `rounded-lg` for `lg`): the art is a square
+portrait and the circle cropped every corner; the navbar trigger
+(`NAV_PROFILE_TRIGGER`) is `rounded-lg` around it so the frame stays even. No
+provider picture is ever held or shown. Three sizes: `sm` (menu rows), `md`
+(the navbar trigger, 36px inside the 40px frame), `lg` (the account header and
+the favourite tiles). Avatars never appear anywhere public today; the
+supporters list on the home page is names only. (Oshis will be shown publicly
+by a future feature.)
 
 `/account` (`components/account/AccountPage.tsx`) is noindex and **not
 prerendered** — a build-time render is a guest card, which is not the page.
@@ -657,31 +661,37 @@ The page also owns the two **preferences**, both written through one
 `PATCH /account` (`accountPatch` in `services/accountFetchCalls.ts`) followed
 by `refresh()`, so the navbar picks the change up: a display-name form (32
 characters, the server's cap, mirrored as `maxLength`; blank clears it) and the
-**oshi card**.
+**favourites card** ("Your favourite uma musume" on screen; `oshi` in the code,
+the wire and the test names).
 
-**The oshi card draws what the server says.** `account.oshi_slots` (5 / 3 / 1 /
-0, already resolved by the server; the page does no tier arithmetic) is how many
-tiles are offered, and `account.oshis` (every stored pick, covered or not) fills
-them. Slot 0 is tagged "Your picture". Tiles past the slot count render greyed
-with "Not covered" — a downgrade keeps the rows — and offer only Remove, never
-Change or "Make picture", because a swap-in past the count is an ADD the server
-would refuse; the page avoids offering the refused button, the rule itself
-lives in the serializer. A free account with nothing held sees one locked
-"Supporters only" tile and a Patreon link; a lapsed supporter with rows sees
-them on hold with a "Renew" link. Every write sends the **whole ordered list**
-(`oshis: number[]`): picking fills or appends a slot, "Make picture" moves an
-id to the front, Remove filters it out, so the client never has to know the
-server's renumbering.
+**The favourites card draws what the server says.** `account.oshi_slots` (1 for
+everyone, 3 / 5 / 7 by tier, already resolved by the server; the page does no
+tier arithmetic) is how many tiles are offered, and `account.oshis` (every
+stored pick, covered or not) fills them. Slot 0 is tagged "Your picture". Tiles
+past the slot count render greyed with "Not covered" — a lapse or downgrade
+keeps the rows — and offer only Remove, never Change or "Make picture", because
+a swap-in past the count is an ADD the server would refuse; the page avoids
+offering the refused button, the rule itself lives in the serializer. Anyone
+who is not a supporter sees a Patreon link under the tiles ("More slots", or
+"Renew" when they hold more than they cover). Every write sends the **whole
+ordered list** (`oshis: number[]`): picking fills or appends a slot, "Make
+picture" moves an id to the front, Remove filters it out, so the client never
+has to know the server's renumbering.
 
 `components/account/OshiPicker.tsx` is a search-and-grid modal in the same
 shape as the Selectors page's card pickers, fed by `GET /umas`
 (`services/umasFetchCalls.ts`) and fetched on first open, not on mount — most
 visits never open it. It is opened for **one slot**: `currentId` marks the uma
 already there, `takenIds` disables the umas in the other slots ("Already
-picked") rather than hiding them. Tiles are round, so the person sees the crop
-they will get. The parent owns the write; the dialog closes only once the PATCH
-succeeds, so a refused pick leaves the grid open with the server's reason
-toasted ("Your tier covers 3 oshis.").
+picked") rather than hiding them. Tiles are square with the avatar's corners,
+so the person sees what they will get. The catalogue is what `GET /umas` lists
+(pictured umas minus the `(All)` placeholder), the same for everyone; costume
+variants (`is_variant`) are shown locked ("Supporters only") while
+`account.oshi_variants` is false, so a free account sees what a pledge
+unlocks. The client filters nothing and decides nothing; the server refuses a
+variant a free account somehow sends. The parent owns the write; the dialog
+closes only once the PATCH succeeds, so a refused pick leaves the grid open
+with the server's reason toasted ("Your tier covers 3 favourites.").
 
 ## Brand mark and display font
 
