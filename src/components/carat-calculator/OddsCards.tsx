@@ -22,8 +22,11 @@ import { formatRate } from "../../utils/oddsDisplay"
 interface OddsCaptionProps {
 	primary: RateUpCard
 	second: RateUpCard | null
-	/** The strip's top cell, "MLB" or "5x", so the caption matches it. */
-	topLabel: string
+	/**
+	 * The cell the first card is taken to on a two-card row, "MLB" for a
+	 * support or "1x" for an uma (oddsTarget), so the caption matches the strip.
+	 */
+	targetLabel: string
 	open: boolean
 	onToggle: () => void
 }
@@ -31,15 +34,15 @@ interface OddsCaptionProps {
 export const OddsCaption = ({
 	primary,
 	second,
-	topLabel,
+	targetLabel,
 	open,
 	onToggle,
 }: OddsCaptionProps) => {
 	const text = second
-		? `${primary.name} ${topLabel} + ${second.name}`
+		? `${primary.name} ${targetLabel} + ${second.name}`
 		: `Odds for ${primary.name}`
 	const title = second
-		? `Each box is the chance of ending with ${primary.name} at ${topLabel} and ${second.name} at that level. Together they add up to ${primary.name}'s ${topLabel} chance.`
+		? `Each box is the chance of ending with ${primary.name} at ${targetLabel} and ${second.name} at that level. Together they add up to ${primary.name}'s ${targetLabel} chance.`
 		: "Pick which card these odds are for, or add a second card"
 
 	return (
@@ -69,7 +72,7 @@ interface OddsCardsPanelProps {
 	cards: RateUpCard[]
 	primary: RateUpCard
 	second: RateUpCard | null
-	topLabel: string
+	targetLabel: string
 	onPrimaryChange: (id: number) => void
 	/** A card id to turn two-card odds on with, or null to turn them off. */
 	onSecondChange: (id: number | null) => void
@@ -83,7 +86,7 @@ export const OddsCardsPanel = ({
 	cards,
 	primary,
 	second,
-	topLabel,
+	targetLabel,
 	onPrimaryChange,
 	onSecondChange,
 	className = "",
@@ -138,7 +141,7 @@ export const OddsCardsPanel = ({
 
 			{second && (
 				<p className="w-full text-[11px] leading-snug text-gray-400">
-					Each box is the chance of ending with {primary.name} at {topLabel} and{" "}
+					Each box is the chance of ending with {primary.name} at {targetLabel} and{" "}
 					{second.name} at that level. Every 200 pulls you can exchange for a copy,
 					and those go to {primary.name} first.
 				</p>

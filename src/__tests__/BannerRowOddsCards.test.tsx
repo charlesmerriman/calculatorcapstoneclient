@@ -117,7 +117,7 @@ describe('BannerRow odds cards', () => {
 
   it('swaps the two when the second card is picked as the first', () => {
     const { lastSaved } = renderRow(pair, { second_card: 2 })
-    fireEvent.click(screen.getAllByRole('button', { name: /Kitasan Black 5x \+ Satono Diamond/ })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /Kitasan Black 1x \+ Satono Diamond/ })[0])
 
     fireEvent.change(screen.getAllByRole('combobox', { name: 'Odds for' })[0], {
       target: { value: '2' },
@@ -130,9 +130,11 @@ describe('BannerRow odds cards', () => {
     renderRow(pair, { second_card: 2 })
 
     expect(
-      screen.getAllByRole('button', { name: 'Kitasan Black 5x + Satono Diamond' }).length,
+      screen.getAllByRole('button', { name: 'Kitasan Black 1x + Satono Diamond' }).length,
     ).toBeGreaterThan(0)
-    // The top cell is "both at 5x", from the same function the row calls.
+    // The top cell reads "1x & 5x" on an uma banner; its number is still the
+    // MLB-based one from the same function the row calls (known gap, see
+    // BannerRow's odds comment).
     const joint = mlbWithSecondCardDistribution({
       pulls: 600, rateA: 0.0075, rateB: 0.0075, reservedA: 0,
     })

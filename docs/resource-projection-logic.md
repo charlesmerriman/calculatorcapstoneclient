@@ -329,7 +329,12 @@ an id the banner no longer features).
 With a second card on, the strip answers the question a double rate-up raises: *if I take
 A to MLB, how many of B do I get?* Each cell is the **joint** chance of A at MLB and B at
 that level (`mlbWithSecondCardDistribution`), so the six cells add up to A's own MLB
-chance, not 100%. Three things set it apart from two one-card strips:
+chance, not 100%. The cells are labelled with A's target in front ("MLB & 1LB"), and
+`oddsTarget()` names that target **MLB for a support card and 1x for an uma**, since an
+uma's extra copies are worth far less than a support's limit breaks. **Known gap (2026-10-07):**
+the maths does not take that target yet and still fills A to MLB on an uma banner too; the
+uma labels say "1x & ..." over MLB-based numbers until the two-card maths is redone with a
+per-banner target. Three things set it apart from two one-card strips:
 
 - **The cards share pulls.** A pull gives A, or B, or neither, so the counts are a
   three-way split: `P(i, j) = Binomial(n, i; pA) × Binomial(n - i, j; pB / (1 - pA))`.
