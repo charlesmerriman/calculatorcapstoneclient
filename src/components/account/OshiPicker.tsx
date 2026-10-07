@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Search, X } from "lucide-react"
+import { Lock, Search, X } from "lucide-react"
 import { OguriSpinner } from "../OguriSpinner"
 import { umasFetch } from "../../services/umasFetchCalls"
 import type { OshiOption } from "../../types/account"
@@ -18,7 +18,10 @@ import type { OshiOption } from "../../types/account"
  * (marked, still clickable — a no-op pick is harmless); `takenIds` are the umas
  * in the person's other slots, which are disabled rather than hidden, so the
  * grid does not appear to be missing anyone. The server refuses a duplicate
- * anyway; the disabled tile just saves the round trip.
+ * anyway; the disabled tile just saves the round trip. Costume variants are
+ * disabled the same way while `variantsLocked` (a free account), labelled
+ * "Supporters only", so the perk is visible rather than the list quietly
+ * shorter; the server enforces it (`account.oshi_variants` is its answer).
  *
  * The catalogue is fetched when the dialog first opens, not when the page
  * mounts: most visits to /account never open it, and a few hundred rows are
@@ -41,6 +44,8 @@ interface OshiPickerProps {
 	currentId: number | null
 	/** Umas in the person's other slots: shown, but not pickable twice. */
 	takenIds: number[]
+	/** True for a free account: costume variants are shown locked. */
+	variantsLocked: boolean
 	/** One line under the title saying what this pick becomes. */
 	description: string
 	onClose: () => void
@@ -57,6 +62,7 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 	open,
 	currentId,
 	takenIds,
+	variantsLocked,
 	description,
 	onClose,
 	onChoose,
@@ -149,17 +155,24 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 				{matching.map((option) => {
 					const isCurrent = option.id === currentId
 					const isTaken = !isCurrent && takenIds.includes(option.id)
+					// A held variant stays pickable in its own slot after a lapse.
+					const isLocked = !isCurrent && !isTaken && variantsLocked && option.is_variant
 					const isSaving = option.id === saving
+					const lockedReason = isTaken
+						? "Already one of your favourites"
+						: isLocked
+							? "Costume variants are for Patreon supporters"
+							: undefined
 					return (
 						<button
 							key={option.id}
 							type="button"
 							aria-pressed={isCurrent}
-							disabled={saving !== null || isTaken}
-							title={isTaken ? "Already one of your favourites" : undefined}
+							disabled={saving !== null || isTaken || isLocked}
+							title={lockedReason}
 							onClick={() => void choose(option)}
 							className={`group flex min-w-0 flex-col items-center rounded-lg border p-2 text-center transition ${
-								isTaken
+								isTaken || isLocked
 									? "cursor-not-allowed border-gray-700 bg-gray-800 opacity-50"
 									: isCurrent
 										? "border-brand bg-brand/10 disabled:cursor-wait"
@@ -178,6 +191,12 @@ export const OshiPicker: React.FC<OshiPickerProps> = ({
 								{option.name}
 							</span>
 							{isTaken && <span className="text-[10px] text-gray-400">Already picked</span>}
+							{isLocked && (
+								<span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+									<Lock className="h-2.5 w-2.5" aria-hidden="true" />
+									Supporters only
+								</span>
+							)}
 						</button>
 					)
 				})}

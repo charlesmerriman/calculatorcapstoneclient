@@ -111,6 +111,7 @@ function supporterWith(oshis: Oshi[], slots: number): Account {
     avatar_url: null,
     oshis,
     oshi_slots: slots,
+    oshi_variants: false,
     linked_providers: [],
     supporter: { is_supporter: slots > 0 },
   }

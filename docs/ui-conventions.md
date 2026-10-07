@@ -684,9 +684,12 @@ shape as the Selectors page's card pickers, fed by `GET /umas`
 visits never open it. It is opened for **one slot**: `currentId` marks the uma
 already there, `takenIds` disables the umas in the other slots ("Already
 picked") rather than hiding them. Tiles are square with the avatar's corners,
-so the person sees what they will get. The catalogue is what `GET /umas` lists:
-pictured umas with no `(` in the name (no `(All)`, no outfit variants); the
-client does no filtering of its own. The parent owns the write; the dialog
+so the person sees what they will get. The catalogue is what `GET /umas` lists
+(pictured umas minus the `(All)` placeholder), the same for everyone; costume
+variants (`is_variant`) are shown locked ("Supporters only") while
+`account.oshi_variants` is false, so a free account sees what a pledge
+unlocks. The client filters nothing and decides nothing; the server refuses a
+variant a free account somehow sends. The parent owns the write; the dialog
 closes only once the PATCH succeeds, so a refused pick leaves the grid open
 with the server's reason toasted ("Your tier covers 3 favourites.").
 

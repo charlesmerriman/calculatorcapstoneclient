@@ -31,6 +31,7 @@ function accountResponse(overrides: Partial<Account> = {}, status = 200): Respon
 		avatar_url: null,
 		oshis: [],
 		oshi_slots: 0,
+		oshi_variants: false,
 		linked_providers: [],
 		supporter: { is_supporter: false },
 		...overrides,

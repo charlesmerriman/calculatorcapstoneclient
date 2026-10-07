@@ -52,6 +52,7 @@ function account(overrides: Partial<Account> = {}): Account {
 		oshis: [],
 		// The free slot: every account may hold one favourite.
 		oshi_slots: 1,
+		oshi_variants: false,
 		linked_providers: [{ provider: 'google', linked_at: '2026-07-02' }],
 		supporter: { is_supporter: false },
 		...overrides,
@@ -80,8 +81,9 @@ function response(status: number, body: unknown = {}): Response {
 }
 
 const UMAS = [
-	{ id: 7, name: 'Special Week', image: 'https://cdn.example/umas/special-week.png' },
-	{ id: 9, name: 'Gold Ship', image: 'https://cdn.example/umas/gold-ship.png' },
+	{ id: 7, name: 'Special Week', image: 'https://cdn.example/umas/special-week.png', is_variant: false },
+	{ id: 9, name: 'Gold Ship', image: 'https://cdn.example/umas/gold-ship.png', is_variant: false },
+	{ id: 10, name: 'Gold Ship (Summer)', image: 'https://cdn.example/umas/gold-ship-summer.png', is_variant: true },
 ]
 
 function signedIn(acct: Account) {
@@ -323,7 +325,7 @@ describe('AccountPage oshis', () => {
 		expect(screen.getByText('Your favourite uma musume')).toBeInTheDocument()
 		fireEvent.click(screen.getByRole('button', { name: /pick your picture/i }))
 		const dialog = await screen.findByRole('dialog', { name: /choose a favourite/i })
-		fireEvent.click(await within(dialog).findByRole('button', { name: /gold ship/i }))
+		fireEvent.click(await within(dialog).findByRole('button', { name: /^gold ship$/i }))
 
 		await waitFor(() => expect(mockedPatch).toHaveBeenCalledWith({ oshis: [9] }))
 		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -350,7 +352,7 @@ describe('AccountPage oshis', () => {
 		fireEvent.click(empties[0])
 		const dialog = await screen.findByRole('dialog')
 		expect(await within(dialog).findByRole('button', { name: /special week/i })).toBeDisabled()
-		fireEvent.click(within(dialog).getByRole('button', { name: /gold ship/i }))
+		fireEvent.click(within(dialog).getByRole('button', { name: /^gold ship$/i }))
 
 		await waitFor(() => expect(mockedPatch).toHaveBeenCalledWith({ oshis: [7, 9] }))
 		expect(mockedToast.success).toHaveBeenCalledWith('Gold Ship added to your favourites.')
@@ -394,9 +396,29 @@ describe('AccountPage oshis', () => {
 		)
 		fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'gold' } })
 		expect(within(dialog).queryByRole('button', { name: /special week/i })).toBeNull()
-		fireEvent.click(within(dialog).getByRole('button', { name: /gold ship/i }))
+		fireEvent.click(within(dialog).getByRole('button', { name: /^gold ship$/i }))
 
 		await waitFor(() => expect(mockedPatch).toHaveBeenCalledWith({ oshis: [9] }))
+	})
+
+	it('locks costume variants for a free account and opens them for a supporter', async () => {
+		signedIn(account())
+		mockedUmas.mockImplementation(abortableUmas(response(200, UMAS)))
+
+		const { unmount } = renderPage()
+		fireEvent.click(screen.getByRole('button', { name: /pick your picture/i }))
+		let dialog = await screen.findByRole('dialog')
+		expect(await within(dialog).findByRole('button', { name: /gold ship \(summer\)/i })).toBeDisabled()
+		expect(within(dialog).getByText(/supporters only/i)).toBeInTheDocument()
+		expect(within(dialog).getByRole('button', { name: /^gold ship$/i })).toBeEnabled()
+		unmount()
+
+		signedIn(account({ oshi_slots: 3, oshi_variants: true, supporter: { is_supporter: true, tier: 'Junior Class', benefits: ['oshi'] } }))
+		renderPage()
+		fireEvent.click(screen.getByRole('button', { name: /pick your picture/i }))
+		dialog = await screen.findByRole('dialog')
+		expect(await within(dialog).findByRole('button', { name: /gold ship \(summer\)/i })).toBeEnabled()
+		expect(within(dialog).queryByText(/supporters only/i)).toBeNull()
 	})
 
 	it('keeps the picker open when the server refuses the pick', async () => {
@@ -407,7 +429,7 @@ describe('AccountPage oshis', () => {
 		renderPage()
 		fireEvent.click(screen.getByRole('button', { name: /pick your picture/i }))
 		const dialog = await screen.findByRole('dialog')
-		fireEvent.click(await within(dialog).findByRole('button', { name: /gold ship/i }))
+		fireEvent.click(await within(dialog).findByRole('button', { name: /^gold ship$/i }))
 
 		await waitFor(() => expect(mockedToast.error).toHaveBeenCalledWith('Your tier covers 3 favourites.'))
 		expect(screen.getByRole('dialog')).toBeInTheDocument()

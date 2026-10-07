@@ -56,7 +56,7 @@ import type { Account, AccountPreferencesPatch, OshiOption } from "../../types/a
  */
 const BENEFIT_LABELS: Record<string, string> = {
 	ad_free: "Ad-free browsing",
-	oshi: "Extra favourite slots",
+	oshi: "Extra favourite slots and costume variants",
 }
 
 const CARD = "rounded-xl border border-gray-700 bg-gray-800 p-5"
@@ -363,6 +363,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 				open={pickerSlot !== null}
 				currentId={pickerSlot !== null ? (oshiIds[pickerSlot] ?? null) : null}
 				takenIds={oshiIds}
+				variantsLocked={!(account.oshi_variants ?? false)}
 				description={pickerSlot === 0 ? "This one is your picture." : "Added to your favourites."}
 				onClose={() => setPickerSlot(null)}
 				onChoose={handleChooseOshi}
@@ -417,7 +418,7 @@ const AccountDetails: React.FC<DetailsProps> = ({ account, refresh, signOut }) =
 						? `Your tier covers ${oshiSlots}.`
 						: oshiSlots > 1
 							? `You can pick ${oshiSlots}.`
-							: "Free accounts get one. Patreon supporters get more."}
+							: "Free accounts get one. Patreon supporters get more, and the costume variants too."}
 					{oshis.length > oshiSlots &&
 						" The greyed ones are kept, but not shown, until your tier covers them again."}
 				</p>

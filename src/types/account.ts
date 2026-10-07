@@ -87,6 +87,13 @@ export interface Account {
 	 * account has a count too.
 	 */
 	oshi_slots: number
+	/**
+	 * Whether a costume variant ("Special Week (Summer)") may be ADDED as a
+	 * favourite: supporters and staff. Resolved by the server like
+	 * `oshi_slots`, so the picker only locks tiles; the rule lives in the
+	 * serializer. A variant already held is never taken away.
+	 */
+	oshi_variants: boolean
 	linked_providers: LinkedProvider[]
 	supporter: SupporterStatus
 }
@@ -107,13 +114,15 @@ export interface AccountPreferencesPatch {
 
 /**
  * One row of GET /umas: what the favourites picker needs to draw a tile. The
- * route lists only umas that have an image and stand for one uma musume (no
- * "(All)" placeholder, no outfit variants), so `image` is never "".
+ * route lists only umas that have an image, minus the "(All)" placeholder, so
+ * `image` is never "". The same list for everyone: `is_variant` marks the
+ * costume variants, which the picker locks unless `account.oshi_variants`.
  */
 export interface OshiOption {
 	id: number
 	name: string
 	image: string
+	is_variant: boolean
 }
 
 /**

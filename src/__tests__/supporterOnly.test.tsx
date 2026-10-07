@@ -20,6 +20,7 @@ function account(benefits?: string[]): Account {
 		avatar_url: null,
 		oshis: [],
 		oshi_slots: 0,
+		oshi_variants: false,
 		linked_providers: [],
 		supporter: benefits ? { is_supporter: true, tier: 'Junior Class', benefits } : { is_supporter: false },
 	}
