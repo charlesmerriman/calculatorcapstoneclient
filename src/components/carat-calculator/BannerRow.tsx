@@ -520,6 +520,11 @@ export const BannerRow = ({
 		)
 	}
 
+	// Set only while the strip shows joint odds: the first card's top cell,
+	// which MLBChanceDisplay prefixes onto every label ("MLB & 1LB").
+	const pairedTopLabel =
+		canChooseCards && chosenCards.second ? topLabel : undefined
+
 	const oddsCaption =
 		canChooseCards && chosenCards.primary ? (
 			<OddsCaption
@@ -744,7 +749,12 @@ export const BannerRow = ({
 			</div>
 			<div className="border-t border-gray-700">
 				{odds ? (
-					<MLBChanceDisplay plannedBanner={plannedBanner} values={odds} header={oddsCaption} />
+					<MLBChanceDisplay
+						plannedBanner={plannedBanner}
+						values={odds}
+						header={oddsCaption}
+						pairedWith={pairedTopLabel}
+					/>
 				) : (
 					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
 				)}
@@ -1033,6 +1043,7 @@ export const BannerRow = ({
 						plannedBanner={plannedBanner}
 						values={odds}
 						header={oddsCaption}
+						pairedWith={pairedTopLabel}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>

@@ -50,7 +50,11 @@ export const OddsCaption = ({
 			title={title}
 			// leading-3 keeps the line at 12px: the strip, this caption and the
 			// table cell's padding have to fit the row's fixed 64px.
-			className="flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 px-1 text-[10px] leading-3 text-gray-300 transition hover:bg-gray-600 hover:text-gray-100"
+			//
+			// The band is a shade lighter than the cells below it (the strip's
+			// border colour), so the caption reads as a header over the six
+			// cells rather than a seventh one; hover steps up one more shade.
+			className="flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 px-1 text-[10px] leading-3 text-gray-100 bg-gray-600 transition hover:bg-gray-500"
 		>
 			<span className="truncate">{text}</span>
 			<ChevronDown
