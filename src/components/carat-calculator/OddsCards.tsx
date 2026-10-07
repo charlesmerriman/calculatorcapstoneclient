@@ -87,6 +87,9 @@ interface OddsCardsPanelProps {
 	className?: string
 }
 
+/** "once", "2 times", ... : the target as a count, the same on both banner types. */
+const timesWord = (copies: number): string => (copies === 1 ? "once" : `${copies} times`)
+
 const selectClass =
 	"min-w-0 max-w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-gray-100 focus:border-gray-400 focus:outline-none disabled:opacity-50"
 
@@ -193,8 +196,8 @@ export const OddsCardsPanel = ({
 			*/}
 			<p className="w-full text-[11px] leading-snug text-gray-400">
 				{second
-					? `Each box is the chance of ending with ${primary.name} at ${target.label} and ${second.name} at that level.`
-					: `Each box is the chance of ending with ${primary.name} at that level.`}
+					? `Each box shows the chance of getting ${primary.name} ${timesWord(target.copies)} and ${second.name} at the indicated level.`
+					: `Each box is the chance of getting ${primary.name} at the indicated level.`}
 			</p>
 		</div>
 	)
