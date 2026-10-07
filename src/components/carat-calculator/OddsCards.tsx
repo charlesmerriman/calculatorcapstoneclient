@@ -186,11 +186,15 @@ export const OddsCardsPanel = ({
 				})}
 			</div>
 
-			{/* One line either way, so the panel keeps its height. */}
+			{/*
+			  What the boxes mean in the current state, one line either way so
+			  the panel keeps its height. The one-card line says what the strip
+			  always said; the two-card line is the joint reading.
+			*/}
 			<p className="w-full text-[11px] leading-snug text-gray-400">
 				{second
 					? `Each box is the chance that ${primary.name} reaches ${target.label} and ${second.name} ends at that level.`
-					: "Tick Also show for the odds of two cards at once."}
+					: `Each box is the chance of ending with that many copies of ${primary.name}.`}
 			</p>
 		</div>
 	)
