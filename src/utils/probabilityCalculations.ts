@@ -284,9 +284,8 @@ export interface TwoCardInput {
 	 */
 	reservedCopies: number
 	/**
-	 * Copies A is taken to before any free copy goes to B. 1 or MAX_COPIES
-	 * from the odds panel today (oddsTarget in utils/oddsDisplay); anything in
-	 * between works, so a finer choice later is a UI change only.
+	 * Copies A is taken to before any free copy goes to B: 1..MAX_COPIES from
+	 * the odds panel's toggle (oddsTarget in utils/oddsDisplay).
 	 */
 	targetA: number
 }

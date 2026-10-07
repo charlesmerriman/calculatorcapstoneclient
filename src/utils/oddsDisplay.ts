@@ -41,13 +41,12 @@ export interface OddsTarget {
 }
 
 /**
- * The word for a target. One copy reads "1x" on either kind of banner: a
- * support strip's own cell calls one copy "0LB", but the toggle asks "one
- * copy, or all of them?", and "1x" says one copy without knowing what a
- * limit break is. Anything more is the strip's own cell ("5x" or "MLB").
+ * The word for a target: the strip's own cell for that many copies, so the
+ * toggle reads 1x..5x on an uma banner and 0LB..MLB on a support banner, the
+ * same words as the cells under it.
  */
 function targetLabel(plannedBanner: UserPlannedBanner, copies: number): string {
-	return copies === 1 ? "1x" : oddsLabels(plannedBanner)[copies]
+	return oddsLabels(plannedBanner)[copies]
 }
 
 /**
@@ -77,12 +76,9 @@ export function oddsTarget(plannedBanner: UserPlannedBanner): OddsTarget {
 	return { copies, label: targetLabel(plannedBanner, copies) }
 }
 
-/**
- * The targets the panel's toggle offers: one copy, or all of them. The row
- * stores any 1..MLB, so offering the steps between is a change here only.
- */
+/** The targets the panel's toggle offers: every count from one copy to MLB. */
 export function oddsTargetChoices(plannedBanner: UserPlannedBanner): OddsTarget[] {
-	return [1, MAX_COPIES].map((copies) => ({
+	return Array.from({ length: MAX_COPIES }, (_, i) => i + 1).map((copies) => ({
 		copies,
 		label: targetLabel(plannedBanner, copies),
 	}))

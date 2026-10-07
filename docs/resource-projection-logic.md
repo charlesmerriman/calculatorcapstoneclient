@@ -332,13 +332,12 @@ that level (`twoCardDistribution`), so the six cells add up to A's own chance of
 the target, not 100%. The cells are labelled with A's target in front ("MLB & 1LB",
 "1x & 2x").
 
-The target is the row's `primary_target` when set, chosen from a two-segment toggle in the
-picker, greyed out until "also show" is ticked: one copy ("1x" on either kind of banner),
-or all of them ("5x" on an uma banner, "MLB" on a support banner). Unset, `oddsTarget()`
-defaults it to **MLB for a support card and 1x for an uma**, since an uma's extra copies
-are worth far less than a support's limit breaks. `oddsTargetChoices()` is the list the
-toggle offers; the column takes any 1..5, so a finer choice later is a change there only.
-Three things set the maths apart from two one-card strips:
+The target is the row's `primary_target` when set, chosen from a five-segment toggle in
+the picker, greyed out until "also show" is ticked: one copy up to all five, in the
+strip's own words (1x..5x on an uma banner, 0LB..MLB on a support banner). Unset,
+`oddsTarget()` defaults it to **MLB for a support card and 1x for an uma**, since an uma's
+extra copies are worth far less than a support's limit breaks. `oddsTargetChoices()` is
+the list the toggle offers. Three things set the maths apart from two one-card strips:
 
 - **The cards share pulls.** A pull gives A, or B, or neither, so the counts are a
   three-way split: `P(i, j) = Binomial(n, i; pA) × Binomial(n - i, j; pB / (1 - pA))`.

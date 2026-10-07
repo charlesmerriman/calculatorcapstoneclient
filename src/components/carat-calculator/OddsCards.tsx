@@ -11,8 +11,8 @@ import { formatRate, type OddsTarget } from "../../utils/oddsDisplay"
  *     control costs no space of its own in the fixed-height table row.
  *   - OddsCardsPanel: the strip under the row (a band of the card on phones)
  *     where the player picks that card, ticks a second one for two-card
- *     odds, and chooses how far the first card is taken (one copy, or all of
- *     them). Every control is always rendered, the second-card ones greyed
+ *     odds, and chooses how far the first card is taken (one copy up to
+ *     MLB). Every control is always rendered, the second-card ones greyed
  *     out until the box is ticked, so nothing moves when it is. Laid out like
  *     the note editor, for the same reason: the table row keeps its height
  *     and its columns.
