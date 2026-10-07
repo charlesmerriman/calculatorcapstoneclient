@@ -107,6 +107,14 @@ interface BasePlannedBanner {
 	 * many of this one"). Null or absent: two-card odds are off.
 	 */
 	second_card?: number | null
+	/**
+	 * How many copies the two-card odds take the first card to before any free
+	 * copy (a 200-pull exchange or a reserved copy) goes to the second: 1 or 5
+	 * from the panel's toggle. Null or absent: the default for the banner type
+	 * (1 on an uma row, MLB on a support row). Read through `oddsTarget()` in
+	 * utils/oddsDisplay, which ignores a value outside 1..5.
+	 */
+	primary_target?: number | null
 	banner_uma?: BannerUma | null
 	banner_support?: BannerSupport | null
 	/**

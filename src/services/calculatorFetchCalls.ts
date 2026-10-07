@@ -48,6 +48,8 @@ export interface PlannedBannerPayload {
 	/** Absent or null: the default card / two-card odds off. */
 	primary_card?: number | null
 	second_card?: number | null
+	/** Absent or null: the default target for the banner type. */
+	primary_target?: number | null
 	banner_uma: number | null
 	banner_support: number | null
 	banner_step_up: number | null

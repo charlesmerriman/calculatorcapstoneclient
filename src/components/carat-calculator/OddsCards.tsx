@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react"
 import type { RateUpCard } from "../../utils/rateUpRates"
-import { formatRate } from "../../utils/oddsDisplay"
+import { formatRate, type OddsTarget } from "../../utils/oddsDisplay"
 
 /**
  * The two pieces of the "which card are these odds for" control, shown only on
@@ -10,13 +10,15 @@ import { formatRate } from "../../utils/oddsDisplay"
  *     strip is about, and doubles as the button that opens the panel, so the
  *     control costs no space of its own in the fixed-height table row.
  *   - OddsCardsPanel: the strip under the row (a band of the card on phones)
- *     where the player picks that card, and ticks a second one for two-card
- *     odds. Laid out like the note editor, for the same reason: the table row
- *     keeps its height and its columns.
+ *     where the player picks that card, ticks a second one for two-card
+ *     odds, and then chooses how far the first card is taken (one copy, or
+ *     all of them). Laid out like the note editor, for the same reason: the
+ *     table row keeps its height and its columns.
  *
  * Both are plain view code. The choices they report are saved on the planned
- * row (`primary_card` / `second_card`), resolved by `oddsCards()` in
- * utils/rateUpRates, and turned into numbers by the row.
+ * row (`primary_card` / `second_card` / `primary_target`), resolved by
+ * `oddsCards()` in utils/rateUpRates and `oddsTarget()` in utils/oddsDisplay,
+ * and turned into numbers by the row.
  */
 
 interface OddsCaptionProps {
@@ -72,10 +74,14 @@ interface OddsCardsPanelProps {
 	cards: RateUpCard[]
 	primary: RateUpCard
 	second: RateUpCard | null
-	targetLabel: string
+	/** The first card's target on a two-card row, and the two the toggle offers. */
+	target: OddsTarget
+	targetChoices: OddsTarget[]
 	onPrimaryChange: (id: number) => void
 	/** A card id to turn two-card odds on with, or null to turn them off. */
 	onSecondChange: (id: number | null) => void
+	/** Copies to take the first card to: one of `targetChoices`. */
+	onTargetChange: (copies: number) => void
 	className?: string
 }
 
@@ -86,9 +92,11 @@ export const OddsCardsPanel = ({
 	cards,
 	primary,
 	second,
-	targetLabel,
+	target,
+	targetChoices,
 	onPrimaryChange,
 	onSecondChange,
+	onTargetChange,
 	className = "",
 }: OddsCardsPanelProps) => {
 	const others = cards.filter((card) => card.id !== primary.id)
@@ -105,16 +113,53 @@ export const OddsCardsPanel = ({
 
 	return (
 		<div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-300 ${className}`}>
-			<label className="flex min-w-0 items-center gap-1.5">
-				<span className="shrink-0">Odds for</span>
-				<select
-					value={primary.id}
-					onChange={(event) => onPrimaryChange(Number(event.target.value))}
-					className={selectClass}
-				>
-					{cards.map(option)}
-				</select>
-			</label>
+			<div className="flex min-w-0 items-center gap-1.5">
+				<label className="flex min-w-0 items-center gap-1.5">
+					<span className="shrink-0">Odds for</span>
+					<select
+						value={primary.id}
+						onChange={(event) => onPrimaryChange(Number(event.target.value))}
+						className={selectClass}
+					>
+						{cards.map(option)}
+					</select>
+				</label>
+
+				{/*
+				  How far the first card is taken, only once a second card is on:
+				  on its own the strip shows every level and has no target. Two
+				  segments with the chosen one lit, so the current choice reads
+				  here without going back to the caption.
+				*/}
+				{second && (
+					<div
+						role="radiogroup"
+						aria-label="First card target"
+						className="flex shrink-0 overflow-hidden rounded-md border border-gray-600"
+					>
+						{targetChoices.map((choice) => {
+							const chosen = choice.copies === target.copies
+							return (
+								<button
+									key={choice.copies}
+									type="button"
+									role="radio"
+									aria-checked={chosen}
+									title={`Take ${primary.name} to ${choice.label} before any spare copy goes to ${second.name}`}
+									onClick={() => onTargetChange(choice.copies)}
+									className={`px-2 py-1 text-xs transition ${
+										chosen
+											? "bg-brand/20 font-semibold text-brand"
+											: "bg-gray-900 text-gray-300 hover:bg-gray-700"
+									}`}
+								>
+									{choice.label}
+								</button>
+							)
+						})}
+					</div>
+				)}
+			</div>
 
 			<div className="flex min-w-0 items-center gap-1.5">
 				<label className="flex shrink-0 cursor-pointer items-center gap-1.5">
@@ -141,9 +186,10 @@ export const OddsCardsPanel = ({
 
 			{second && (
 				<p className="w-full text-[11px] leading-snug text-gray-400">
-					Each box is the chance of ending with {primary.name} at {targetLabel} and{" "}
-					{second.name} at that level. Every 200 pulls you can exchange for a copy,
-					and those go to {primary.name} first.
+					Each box is the chance of ending with {primary.name} at {target.label} and{" "}
+					{second.name} at that level. Every 200 pulls gives a copy you can pick, and
+					any copies you reserved count too. Those go to {primary.name} first, up to{" "}
+					{target.label}, and the rest go to {second.name}.
 				</p>
 			)}
 		</div>
