@@ -44,7 +44,7 @@ export const OddsCaption = ({
 		? `${primary.name} ${targetLabel} + ${second.name}`
 		: `Odds for ${primary.name}`
 	const title = second
-		? `Each box is the chance of ending with ${primary.name} at ${targetLabel} and ${second.name} at that level. Together they add up to ${primary.name}'s ${targetLabel} chance.`
+		? `Chance of ${primary.name} at ${targetLabel} and ${second.name} at each level. The boxes add up to ${primary.name}'s ${targetLabel} chance.`
 		: "Pick which card these odds are for, or add a second card"
 
 	return (
@@ -167,7 +167,7 @@ export const OddsCardsPanel = ({
 								type="button"
 								role="radio"
 								aria-checked={chosen}
-								title={`Take ${primary.name} to ${choice.label} before any spare copy goes to ${second.name}`}
+								title={`Take ${primary.name} to ${choice.label} first`}
 								onClick={() => onTargetChange(choice.copies)}
 								className={`px-2 py-1 text-xs transition ${
 									chosen
@@ -184,10 +184,9 @@ export const OddsCardsPanel = ({
 
 			{second && (
 				<p className="w-full text-[11px] leading-snug text-gray-400">
-					Each box is the chance of ending with {primary.name} at {target.label} and{" "}
-					{second.name} at that level. Every 200 pulls gives a copy you can pick, and
-					any copies you reserved count too. Those go to {primary.name} first, up to{" "}
-					{target.label}, and the rest go to {second.name}.
+					Each box is the chance that {primary.name} reaches {target.label} and{" "}
+					{second.name} ends at that level. Pity copies and reserved copies go to{" "}
+					{primary.name} first, then {second.name}.
 				</p>
 			)}
 		</div>
