@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { ChevronDown } from "lucide-react"
 import type { RateUpCard } from "../../utils/rateUpRates"
 import { formatRate, type OddsTarget } from "../../utils/oddsDisplay"
@@ -109,6 +110,7 @@ export const OddsCardsPanel = ({
 	// other one. The select shows it greyed out until then, so the player can
 	// see what the box will add.
 	const secondChoice = second ?? others[0]
+	const primarySelectId = useId()
 
 	const option = (card: RateUpCard) => (
 		<option key={card.id} value={card.id}>
@@ -118,16 +120,68 @@ export const OddsCardsPanel = ({
 
 	return (
 		<div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-300 ${className}`}>
-			<label className="flex min-w-0 items-center gap-1.5">
-				<span className="shrink-0">Odds for</span>
+			{/*
+			  "Odds for [target] [card]": the copies the player is after
+			  (1x..5x on an uma banner, 0LB..MLB on a support) sit between the
+			  words and the card, so the pick reads as one phrase.
+
+			  The words are a <label htmlFor> instead of a wrapping <label>: a
+			  wrapping label names its FIRST labelable descendant, and the
+			  target's buttons now come before the select, so wrapping would
+			  hand "Odds for" to a button. useId because the panel renders
+			  twice (table row and phone card), and each copy needs its own id.
+			*/}
+			<div className="flex min-w-0 items-center gap-1.5">
+				<label htmlFor={primarySelectId} className="shrink-0 cursor-pointer">
+					Odds for
+				</label>
+
+				{/*
+				  How far the first card is taken. Always rendered, greyed out
+				  until a second card is on (like the second select), so ticking
+				  the box changes nothing's position. On its own the strip shows
+				  every level and has no target.
+				*/}
+				<div
+					role="radiogroup"
+					aria-label="First card target"
+					aria-disabled={second === null}
+					className={`flex shrink-0 overflow-hidden rounded-md border border-gray-600 ${
+						second === null ? "opacity-50" : ""
+					}`}
+				>
+					{targetChoices.map((choice) => {
+						const chosen = choice.copies === target.copies
+						return (
+							<button
+								key={choice.copies}
+								type="button"
+								role="radio"
+								aria-checked={chosen}
+								disabled={second === null}
+								title={second ? `Take ${primary.name} to ${choice.label} first` : undefined}
+								onClick={() => onTargetChange(choice.copies)}
+								className={`px-2 py-1 text-xs transition ${
+									chosen
+										? "bg-brand/20 font-semibold text-brand"
+										: "bg-gray-900 text-gray-300 enabled:hover:bg-gray-700"
+								}`}
+							>
+								{choice.label}
+							</button>
+						)
+					})}
+				</div>
+
 				<select
+					id={primarySelectId}
 					value={primary.id}
 					onChange={(event) => onPrimaryChange(Number(event.target.value))}
 					className={selectClass}
 				>
 					{cards.map(option)}
 				</select>
-			</label>
+			</div>
 
 			<div className="flex min-w-0 items-center gap-1.5">
 				<label className="flex shrink-0 cursor-pointer items-center gap-1.5">
@@ -150,43 +204,6 @@ export const OddsCardsPanel = ({
 				>
 					{others.map(option)}
 				</select>
-			</div>
-
-			{/*
-			  How far the first card is taken, last in the row. Always rendered,
-			  greyed out until a second card is on (like the second select), so
-			  ticking the box changes nothing's position. On its own the strip
-			  shows every level and has no target.
-			*/}
-			<div
-				role="radiogroup"
-				aria-label="First card target"
-				aria-disabled={second === null}
-				className={`flex shrink-0 overflow-hidden rounded-md border border-gray-600 ${
-					second === null ? "opacity-50" : ""
-				}`}
-			>
-				{targetChoices.map((choice) => {
-					const chosen = choice.copies === target.copies
-					return (
-						<button
-							key={choice.copies}
-							type="button"
-							role="radio"
-							aria-checked={chosen}
-							disabled={second === null}
-							title={second ? `Take ${primary.name} to ${choice.label} first` : undefined}
-							onClick={() => onTargetChange(choice.copies)}
-							className={`px-2 py-1 text-xs transition ${
-								chosen
-									? "bg-brand/20 font-semibold text-brand"
-									: "bg-gray-900 text-gray-300 enabled:hover:bg-gray-700"
-							}`}
-						>
-							{choice.label}
-						</button>
-					)
-				})}
 			</div>
 
 			{/*
