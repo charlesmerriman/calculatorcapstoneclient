@@ -93,7 +93,7 @@ const sectionClass = "mt-10 border-t border-gray-800 pt-8"
 const sectionHeadingClass = "text-xl font-bold tracking-tight text-gray-100"
 
 export const HomePage = () => {
-	useDocumentMeta(null, "Plan your Uma Musume gacha pulls. Forecast how many carats and tickets you will have for any upcoming banner, based on your rank income, events and campaigns.")
+	useDocumentMeta(null, "A carat planner and banner timeline for Uma Musume. See every upcoming banner and how many carats and tickets you will have when it arrives.")
 
 	const { topRef, isAwayFromTop, scrollToTop } = useBackToTop()
 	// The FAQ teaser. Null only on the empty shell before the fetch lands; the
@@ -175,7 +175,7 @@ export const HomePage = () => {
 									to="/login"
 									className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-600 px-4 text-sm font-semibold text-gray-200 transition hover:border-gray-500 hover:bg-gray-700"
 								>
-									Sign in to save a plan
+									Sign in to sync your plan
 								</Link>
 							</div>
 						</div>

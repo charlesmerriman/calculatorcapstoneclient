@@ -22,13 +22,15 @@ const EVENT_TYPE_STYLES: Record<
 		label: "Anniversary",
 		className: "border-brand/50 bg-brand/15 text-brand",
 	},
+	// Text from theme tokens: a stock amber-300 / sky-300 is unreadable on a
+	// light theme. The 500-shade border and wash read on either mode.
 	new_year: {
 		label: "New Year",
-		className: "border-amber-500/50 bg-amber-500/15 text-amber-300",
+		className: "border-amber-500/50 bg-amber-500/15 text-new-year",
 	},
 	campaign: {
 		label: "Campaign",
-		className: "border-sky-500/50 bg-sky-500/15 text-sky-300",
+		className: "border-sky-500/50 bg-sky-500/15 text-campaign",
 	},
 }
 
@@ -62,7 +64,7 @@ export const AnniversaryEventStrip = ({
 			{stepUpChip && (
 				<span
 					title="Select Step-Up banners run during this campaign: a discounted, paid-carats-only ladder that guarantees a card you choose"
-					className="rounded-full border border-purple-400/50 bg-purple-400/15 px-2 py-0.5 text-[11px] font-semibold text-purple-200"
+					className="rounded-full border border-step-up-border/50 bg-step-up/15 px-2 py-0.5 text-[11px] font-semibold text-step-up"
 				>
 					{stepUpChip}
 				</span>

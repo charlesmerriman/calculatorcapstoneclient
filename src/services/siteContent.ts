@@ -16,7 +16,13 @@ import type { FaqCategory, FaqItem, SiteContent, SitePage, SitePageSlug } from "
 
 /** What a page can ask the content for. Null means not loaded here yet. */
 export interface SiteContentValue {
-	page(slug: SitePageSlug): SitePage | null
+	/**
+	 * `optional` exempts one read from `strict`: a missing row is null at build
+	 * time too, instead of a failed build. For a page whose row the LIVE API
+	 * may not have yet when the site is built. See the legend races entry in
+	 * views/AppRouteMeta.tsx.
+	 */
+	page(slug: SitePageSlug, options?: { optional?: boolean }): SitePage | null
 	faq(): FaqCategory[] | null
 }
 
@@ -44,10 +50,10 @@ export function buildSiteContentValue(
 	{ onRead, strict = false }: BuildValueOptions = {},
 ): SiteContentValue {
 	return {
-		page(slug) {
+		page(slug, { optional = false } = {}) {
 			onRead?.(`page:${slug}`)
 			const page = content?.pages?.find((row) => row.slug === slug) ?? null
-			if (page === null && strict) {
+			if (page === null && strict && !optional) {
 				throw new Error(`Site content has no page "${slug}"; the API did not return it`)
 			}
 			return page

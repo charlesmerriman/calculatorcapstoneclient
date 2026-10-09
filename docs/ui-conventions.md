@@ -42,6 +42,21 @@ color in `src/index.css`.
 `src/index.css`.** The light theme *inverts* the gray ramp, so existing utilities keep
 working unchanged. Read the comments there before adding a theme.
 
+The compact picker puts **Dark** and **Light** first as the primary choices, with
+small swatches for alternative **Dark themes** and **Light themes** underneath,
+grouped by the `mode` in `themeStore.ts`. Dark retains the saved `gold` id and
+remains the initial default. Light (`light`) restores the original warm palette;
+Blue (`light-blue`), Green, Red, Purple and Pearl remain alternatives, giving
+each mode six themes. Purple keeps its saved `light-lilac` id.
+
+`data-theme-mode="light"` supplies the shared light ramp, status colors, button
+labels and surface polish. Individual `data-theme` selectors override the palette,
+including the original Light theme's glows, shadows and black button labels.
+Pearl uses softer paper-white surfaces and charcoal actions. Toasts use the same
+mode metadata, and the pre-paint script in `index.html` sets both attributes.
+When adding a theme, update that script's ids and light-mode list together with
+the registry; `themeScript.test.ts` checks their agreement.
+
 ### Semantic status colors must be theme tokens, not palette classes
 
 Tailwind's stock `green-400` / `red-500` are **not** theme-aware and measure ~1.35:1
@@ -51,7 +66,14 @@ belongs in `@theme` as its own token.
 The `--color-pull-*` tokens (pull-count status, consumed by `.pull-input--*` in
 `App.css`) are the worked example to copy. `--color-category-revival[-border]`
 (`.category-chip--revival`, the Golden Week marker on a timeline section) follows the same
-pattern: dark values in `@theme`, deepened counterparts under `[data-theme="light"]`.
+pattern: dark values in `@theme`, deepened counterparts under `[data-theme-mode="light"]`.
+So do `--color-type-*` (the banner-row kinds), `--color-step-up` (every step-up marker,
+including the Timeline strip's chip) and `--color-new-year` / `--color-campaign` (the
+strip's text).
+
+On light themes the pull-status fills are stronger than on dark (22% / 18% against 12%) and
+the ok/over states get an inset ring, because a faint wash on a near-white field could not
+be told apart from the neutral state.
 
 A brand-derived tint would have been the obvious shortcut and is wrong here — the chip has
 to read as "not the usual banner" against seven different brand hues, and would vanish into
@@ -106,13 +128,15 @@ carried on the `BannerRowType` tag, never inferred from which FK is set (see
 |---|---|
 | Type badge + glyph (desktop) | `BannerTypeBadge` |
 | Type glyph alone (mobile card) | `BannerTypeIcon`, same module |
-| Badge background colour | `.banner-type-tab--uma / --support / --step-up` in `App.css` |
-| Mobile tile colour + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
+| Fill + ink per kind (badge AND mobile tile) | `--color-type-*` tokens in `index.css`, applied by `.banner-type-tab--*` / `.banner-type-tile--*` in `App.css` |
+| Mobile tile classes + thumb radius | `TYPE_STYLES` in `MobileBannerCard` |
 | Which catalogue the row's select offers | `bannersForRowType` in `bannerHelpers` |
 
-The normal palette uses stock classes (`bg-blue-900` / `bg-green-900` / `bg-purple-900`).
-Colorblind mode overrides the named badge/tile hooks with dark blue and red; keep those
-hooks on both desktop and mobile treatments.
+Each kind has a fill and an ink token. The dark themes use the stock blue / green /
+purple-900 values with white ink; light themes swap in pastel fills with deep same-hue ink,
+and colorblind mode redraws them blue / red in both modes. Everything drawn on the mobile
+strip (the banner select, the note and delete buttons) reads `--tile-*` variables that
+`.banner-type-tile` declares per mode, because white-on-dark alphas vanish on a pastel.
 
 Adding a fourth kind means touching each row of that table once. It used to mean finding
 six hand-copied ternaries, any of which failed silently by rendering another kind's
@@ -233,21 +257,26 @@ the calculator yet. Because the confirm button is then the card's last band, it 
 full `p-3` rather than the `p-3 pb-0` it used while the odds strip supplied the bottom
 gutter.
 
-**The desktop table drops its MLB column on staged rows too**, for the same reason and via
-`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine, with the
-freed `minmax(14rem, 1fr)` handed to the banner select, which becomes the flexible track.
-`min-width` is inherited unchanged, so the staged table stays exactly as wide as the
-calculator table below it and the `@banner-table:` switch point still governs both. The
-staging header row in `CaratCalculator` carries the same modifier — both, or the header
-drifts out of alignment with the rows it labels.
+**The desktop table shows no stats or odds on staged rows either**, via
+`.banner-grid--staged` (App.css): eight tracks where `.banner-grid` has nine. The
+derived-stats width goes to the banner select, and the confirm button sits in the MLB
+track. Every track from # Pulls rightward matches the calculator table's, so the staged
+pulls and copies fields sit directly above the calculator's, and Add to calculator sits
+above the odds. Both templates have the same fixed sum and the same one flexible track
+(`minmax(14rem, 1fr)`) in the same place, so this holds at every width. Only the dates
+column is offset, by the wider select. `min-width` is inherited unchanged, so the staged
+table stays exactly as wide as the calculator table below it and the `@banner-table:`
+switch point still governs both. The staging header row in `CaratCalculator` carries the
+same modifier — both, or the header drifts out of alignment with the rows it labels.
 
-That flexible track must be spelled `minmax(0, 1fr)`, never a bare `1fr`. A bare `1fr` is
+The staged select track must stay a fixed size, never a `1fr`. A bare `1fr` is
 `minmax(auto, 1fr)`, and the auto floor grows the track to the cell's min-content — which,
-for react-select's `nowrap` label, is the whole banner name. The 242-character Golden Week
-revival ran the staged row 2450px wide inside a 1470px container and clipped the pulls
-field, the reserved field, the confirm button and the discard button off the right edge.
-The calculator table never had this bug because its select track is a fixed `10.5rem`; a
-definite max clamps the same minimum away. Only a flexible track is exposed to it.
+for react-select's `nowrap` label, is the whole banner name. When the select was the
+flexible track, the 242-character Golden Week revival ran the staged row 2450px wide
+inside a 1470px container and clipped the pulls field, the reserved field, the confirm
+button and the discard button off the right edge. A definite size clamps that minimum
+away, as it always has on the calculator table's `10.5rem` select. (If a select track ever
+has to flex again, spell it `minmax(0, 1fr)`.)
 
 The staged surfaces are tinted with `.staged-surface` / `.staged-surface-header`, a
 `color-mix` of `--color-staging` into the live gray ramp. The tint is a **background**
@@ -381,7 +410,7 @@ neighbours. Re-measure the stats box before you move it.
 
 ### The bulk-adjust pad (`CountStepper`)
 
-The `# Pulls` field opens a pad of bulk-adjust buttons — the planner's answer to "set this
+The `# Pulls` field (and the copies field) opens a pad of bulk-adjust buttons — the planner's answer to "set this
 to 600 without pressing ↑ sixty times". It is deliberately **not** a set of `+100/-100`
 buttons in the column: that column is `5rem`, the table's width is capped
 (`--container-banner-table`, above), and four buttons plus a field want ~11.5rem. A pad
@@ -405,13 +434,22 @@ Three things about it are load-bearing:
   input. That is what lets you click four in a row and keep the arrow keys live
   afterwards — and the panel-level handler is what stops a press on the pad's own dead
   space blurring the field and closing it mid-use.
-- **The quantities are per row kind, and they are not powers of ten.** The unit of account
-  on a pull row is a pity copy, so the coarse delta is `PULLS_PER_PITY_COPY` and one preset
-  lands on the next threshold — the same number that turns the field green. A step-up row
-  counts *steps*, clamped to `banner_count * 5`, so its ruler is ±1 / ±5 and it gets no
-  Ctrl shortcut at all. `buildCountChips` in `utils/countChips.ts` is the one place this is
-  decided; `NumberField`'s `mediumStep` / `largeStep` are its keyboard mirror, advertised
-  in the pad's footer.
+- **The quantities are per row kind.** `buildCountChips` in `utils/countChips.ts` is the
+  one place this is decided:
+
+  | Row | Pad | Why |
+  |---|---|---|
+  | Uma | `−100 −10 +10 +100 \| Next pity` | one copy is the whole goal, so nobody plans past the first pity; half a pity is the useful coarse step |
+  | Support | `−200 +200 \| Next pity` | plans move in whole pities (`PULLS_PER_PITY_COPY`) |
+  | Step Up | `−5 +5 \| Limit N \| Next round` | counts *steps*, bought a round at a time |
+  | Copies field | `−1 +1` | the range is 0-5 (`buildCopyChips`) |
+
+  Pull rows have **no Max chip**: the Max Pulls tile beside the field already shows the
+  number. A step-up's **Limit** is what the banner *sells* (`max_steps`, i.e.
+  `banner_count * 5`), never what is affordable, and is named differently from the
+  affordable "Max Steps" tile on purpose. `NumberField`'s `mediumStep` / `largeStep` are
+  the keyboard mirror (`coarsePullDelta` feeds both), advertised in the pad's title; a
+  step-up gets no Ctrl shortcut at all.
 
 **It needs no phone-specific wiring, but it does need two phone-specific
 allowances.** The card and the desktop cell render the *same* `pullsInput` node, so the
@@ -590,19 +628,23 @@ mono under a chosen name, because the handle is the account's identity and what
 an admin would ask for. The name span is omitted while `/account` is in flight,
 so the pill widens once rather than jumping from a placeholder.
 
-**The avatar is a supporter's first oshi, and free accounts have none.**
-`Avatar.tsx` shows `account.avatar_url` — the server sends the first oshi's art
-while the tier covers at least one slot, else `null` — and on `null` or a broken
-image draws the quiet default: a muted `UserRound` silhouette on a `bg-gray-700`
-disc, styled like the settings and theme icon buttons beside it so it reads as
-one more control. The same default for everyone and for the loading state, on
-purpose: the avatar is only ever shown to its owner, so two free accounts have
+**The avatar is the person's first favourite uma, and it is square.**
+`Avatar.tsx` shows `account.avatar_url` — the server sends the first oshi's art,
+`null` until they pick one — and on `null` or a broken image draws the quiet
+default: a muted `UserRound` silhouette on a `bg-gray-700` rounded square,
+styled like the settings and theme icon buttons beside it so it reads as one
+more control. The same default for everyone and for the loading state, on
+purpose: the avatar is only ever shown to its owner, so two empty accounts have
 no reason to look different, and the initials-on-a-hue circle it replaced
-(2026-09-13) was loud in an otherwise grey bar. No provider picture is ever held
-or shown. Three sizes: `sm` (menu rows), `md` (the navbar trigger, 36px inside
-the 40px pill), `lg` (the account header and the oshi tiles). Avatars never
-appear anywhere public today; the supporters list on the home page is names
-only. (Oshis will be shown publicly by a future feature.)
+(2026-09-13) was loud in an otherwise grey bar. **Square since 2026-10-07**
+(`rounded-md` for `sm`/`md`, `rounded-lg` for `lg`): the art is a square
+portrait and the circle cropped every corner; the navbar trigger
+(`NAV_PROFILE_TRIGGER`) is `rounded-lg` around it so the frame stays even. No
+provider picture is ever held or shown. Three sizes: `sm` (menu rows), `md`
+(the navbar trigger, 36px inside the 40px frame), `lg` (the account header and
+the favourite tiles). Avatars never appear anywhere public today; the
+supporters list on the home page is names only. (Oshis will be shown publicly
+by a future feature.)
 
 `/account` (`components/account/AccountPage.tsx`) is noindex and **not
 prerendered** — a build-time render is a guest card, which is not the page.
@@ -619,31 +661,37 @@ The page also owns the two **preferences**, both written through one
 `PATCH /account` (`accountPatch` in `services/accountFetchCalls.ts`) followed
 by `refresh()`, so the navbar picks the change up: a display-name form (32
 characters, the server's cap, mirrored as `maxLength`; blank clears it) and the
-**oshi card**.
+**favourites card** ("Your favourite uma musume" on screen; `oshi` in the code,
+the wire and the test names).
 
-**The oshi card draws what the server says.** `account.oshi_slots` (5 / 3 / 1 /
-0, already resolved by the server; the page does no tier arithmetic) is how many
-tiles are offered, and `account.oshis` (every stored pick, covered or not) fills
-them. Slot 0 is tagged "Your picture". Tiles past the slot count render greyed
-with "Not covered" — a downgrade keeps the rows — and offer only Remove, never
-Change or "Make picture", because a swap-in past the count is an ADD the server
-would refuse; the page avoids offering the refused button, the rule itself
-lives in the serializer. A free account with nothing held sees one locked
-"Supporters only" tile and a Patreon link; a lapsed supporter with rows sees
-them on hold with a "Renew" link. Every write sends the **whole ordered list**
-(`oshis: number[]`): picking fills or appends a slot, "Make picture" moves an
-id to the front, Remove filters it out, so the client never has to know the
-server's renumbering.
+**The favourites card draws what the server says.** `account.oshi_slots` (1 for
+everyone, 3 / 5 / 7 by tier, already resolved by the server; the page does no
+tier arithmetic) is how many tiles are offered, and `account.oshis` (every
+stored pick, covered or not) fills them. Slot 0 is tagged "Your picture". Tiles
+past the slot count render greyed with "Not covered" — a lapse or downgrade
+keeps the rows — and offer only Remove, never Change or "Make picture", because
+a swap-in past the count is an ADD the server would refuse; the page avoids
+offering the refused button, the rule itself lives in the serializer. Anyone
+who is not a supporter sees a Patreon link under the tiles ("More slots", or
+"Renew" when they hold more than they cover). Every write sends the **whole
+ordered list** (`oshis: number[]`): picking fills or appends a slot, "Make
+picture" moves an id to the front, Remove filters it out, so the client never
+has to know the server's renumbering.
 
 `components/account/OshiPicker.tsx` is a search-and-grid modal in the same
 shape as the Selectors page's card pickers, fed by `GET /umas`
 (`services/umasFetchCalls.ts`) and fetched on first open, not on mount — most
 visits never open it. It is opened for **one slot**: `currentId` marks the uma
 already there, `takenIds` disables the umas in the other slots ("Already
-picked") rather than hiding them. Tiles are round, so the person sees the crop
-they will get. The parent owns the write; the dialog closes only once the PATCH
-succeeds, so a refused pick leaves the grid open with the server's reason
-toasted ("Your tier covers 3 oshis.").
+picked") rather than hiding them. Tiles are square with the avatar's corners,
+so the person sees what they will get. The catalogue is what `GET /umas` lists
+(pictured umas minus the `(All)` placeholder), the same for everyone; costume
+variants (`is_variant`) are shown locked ("Supporters only") while
+`account.oshi_variants` is false, so a free account sees what a pledge
+unlocks. The client filters nothing and decides nothing; the server refuses a
+variant a free account somehow sends. The parent owns the write; the dialog
+closes only once the PATCH succeeds, so a refused pick leaves the grid open
+with the server's reason toasted ("Your tier covers 3 favourites.").
 
 ## Brand mark and display font
 
@@ -717,6 +765,18 @@ own "Add to Planner". A section whose own end date differs from the header's say
   their end dates can differ — and income is a pure function of a banner's end date.
 - A group of one is the common case and is the *same* code path, so there is no second
   layout to keep in sync.
+- **A shared `jp_start_date` groups too: the staggered release.** JP runs a release as one
+  window; global can open its uma and support banners on different days (first seen
+  2026-10, Hokko Tarumae). That is entered as **two `BannerTimeline` rows with the same JP
+  dates and their own global dates**, and the shared JP start is what puts them on one
+  card. There is no flag to set. The rule is a union with the start rule, never a
+  replacement: the launch window has one global start and two JP starts.
+- **Complementary halves fuse into one section** (`buildWindowSections`): an uma-only row
+  and a support-only row of the same category draw as the ordinary art | umas | supports
+  row, each panel reading its banner, expiry and dates from its own row. When the halves'
+  dates differ, the **card header** says how each side differs from the window it states
+  ("Support banner starts 2026/10/27"). Never inside a panel: a line there makes the panel
+  taller and the art row grows with it. Anything else stacks as separate sections.
 
 ### Count drives the layout, category drives the accents
 
@@ -1167,6 +1227,64 @@ from seeing a campaign to planning what you'd spend at it.
   `FOCUS_SCROLL_MARGIN` / `FOCUS_TAILROOM` classes. A second copy would be a second place
   for the two to drift apart.
 
+## Legend Races page (`components/legend-races/`)
+
+`/app/legend-races` is the fourth nav destination ("Legends" in the mobile bar). It
+shows when each batch of umas joins the daily legend races and how long grinding one
+takes. Plan and decisions: workspace-root `legend-races-plan.md`.
+
+- **Everything editable comes from the API.** Batches and umas from
+  `daily_legend_race_data`; the title and the text under it from the
+  `daily-legend-races` site page. That text IS the grind guidance (the source sheet's
+  three lines: 1 Star Piece a day, ~80 from the original event, 70 or 140 days), so an
+  editor changes the numbers in the words. The page computes no grind dates (owner's
+  call, 2026-10-05: computed "150 pieces by …" lines read as noise). The provider defaults the
+  collection to `[]`, so an API without it shows the empty state.
+- **A batch with no date is TENTATIVE, and shown** (owner's call, 2026-10-05; it was
+  hidden before). An editor enters a future batch before the timeline has a banner for
+  it, so `start_date` and `banner_timeline` are null. The page lists these under "No
+  date yet", between "Coming up" and the batches already out, in the order entered
+  (`tentativeReleases`, by id: by name "6.5th" sorts before "6th"). The card says "No
+  date yet", wears a Tentative badge and a dashed border, and has no countdown and no
+  Timeline link. It says so on the card as well as in the section heading because a
+  search or a `?release=` link can show the card alone. The oshi strip and the search
+  cover them. **The Timeline does not**: a pill needs a banner card to sit on
+  (`legendRacesByBanner` reads `datedReleases`). A tentative batch with no umas is a
+  draft: the API holds it back and `tentativeReleases` drops it too.
+- **The rules are pure functions in `utils/dailyLegendRaces.ts`** (dated and tentative
+  lists, split around now, ★ groups, by-banner grouping, the countdown wording, the outfit
+  split, the `?release=` deep link), tested on their own.
+- **A tile gives an alternate outfit its own line** (`splitOutfit`: "Mejiro McQueen
+  (Anime)" is "Mejiro McQueen" over a smaller "Anime"). The outfit is what tells two
+  versions of an uma apart and it sits at the end of the name, so one clamp over the
+  whole name cut off exactly that part. The full name is the tile's `title`.
+- **Star groups sit side by side from `sm` up** when a whole group fits beside the
+  last, so "five ★3 and one ★2" is one row. That needs each group to be as wide as its
+  tiles, so from `sm` the tiles are fixed-width in a wrapping flex row; an auto-fill
+  grid has no width of its own. A phone keeps the fluid grid, one group per row.
+- **A far-off countdown is rounded** (`arrivalCountdown`): days up to 90, then "in
+  about 6 months", then years to the nearest half. Nearly every far date is an
+  estimate, and "in 720 days" claimed a precision it does not have.
+- **The arrival highlight is the Timeline's** (`TIMELINE_FOCUS_HIGHLIGHT`), an outline.
+  It was a `ring-*` until 2026-10-05, which the gold and gilded themes' own
+  `box-shadow` on `.card-panel` overrode, so it never drew in the default theme.
+- **Short on purpose (owner's call, 2026-10-05).** The admin text, then cards with the
+  name, date and badges on one line and the uma tiles. Nothing else per card.
+- **On the Timeline a batch is a pill, not a card.** `LegendRaceNote` sits in the header of
+  the card of the banner it arrives with (`banner_timeline` id, grouped by
+  `legendRacesByBanner`), beside the countdown, like the staggered-release notes, so it
+  cannot resize the art. It reads "join" until the batch is out and "joined" after. It
+  links to `?release=<id>`; the page card links back with a `banner` focus. A full-width marker card was tried first and floated between unrelated
+  cards. The pill uses the `--color-legend-race` token.
+- **The oshi strip reads the covered oshis only** (`oshis.slice(0, oshi_slots)`), the
+  same cut as the account picture.
+- **Head tags come from `AppRouteMeta`**, which reads the site page as an OPTIONAL read
+  (`page(slug, { optional: true })`): the one deployment that ships this page builds
+  the site against the old API, which has no row yet. Every other page read stays strict.
+- **Four mobile tabs stack icon above label** at 11px; side by side they truncated at
+  375px. The profile pill's name waits for `xl` for the same reason on desktop: with a
+  fourth link it pushed the signed-in bar past 1024px.
+
 ## Selectors page (`components/selectors/`)
 
 `/app/selectors` is the third nav destination, alongside Calculator and Timeline. It
@@ -1377,3 +1495,34 @@ react-markdown's default of not rendering raw HTML; do not add `rehype-raw`.
 The "Last updated" line formats `updated_at.slice(0, 10)`, the date half only. The build
 renders in UTC and the browser in local time, and an instant near midnight would
 otherwise format to different days on the two sides of hydration.
+
+## The update notice: stale tabs are told a newer build is live
+
+The site is a single-page app, so an open tab never reloads itself. A deploy changes
+nothing for a tab opened before it, and that tab keeps running the old bundle against the
+new API for as long as it stays open. The update notice is how such a tab finds out.
+
+**The mechanism.** `vite.config.ts` stamps every build with an id (`BUILD_ID` env var,
+else the git commit, else a timestamp; it only has to differ between deploys). The id is
+compiled into the bundle as `__BUILD_ID__` (declared in `src/buildId.d.ts`) and the client
+build emits the same value as `dist/version.json`. `services/updateWatch.ts` polls that
+file every ten minutes while the tab is visible, and again the moment a hidden tab comes
+back to the foreground. A different id means a newer build is live, and
+`hooks/useUpdateNotifier.ts`, mounted once in `App.tsx`, shows a persistent Sonner toast
+with a Refresh action.
+
+Rules that follow from it:
+
+- **It never reloads on its own.** The planner auto-saves, and a reload forced mid-save
+  could drop a row. The toast is the whole intervention; the refresh is the person's.
+- **A bad answer is never an update.** The App Platform catch-all serves a missing
+  `/version.json` as `spa.html` with a 200, so a response that is not JSON, or has no
+  non-empty `build` string, is ignored. `updateWatch.test.ts` pins this.
+- **The request cache-busts with a query string.** The static site sits behind a CDN that
+  keys its cache on the full URL, so `?t=<now>` reaches origin. The HTML itself carries
+  `s-maxage=86400`; App Platform purges the edge on deploy, which is what makes the
+  Refresh button land on the new build rather than the cached old one.
+- **The dev server answers `/version.json` itself**, with the same id the dev bundle
+  carries, so `npm run dev` and `npm run dev:live` never show the toast. To see it locally,
+  change the `build` value the middleware returns, or test through `startUpdateWatch` with
+  an injected fetch as the test file does.

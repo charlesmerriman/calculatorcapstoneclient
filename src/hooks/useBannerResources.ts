@@ -245,7 +245,10 @@ export function useBannerResources({
 				today, end, userStatsData.training_pass, constants
 			)
 			const shop = userStatsData.monthly_shop_tickets
-				? cumulativeMonthlyShopTickets(today, end, constants)
+				? cumulativeMonthlyShopTickets(today, end, constants, {
+						uma: userStatsData.shop_uma_tickets_bought,
+						support: userStatsData.shop_support_tickets_bought,
+				  })
 				: { umaTickets: 0, supportTickets: 0 }
 
 			// One pass over the campaign credits: free carats, paid carats and
@@ -436,6 +439,11 @@ export function useBannerResources({
 						discountDays,
 						discountedPaidPulls: userStatsData.discounted_paid_pulls,
 						fullPricePaidPulls: userStatsData.full_price_paid_pulls,
+						// `!== false`, not the raw value: during a deploy the client
+						// can briefly run against an API that doesn't send this field
+						// yet, and a missing toggle has to mean "spend them", which
+						// is what every plan did before the toggle existed.
+						spendTickets: userStatsData.spend_tickets_on_banners !== false,
 				  })
 
 			// A selector only has to reach ONE card on the banner — it takes a

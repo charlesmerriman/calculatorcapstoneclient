@@ -26,6 +26,16 @@ export interface UserStats {
 	training_pass: boolean
 	misc_earnings: boolean
 	monthly_shop_tickets: boolean
+	/**
+	 * How many of each the player buys from the shop each month. null (or
+	 * absent, from an API older than the field) means the default purchase.
+	 * Read them through shopTicketsPerMonth (utils/cumulativeIncome), which
+	 * resolves the default and clamps to the shop's cap, never directly.
+	 */
+	shop_uma_tickets_bought?: number | null
+	shop_support_tickets_bought?: number | null
+	/** Off = tickets are kept as a reserve and never pay for a planned pull. */
+	spend_tickets_on_banners: boolean
 	discounted_paid_pulls: boolean
 	full_price_paid_pulls: boolean
 	/** Off by default — planned purchases are budgeting-only until switched on. */
@@ -85,6 +95,26 @@ interface BasePlannedBanner {
 	 * Capped at NOTE_MAX_LENGTH (components/carat-calculator/BannerNote).
 	 */
 	note?: string
+	/**
+	 * Which featured card the odds strip is about, as a card id (an uma id on an
+	 * uma row, a support card id on a support row). Null or absent: the banner's
+	 * first card of its highest rarity. An id the banner does not feature is
+	 * ignored, never an error. Read through `oddsCards()` in utils/rateUpRates.
+	 */
+	primary_card?: number | null
+	/**
+	 * A second featured card to show joint odds for ("MLB of the first, and how
+	 * many of this one"). Null or absent: two-card odds are off.
+	 */
+	second_card?: number | null
+	/**
+	 * How many copies the two-card odds take the first card to before any free
+	 * copy (a 200-pull exchange or a reserved copy) goes to the second: 1..5
+	 * from the panel's toggle. Null or absent: the default for the banner type
+	 * (1 on an uma row, MLB on a support row). Read through `oddsTarget()` in
+	 * utils/oddsDisplay, which ignores a value outside 1..5.
+	 */
+	primary_target?: number | null
 	banner_uma?: BannerUma | null
 	banner_support?: BannerSupport | null
 	/**

@@ -38,6 +38,7 @@ import type { TimelineFocusProps, TimelineMarker, TimelineRow } from "./timeline
 import { FOCUS_TAILROOM, useFocusScroll } from "../../hooks/useFocusScroll"
 import { useBackToTop } from "../../hooks/useBackToTop"
 import { TIMELINE_FOCUS_PARAM, parseTimelineFocus } from "../../utils/timelineFocus"
+import { legendRacesByBanner } from "../../utils/dailyLegendRaces"
 import { isRaceEvent } from "../../types"
 import type {
 	BannerCategory,
@@ -267,6 +268,7 @@ export const Timeline = () => {
 		setStagedBanners,
 		scenarioData,
 		anniversaryEventData,
+		dailyLegendRaceData,
 	} = useCalculatorData()
 	const [searchParams, setSearchParams] = useSearchParams()
 	/**
@@ -380,6 +382,13 @@ export const Timeline = () => {
 		userPlannedBannerData
 			.map(plannedBannerKey)
 			.filter((key): key is BannerKey => key !== null)
+	)
+
+	// Daily legend race batches by the banner they arrive with. Each shows as a
+	// note on that banner's card rather than as a card of its own.
+	const legendRacesForBanner = useMemo(
+		() => legendRacesByBanner(dailyLegendRaceData),
+		[dailyLegendRaceData]
 	)
 
 	// Banners nested inside BannerTimelineForViewing have banner_timeline omitted by the API serializer.
@@ -1062,6 +1071,9 @@ export const Timeline = () => {
 							plannedBannerKeys={plannedBannerKeys}
 							stagedBanners={stagedBanners}
 							onAddBanner={handleAddBanner}
+							legendRaces={row.group.banners.flatMap(
+								(banner) => legendRacesForBanner.get(banner.id) ?? []
+							)}
 							{...focusProps}
 						/>
 					)

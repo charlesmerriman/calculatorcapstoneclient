@@ -45,6 +45,11 @@ export interface PlannedBannerPayload {
 	reserved_copies: number
 	/** Absent on a row that never had one; the server defaults it to "". */
 	note?: string
+	/** Absent or null: the default card / two-card odds off. */
+	primary_card?: number | null
+	second_card?: number | null
+	/** Absent or null: the default target for the banner type. */
+	primary_target?: number | null
 	banner_uma: number | null
 	banner_support: number | null
 	banner_step_up: number | null
@@ -169,13 +174,19 @@ export function toStepUpSelectionPayload(
  * `null` omits the key, which the server reads as "the active plan". That is
  * right in exactly one case: an API from before plans existed (it sent no
  * `active_plan_id`, so there is no id to send and only one plan to mean).
+ *
+ * A COLLECTION passed as `null` is omitted too, and the server then leaves it
+ * alone (an absent key is "not part of this save"; `[]` is "delete every
+ * row"). Auto-save always sends all three. The one caller that omits any is
+ * the sign-in import (guestPlanImport.ts), which adds rows to a new plan and
+ * must not touch purchases it never loaded.
  */
 export function userCalculatorDataPatch(
 	planId: number | null,
 	userStatsData: UserStats | null,
-	userPlannedBannerData: PlannedBannerPayload[],
-	userPlannedPurchaseData: PlannedPurchasePayload[],
-	userStepUpSelectionData: StepUpSelectionPayload[]
+	userPlannedBannerData: PlannedBannerPayload[] | null,
+	userPlannedPurchaseData: PlannedPurchasePayload[] | null,
+	userStepUpSelectionData: StepUpSelectionPayload[] | null
 ): Promise<Response> {
 	return fetch(`${API_URL}/calculator-data`, {
 		method: "PATCH",
@@ -186,9 +197,15 @@ export function userCalculatorDataPatch(
 		body: JSON.stringify({
 			...(planId !== null ? { plan_id: planId } : {}),
 			user_stats_data: userStatsData,
-			user_planned_banner_data: userPlannedBannerData,
-			user_planned_purchase_data: userPlannedPurchaseData,
-			user_step_up_selection_data: userStepUpSelectionData
+			...(userPlannedBannerData !== null
+				? { user_planned_banner_data: userPlannedBannerData }
+				: {}),
+			...(userPlannedPurchaseData !== null
+				? { user_planned_purchase_data: userPlannedPurchaseData }
+				: {}),
+			...(userStepUpSelectionData !== null
+				? { user_step_up_selection_data: userStepUpSelectionData }
+				: {})
 		})
 	})
 }

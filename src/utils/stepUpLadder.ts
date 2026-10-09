@@ -1,5 +1,6 @@
 import type { CalculationConstants } from "../types/constants"
 import { copyDistribution } from "./probabilityCalculations"
+import { SELECTION_SLOTS } from "./stepUpSelection"
 
 /**
  * Steps in one complete ladder — the "5" in every "5xN" label.
@@ -11,6 +12,13 @@ import { copyDistribution } from "./probabilityCalculations"
  * not because the game does.
  */
 export const STEPS_PER_ROUND = 5
+
+/**
+ * The steps, by position in a round, whose 10-pull ends in a guaranteed card
+ * drawn at random from the player's ten selections. Step 5's guarantee is a
+ * different thing (the player picks the card) and is `guaranteedCopies`.
+ */
+const SELECTION_SLOT_STEPS = [3, 4]
 
 /**
  * The cost of each step within one round, in paid carats — [500, 700, 1000,
@@ -143,28 +151,86 @@ export function stepLabel(steps: number): string {
  * `FLOOR(input/5,1)`.
  *
  * One per completed round, from the step-5 "pick the card you want" guarantee.
- *
- * Steps 3 and 4 also guarantee a card, but a RANDOM one of the player's ten
- * selections, and the sheet ignores them entirely. We match the sheet. Modelling
- * them properly means a second binomial at p = 0.1 layered on the first, which
- * is a refinement rather than parity — see the plan's "what the sheet ignores".
+ * Steps 3 and 4's guaranteed cards are NOT counted here: they are a random one
+ * of the ten selections, so they are odds, not certainties. See stepUpPulls.
  */
 export function guaranteedCopies(steps: number): number {
 	return Math.floor(Math.max(0, steps) / STEPS_PER_ROUND)
 }
 
 /**
+ * Where the pulls of `steps` steps go, sorted by how likely each is to be the
+ * chased card.
+ */
+export interface StepUpPulls {
+	/** Ordinary pulls, each rolling `step_up_target_rate` (0.3%). */
+	poolPulls: number
+	/**
+	 * Steps 3 and 4's guaranteed card, a random one of the ten selections, so
+	 * the chased card 1 time in 10.
+	 */
+	selectionSlots: number
+	/** Step 5's "you choose" card: the chased card, every time. */
+	guaranteed: number
+}
+
+/**
+ * Splits `steps` steps into the three kinds of pull a Select Step-Up makes.
+ *
+ * Every step is a 10-pull, but steps 3, 4 and 5 spend their last pull on a
+ * guaranteed card, so one round is:
+ *
+ *     step           1    2    3    4    5     round total
+ *     pool pulls    10   10    9    9    9     47 at 0.3%
+ *     selection      -    -    1    1    -      2 at 10%
+ *     your pick      -    -    -    -    1      1 for certain
+ *
+ * A partial round counts only the steps it reached, so 3 steps is 29 pool
+ * pulls and 1 selection slot, and 15 steps (three banners) is 141, 6 and 3.
+ *
+ * The source sheet credits only the step 5 pick and rolls all 50 pulls at
+ * 0.3%. We deliberately depart from it here: the two 1-in-10 slots are worth
+ * more than 60 ordinary pulls between them, and leaving them out showed a
+ * three-banner plan's MLB chance as 7.5% when it is 27.3%.
+ */
+export function stepUpPulls(
+	steps: number,
+	constants: CalculationConstants
+): StepUpPulls {
+	const n = Math.max(0, Math.floor(steps))
+	const rounds = Math.floor(n / STEPS_PER_ROUND)
+	const remainder = n % STEPS_PER_ROUND
+
+	const selectionSlots =
+		rounds * SELECTION_SLOT_STEPS.length +
+		SELECTION_SLOT_STEPS.filter((step) => step <= remainder).length
+	const guaranteed = guaranteedCopies(n)
+
+	return {
+		// Each guaranteed card takes the place of one of its step's ten pulls.
+		poolPulls: n * constants.step_up_pulls_per_step - selectionSlots - guaranteed,
+		selectionSlots,
+		guaranteed,
+	}
+}
+
+/**
  * The copy-count distribution for a step-up at `chargeableSteps` steps.
  *
- * Three things differ from a standard banner, which is why this cannot just
+ * Four things differ from a standard banner, which is why this cannot just
  * call calculateCopyDistribution:
  *
- *   - trials are steps x 10, not the planned number itself. A step-up row's
- *     "# Steps" input is steps; reading it as pulls understates a 5-step plan
- *     by a factor of ten.
- *   - the rate is the ~3% pool split across ten selected cards, not the 0.75%
- *     single-featured rate.
- *   - guarantees come one per completed round, not one per 200 pulls.
+ *   - the planned number is steps, ten pulls each. Reading it as pulls
+ *     understates a 5-step plan by a factor of ten.
+ *   - ordinary pulls roll the ~3% pool split across ten selected cards, not
+ *     an ordinary banner's rate-up rate (0.75% on a typical one).
+ *   - steps 3 and 4 each add a 1-in-10 chance, from their guaranteed card.
+ *   - step 5 guarantees a copy each completed round, not one per 200 pulls.
+ *
+ * The 1-in-10 is `1 / SELECTION_SLOTS` rather than an API constant because it
+ * is the shape of the game, not a drop rate: the selection is always exactly
+ * ten cards, the same way a round is always exactly five steps. And like
+ * `step_up_target_rate`, it never depends on how many slots a player has filled.
  *
  * Takes steps already clamped to what exists (applyStepUpStrategy's
  * `chargeableSteps`), so the odds can never describe a banner that is not there.
@@ -173,9 +239,16 @@ export function stepUpCopyDistribution(
 	chargeableSteps: number,
 	constants: CalculationConstants
 ): number[] {
+	const { poolPulls, selectionSlots, guaranteed } = stepUpPulls(
+		chargeableSteps,
+		constants
+	)
+
 	return copyDistribution({
-		trials: chargeableSteps * constants.step_up_pulls_per_step,
-		rate: constants.step_up_target_rate,
-		guaranteed: guaranteedCopies(chargeableSteps),
+		attempts: [
+			{ trials: poolPulls, rate: constants.step_up_target_rate },
+			{ trials: selectionSlots, rate: 1 / SELECTION_SLOTS },
+		],
+		guaranteed,
 	})
 }

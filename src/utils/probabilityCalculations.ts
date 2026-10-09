@@ -1,12 +1,4 @@
 /**
- * Per-pull chance of a standard banner's single featured card. Step-up banners
- * run at their own, much lower rate (the ~3% pool rate split ten ways), which
- * is why the binomial below takes a rate rather than closing over this one.
- */
-const SINGLE_ATTEMPT_SUCCESS_RATE = 0.75
-const SUCCESS_RATE_DECIMAL = SINGLE_ATTEMPT_SUCCESS_RATE / 100
-
-/**
  * Pulls required to earn one guaranteed copy from the pity exchange.
  *
  * Exported because the UI also keys off it: a planned pull count that lands
@@ -22,23 +14,44 @@ export const PULLS_PER_PITY_COPY = 200
 export const MAX_COPIES = 5
 
 /**
- * One banner's odds, reduced to the three things that actually vary.
- *
- * Standard banners and step-ups differ only in these numbers — same binomial,
- * same MLB cap, same "copies in hand don't need rolling for" treatment — so
- * they share one implementation instead of two that can drift apart.
+ * A two-card target the strip can show: a whole number of copies from one to
+ * MLB. The one rule for the saved `primary_target`, shared by the odds display
+ * (which falls back to a default when it fails) and the guest store (which
+ * drops the value when it fails).
  */
-export interface CopyDistributionInput {
-	/** Independent random attempts. Pulls on a normal banner; steps x 10 on a step-up. */
+export function isTargetCopies(value: unknown): value is number {
+	return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_COPIES
+}
+
+/** A batch of independent random attempts that all share one chance. */
+export interface AttemptGroup {
+	/** How many attempts are in the batch. */
 	trials: number
 	/**
 	 * Per-attempt chance of the card being chased, as a DECIMAL (0.0075, not
 	 * 0.75). The one easy mistake to make here, hence the shouting.
 	 */
 	rate: number
+}
+
+/**
+ * One banner's odds, reduced to the things that actually vary.
+ *
+ * Standard banners and step-ups differ only in these numbers — same binomial,
+ * same MLB cap, same "copies in hand don't need rolling for" treatment — so
+ * they share one implementation instead of two that can drift apart.
+ */
+export interface CopyDistributionInput {
+	/**
+	 * The random attempts, grouped by their chance. A standard banner has one
+	 * group: its pulls at the chased card's rate-up rate. A step-up has two, because its step 3 and 4
+	 * guaranteed slots land on the chased card at 1 in 10, far more often than
+	 * an ordinary pull does. See stepUpLadder.ts.
+	 */
+	attempts: AttemptGroup[]
 	/**
 	 * Copies handed over outright, never rolled for — pity exchanges on a normal
-	 * banner, completed-round guarantees on a step-up.
+	 * banner, the step 5 pick on a step-up.
 	 */
 	guaranteed: number
 }
@@ -78,7 +91,7 @@ function getExactProbability(
  * alone get you there and the result is a certainty.
  */
 function getAtLeastProbability(
-	{ trials, rate, guaranteed }: CopyDistributionInput,
+	{ trials, rate, guaranteed }: AttemptGroup & { guaranteed: number },
 	copiesNeeded: number
 ): number {
 	const randomNeeded = copiesNeeded - guaranteed
@@ -109,20 +122,65 @@ export function getGuaranteedCopies(pulls: number): number {
 
 /**
  * Probability (0-100) of finishing a STANDARD banner with at least
- * `copiesNeeded` copies. Thin wrapper fixing the featured rate and pity.
+ * `copiesNeeded` copies, at `rate` per pull with pity every 200 pulls.
+ *
+ * `rate` is the chased card's rate-up rate as a decimal, from
+ * utils/rateUpRates.ts. It is a parameter, never a module constant, because
+ * it varies by banner and the numbers behind it come from the API.
  */
 export function calculateSuccessProbability(
 	pulls: number,
-	copiesNeeded: number
+	copiesNeeded: number,
+	rate: number
 ): number {
 	return getAtLeastProbability(
-		{
-			trials: pulls,
-			rate: SUCCESS_RATE_DECIMAL,
-			guaranteed: getGuaranteedCopies(pulls),
-		},
+		{ trials: pulls, rate, guaranteed: getGuaranteedCopies(pulls) },
 		copiesNeeded
 	)
+}
+
+/**
+ * The chance of EXACTLY 0, 1, ... MAX_COPIES - 1 random hits across every
+ * group of attempts, as decimals.
+ *
+ * Groups combine by convolution: the chance of k hits in total is the sum,
+ * over every way of splitting k between the groups, of the chances of each
+ * side of the split. One step-up round, 47 pulls at 0.3% plus 2 slots at 10%:
+ *
+ *     P(0 total) = P(0 from pulls) * P(0 from slots)
+ *     P(1 total) = P(1 from pulls) * P(0 from slots)
+ *                + P(0 from pulls) * P(1 from slots)
+ *     P(2 total) = P(2, 0) + P(1, 1) + P(0, 2)       ...and so on
+ *
+ * Only counts below MLB are kept. That loses nothing: a low total can only be
+ * made of low counts from each group, so the truncated arrays still combine
+ * exactly. Everything at or past MLB is recovered by the caller as "whatever
+ * probability is left over".
+ */
+function randomHitsBelowCap(attempts: AttemptGroup[]): number[] {
+	// Before any attempt, zero hits is a certainty. Starting from this rather
+	// than from the first group means one group passes through untouched
+	// (x * 1 and x + 0 are exact), so a standard banner's odds come out
+	// bit-for-bit the same as the single-binomial code this replaced.
+	let combined: number[] = Array.from({ length: MAX_COPIES }, (_, hits) =>
+		hits === 0 ? 1 : 0
+	)
+
+	for (const { trials, rate } of attempts) {
+		const group = Array.from({ length: MAX_COPIES }, (_, hits) =>
+			getExactProbability(trials, hits, rate)
+		)
+
+		combined = combined.map((_, total) => {
+			let sum = 0
+			for (let fromGroup = 0; fromGroup <= total; fromGroup++) {
+				sum += combined[total - fromGroup] * group[fromGroup]
+			}
+			return sum
+		})
+	}
+
+	return combined
 }
 
 /**
@@ -134,39 +192,42 @@ export function calculateSuccessProbability(
  * one deliberate exception: extra copies past MLB have nowhere else to go, so
  * that bucket stays cumulative or the total would fall short of 100.
  */
-export function copyDistribution(input: CopyDistributionInput): number[] {
+export function copyDistribution({
+	attempts,
+	guaranteed,
+}: CopyDistributionInput): number[] {
 	// Guarantees past MLB are real but unusable — a long step-up ladder can hand
 	// over more than five. Clamping here rather than at each call site keeps a
 	// caller from silently producing an all-zero distribution.
-	const guaranteed = Math.min(
-		Math.max(0, Math.floor(input.guaranteed)),
-		MAX_COPIES
+	const floor = Math.min(Math.max(0, Math.floor(guaranteed)), MAX_COPIES)
+	const random = randomHitsBelowCap(attempts)
+
+	// Guarantees already cover `floor` copies, so random attempts need only
+	// make up the difference. Totals below that floor are unreachable.
+	const exact = Array.from({ length: MAX_COPIES }, (_, copies) =>
+		copies < floor ? 0 : random[copies - floor] * 100
 	)
-	const clamped = { ...input, guaranteed }
 
-	return Array.from({ length: MAX_COPIES + 1 }, (_, copies) => {
-		// Guarantees already cover `guaranteed` copies, so random attempts need
-		// only make up the difference. Totals below that floor are unreachable.
-		const randomNeeded = copies - guaranteed
+	// The MLB bucket is 1 minus every random count that falls short of it.
+	// Summing many small floats can drift a hair past 1, which would surface as
+	// a negative percentage. Clamp rather than Math.abs — abs would flip a
+	// negative into a plausible-looking positive and hide the drift.
+	let shortOfMlb = 0
+	for (let hits = 0; hits < MAX_COPIES - floor; hits++) {
+		shortOfMlb += random[hits]
+	}
 
-		if (randomNeeded < 0) {
-			return 0
-		}
-
-		return copies === MAX_COPIES
-			? getAtLeastProbability(clamped, copies)
-			: getExactProbability(clamped.trials, randomNeeded, clamped.rate) * 100
-	})
+	return [...exact, Math.max(1 - shortOfMlb, 0) * 100]
 }
 
 /**
- * The copy distribution for a STANDARD banner at `pulls` pulls: the featured
- * card's 0.75% rate, with pity credited every 200 pulls.
+ * The copy distribution for a STANDARD banner at `pulls` pulls, at `rate` per
+ * pull (the chased card's rate-up rate; see utils/rateUpRates.ts), with pity
+ * credited every 200 pulls.
  */
-export function calculateCopyDistribution(pulls: number): number[] {
+export function calculateCopyDistribution(pulls: number, rate: number): number[] {
 	return copyDistribution({
-		trials: pulls,
-		rate: SUCCESS_RATE_DECIMAL,
+		attempts: [{ trials: pulls, rate }],
 		guaranteed: getGuaranteedCopies(pulls),
 	})
 }
@@ -207,4 +268,130 @@ export function shiftDistribution(
 			.slice(fromPulls)
 			.reduce((sum, probability) => sum + probability, 0)
 	})
+}
+
+/** One row's two-card odds: the chased card A, and a second card B beside it. */
+export interface TwoCardInput {
+	/** Pulls planned on the banner. Every pull can land A, B, or neither. */
+	pulls: number
+	/** Per-pull chance of A and of B, as decimals (utils/rateUpRates.ts). */
+	rateA: number
+	rateB: number
+	/**
+	 * The row's funded reserved copies (selectors and crystals). Free copies
+	 * of EITHER card, pooled with the exchanges: a selector or a crystal buys
+	 * a copy of whichever card you choose, the same as an exchange does.
+	 */
+	reservedCopies: number
+	/**
+	 * Copies A is taken to before any free copy goes to B: 1..MAX_COPIES from
+	 * the odds panel's toggle (oddsTarget in utils/oddsDisplay).
+	 */
+	targetA: number
+}
+
+/**
+ * The chance of finishing with A at its target AND B at each level, as
+ * percentages indexed by B's copy count: [A at target + B none, A at target
+ * + B 1 copy, ... A at target + B MLB]. What a player asks on a double
+ * rate-up: "if I get the one I want, what do I get of the other?"
+ *
+ * These are JOINT chances, so the six add up to A's own chance of reaching
+ * the target, not to 100. That is on purpose: the cells answer "how likely is
+ * this exact finish", and the finishes where A falls short are not on the
+ * strip.
+ *
+ * Three things make this more than two copies of the one-card odds:
+ *
+ *   - The cards share pulls. One pull gives A, or B, or neither, never both,
+ *     so the counts are a three-way split of the same pulls, not two coins:
+ *
+ *         P(i of A, j of B) = Binomial(pulls, i; rateA)
+ *                           x Binomial(pulls - i, j; rateB / (1 - rateA))
+ *
+ *     (the second factor is B's chance among the pulls that were NOT A).
+ *
+ *   - The free copies are ONE pot for the whole banner, spent after pulling:
+ *     one exchange per 200 pulls, plus the row's reserved copies, which buy a
+ *     copy of whichever card needs it just as an exchange does. The pot goes
+ *     to A until A reaches the target, and the rest goes to B. So a reserved
+ *     copy A turned out not to need is a copy of B, not a wasted one.
+ *
+ *   - A past the target still counts. Extra copies of A are luck, not a
+ *     miss, so with a target of one copy the row "pulls gave three of A" is
+ *     in, and every free copy on it goes to B.
+ *
+ * Because A gets the pot first, the six cells always add up to the one-card
+ * strip's cells from the target up (its MLB cell when the target is MLB). A
+ * test pins that.
+ */
+export function twoCardDistribution({
+	pulls,
+	rateA,
+	rateB,
+	reservedCopies,
+	targetA,
+}: TwoCardInput): number[] {
+	const n = Math.max(0, Math.floor(pulls))
+	// A target the strip cannot show falls back to MLB rather than throwing;
+	// oddsTarget never sends one, this is belt and braces.
+	const target = isTargetCopies(targetA) ? targetA : MAX_COPIES
+	// NOT getGuaranteedCopies: that caps at MLB because one card can use no
+	// more, but here a copy A cannot use still buys a copy of B.
+	const pot =
+		Math.floor(n / PULLS_PER_PITY_COPY) + Math.max(0, Math.floor(reservedCopies))
+	// B's chance on a pull that did not give A. Guarded so a (nonsensical)
+	// rateA of 1 cannot divide by zero.
+	const rateBGivenNotA = rateA < 1 ? Math.min(rateB / (1 - rateA), 1) : 0
+
+	// joint[i][j]: the chance of EXACTLY i random A and j random B, for
+	// i, j < MAX_COPIES. Index MAX_COPIES is "this many or more", filled below
+	// from what the exact cells leave over, the same way copyDistribution
+	// builds its top bucket.
+	const size = MAX_COPIES + 1
+	const joint = Array.from({ length: size }, () => new Array<number>(size).fill(0))
+	for (let i = 0; i < MAX_COPIES; i++) {
+		const aExactly = getExactProbability(n, i, rateA)
+		for (let j = 0; j < MAX_COPIES; j++) {
+			joint[i][j] = aExactly * getExactProbability(n - i, j, rateBGivenNotA)
+		}
+	}
+
+	// The "or more" edges. A row's total is A's own binomial, and a column's
+	// is B's (on its own, B is just a binomial at rateB), so each edge cell is
+	// that total minus the exact cells already in it. Clamped like the top
+	// bucket in copyDistribution: summing small floats can overshoot by a hair.
+	let exactTotal = 0
+	for (let i = 0; i < MAX_COPIES; i++) {
+		let rowSum = 0
+		let columnSum = 0
+		for (let j = 0; j < MAX_COPIES; j++) {
+			rowSum += joint[i][j]
+			columnSum += joint[j][i]
+		}
+		exactTotal += rowSum
+		joint[i][MAX_COPIES] = Math.max(getExactProbability(n, i, rateA) - rowSum, 0)
+		joint[MAX_COPIES][i] = Math.max(getExactProbability(n, i, rateB) - columnSum, 0)
+	}
+	let edgeTotal = 0
+	for (let k = 0; k < MAX_COPIES; k++) {
+		edgeTotal += joint[k][MAX_COPIES] + joint[MAX_COPIES][k]
+	}
+	joint[MAX_COPIES][MAX_COPIES] = Math.max(1 - exactTotal - edgeTotal, 0)
+
+	// Spend the pot, A first up to the target and the rest on B, then keep
+	// only the finishes where A got there. A row past the target (i >= target)
+	// needs nothing, so its whole pot goes to B.
+	const result = new Array<number>(size).fill(0)
+	for (let i = 0; i < size; i++) {
+		const onA = Math.min(pot, Math.max(target - i, 0))
+		if (i + onA < target) continue
+
+		const onB = pot - onA
+		for (let j = 0; j < size; j++) {
+			result[Math.min(j + onB, MAX_COPIES)] += joint[i][j]
+		}
+	}
+
+	return result.map((chance) => chance * 100)
 }

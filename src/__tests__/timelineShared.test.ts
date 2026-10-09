@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildTimelineMarkers,
+  buildWindowSections,
   groupTimelineEvents,
   mergeTimelineMarkers,
   buildMarkerRows,
@@ -204,6 +205,57 @@ describe('groupTimelineEvents', () => {
     expect(groups(rows)[0].anniversary_event).toBe(campaign)
   })
 
+  it('folds a staggered release: one JP window, two global starts', () => {
+    // 2026-10, Hokko Tarumae: global opened the uma banner three days before
+    // the support banner of the same JP window.
+    const jp = { jp_start_date: '2023-01-10T22:00:00Z' }
+    const rows = groupTimelineEvents([
+      banner(69, '2026-10-24T06:00:00Z', '2026-11-06T21:59:59Z', jp),
+      banner(207, '2026-10-27T22:00:00Z', '2026-11-06T21:59:59Z', jp),
+    ])
+
+    expect(rows).toHaveLength(1)
+    const [group] = groups(rows)
+    expect(group.banners.map((b) => b.id)).toEqual([69, 207])
+    // The header states the span of both halves.
+    expect(group.start_date).toBe('2026-10-24T06:00:00Z')
+    expect(group.end_date).toBe('2026-11-06T21:59:59Z')
+  })
+
+  it('still folds a shared global start whose JP starts differ', () => {
+    // The launch window: global opened in one go what JP ran a week apart. The
+    // JP rule widens the grouping; it must not replace the start rule.
+    const start = '2025-06-26T22:00:00Z'
+    const rows = groupTimelineEvents([
+      banner(1, start, '2025-07-02T21:59:59Z', { jp_start_date: '2021-02-24T22:00:00Z' }),
+      banner(2, start, '2025-07-02T21:59:59Z', { jp_start_date: '2021-03-02T22:00:00Z' }),
+    ])
+
+    expect(rows).toHaveLength(1)
+  })
+
+  it('never groups two rows merely because neither has a JP date', () => {
+    const rows = groupTimelineEvents([
+      banner(1, '2029-01-01T00:00:00Z', '2029-01-08T00:00:00Z'),
+      banner(2, '2029-01-08T00:00:00Z', '2029-01-15T00:00:00Z'),
+    ])
+
+    expect(rows).toHaveLength(2)
+  })
+
+  it('gives every row a distinct key when both grouping rules are in play', () => {
+    // Row 3 shares row 1's global start and row 4's JP start. Whichever card
+    // it joins, no two cards may end up claiming the same start instant.
+    const rows = groupTimelineEvents([
+      banner(1, '2029-01-01T00:00:00Z', '2029-01-08T00:00:00Z', { jp_start_date: '2026-01-01T00:00:00Z' }),
+      banner(3, '2029-01-01T00:00:00Z', '2029-01-08T00:00:00Z', { jp_start_date: '2026-02-01T00:00:00Z' }),
+      banner(4, '2029-01-05T00:00:00Z', '2029-01-12T00:00:00Z', { jp_start_date: '2026-02-01T00:00:00Z' }),
+    ])
+
+    const keys = rows.map(timelineRowKey)
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
   it('passes a lone banner through unchanged, as a group of one', () => {
     const only = banner(1, '2029-01-01T00:00:00Z', '2029-01-08T00:00:00Z')
     const [group] = groups(groupTimelineEvents([only]))
@@ -215,6 +267,79 @@ describe('groupTimelineEvents', () => {
 
   it('returns nothing for an empty list rather than an empty group', () => {
     expect(groupTimelineEvents([])).toEqual([])
+  })
+})
+
+describe('buildWindowSections', () => {
+  // Only the lengths matter to the rule, so the nested banners are stubs.
+  const umaOnly = { banner_umas: [{}] } as Partial<BannerTimelineForViewing>
+  const supportOnly = { banner_supports: [{}] } as Partial<BannerTimelineForViewing>
+  const both = { ...umaOnly, ...supportOnly }
+  const start = '2029-01-01T00:00:00Z'
+  const end = '2029-01-08T00:00:00Z'
+
+  it('gives an ordinary banner one section reading from itself', () => {
+    const only = banner(1, start, end, both)
+    const [section, ...rest] = buildWindowSections([only])
+
+    expect(rest).toEqual([])
+    expect(section.primary).toBe(only)
+    expect(section.umaWindow).toBe(only)
+    expect(section.supportWindow).toBe(only)
+    expect(section.isFused).toBe(false)
+  })
+
+  it('fuses an uma-only row and a support-only row into one section', () => {
+    const umaHalf = banner(69, start, end, { ...umaOnly, image: 'art.png' })
+    const supportHalf = banner(207, '2029-01-04T00:00:00Z', end, supportOnly)
+    const sections = buildWindowSections([umaHalf, supportHalf])
+
+    expect(sections).toHaveLength(1)
+    expect(sections[0].umaWindow).toBe(umaHalf)
+    expect(sections[0].supportWindow).toBe(supportHalf)
+    expect(sections[0].image).toBe('art.png')
+    expect(sections[0].isFused).toBe(true)
+  })
+
+  it('fuses whichever half comes first, and borrows the art from either', () => {
+    const supportHalf = banner(207, start, end, { ...supportOnly, image: 'art.png' })
+    const umaHalf = banner(69, '2029-01-04T00:00:00Z', end, umaOnly)
+    const sections = buildWindowSections([supportHalf, umaHalf])
+
+    expect(sections).toHaveLength(1)
+    expect(sections[0].primary).toBe(umaHalf)
+    expect(sections[0].image).toBe('art.png')
+  })
+
+  it('leaves two uma banners as two sections', () => {
+    // A revival beside a standard banner: two pools, not two halves of one.
+    const sections = buildWindowSections([
+      banner(1, start, end, both),
+      banner(2, start, end, { ...umaOnly, banner_category: 'golden_week_revival' }),
+    ])
+
+    expect(sections).toHaveLength(2)
+    expect(sections.every((section) => !section.isFused)).toBe(true)
+  })
+
+  it('does not fuse across categories', () => {
+    // Fusing would file one half under the other's category chip.
+    const sections = buildWindowSections([
+      banner(1, start, end, umaOnly),
+      banner(2, start, end, { ...supportOnly, banner_category: 'race_prep_support' }),
+    ])
+
+    expect(sections).toHaveLength(2)
+  })
+
+  it('uses each support half once', () => {
+    const sections = buildWindowSections([
+      banner(1, start, end, umaOnly),
+      banner(2, start, end, umaOnly),
+      banner(3, start, end, supportOnly),
+    ])
+
+    expect(sections.map((section) => section.isFused)).toEqual([true, false])
   })
 })
 

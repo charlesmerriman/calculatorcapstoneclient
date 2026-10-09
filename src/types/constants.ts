@@ -50,6 +50,9 @@ export interface CalculationConstants {
 	white_day_day: number
 	monthly_shop_uma_tickets: number
 	monthly_shop_support_tickets: number
+	/** The most the shop sells a month; the two above are the DEFAULT purchase. */
+	monthly_shop_uma_tickets_max: number
+	monthly_shop_support_tickets_max: number
 	monthly_shop_restock_day: number
 
 	// Pull costs & uncap
@@ -73,7 +76,7 @@ export interface CalculationConstants {
 	/**
 	 * Per-pull chance of the ONE card being chased: the game's ~3% total rate
 	 * spread across the 10 cards the player selected. Derived from the pool
-	 * size, not an independent dial. Compare the 0.75% single-featured rate.
+	 * size, not an independent dial. Compare a typical banner's 0.75% rate-up.
 	 */
 	step_up_target_rate: number
 	/**
@@ -81,6 +84,20 @@ export interface CalculationConstants {
 	 * odds clamp at a banner's own banner_count * 5, which is always lower.
 	 */
 	step_up_max_rounds: number
+
+	// Rate-up rates
+	/**
+	 * One rate-up card's per-pull chance on an ordinary banner, by rarity
+	 * (3 = ★3/SSR, 2 = ★2/SR, 1 = ★1/R), and the most that rarity's rate-ups can
+	 * share between them. Decimals: 0.0075 is 0.75%. The rule that combines them
+	 * is utils/rateUpRates.ts.
+	 */
+	rate_up_rate_3: number
+	rate_up_pool_3: number
+	rate_up_rate_2: number
+	rate_up_pool_2: number
+	rate_up_rate_1: number
+	rate_up_pool_1: number
 
 	// Throughout-carat decay curve
 	throughout_end_offset_days: number

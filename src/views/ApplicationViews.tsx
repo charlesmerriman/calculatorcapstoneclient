@@ -4,6 +4,7 @@ import { Navbar } from "../components/navbar/Navbar.tsx"
 import { CaratCalculator } from "../components/carat-calculator/CaratCalculator"
 import { Timeline } from "../components/timeline/Timeline"
 import { Selectors } from "../components/selectors/Selectors"
+import { DailyLegendRaces } from "../components/legend-races/DailyLegendRaces"
 import { Footer } from "../components/footer/Footer.tsx"
 import { NotFound } from "../components/NotFound"
 import { OguriSpinner } from "../components/OguriSpinner"
@@ -112,6 +113,7 @@ export const ApplicationViews = () => {
 				<Route path=":public_id" element={<CaratCalculator />} />
 				<Route path={APP_STATIC_ROUTE_PATHS.timeline} element={<Timeline />}/>
 				<Route path={APP_STATIC_ROUTE_PATHS.selectors} element={<Selectors />}/>
+				<Route path="legend-races" element={<DailyLegendRaces />}/>
 			</Route>
 			{/* Unmatched path under /app. A SIBLING of the layout route, not a child:
 			    NotFound brings its own Navbar and Footer, so nesting it would render a

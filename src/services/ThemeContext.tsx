@@ -3,6 +3,7 @@ import { createContext, useContext } from "react"
 export interface ThemeConfig {
 	id: string
 	label: string
+	mode: "dark" | "light"
 	// Static hex — NOT a CSS var. All swatches render simultaneously, so each must
 	// show its own color regardless of which theme is currently active on documentElement.
 	swatch: string

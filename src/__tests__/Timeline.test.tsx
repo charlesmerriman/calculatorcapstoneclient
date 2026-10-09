@@ -9,6 +9,7 @@ import type {
   BannerTimeline,
   BannerTimelineForViewing,
   ChampionsMeeting,
+  DailyLegendRaceRelease,
   Scenario,
   SupportCard,
   TimelineEvent,
@@ -253,6 +254,7 @@ function categorised(
  */
 let scenarios: Scenario[] = []
 let campaigns: AnniversaryEvent[] = []
+let legendRaces: DailyLegendRaceRelease[] = []
 
 /** A dated scenario, which is all a marker needs from one. */
 function scenario(id: number, name: string): Scenario {
@@ -308,6 +310,7 @@ vi.mock('../services/CalculatorContext', () => ({
     setStagedBanners: vi.fn(),
     scenarioData: scenarios,
     anniversaryEventData: campaigns,
+    dailyLegendRaceData: legendRaces,
   }),
 }))
 
@@ -357,6 +360,7 @@ afterEach(() => {
   events = BASE_EVENTS
   scenarios = []
   campaigns = []
+  legendRaces = []
 })
 
 describe('Timeline infinite scroll', () => {
@@ -707,6 +711,45 @@ describe('Timeline concurrent banners', () => {
     expect(screen.queryByText(/This banner ends/)).not.toBeInTheDocument()
   })
 
+  it('draws a staggered release as one ordinary card, each side with its own dates', () => {
+    // One JP window that global opened in two steps: the uma banner first, the
+    // support banner three days later. Two rows in the data, one release.
+    const jp = { jp_start_date: '2023-01-10T22:00:00Z', jp_end_date: '2023-01-20T21:59:59Z' }
+    const umaHalf = { ...categorised(1, 'standard', ['Hokko Tarumae']), ...jp }
+    const supportHalf = {
+      ...categorised(2, 'standard', [], ['Agnes Tachyon', 'Tokai Teio']),
+      ...jp,
+      start_date: '2099-03-04T22:00:00Z',
+      end_date: umaHalf.end_date,
+    }
+    events = [umaHalf, supportHalf]
+    renderTimeline()
+
+    const fmt = (iso: string) => {
+      const d = new Date(iso)
+      return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+    }
+
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 of 1')
+    // One section: one of each panel, and neither empty state.
+    expect(screen.getAllByText('Featured Umamusume')).toHaveLength(1)
+    expect(screen.getAllByText('Featured Support Cards')).toHaveLength(1)
+    expect(screen.queryByText('No Support Banner')).not.toBeInTheDocument()
+    expect(screen.queryByText('No Umamusume banner')).not.toBeInTheDocument()
+    expect(screen.getByAltText('Hokko Tarumae')).toBeInTheDocument()
+    expect(screen.getByAltText('Tokai Teio')).toBeInTheDocument()
+    // The header states the span of both, then how the late side differs. The
+    // uma side opens with the card, so it gets no note. The note sits in the
+    // header rather than a panel: a line inside a panel makes the art row taller.
+    expect(
+      screen.getByText(`${fmt(umaHalf.start_date)} through ${fmt(umaHalf.end_date)}`),
+    ).toBeInTheDocument()
+    const note = screen.getByText(`Support banner starts ${fmt(supportHalf.start_date)}`)
+    expect(note.closest('section')).toBeNull()
+    expect(screen.queryByText(/Umamusume banner starts/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/This banner/)).not.toBeInTheDocument()
+  })
+
   it('never groups across the past/future boundary', () => {
     // Same start date, but one has already ended. Grouping runs after the
     // filter, so the ended banner must not be dragged into the current view.
@@ -1023,6 +1066,36 @@ describe('Timeline recommended banners and card purposes', () => {
 
     fireEvent.pointerUp(tile, { pointerType: 'touch' })
     expect(note).toHaveClass('opacity-0')
+  })
+})
+
+describe('Timeline legend race notes', () => {
+  it('puts a batch on the card of the banner it arrives with, and nowhere else', () => {
+    events = [
+      categorised(1, 'standard', ['Rice Shower']),
+      categorised(2, 'standard', ['Kitasan Black']),
+    ]
+    legendRaces = [
+      {
+        id: 4,
+        name: '2nd Anniversary',
+        image: null,
+        banner_timeline: 2,
+        start_date: '2099-03-03T22:00:00Z',
+        is_predicted: true,
+        applied_offset_days: 0,
+        umas: [{ id: 50, name: 'Hishi Amazon', image: null, rarity: 3 }],
+      },
+    ]
+    renderTimeline()
+
+    const notes = screen.getAllByRole('link', { name: /join(s)? daily legend races/ })
+    expect(notes).toHaveLength(1)
+    expect(notes[0]).toHaveAttribute('href', '/app/legend-races?release=4')
+    // Banner 2's card holds Kitasan Black; banner 1's holds Rice Shower.
+    const card = notes[0].closest('.my-3') as HTMLElement
+    expect(card).toContainElement(screen.getByAltText('Kitasan Black'))
+    expect(card).not.toContainElement(screen.getByAltText('Rice Shower'))
   })
 })
 

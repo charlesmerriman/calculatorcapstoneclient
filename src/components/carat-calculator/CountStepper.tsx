@@ -5,11 +5,10 @@ import type { CountChip, CountChipSet } from "../../utils/countChips"
 
 /**
  * The pad is sized by its CONTENT, not to a fixed width — `width: max-content`
- * capped at the viewport. One row of six chips is between ~290px (a step-up's
- * "−5 −1 +1 +5 | Max 20 | Next round") and ~320px ("Max 1200" on a large plan),
- * and a fixed width that fits the widest of those would leave the narrowest
- * padded out with dead space, while the old fixed 264 truncated "Next pity" the
- * moment both groups shared a row.
+ * capped at the viewport. The row runs from two chips (the copies field's
+ * "−1 +1") to five (an uma's "−100 −10 +10 +100 | Next pity"), and a fixed
+ * width that fits the widest would leave the narrowest padded out with dead
+ * space.
  *
  * The cap is what keeps it honest on a phone: below ~330px of viewport the row
  * wraps to two rather than running off the edge, which is why the chip row is

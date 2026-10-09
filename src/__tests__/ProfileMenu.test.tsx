@@ -30,6 +30,7 @@ function account(overrides: Partial<Account> = {}): Account {
 		avatar_url: null,
 		oshis: [],
 		oshi_slots: 0,
+		oshi_variants: false,
 		linked_providers: [{ provider: 'google', linked_at: '2026-07-02' }],
 		supporter: { is_supporter: false },
 		...overrides,

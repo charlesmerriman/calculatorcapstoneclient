@@ -27,6 +27,7 @@ import type { UserStats, UserPlannedBanner, UserStepUpSelection } from "./user"
 import type { GameEvent, ChampionsMeeting, LeagueOfHeroes, RaceEvent } from "./events"
 import type { AnniversaryEvent, UserPlannedPurchase } from "./anniversary"
 import type { Scenario } from "./scenario"
+import type { DailyLegendRaceRelease } from "./dailyLegendRace"
 import type { Plan } from "./plan"
 import type { IncomeLedgerRow } from "./ledger"
 import type { CalculationConstants } from "./constants"
@@ -62,6 +63,12 @@ export interface CalculatorData {
 	anniversary_event_data: AnniversaryEvent[]
 	/** Public reference data — training scenarios. Markers only, no resources. */
 	scenario_data: Scenario[]
+	/**
+	 * Public reference data: batches of umas joining the daily legend races.
+	 * Optional because an API from before the feature omits it; the provider
+	 * defaults it to [] so the page shows its empty state instead of crashing.
+	 */
+	daily_legend_race_data?: DailyLegendRaceRelease[]
 	/** User-scoped; `[]` for guests, same as user_planned_banner_data. */
 	user_planned_purchase_data: UserPlannedPurchase[]
 	/** User-scoped. The ten cards picked at each step-up; `[]` for guests. */
@@ -140,6 +147,7 @@ export interface CalculatorContextType {
 	stagedBanners: UserPlannedBanner[]
 	anniversaryEventData: AnniversaryEvent[]
 	scenarioData: Scenario[]
+	dailyLegendRaceData: DailyLegendRaceRelease[]
 	userPlannedPurchaseData: UserPlannedPurchase[]
 	userStepUpSelectionData: UserStepUpSelection[]
 	incomeLedger: IncomeLedgerRow[]
@@ -156,7 +164,7 @@ export interface CalculatorContextType {
 	organizedTimelineData: OrganizedTimelineData
 	/**
 	 * The account's plans, and which one `userPlannedBannerData` belongs to.
-	 * `[]` and `null` for a guest, who has one unnamed plan in memory.
+	 * `[]` and `null` for a guest, who has one unnamed plan on their device.
 	 */
 	plans: Plan[]
 	activePlanId: number | null
@@ -182,6 +190,13 @@ export interface CalculatorContextType {
 	 * reads and saves them there. Off: back to the account's stats.
 	 */
 	setSeparateIncome: (planId: number, on: boolean) => Promise<boolean>
+	/**
+	 * Guest only. False once a write to this device has failed (blocked or
+	 * full storage), so the navbar stops saying the plan is saved here.
+	 */
+	isGuestPlanStored: boolean
+	/** Guest only: empty the plan and reset the stats. A no-op when signed in. */
+	resetGuestPlan: () => void
 	saveNow: () => Promise<void>
 	setUserPlannedBannerData: Dispatch<SetStateAction<UserPlannedBanner[]>>
 	setStagedBanners: Dispatch<SetStateAction<UserPlannedBanner[]>>

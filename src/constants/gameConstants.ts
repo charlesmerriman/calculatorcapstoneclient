@@ -203,6 +203,14 @@ export const MONTHLY_SHOP_UMA_TICKETS = 4
 export const MONTHLY_SHOP_SUPPORT_TICKETS = 4
 
 /**
+ * The most the shop sells in a month. The two above are what the projection
+ * ASSUMES a player buys (the sheet's figure); these only cap a count the
+ * player sets themselves.
+ */
+export const MONTHLY_SHOP_UMA_TICKETS_MAX = 9
+export const MONTHLY_SHOP_SUPPORT_TICKETS_MAX = 9
+
+/**
  * Day of the month the shop stocks the bundle. Deliberately NOT the 1st: these
  * used to be counted with the same month-boundary helper as Club Rank income,
  * which credited them a day early and could hand a banner ending on the 1st a
@@ -325,6 +333,8 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 	white_day_day: WHITE_DAY_DAY,
 	monthly_shop_uma_tickets: MONTHLY_SHOP_UMA_TICKETS,
 	monthly_shop_support_tickets: MONTHLY_SHOP_SUPPORT_TICKETS,
+	monthly_shop_uma_tickets_max: MONTHLY_SHOP_UMA_TICKETS_MAX,
+	monthly_shop_support_tickets_max: MONTHLY_SHOP_SUPPORT_TICKETS_MAX,
 	monthly_shop_restock_day: MONTHLY_SHOP_TICKET_DAY,
 
 	pull_cost_carats: PULL_COST_CARATS,
@@ -341,6 +351,15 @@ export const DEFAULT_CONSTANTS: CalculationConstants = {
 	// 3% total ★3/SSR rate spread across the 10 selected cards.
 	step_up_target_rate: 0.003,
 	step_up_max_rounds: 7,
+
+	// From the global client's own gacha table: each rate-up card gets its
+	// rarity's rate, unless the rate-ups would share more than the pool.
+	rate_up_rate_3: 0.0075,
+	rate_up_pool_3: 0.03,
+	rate_up_rate_2: 0.0225,
+	rate_up_pool_2: 0.03,
+	rate_up_rate_1: 0.0375,
+	rate_up_pool_1: 0.05,
 
 	throughout_end_offset_days: THROUGHOUT_END_OFFSET_DAYS,
 	throughout_filter_grace_days: THROUGHOUT_FILTER_GRACE_DAYS,

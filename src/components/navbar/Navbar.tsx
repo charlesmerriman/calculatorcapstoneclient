@@ -1,14 +1,8 @@
-import { Link, useLocation, useNavigate } from "react-router-dom"
-import { CalendarDays, Calculator as CalculatorIcon, LogIn, Sparkles } from "lucide-react"
+import { Link, useLocation } from "react-router-dom"
+import { CalendarDays, Calculator as CalculatorIcon, LogIn, Sparkles, Trophy } from "lucide-react"
 import { useCalculatorDataSafe } from "../../services/CalculatorContext"
 import { prefetchCalculatorData } from "../../services/calculatorFetchCalls"
 import { useAccount } from "../../services/AuthContext"
-import {
-	toBannerPayload,
-	toPurchasePayload,
-	toStepUpSelectionPayload
-} from "../../services/calculatorFetchCalls"
-import { stashGuestPlan } from "../../services/guestMigration"
 import { Wordmark } from "../Wordmark"
 import { OguriSpinner } from "../OguriSpinner"
 import { ThemePicker } from "./ThemePicker"
@@ -17,7 +11,6 @@ import { ProfileMenu } from "./ProfileMenu"
 import { NAV_BUTTON, NAV_SAVE_BUTTON } from "./navStyles"
 
 export const Navbar = () => {
-	const navigate = useNavigate()
 	const location = useLocation()
 	// null when rendered outside CalculatorProvider (e.g. on the home page)
 	const calculatorData = useCalculatorDataSafe()
@@ -40,21 +33,6 @@ export const Navbar = () => {
 	// itself lives in ProfileMenu now.
 	const { isLoggedIn } = useAccount()
 
-	// Guest's path to saving: snapshot the in-memory plan into sessionStorage
-	// (the provider unmounts on route change, taking its state with it), then
-	// send them to login. The provider migrates the snapshot after login.
-	const handleSignInToSave = (): void => {
-		if (calculatorData) {
-			stashGuestPlan(
-				calculatorData.userStatsData,
-				toBannerPayload(calculatorData.userPlannedBannerData),
-				toPurchasePayload(calculatorData.userPlannedPurchaseData),
-				toStepUpSelectionPayload(calculatorData.userStepUpSelectionData)
-			)
-		}
-		navigate("/login")
-	}
-
 	// Settings gear + theme picker, grouped so every nav cluster renders the same
 	// controls. SettingsMenu renders nothing outside app mode (no stats loaded).
 	const navControls = (
@@ -70,16 +48,22 @@ export const Navbar = () => {
 	const isCalculator = location.pathname === "/app" || location.pathname === calculatorPath
 	const isTimeline = location.pathname === "/app/timeline"
 	const isSelectors = location.pathname === "/app/selectors"
+	const isLegendRaces = location.pathname === "/app/legend-races"
 
 	const timerIsGoing = calculatorData?.timerIsGoing ?? false
-	// True only inside /app, while the initial fetch is still out.
-	const planIsLoading = calculatorData?.isLoading ?? false
+	// False once this browser has refused to store the guest's plan.
+	const guestPlanStored = calculatorData?.isGuestPlanStored ?? true
 
 	// The active pill is a brand tint with a brand edge and nothing else. It
 	// used to carry `shadow-sm`, which every theme block in index.css re-skins
 	// into a 14px drop shadow — on a 36px tab that read as a floating chip.
+	//
+	// Icon ABOVE label since the fourth tab (Legend Races) arrived. Side by
+	// side, measured at 375px, every label truncated: the icon and gap left
+	// 47px for words needing 57-69px. Stacked, at 11px, the longest
+	// ("Calculator", ~63px) fits down to a 320px screen.
 	const mobileNavClass = (active: boolean) =>
-		`flex min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+		`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1.5 text-[11px] font-semibold transition ${
 			active
 				? "border-brand/50 bg-brand/10 text-brand"
 				: "border-transparent text-gray-400 hover:bg-gray-700/70 hover:text-gray-100"
@@ -94,25 +78,31 @@ export const Navbar = () => {
 	// Shared logo element used in both mobile and desktop navs
 	const logo = <Wordmark size="nav" />
 
-	// Guest affordance shown in app mode instead of the save icon + Logout.
+	// Guest affordance shown in app mode instead of the save icon + avatar.
 	// Passive by design — it never interrupts planning.
 	//
-	// Disabled until the plan has loaded. The navbar now paints before the
-	// initial fetch lands, and during that window every collection is still
-	// empty — so stashing would write an empty plan. stashGuestPlan treats
-	// "nothing to stash" as CLEAR, which would silently discard a stash the
-	// guest had already put aside before navigating back here.
-	const signInToSaveButton = (
-		<button
-			onClick={handleSignInToSave}
-			disabled={planIsLoading}
-			aria-label="Sign in to save"
-			title="Sign in to save your plan to an account"
+	// A plain link. It used to snapshot the plan into sessionStorage on the way
+	// out, because the provider unmounts on a route change and took the plan
+	// with it. The plan is on the device already now (guestPlanStore), and the
+	// provider finds it there when the person comes back signed in.
+	//
+	// "In this browser" is the whole claim, on purpose: browser storage can be
+	// cleared from under us, so the copy never says just "saved". It lives in
+	// the tooltip alone. A status line beside the button was tried and sat
+	// awkwardly in the bar; a failed write already announces itself with a toast.
+	const signInToSyncButton = (
+		<Link
+			to="/login"
+			title={
+				guestPlanStored
+					? "Your plan is saved in this browser. Sign in to keep it safe and use it on your other devices."
+					: "This browser isn't saving your plan. Sign in to keep it."
+			}
 			className={NAV_BUTTON}
 		>
 			<LogIn className="w-4 h-4" />
-			Sign in to save
-		</button>
+			Sign in to sync
+		</Link>
 	)
 
 	// Auth slot shown on the right side when outside the app (home mode): the
@@ -160,7 +150,7 @@ export const Navbar = () => {
 							) : (
 								<>
 									{navControls}
-									{signInToSaveButton}
+									{signInToSyncButton}
 								</>
 							)
 						) : (
@@ -169,7 +159,7 @@ export const Navbar = () => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-3 gap-1 border-t border-gray-700 px-2 py-2">
+				<div className="grid grid-cols-4 gap-1 border-t border-gray-700 px-2 py-2">
 					<Link to={calculatorPath} className={mobileNavClass(isCalculator)} {...prefetchOnIntent}>
 						<CalculatorIcon className="h-4 w-4 shrink-0" />
 						<span className="truncate">Calculator</span>
@@ -182,12 +172,18 @@ export const Navbar = () => {
 						<Sparkles className="h-4 w-4 shrink-0" />
 						<span className="truncate">Selectors</span>
 					</Link>
+					{/* "Legends" rather than the desktop "Legend Races": four tabs share
+					    the bar, and the longer label would not fit a 320px screen. */}
+					<Link to="/app/legend-races" className={mobileNavClass(isLegendRaces)} {...prefetchOnIntent}>
+						<Trophy className="h-4 w-4 shrink-0" />
+						<span className="truncate">Legends</span>
+					</Link>
 				</div>
 			</nav>
 
 			{/* Desktop nav — always three-column; center links always visible.
 			    Switches on desktop-nav rather than md: this layout is already over-full
-			    below ~900px (the "Sign in to save" button wraps to 2-3 lines), which
+			    below ~900px (the "Sign in to sync" button wraps to 2-3 lines), which
 			    is precisely the landscape-phone / portrait-tablet band. */}
 			<nav className="hidden h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-700 bg-gray-900 px-5 desktop-nav:grid">
 				{/* Left: Branding, on the bar's plain edge gutter on every page. Until
@@ -211,6 +207,10 @@ export const Navbar = () => {
 					<Link to="/app/selectors" className={desktopNavClass(isSelectors)} {...prefetchOnIntent}>
 						<Sparkles className="h-4 w-4" />
 						Selectors
+					</Link>
+					<Link to="/app/legend-races" className={desktopNavClass(isLegendRaces)} {...prefetchOnIntent}>
+						<Trophy className="h-4 w-4" />
+						Legend Races
 					</Link>
 				</div>
 
@@ -238,7 +238,7 @@ export const Navbar = () => {
 						) : (
 							<>
 								{navControls}
-								{signInToSaveButton}
+								{signInToSyncButton}
 							</>
 						)
 					) : (

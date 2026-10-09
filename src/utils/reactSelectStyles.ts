@@ -130,25 +130,30 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 	 * chosen either, which is the state where being obviously clickable matters
 	 * most: a lone chevron beside what looks like a heading is not an affordance.
 	 *
-	 * The fill and border are white/black alphas rather than theme tokens on
+	 * The fill and border are white/black alphas rather than gray tokens on
 	 * purpose. This control sits on the row's TYPE colour — blue, green or purple
-	 * (blue, lighter blue or red with colorblind mode on)
-	 * (`TYPE_STYLES` in MobileBannerCard) — so it has three different backgrounds
-	 * to read against and no single token can suit all three. Alphas darken and
-	 * outline whatever is behind them.
+	 * (blue or red with colorblind mode on), see `.banner-type-tile--*` in
+	 * App.css — so it has three different backgrounds to read against and no
+	 * single gray can suit all three. Alphas darken and outline whatever is
+	 * behind them.
+	 *
+	 * Which alphas depends on the mode: dark on the dark themes' deep strip,
+	 * light on the light themes' pastel one. So the values are the
+	 * `--tile-control-*` variables `.banner-type-tile` declares (App.css), and
+	 * the text inherits the kind's ink from the same element.
 	 */
 	control: (provided: CSSObjectWithLabel, state: { isFocused: boolean }) => ({
 		...provided,
 		height: "auto",
 		minHeight: "40px",
 		width: "100%",
-		backgroundColor: state.isFocused ? "rgba(0,0,0,0.34)" : "rgba(0,0,0,0.22)",
-		borderColor: state.isFocused ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.3)",
+		backgroundColor: state.isFocused ? "var(--tile-control-fill-focus)" : "var(--tile-control-fill)",
+		borderColor: state.isFocused ? "var(--tile-control-border-focus)" : "var(--tile-control-border)",
 		borderRadius: "6px",
 		// The old `boxShadow: "none"` applied in every state, which took the
 		// keyboard focus ring with it — the control had no visible focus at all.
-		boxShadow: state.isFocused ? "0 0 0 1px rgba(255,255,255,0.45)" : "none",
-		"&:hover": { borderColor: "rgba(255,255,255,0.55)" },
+		boxShadow: state.isFocused ? "0 0 0 1px var(--tile-control-ring)" : "none",
+		"&:hover": { borderColor: "var(--tile-control-border-hover)" },
 	}),
 	valueContainer: (provided: CSSObjectWithLabel) => ({
 		...provided,
@@ -164,15 +169,17 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 	dropdownIndicator: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		padding: "4px 3px",
-		color: "rgba(255,255,255,0.85)",
+		color: "inherit",
+		opacity: 0.85,
 	}),
 	singleValue: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		maxWidth: "100%",
 		margin: 0,
-		// This control sits on a dark translucent fill over the banner-type
-		// header, including in the light theme where gray-100 is plum ink.
-		color: "#fff",
+		// The kind's ink from .banner-type-tile--*: white on the dark themes'
+		// deep strip, a deep same-hue colour on the light themes' pastel one.
+		// Not gray-100, which is dark ink on a light theme whatever the fill.
+		color: "inherit",
 		fontSize: "clamp(0.875rem, 2vw, 1rem)",
 		fontWeight: 500,
 		textAlign: "left",
@@ -183,7 +190,8 @@ export const mobileBannerSelectStyles: AnyOptionStyles = {
 	placeholder: (provided: CSSObjectWithLabel) => ({
 		...provided,
 		margin: 0,
-		color: "rgba(255,255,255,0.82)",
+		color: "inherit",
+		opacity: 0.82,
 		fontSize: "clamp(0.875rem, 2vw, 1rem)",
 		textAlign: "left",
 		whiteSpace: "nowrap",

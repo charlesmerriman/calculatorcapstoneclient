@@ -38,6 +38,7 @@ const zeroStats: UserStats = {
   training_pass: false,
   misc_earnings: false,
   monthly_shop_tickets: false,
+  spend_tickets_on_banners: true,
   discounted_paid_pulls: false,
   full_price_paid_pulls: true,
   club_rank: 1,
@@ -215,6 +216,18 @@ describe('spend attribution', () => {
     expect(withoutSpend[1].freeCarats - withSpend[1].freeCarats).toBe(
       10 * PULL_COST_CARATS
     )
+  })
+
+  it('carries held-back tickets past a banner when ticket spending is off', () => {
+    const plan = [umaBanner(1, 1, 10, 10), umaBanner(2, 20, 30, 0)]
+    const spending = render(plan, { uma_ticket: 6 })
+    const holding = render(plan, { uma_ticket: 6, spend_tickets_on_banners: false })
+    // On: banner 1 uses the 6 tickets, so banner 2 starts with none.
+    expect(spending[1].umaTickets).toBe(0)
+    // Off: all 6 reach banner 2, and the 6 pulls they would have paid for
+    // were charged to carats instead.
+    expect(holding[1].umaTickets).toBe(6)
+    expect(spending[1].freeCarats - holding[1].freeCarats).toBe(6 * PULL_COST_CARATS)
   })
 
   it('does not charge a banner for pulls committed after it', () => {

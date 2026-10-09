@@ -52,6 +52,13 @@ export interface PullStrategyInput {
 	discountedPaidPulls: boolean
 	/** Whether paid carats may be spent normally (150 per pull). */
 	fullPricePaidPulls: boolean
+	/**
+	 * Whether matching tickets pay for pulls on this banner. Off means the
+	 * tickets are a reserve the plan never touches: they are skipped in the
+	 * spend, left out of "Max Pulls", and carry forward untouched. Optional and
+	 * ON when absent, because that is what every caller did before it existed.
+	 */
+	spendTickets?: boolean
 }
 
 /**
@@ -102,8 +109,8 @@ export interface PullStrategyResult {
  *   2. Computes `maxPossiblePulls` — the hypothetical maximum if the user spent
  *      everything on this banner.
  *
- * Spend order (per the product decision): free pulls → matching tickets →
- * discounted paid pulls (50 paid carats each, one per banner day) → free carats
+ * Spend order (per the product decision): free pulls → matching tickets
+ * (skipped entirely when `spendTickets` is off) → discounted paid pulls (50 paid carats each, one per banner day) → free carats
  * at 150 → full-price paid carats at 150. Free carats are spent before paid so
  * that more daily discounts stay available for later banners.
  *
@@ -122,9 +129,18 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 		discountDays,
 		discountedPaidPulls,
 		fullPricePaidPulls,
+		spendTickets = true,
 	} = input
 
-	const matchingTickets = isUmaBanner ? input.umaTickets : input.supportTickets
+	// With ticket spending off the banner has NO tickets as far as the strategy
+	// is concerned. Zeroing them here, once, is what keeps the max, its
+	// breakdown and the spend below in agreement, the same way a switched-off
+	// paid toggle keeps paid carats out of all three.
+	const matchingTickets = !spendTickets
+		? 0
+		: isUmaBanner
+		? input.umaTickets
+		: input.supportTickets
 
 	// ── maxPossiblePulls (greedy; ignores plannedPulls) ──────────────────────
 	// NOTE: `discountDays` is the banner's full window length, so this figure is
@@ -162,7 +178,12 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	const freeOnlyPulls = Math.floor(input.freeCarats / PULL_COST_CARATS)
 	const maxPullBreakdown: MaxPullBreakdown = {
 		freePulls,
-		tickets: matchingTickets,
+		// Clamped for display only. The ticket balance goes negative when an
+		// earlier-STARTING banner that ends later spent tickets this banner's
+		// earlier end date hasn't earned yet (income is by end date, spend is by
+		// start order). `maxPossiblePulls` above keeps the raw value, so the debt
+		// still counts against the total; the row just shows 0 instead of "-5".
+		tickets: Math.max(0, matchingTickets),
 		paidPulls: discountMaxPulls + Math.max(0, fullPriceMaxPulls - freeOnlyPulls),
 		// Clamped because a carat deficit makes freeOnlyPulls negative; see the
 		// deficit note on MaxPullBreakdown.
@@ -179,8 +200,10 @@ export function applyPullStrategy(input: PullStrategyInput): PullStrategyResult 
 	// 1. Free pulls.
 	remaining = Math.max(0, remaining - freePulls)
 
-	// 2. Matching tickets.
-	if (isUmaBanner) {
+	// 2. Matching tickets, unless the user is holding them back.
+	if (!spendTickets) {
+		// Nothing to do: both balances pass through to the next banner as-is.
+	} else if (isUmaBanner) {
 		const use = Math.min(remaining, umaTickets)
 		umaTickets -= use
 		remaining -= use

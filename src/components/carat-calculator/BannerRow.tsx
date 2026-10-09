@@ -17,6 +17,8 @@ import Select from "react-select"
 import type { SingleValue } from "react-select"
 import { toast } from "sonner"
 import { MLBChanceDisplay } from "./MLBChanceDisplay"
+import { oddsTarget, oddsTargetChoices } from "../../utils/oddsDisplay"
+import { OddsCaption, OddsCardsPanel } from "./OddsCards"
 import { MobileBannerCard } from "./MobileBannerCard"
 import { NumberField } from "../NumberField"
 import { formatDate } from "../../utils/dateFormat"
@@ -44,6 +46,12 @@ import type {
 } from "../../utils/bannerHelpers"
 import { STEPS_PER_ROUND, stepUpCopyDistribution } from "../../utils/stepUpLadder"
 import {
+	calculateCopyDistribution,
+	twoCardDistribution,
+	shiftDistribution,
+} from "../../utils/probabilityCalculations"
+import { oddsCards } from "../../utils/rateUpRates"
+import {
 	effectiveSelections,
 	findGuaranteedCardArt,
 	selectionsForStepUp
@@ -60,8 +68,12 @@ import {
 import { RecommendedMark } from "./RecommendedMark"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
+import { TrashIcon } from "./TrashIcon"
 import { CountStepper } from "./CountStepper"
-import { buildCountChips } from "../../utils/countChips"
+import { buildCopyChips, buildCountChips, coarsePullDelta } from "../../utils/countChips"
+
+// Static, so built once rather than per render.
+const copyChips = buildCopyChips()
 
 interface BannerRowProps {
 	plannedBanner: UserPlannedBanner
@@ -413,7 +425,7 @@ export const BannerRow = ({
 					title={stepUpCutoffHint}
 					className="flex flex-col items-center justify-center leading-none"
 				>
-					<span className="step-up-pool-chip text-sm font-bold text-purple-300">{stepUpChip}</span>
+					<span className="step-up-pool-chip text-sm font-bold text-step-up">{stepUpChip}</span>
 					{stepUpCutoff && (
 						<span className="mt-0.5 text-[9px] text-gray-400">
 							≤ {formatDate(stepUpCutoff)}
@@ -435,14 +447,125 @@ export const BannerRow = ({
 			</>
 		)
 
-	// A step-up's odds run on steps x 10 pulls at the pool rate, with a
-	// guarantee per completed round — none of which the standard binomial over
-	// `pulls` would get right. Built from chargeableSteps rather than the raw
-	// input so the odds and the carat deduction agree about how many steps
-	// happened. See stepUpCopyDistribution.
-	const stepUpOdds = isStepUp
-		? stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants)
-		: undefined
+	// --- Odds ---
+	// Which featured cards the strip is about: the row's saved choices, checked
+	// against the banner (a stale id falls back rather than breaking). Null on a
+	// step-up or an empty row, which have no featured cards to choose from.
+	const chosenCards =
+		target.type === "Uma" || target.type === "Support"
+			? oddsCards(target, plannedBanner, constants)
+			: null
+
+	// The six percentages the strip shows, final: pity, funded reserved copies
+	// and the second card are all applied here, not in MLBChanceDisplay.
+	//
+	// A step-up's run on steps x 10 pulls at the pool rate, 1-in-10 slots on
+	// steps 3 and 4, and a guaranteed pick on step 5 — none of which the
+	// standard binomial over `pulls` would get right. Built from chargeableSteps
+	// rather than the raw input so the odds and the carat deduction agree about
+	// how many steps happened. See stepUpCopyDistribution.
+	//
+	// An ordinary banner's run at its chosen card's own rate, which is 0.75%
+	// only on a typical banner (utils/rateUpRates.ts). With a second card the
+	// strip switches to "the first at its target, and the second at each
+	// level". The reserved copies then join the 200-pull exchanges as one pot
+	// of free copies, spent on the first card up to its target and then on
+	// the second: a selector or a crystal buys whichever card still needs it.
+	//
+	// The target is the row's saved choice from the panel's toggle, else the
+	// default for the banner type (one copy of an uma, MLB of a support).
+	// Declared before `odds` because the maths reads it.
+	const oddsGoal = oddsTarget(plannedBanner)
+	const odds =
+		target.type === "StepUp"
+			? shiftDistribution(
+					stepUpCopyDistribution(resources.chargeableSteps ?? 0, constants),
+					fundedReservedCopies
+				)
+			: chosenCards === null
+				? null
+				: chosenCards.primary && chosenCards.second
+					? twoCardDistribution({
+							pulls: plannedCount,
+							rateA: chosenCards.primary.rate,
+							rateB: chosenCards.second.rate,
+							reservedCopies: fundedReservedCopies,
+							targetA: oddsGoal.copies,
+						})
+					: shiftDistribution(
+							calculateCopyDistribution(
+								plannedCount,
+								chosenCards.primary?.rate ?? constants.rate_up_rate_3
+							),
+							fundedReservedCopies
+						)
+
+	// Open/closed is view state, like the note's: it is not part of the plan and
+	// must not trigger a save. One flag drives both form factors.
+	const [oddsPanelOpen, setOddsPanelOpen] = useState(false)
+
+	// Only a banner with a choice to make gets the control. On a one-card
+	// banner the strip stays exactly as it always was.
+	const canChooseCards =
+		chosenCards !== null && chosenCards.primary !== null && chosenCards.cards.length > 1
+
+	const handlePrimaryCardChange = (id: number): void => {
+		const previous = chosenCards?.primary?.id ?? null
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({
+				...banner,
+				primary_card: id,
+				// Picking the second card as the first swaps the two, so two-card
+				// odds stay on instead of quietly pairing a card with itself.
+				second_card: banner.second_card === id ? previous : banner.second_card,
+			}))
+		)
+	}
+
+	const handleSecondCardChange = (id: number | null): void => {
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({ ...banner, second_card: id }))
+		)
+	}
+
+	// The toggle's pick: 1 or MAX_COPIES. Saved on the row like the card ids,
+	// so the caption, the cell prefixes and the numbers all follow one value.
+	const handleTargetChange = (copies: number): void => {
+		setUserPlannedBannerData(
+			updateBannerInList((banner) => ({ ...banner, primary_target: copies }))
+		)
+	}
+
+	// Set only while the strip shows joint odds: the first card's target cell,
+	// which MLBChanceDisplay prefixes onto every label ("MLB & 1LB", "1x & 2x").
+	const pairedTopLabel =
+		canChooseCards && chosenCards.second ? oddsGoal.label : undefined
+
+	const oddsCaption =
+		canChooseCards && chosenCards.primary ? (
+			<OddsCaption
+				primary={chosenCards.primary}
+				second={chosenCards.second}
+				targetLabel={oddsGoal.label}
+				open={oddsPanelOpen}
+				onToggle={() => setOddsPanelOpen((open) => !open)}
+			/>
+		) : undefined
+
+	const renderOddsPanel = (className: string) =>
+		oddsPanelOpen && canChooseCards && chosenCards.primary ? (
+			<OddsCardsPanel
+				cards={chosenCards.cards}
+				primary={chosenCards.primary}
+				second={chosenCards.second}
+				target={oddsGoal}
+				targetChoices={oddsTargetChoices(plannedBanner)}
+				onPrimaryChange={handlePrimaryCardChange}
+				onSecondChange={handleSecondCardChange}
+				onTargetChange={handleTargetChange}
+				className={className}
+			/>
+		) : null
 
 	// Which options get the gold wash. An option already in the calculator keeps
 	// its greying instead: it is no longer a suggestion.
@@ -644,8 +767,13 @@ export const BannerRow = ({
 				{derivedStats.slice(0, 3).map(mobileStatCell)}
 			</div>
 			<div className="border-t border-gray-700">
-				{hasBanner ? (
-					<MLBChanceDisplay pulls={plannedCount} plannedBanner={plannedBanner} reservedCopies={fundedReservedCopies} distribution={stepUpOdds} />
+				{odds ? (
+					<MLBChanceDisplay
+						plannedBanner={plannedBanner}
+						values={odds}
+						header={oddsCaption}
+						pairedWith={pairedTopLabel}
+					/>
 				) : (
 					<div className="py-2.5 text-center text-xs text-gray-500">Select a banner</div>
 				)}
@@ -737,15 +865,15 @@ export const BannerRow = ({
 			? "Copies taken with an uma selector instead of pulling"
 			: "Copies taken with a support selector or SSR crystal instead of pulling"
 
-	// The affordable ceiling in whichever unit this row counts in. Only the pad's
-	// "Max" chip reads it — the deltas step straight past it, because planning
-	// past your budget is shown as a red field rather than prevented (the same
-	// rule handlePullCountChange above is written to preserve).
-	const countUpperBound = isStepUp ? stepUpperBound : pullUpperBound
+	// The pad's "Limit" chip jumps to what the step-up SELLS (max_steps), not to
+	// what the carats can pay for: going past the budget is shown as a red field
+	// rather than prevented (the same rule handlePullCountChange above is written
+	// to preserve). Infinity until a banner is picked, which drops the chip.
+	const stepLimit = target.type === "StepUp" ? target.banner.max_steps : Infinity
 
 	const countChips = buildCountChips({
-		isStepUp,
-		upperBound: countUpperBound,
+		rowType: bannerType,
+		stepLimit,
 		pullsPerPity: PULLS_PER_PITY_COPY,
 		stepsPerRound: STEPS_PER_ROUND,
 	})
@@ -774,7 +902,7 @@ export const BannerRow = ({
 				// large step: its ladder tops out around 25, so there is no third
 				// quantity for Ctrl to mean.
 				mediumStep={isStepUp ? STEPS_PER_ROUND : 10}
-				largeStep={isStepUp ? undefined : PULLS_PER_PITY_COPY}
+				largeStep={coarsePullDelta(bannerType, PULLS_PER_PITY_COPY)}
 				onChange={handlePullCountChange}
 			/>
 		</CountStepper>
@@ -786,15 +914,25 @@ export const BannerRow = ({
 	// factory shape as renderBannerSelect above.
 	const renderReservedInput = (widthClass: string) => (
 		<div className={`flex ${widthClass} flex-col items-center gap-0.5`}>
-			<NumberField
+			{/* A disabled field cannot take focus, so the pad never opens on a
+			    row that has no copies to reserve. */}
+			<CountStepper
+				isReadOnly={isReadOnly}
 				value={plannedBanner.reserved_copies}
-				className={`pull-input pull-input--${reservedStatus} ${widthClass}`}
-				title={reservedHint}
-				ariaLabel="Copies obtained without pulling"
-				ariaInvalid={reservedStatus === "over"}
-				disabled={isReadOnly || !hasBanner}
 				onChange={handleReservedChange}
-			/>
+				chips={copyChips}
+				label="Copies"
+			>
+				<NumberField
+					value={plannedBanner.reserved_copies}
+					className={`pull-input pull-input--${reservedStatus} ${widthClass}`}
+					title={reservedHint}
+					ariaLabel="Copies obtained without pulling"
+					ariaInvalid={reservedStatus === "over"}
+					disabled={isReadOnly || !hasBanner}
+					onChange={handleReservedChange}
+				/>
+			</CountStepper>
 			{plannedBanner.reserved_copies > 0 && (
 				// Abbreviated to fit the 5rem track. Widening it would push
 				// --container-banner-table past the ceiling documented in
@@ -830,8 +968,9 @@ export const BannerRow = ({
 			reservedInput={renderReservedInput("w-14")}
 			chanceDisplay={null}
 			noteButton={renderNoteButton(
-				"my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/15 bg-black/10 transition hover:bg-black/25"
+				"my-auto mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-(--tile-button-border) bg-black/10 transition hover:bg-black/25"
 			)}
+			oddsPanel={renderOddsPanel("border-t border-gray-700 p-2")}
 			noteEditor={renderNoteEditor("border-t border-gray-700 p-2")}
 			onRemove={handleDeleteBannerClick}
 			removeLabel="Delete banner"
@@ -918,13 +1057,16 @@ export const BannerRow = ({
 			</div>
 
 			{/* === MLB chance grid === */}
-			<div className="flex items-center justify-center py-2 px-2 min-w-0">
-				{hasBanner ? (
+			{/* py-1 when the strip carries its caption line: strip (41px) plus
+			    caption (13px) is 54px, and py-2 leaves only 48px inside this h-16
+			    row. Same trade as the reserved cell's py-0.5 above. */}
+			<div className={`flex items-center justify-center px-2 min-w-0 ${oddsCaption ? "py-1" : "py-2"}`}>
+				{odds ? (
 					<MLBChanceDisplay
-						pulls={plannedCount}
 						plannedBanner={plannedBanner}
-						reservedCopies={fundedReservedCopies}
-						distribution={stepUpOdds}
+						values={odds}
+						header={oddsCaption}
+						pairedWith={pairedTopLabel}
 					/>
 				) : (
 					<div className="w-full text-center text-xs text-gray-500">Select a banner</div>
@@ -948,13 +1090,7 @@ export const BannerRow = ({
 				title="Delete banner"
 				className="banner-delete-btn flex-1"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-					<polyline points="3 6 5 6 21 6" />
-					<path d="M19 6l-1 14H6L5 6" />
-					<path d="M10 11v6" />
-					<path d="M14 11v6" />
-					<path d="M9 6V4h6v2" />
-				</svg>
+				<TrashIcon />
 			</button>
 			</div>
 		</div>
@@ -962,6 +1098,10 @@ export const BannerRow = ({
 		{/* The open note, as a strip under the table row. Outside the grid so the
 		    row keeps its fixed h-16 and the columns stay aligned; the motion.div
 		    around each row (CaratCalculator) animates the height change. */}
+		{/* The odds-card picker, the same way: a strip under the row. */}
+		{renderOddsPanel(
+			"hidden @banner-table:flex border-t border-gray-700 bg-gray-800 px-3 py-2"
+		)}
 		{renderNoteEditor(
 			"hidden @banner-table:flex border-t border-gray-700 bg-gray-800 px-3 py-2"
 		)}

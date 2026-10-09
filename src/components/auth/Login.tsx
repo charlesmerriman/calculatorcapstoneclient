@@ -3,22 +3,22 @@ import type React from "react"
 import { Link } from "react-router-dom"
 import { Footer } from "../footer/Footer"
 import { Wordmark } from "../Wordmark"
-import { readGuestPlanStash } from "../../services/guestMigration"
+import { readGuestPlan } from "../../services/guestPlanStore"
 import { SOCIAL_PROVIDERS, startSocialLogin, type SocialProvider } from "../../services/socialAuth"
 import { PROVIDERS } from "../../constants/providers"
 import { ApiError } from "../../services/userServices"
 import { useDocumentMeta } from "../../hooks/useDocumentMeta"
 
 export const Login: React.FC = () => {
-	useDocumentMeta("Sign In", "Sign in to the Uma Musume Carat Calculator with Google, Discord or Patreon to save your plan.", true)
+	useDocumentMeta("Sign In", "Sign in to the Uma Musume Carat Calculator with Google, Discord or Patreon to keep your plan on every device.", true)
 
 	// Which provider is mid-redirect, so only that button shows a pending state.
 	const [pendingProvider, setPendingProvider] = useState<SocialProvider | null>(null)
 	const [error, setError] = useState<string | null>(null)
 
-	// Called during render (as before) — safe because readGuestPlanStash only
-	// clears entries that are already expired or malformed.
-	const hasGuestPlan = !!readGuestPlanStash()
+	// Read during render, which is safe on this route alone: /login is never
+	// prerendered or hydrated, and readGuestPlan only reads.
+	const hasGuestPlan = !!readGuestPlan()
 
 	const handleSignIn = async (provider: SocialProvider): Promise<void> => {
 		setError(null)
@@ -51,11 +51,12 @@ export const Login: React.FC = () => {
 				<div className="px-8 py-7">
 					<h2 className="mb-6 text-xl font-semibold text-gray-100">Sign In</h2>
 
-					{/* Shown when the user arrived via "Sign in to save" with a guest plan pending migration */}
+					{/* Shown when this device holds a guest plan, which the calculator
+					    moves into the account on the first load after sign-in */}
 					{hasGuestPlan && (
 						<div className="mb-5 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2.5">
 							<p className="text-sm text-brand">
-								Your current plan will be saved to your account after you sign in.
+								The plan on this device will be added to your account when you sign in.
 							</p>
 						</div>
 					)}

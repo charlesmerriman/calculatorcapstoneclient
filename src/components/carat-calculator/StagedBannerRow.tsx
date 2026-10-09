@@ -12,7 +12,7 @@ import { MobileBannerCard } from "./MobileBannerCard"
 import { RecommendedMark } from "./RecommendedMark"
 import { NumberField } from "../NumberField"
 import { CountStepper } from "./CountStepper"
-import { buildCountChips } from "../../utils/countChips"
+import { buildCopyChips, buildCountChips, coarsePullDelta } from "../../utils/countChips"
 import {
 	compactSelectStyles,
 	mobileBannerSelectStyles,
@@ -42,6 +42,10 @@ import { STEPS_PER_ROUND } from "../../utils/stepUpLadder"
 import { PULLS_PER_PITY_COPY } from "../../utils/probabilityCalculations"
 import { ExtraCardsBadge } from "./ExtraCardsBadge"
 import { BannerTypeBadge } from "./BannerTypeBadge"
+import { TrashIcon } from "./TrashIcon"
+
+// Static, so built once rather than per render.
+const copyChips = buildCopyChips()
 
 interface StagedBannerRowProps {
 	stagedBanner: UserPlannedBanner
@@ -194,7 +198,7 @@ export const StagedBannerRow = ({
 			target.banner.image ? (
 				<img src={target.banner.image} alt={target.banner.name} className="thumb-banner" />
 			) : (
-				<span className="step-up-pool-chip text-sm font-bold leading-none text-purple-300">{stepUpChip}</span>
+				<span className="step-up-pool-chip text-sm font-bold leading-none text-step-up">{stepUpChip}</span>
 			)
 		) : (
 			<>
@@ -313,17 +317,17 @@ export const StagedBannerRow = ({
 	// twice, which is how it came to be missing the pad and the keyboard steps
 	// in both copies at once.
 	//
-	// Infinity, not a number: a staged banner has no projection, so there is no
-	// affordable ceiling for a "Max" chip to jump to. buildCountChips drops the
-	// chip; the ruler and "Next pity" are the same as on the sheet.
+	// Same chips as on the sheet: none of them reads the projection a staged
+	// banner lacks. A step-up's "Limit" is what the banner sells, which is known
+	// as soon as one is picked (Infinity until then drops the chip).
 	const pullsInput = (
 		<CountStepper
 			isReadOnly={false}
 			value={stagedBanner.number_of_pulls}
 			onChange={handlePullCountChange}
 			chips={buildCountChips({
-				isStepUp,
-				upperBound: Infinity,
+				rowType: bannerType,
+				stepLimit: target.type === "StepUp" ? target.banner.max_steps : Infinity,
 				pullsPerPity: PULLS_PER_PITY_COPY,
 				stepsPerRound: STEPS_PER_ROUND,
 			})}
@@ -337,7 +341,7 @@ export const StagedBannerRow = ({
 				// The keyboard mirror of the pad's delta row, matching BannerRow
 				// so a value typed while staged behaves as it will on the sheet.
 				mediumStep={isStepUp ? STEPS_PER_ROUND : 10}
-				largeStep={isStepUp ? undefined : PULLS_PER_PITY_COPY}
+				largeStep={coarsePullDelta(bannerType, PULLS_PER_PITY_COPY)}
 				onChange={handlePullCountChange}
 			/>
 		</CountStepper>
@@ -348,14 +352,21 @@ export const StagedBannerRow = ({
 	// "over" above. Colouring it here would be inventing a funding split. The
 	// real one, and the "2s 1c" hint, appear once the banner is added.
 	const renderReservedInput = (widthClass: string) => (
-		<NumberField
+		<CountStepper
 			value={stagedBanner.reserved_copies}
-			className={`pull-input pull-input--neutral ${widthClass}`}
-			title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is added to the calculator."
-			ariaLabel="Copies obtained without pulling"
-			disabled={!hasBanner}
 			onChange={handleReservedChange}
-		/>
+			chips={copyChips}
+			label="Copies"
+		>
+			<NumberField
+				value={stagedBanner.reserved_copies}
+				className={`pull-input pull-input--neutral ${widthClass}`}
+				title="Copies you'll take with a selector ticket or an SSR crystal instead of pulling. Whether you can afford them is shown once the banner is added to the calculator."
+				ariaLabel="Copies obtained without pulling"
+				disabled={!hasBanner}
+				onChange={handleReservedChange}
+			/>
+		</CountStepper>
 	)
 
 	return (
@@ -372,14 +383,16 @@ export const StagedBannerRow = ({
 			reservedInput={renderReservedInput("w-14")}
 			onRemove={onDiscard}
 			removeLabel="Discard staged banner"
-			removeIcon="discard"
 			staged
 		/>
 
 		{/* Column widths come from .banner-grid + .banner-grid--staged (App.css),
 		    shared with the staging header row — never re-declare a width on a cell
-		    here. The staged variant drops the MLB column and gives its width to the
-		    select, so this row has EIGHT cells where BannerRow has nine. */}
+		    here. The staged variant drops the derived-stats column and gives its
+		    width to the select, so this row has EIGHT cells where BannerRow has
+		    nine. Pulls, copies, confirm and discard sit in the same tracks as the
+		    sheet's pulls, copies, MLB odds and delete, so they line up with the
+		    rows below. */}
 		<div className="banner-grid banner-grid--staged staged-surface hidden w-full items-stretch h-16 @banner-table:grid">
 			{/* === Type badge === */}
 			<BannerTypeBadge type={bannerType} />
@@ -417,23 +430,11 @@ export const StagedBannerRow = ({
 				)}
 			</div>
 
-			{/* === Add to calculator button (replaces Derived Stats) === */}
-			<div className="flex min-w-0 items-center justify-center px-3 py-2">
-				<button
-					onClick={onConfirm}
-					disabled={!hasBanner}
-					className="add-to-calculator-button w-full h-full rounded-lg bg-green-700 hover:bg-green-600 text-white font-semibold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-						<polyline points="20 6 9 17 4 12" />
-					</svg>
-					Add to calculator
-				</button>
-			</div>
-
 			{/* === # Pulls section === */}
+			{/* No left rule, unlike BannerRow's: this cell follows the dates here,
+			    whose own right rule already draws that line, and two would read as
+			    one 2px rule. */}
 			<div className="flex items-center justify-center py-2 px-1 relative">
-				<div className="absolute left-0 top-3 bottom-3 w-px bg-gray-700" />
 				<div className="absolute right-0 top-3 bottom-3 w-px bg-gray-700" />
 				{pullsInput}
 			</div>
@@ -446,12 +447,30 @@ export const StagedBannerRow = ({
 				{renderReservedInput("w-14")}
 			</div>
 
+			{/* === Add to calculator button (in the sheet's MLB track) === */}
+			{/* px-2, the MLB cell's own padding, so the button's edges land on the
+			    odds box's edges in the rows below. */}
+			<div className="flex min-w-0 items-center justify-center px-2 py-2">
+				<button
+					onClick={onConfirm}
+					disabled={!hasBanner}
+					className="add-to-calculator-button w-full h-full rounded-lg bg-green-700 hover:bg-green-600 text-white font-semibold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+						<polyline points="20 6 9 17 4 12" />
+					</svg>
+					Add to calculator
+				</button>
+			</div>
+
 			{/* === Discard button === */}
-			<button onClick={onDiscard} className="banner-delete-btn">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-					<line x1="18" y1="6" x2="6" y2="18" />
-					<line x1="6" y1="6" x2="18" y2="18" />
-				</svg>
+			<button
+				onClick={onDiscard}
+				aria-label="Discard staged banner"
+				title="Discard staged banner"
+				className="banner-delete-btn"
+			>
+				<TrashIcon />
 			</button>
 		</div>
 		</>
