@@ -215,7 +215,7 @@ describe('CalculatorProvider plans', () => {
 		await renderLoaded('/app/shared-id')
 
 		await act(async () => {
-			screen.getByRole('button', { name: 'Exit Share Plan' }).click()
+			screen.getByRole('button', { name: 'Exit Shared Plan' }).click()
 			await waitFor(() => expect(ctx().activePlanId).toBe(PLAN_A.id))
 		})
 
@@ -246,7 +246,7 @@ describe('CalculatorProvider plans', () => {
 		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
 
 		await act(async () => {
-			screen.getByRole('button', { name: 'Exit Share Plan' }).click()
+			screen.getByRole('button', { name: 'Exit Shared Plan' }).click()
 		})
 
 		expect(ctx().isReadOnly).toBe(false)

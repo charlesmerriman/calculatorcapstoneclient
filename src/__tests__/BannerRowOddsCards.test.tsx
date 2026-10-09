@@ -68,6 +68,7 @@ function renderRow(
   const setUserPlannedBannerData = vi.fn()
   render(
     <BannerRow
+      isReadOnly={false}
       plannedBanner={planned}
       userPlannedBannerData={[planned]}
       clubRankData={[]}

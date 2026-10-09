@@ -102,6 +102,7 @@ function renderUmaRow(alreadyPlanned: UserPlannedBanner[] = []) {
 
   render(
     <BannerRow
+      isReadOnly={false}
       plannedBanner={emptyRow}
       userPlannedBannerData={[...alreadyPlanned, emptyRow]}
       clubRankData={[]}

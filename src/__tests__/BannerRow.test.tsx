@@ -83,6 +83,7 @@ function renderRow(numberOfPulls: number, maxPulls: number) {
   // The row's card art links to the Timeline, so it needs a router context.
   render(
     <BannerRow
+      isReadOnly={false}
       plannedBanner={planned}
       userPlannedBannerData={[planned]}
       clubRankData={[]}
@@ -140,6 +141,7 @@ function renderReserved(
   // The row's card art links to the Timeline, so it needs a router context.
   render(
     <BannerRow
+      isReadOnly={false}
       plannedBanner={planned}
       userPlannedBannerData={[planned]}
       clubRankData={[]}
@@ -377,6 +379,7 @@ function renderStepUpRow(steps: number, maxSteps: number, stepLabel = '0') {
   // The row's card art links to the Timeline, so it needs a router context.
   render(
     <BannerRow
+      isReadOnly={false}
       plannedBanner={planned}
       userPlannedBannerData={[planned]}
       clubRankData={[]}

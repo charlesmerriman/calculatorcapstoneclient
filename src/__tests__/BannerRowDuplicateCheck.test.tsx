@@ -130,6 +130,7 @@ function renderEmptyRow(bannerType: 'Uma' | 'Support') {
 
   render(
     <BannerRow
+      isReadOnly={false}
       plannedBanner={emptyRow}
       userPlannedBannerData={[plannedUmaRow, emptyRow]}
       clubRankData={[]}
