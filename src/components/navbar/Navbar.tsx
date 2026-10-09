@@ -182,68 +182,78 @@ export const Navbar = () => {
 			    Switches on desktop-nav rather than md: this layout is already over-full
 			    below ~900px (the "Sign in to sync" button wraps to 2-3 lines), which
 			    is precisely the landscape-phone / portrait-tablet band. */}
-			<nav className="hidden h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-700 bg-gray-900 px-5 desktop-nav:grid">
-				{/* Left: Branding, on the bar's plain edge gutter on every page. Until
-				    2026-09-13 it was indented per page to line the wordmark up with the
-				    canvas below (a calc in App.css plus a measured scrollbar); the
-				    owner asked for it flush left instead, and the whole mechanism went. */}
-				<div className="flex items-center">
-					{logo}
-				</div>
+			{/* The border and background span the window; the three columns inside
+			    stop at 96rem, the same cap as .page-container. Without the cap the
+			    wordmark and the account controls rode out to the window's edges on
+			    wide screens, where a 16:9 recording crop cut both off. Below
+			    96rem + the px-5 gutters (1576px) the cap never engages and the bar
+			    is the plain edge-to-edge one. One cap for the whole bar, not a
+			    per-page inset: see ui-conventions ("The wordmark sits on the bar's
+			    gutter, capped at the page column"). */}
+			<nav className="hidden border-b border-gray-700 bg-gray-900 px-5 desktop-nav:block">
+				<div className="mx-auto grid h-16 max-w-[96rem] grid-cols-[1fr_auto_1fr] items-center">
+					{/* Left: Branding, on the bar's left gutter on every page. Until
+					    2026-09-13 it was indented per page to line the wordmark up with the
+					    canvas below (a calc in App.css plus a measured scrollbar); the
+					    owner asked for it flush left instead, and the whole mechanism went. */}
+					<div className="flex items-center">
+						{logo}
+					</div>
 
-				{/* Center: Nav links */}
-				<div className="flex items-center justify-center gap-0.5 rounded-xl border border-gray-700 bg-gray-800/60 p-1">
-					<Link to="/app" className={desktopNavClass(isCalculator)} {...prefetchOnIntent}>
-						<CalculatorIcon className="w-4 h-4" />
-						Calculator
-					</Link>
-					<Link to="/app/timeline" className={desktopNavClass(isTimeline)} {...prefetchOnIntent}>
-						<CalendarDays className="w-4 h-4" />
-						Timeline
-					</Link>
-					<Link to="/app/selectors" className={desktopNavClass(isSelectors)} {...prefetchOnIntent}>
-						<Sparkles className="h-4 w-4" />
-						Selectors
-					</Link>
-					<Link to="/app/legend-races" className={desktopNavClass(isLegendRaces)} {...prefetchOnIntent}>
-						<Trophy className="h-4 w-4" />
-						Legend Races
-					</Link>
-				</div>
+					{/* Center: Nav links */}
+					<div className="flex items-center justify-center gap-0.5 rounded-xl border border-gray-700 bg-gray-800/60 p-1">
+						<Link to="/app" className={desktopNavClass(isCalculator)} {...prefetchOnIntent}>
+							<CalculatorIcon className="w-4 h-4" />
+							Calculator
+						</Link>
+						<Link to="/app/timeline" className={desktopNavClass(isTimeline)} {...prefetchOnIntent}>
+							<CalendarDays className="w-4 h-4" />
+							Timeline
+						</Link>
+						<Link to="/app/selectors" className={desktopNavClass(isSelectors)} {...prefetchOnIntent}>
+							<Sparkles className="h-4 w-4" />
+							Selectors
+						</Link>
+						<Link to="/app/legend-races" className={desktopNavClass(isLegendRaces)} {...prefetchOnIntent}>
+							<Trophy className="h-4 w-4" />
+							Legend Races
+						</Link>
+					</div>
 
-				{/* Right: Save indicator + settings + theme picker + avatar menu / Login */}
-				<div className="flex items-center justify-end gap-2">
-					{calculatorData ? (
-						isLoggedIn ? (
-							<>
-								{/* Fixed-width slot keeps the right grid column stable so the center nav links don't shift */}
-								<div className="w-9 h-9 flex items-center justify-center">
-									{timerIsGoing && (
-										<button
-											onClick={calculatorData.saveNow}
-											aria-label="Save now"
-											title="Click to save now"
-											className={NAV_SAVE_BUTTON}
-										>
-											<OguriSpinner size="sm" />
-										</button>
-									)}
-								</div>
-								{navControls}
-								<ProfileMenu />
-							</>
+					{/* Right: Save indicator + settings + theme picker + avatar menu / Login */}
+					<div className="flex items-center justify-end gap-2">
+						{calculatorData ? (
+							isLoggedIn ? (
+								<>
+									{/* Fixed-width slot keeps the right grid column stable so the center nav links don't shift */}
+									<div className="w-9 h-9 flex items-center justify-center">
+										{timerIsGoing && (
+											<button
+												onClick={calculatorData.saveNow}
+												aria-label="Save now"
+												title="Click to save now"
+												className={NAV_SAVE_BUTTON}
+											>
+												<OguriSpinner size="sm" />
+											</button>
+										)}
+									</div>
+									{navControls}
+									<ProfileMenu />
+								</>
+							) : (
+								<>
+									{navControls}
+									{signInToSyncButton}
+								</>
+							)
 						) : (
 							<>
 								{navControls}
-								{signInToSyncButton}
+								{authButton}
 							</>
-						)
-					) : (
-						<>
-							{navControls}
-							{authButton}
-						</>
-					)}
+						)}
+					</div>
 				</div>
 			</nav>
 		</div>

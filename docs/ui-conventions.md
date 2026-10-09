@@ -722,10 +722,17 @@ Independently of the wordmark, that nav was **already** over-full at â‰¤900px â€
 of the nav and into the calculator page bought back one centre link's worth of room, but
 the wrap point has not been re-measured since.
 
-### The wordmark sits on the plain edge gutter, everywhere
+### The wordmark sits on the bar's gutter, capped at the page column
 
 Since 2026-09-13 the desktop navbar is a plain `px-5` bar on every page, and the branding
-cell has no indent of its own. Until then it was indented per page by a calc
+cell has no indent of its own. Since 2026-10-09 the bar's three columns stop at `96rem`,
+the same cap as `.page-container`. The border and background still span the window. On a
+wide screen the wordmark and the account controls used to sit at the window's edges, and
+cropping a recording to 16:9 cut both off (Henry's request, made while filming). Below
+1576px (`96rem` plus the two `px-5` gutters) the cap never engages. It is one cap for the
+whole bar and depends on no page, so the rule below still holds.
+
+Until 2026-09-13 the wordmark was indented per page by a calc
 (`--nav-inset` from `.app-canvas-shell` / `.home-canvas-shell`, a `--shell-scrollbar`
 measured by a `ResizeObserver` in `ApplicationViews`, and a `@container` on the `<nav>`
 so `cqw` could see the content box) to sit the wordmark's "U" over the calculator's
