@@ -35,6 +35,8 @@ import {
 	planSetSeparateIncome,
 } from '../services/planFetchCalls'
 import { clearAuthToken, setAuthToken } from '../services/authToken'
+import { DEFAULT_GUEST_STATS } from '../services/guestMigration'
+import { readGuestPlan, writeGuestPlan } from '../services/guestPlanStore'
 import type {
 	BannerUma,
 	CalculatorContextType,
@@ -250,6 +252,53 @@ describe('CalculatorProvider plans', () => {
 		expect(ctx().isReadOnly).toBe(false)
 		expect(ctx().userPlannedBannerData).toEqual([])
 		expect(ctx().activePlanId).toBeNull()
+	})
+
+	it('restores the saved guest plan after exiting a shared plan', async () => {
+		clearAuthToken()
+		const guestData = calculatorData()
+		guestData.banner_uma_data = [{ id: 100 } as BannerUma]
+		mockedInitialFetch.mockResolvedValue(json(guestData))
+		const guestStats = { ...DEFAULT_GUEST_STATS, current_carat: 12345 }
+		expect(
+			writeGuestPlan(
+				guestStats,
+				[{
+					number_of_pulls: 40,
+					reserved_copies: 1,
+					banner_uma: 100,
+					banner_support: null,
+					banner_step_up: null
+				}],
+				[],
+				[]
+			)
+		).toBe(true)
+
+		await renderLoaded('/app/shared-id')
+		expect(ctx().userStatsData).toEqual(STATS_B)
+		expect(ctx().userPlannedBannerData).toEqual(ROWS_B)
+
+		await act(async () => {
+			screen.getByRole('button', { name: 'Exit Shared Plan' }).click()
+		})
+
+		expect(ctx().isReadOnly).toBe(false)
+		expect(ctx().userStatsData).toEqual(guestStats)
+		expect(ctx().userPlannedBannerData).toHaveLength(1)
+		expect(ctx().userPlannedBannerData[0]).toMatchObject({
+			number_of_pulls: 40,
+			reserved_copies: 1,
+			banner_uma: { id: 100 }
+		})
+		expect(readGuestPlan()?.stats).toEqual(guestStats)
+		expect(readGuestPlan()?.banners).toEqual([{
+			number_of_pulls: 40,
+			reserved_copies: 1,
+			banner_uma: 100,
+			banner_support: null,
+			banner_step_up: null
+		}])
 	})
 
 	it('loads the plan list and which plan the rows belong to', async () => {

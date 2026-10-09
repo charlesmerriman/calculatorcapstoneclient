@@ -665,15 +665,22 @@ export const CalculatorProvider = ({ children }: CalculatorProviderProps) => {
 			return
 		}
 
+		const catalogue = catalogueRef.current
+		if (!catalogue) {
+			toast.error("Couldn't restore your guest plan. Reload the page and try again.")
+			return
+		}
+		const guestPlan = guestPlanToState(readGuestPlan(), catalogue)
+		suppressAutoSaveRef.current = true
 		setIsSharedMode(false)
 		setSharedPlanPublicId(undefined)
 		setPlans([])
 		setActivePlanId(null)
-		setUserStatsData(DEFAULT_GUEST_STATS)
-		setUserPlannedBannerData([])
+		setUserStatsData(guestPlan.stats)
+		setUserPlannedBannerData(guestPlan.banners)
 		setStagedBanners([])
-		setUserPlannedPurchaseData([])
-		setUserStepUpSelectionData([])
+		setUserPlannedPurchaseData(guestPlan.purchases)
+		setUserStepUpSelectionData(guestPlan.stepUpSelections)
 		navigate("/app", { replace: true })
 	}, [isSharedMode, plans, switchPlan, navigate])
 
