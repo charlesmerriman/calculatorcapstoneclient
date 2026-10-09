@@ -252,7 +252,7 @@ export const Selectors = () => {
 			{/* Room to scroll the last card to the top. aria-hidden: nothing to read. */}
 			{focusNeedsTailroom && <div aria-hidden="true" className={FOCUS_TAILROOM} />}
 
-			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} />
+			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} column="96rem" />
 		</div>
 	)
 }

@@ -9,6 +9,12 @@
  *
  * Unlike every other call in services/, this one is fire-and-forget: nothing in
  * the UI depends on it, so it neither returns data nor surfaces failures.
+ *
+ * It also says where the visit started: the landing page's path and the NAME of
+ * the site that linked here (never the rest of that link). The server reduces
+ * both to a short fixed list before counting them, and counts them as totals
+ * with nothing tying them to a visitor. Disclosed in the Privacy Policy's "Our
+ * own counter" paragraph; change one and you change the other.
  */
 
 import { API_URL, isRemoteBackend } from "../config/apiSource.js"
@@ -17,6 +23,31 @@ import { API_URL, isRemoteBackend } from "../config/apiSource.js"
 // the sentinel must expire when the tab closes. localStorage would mean a
 // returning visitor is never counted again, and the numbers would flatline.
 const SESSION_KEY = "visit-beacon-sent"
+
+/**
+ * The page this session started on. The beacon fires once, on the first mount,
+ * so the current path at that moment IS the landing page. Lowercased with no
+ * trailing slash, the form the server matches against its route list.
+ */
+function landingPath(): string {
+	return window.location.pathname.toLowerCase().replace(/\/+$/, "") || "/"
+}
+
+/**
+ * The hostname of the page that linked here, without "www.", or "" when the
+ * browser reports none (a bookmark, a typed address, most chat apps). Sent even
+ * when empty: the server reads "sent and empty" as a direct visit and "not
+ * sent" as an older build, and counts only the first.
+ */
+function referrerHost(): string {
+	try {
+		return new URL(document.referrer).hostname.toLowerCase().replace(/^www\./, "")
+	} catch {
+		// "" is not a URL, and neither is anything a browser might hand over
+		// malformed. Either way there is no site to name.
+		return ""
+	}
+}
 
 /**
  * Record this session's visit, at most once.
@@ -46,13 +77,18 @@ export function recordVisit(): void {
 		// per-day deduplication absorbs.
 	}
 
-	void fetch(`${API_URL}/visit`, {
+	// Query parameters rather than a body, so this stays a bare POST that needs
+	// no CORS preflight.
+	const params = new URLSearchParams({ path: landingPath(), ref: referrerHost() })
+
+	void fetch(`${API_URL}/visit?${params}`, {
 		method: "POST",
 		// Lets the request outlive the page if the visitor navigates away
 		// immediately, which is exactly the visit we would otherwise miss.
 		keepalive: true,
 		// Deliberately no Content-Type and no body: the endpoint reads neither,
-		// and a bare POST avoids provoking a CORS preflight.
+		// and a bare POST avoids provoking a CORS preflight. The query string
+		// does not count against that.
 	}).catch(() => {
 		// Swallowed on purpose. The beacon is blocked by plenty of privacy
 		// extensions, and an analytics failure must never reach the visitor as a

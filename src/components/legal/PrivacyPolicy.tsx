@@ -42,7 +42,7 @@ export const PrivacyPolicy: React.FC = () => {
 			<main className="flex-1">
 				<div className="mx-auto max-w-3xl px-4 py-8">
 					<h1 className="text-3xl font-bold text-gray-100">Privacy Policy</h1>
-					<p className="mt-2 text-sm text-gray-500">Last updated: October 7, 2026</p>
+					<p className="mt-2 text-sm text-gray-500">Last updated: October 9, 2026</p>
 
 					<p className={paragraph}>
 						This policy explains what the Uma Musume Carat Calculator (&quot;the Site&quot;)
@@ -173,8 +173,12 @@ export const PrivacyPolicy: React.FC = () => {
 					<p className={paragraph}>
 						To understand how many people use the Site, we count page loads ourselves.
 						When you load the Site,
-						your browser sends a single request that increments a daily counter. It sets
-						no cookie, and it happens whether or not you have an account.
+						your browser sends a single request that increments a daily counter. That
+						request also says which page you opened first and the name of the site that
+						linked you here, if any, such as google.com, so we can see which pages and
+						communities bring people in. We keep only the page and the site&apos;s name,
+						never the rest of the link. The request sets no cookie, and it happens whether
+						or not you have an account.
 					</p>
 					<p className={paragraph}>
 						So that we can tell how many separate people visit, not just how many

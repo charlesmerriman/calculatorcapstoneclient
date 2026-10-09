@@ -890,7 +890,8 @@ export const Timeline = () => {
 				<div className="mx-auto grid w-full max-w-[96rem] grid-cols-1 items-stretch gap-3 px-3 py-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-2">
 					<div className="flex w-full flex-col gap-2 justify-self-start sm:flex-row sm:flex-wrap md:w-auto">
 						{/* Desktop only — on a phone this band scrolls away, so the floating
-						    button at the foot of the component carries the arrow instead.
+						    button at the foot of the component is the only arrow there. On
+						    desktop the floating one shows too; this is the in-band companion.
 						    Hidden through a wrapper because controlButtonClass already sets
 						    inline-flex, and two display utilities on one element resolve by
 						    stylesheet order rather than class order; `contents` keeps the
@@ -1120,13 +1121,13 @@ export const Timeline = () => {
 				</div>
 			)}
 
-			{/* Phones and short viewports, where the band above is not pinned and the
-			    arrow would otherwise be 250 cards out of reach. */}
-			<FloatingBackToTop
-				onClick={scrollToTop}
-				visible={isAwayFromTop}
-				className="app-shell:hidden"
-			/>
+			{/* Every viewport. On phones and short viewports it is the only arrow: the
+			    band above is not pinned there, and the toolbar arrow would be 250 cards
+			    out of reach. On desktop it doubles the toolbar arrow on purpose. Readers
+			    reach for the floating one far more than the one in the band, so hiding
+			    it at app-shell (as this once did) made the page feel like it had no
+			    "back to top" at all. */}
+			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} column="96rem" />
 		</div>
 	)
 }

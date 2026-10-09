@@ -8,7 +8,9 @@
  *
  * Adding a public route means adding it here AND to public/sitemap.xml — a test holds
  * the two lists equal — and calling `useDocumentMeta` as the page's first statement,
- * because the build fails on a route that reports no title.
+ * because the build fails on a route that reports no title. Add it to the API's
+ * `visits.KNOWN_ROUTES` too (backend repo), or visits that start on it are counted
+ * as "other" on the analytics page.
  *
  * /login and /auth/callback are deliberately absent: they are noindex plumbing, and
  * the callback is a page the browser is REDIRECTED to with a one-time code in the
