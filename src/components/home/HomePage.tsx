@@ -346,7 +346,7 @@ export const HomePage = () => {
 				</div>
 			</main>
 			<Footer />
-			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} />
+			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} column="104rem" />
 		</div>
 	)
 }

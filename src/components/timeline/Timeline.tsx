@@ -1127,7 +1127,7 @@ export const Timeline = () => {
 			    reach for the floating one far more than the one in the band, so hiding
 			    it at app-shell (as this once did) made the page feel like it had no
 			    "back to top" at all. */}
-			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} />
+			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} column="96rem" />
 		</div>
 	)
 }

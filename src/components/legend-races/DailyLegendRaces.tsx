@@ -6,6 +6,8 @@ import { useAccount } from "../../services/AuthContext"
 import { useSiteContent } from "../../services/SiteContentContext"
 import { MarkdownContent } from "../info/MarkdownContent"
 import { FOCUS_TAILROOM, useFocusScroll } from "../../hooks/useFocusScroll"
+import { useBackToTop } from "../../hooks/useBackToTop"
+import { FloatingBackToTop } from "../BackToTop"
 import { formatDate } from "../../utils/dateFormat"
 import {
 	LEGEND_RACES_RELEASE_PARAM,
@@ -110,6 +112,8 @@ export const DailyLegendRaces = () => {
 	// Room to scroll the last card to the top; see FOCUS_TAILROOM.
 	const focusNeedsTailroom = focusIndex >= 0 && focusIndex === rendered.length - 1
 
+	const { topRef, isAwayFromTop, scrollToTop } = useBackToTop()
+
 	const renderCard = (release: DailyLegendRaceRelease, isAvailable: boolean) => (
 		<LegendRaceReleaseCard
 			key={release.id}
@@ -125,6 +129,11 @@ export const DailyLegendRaces = () => {
 	return (
 		<div className="mx-auto my-3 flex w-[calc(100%-1rem)] max-w-5xl flex-col gap-4 sm:w-[calc(100%-2rem)]">
 			<header>
+				{/* Scroll anchor for "back to top" — zero-height, so it costs no layout.
+				    Inside the header rather than ahead of it, because the page root is a
+				    flex column with gap-4: a sibling anchor would push the title down by a
+				    gap's worth. Here it marks the same spot for free. */}
+				<div ref={topRef} aria-hidden="true" />
 				<h1 className="flex items-center gap-2 text-xl font-bold text-brand">
 					<Trophy className="h-5 w-5 shrink-0" />
 					{page?.title ?? FALLBACK_TITLE}
@@ -245,6 +254,8 @@ export const DailyLegendRaces = () => {
 			)}
 
 			{focusNeedsTailroom && <div aria-hidden="true" className={FOCUS_TAILROOM} />}
+
+			<FloatingBackToTop onClick={scrollToTop} visible={isAwayFromTop} column="64rem" />
 		</div>
 	)
 }
