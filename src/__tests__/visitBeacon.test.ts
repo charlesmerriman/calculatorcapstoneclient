@@ -46,7 +46,14 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+  window.history.replaceState({}, '', '/')
 })
+
+/** The query parameters the one beacon call carried. */
+function sentParams(): URLSearchParams {
+  return new URL(fetchMock.mock.calls[0][0]).searchParams
+}
 
 describe('recordVisit', () => {
   it('posts to /visit', async () => {
@@ -55,7 +62,7 @@ describe('recordVisit', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, options] = fetchMock.mock.calls[0]
-    expect(url).toBe('http://localhost:8000/visit')
+    expect(new URL(url).origin + new URL(url).pathname).toBe('http://localhost:8000/visit')
     expect(options).toMatchObject({ method: 'POST', keepalive: true })
   })
 
@@ -144,5 +151,43 @@ describe('recordVisit', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     failing.mockRestore()
+  })
+
+  describe('where the visit started', () => {
+    it('sends the landing page, lowercased without a trailing slash', async () => {
+      window.history.replaceState({}, '', '/App/Timeline/?tab=2')
+      const recordVisit = await loadBeacon()
+      recordVisit()
+
+      // The query string never leaves the browser: only the path is sent.
+      expect(sentParams().get('path')).toBe('/app/timeline')
+    })
+
+    it('sends the root as "/"', async () => {
+      const recordVisit = await loadBeacon()
+      recordVisit()
+
+      expect(sentParams().get('path')).toBe('/')
+    })
+
+    it('sends only the linking site name, without www', async () => {
+      vi.spyOn(document, 'referrer', 'get').mockReturnValue(
+        'https://www.Google.com/search?q=uma+carat+calculator',
+      )
+      const recordVisit = await loadBeacon()
+      recordVisit()
+
+      expect(sentParams().get('ref')).toBe('google.com')
+    })
+
+    it('sends an empty ref, not none, when there is no referrer', async () => {
+      // "Sent and empty" is a direct visit to the server; "not sent" is an old build.
+      vi.spyOn(document, 'referrer', 'get').mockReturnValue('')
+      const recordVisit = await loadBeacon()
+      recordVisit()
+
+      expect(sentParams().has('ref')).toBe(true)
+      expect(sentParams().get('ref')).toBe('')
+    })
   })
 })
