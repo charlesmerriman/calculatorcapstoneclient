@@ -81,7 +81,8 @@ interface MobileBannerCardProps {
 	 * decision applied to two elements (shell and body), and a caller supplying
 	 * only one of them would half-tint the card.
 	 */
-	staged?: boolean
+	staged?: boolean,
+	isReadOnly?: boolean
 }
 
 /**
@@ -179,6 +180,7 @@ export const MobileBannerCard = ({
 	onRemove,
 	removeLabel,
 	staged = false,
+	isReadOnly
 }: MobileBannerCardProps) => {
 	const style = TYPE_STYLES[bannerType]
 
@@ -215,6 +217,7 @@ export const MobileBannerCard = ({
 				{noteButton}
 
 				<button
+					disabled={isReadOnly}
 					onClick={onRemove}
 					aria-label={removeLabel}
 					title={removeLabel}

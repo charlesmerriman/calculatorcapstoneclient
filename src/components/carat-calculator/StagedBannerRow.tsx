@@ -322,6 +322,7 @@ export const StagedBannerRow = ({
 	// as soon as one is picked (Infinity until then drops the chip).
 	const pullsInput = (
 		<CountStepper
+			isReadOnly={false}
 			value={stagedBanner.number_of_pulls}
 			onChange={handlePullCountChange}
 			chips={buildCountChips({

@@ -27,6 +27,13 @@ export function planFetch(planId: number): Promise<Response> {
 	})
 }
 
+/** Fetch a publicly shared plan without exposing the owner's private data. */
+export function publicPlanFetch(publicId: string): Promise<Response> {
+	return fetch(`${API_URL}/plans/public/${encodeURIComponent(publicId)}`, {
+		method: "GET"
+	})
+}
+
 /**
  * A new plan, blank or copied from another of the caller's plans. The server
  * creates it INACTIVE; switching to it is a separate planActivate call, made

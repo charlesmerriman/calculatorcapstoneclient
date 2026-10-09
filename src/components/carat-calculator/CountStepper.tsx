@@ -24,6 +24,7 @@ const GAP = 6
 const EDGE = 8
 
 interface CountStepperProps {
+	isReadOnly: boolean
 	value: number
 	onChange: (next: number) => void
 	chips: CountChipSet
@@ -57,6 +58,7 @@ interface CountStepperProps {
  * you click four of them in a row and keep arrow-keying afterwards.
  */
 export const CountStepper = ({
+	isReadOnly,
 	value,
 	onChange,
 	chips,
@@ -209,8 +211,8 @@ export const CountStepper = ({
 		<div
 			ref={anchorRef}
 			className="flex"
-			onFocus={() => setOpen(true)}
-			onBlur={handleBlur}
+			onFocus={() => { !isReadOnly ? setOpen(true) : undefined }}
+			onBlur={ !isReadOnly ? handleBlur : undefined}
 		>
 			{children}
 
