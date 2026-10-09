@@ -49,7 +49,7 @@ type FloatingBackToTopProps = {
 	onClick: () => void
 	/** Whether to show it at all — false leaves it mounted but inert. */
 	visible: boolean
-	/** Extra classes, e.g. a breakpoint that hides it where a bar carries the arrow instead. */
+	/** Extra classes for the caller's positioning or breakpoint needs. */
 	className?: string
 }
 
